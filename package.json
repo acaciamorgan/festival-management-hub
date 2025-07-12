@@ -48,10 +48,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/morganharris/FX-ManagementV2.git"
+    "url": "git+https://github.com/acaciamorgan/festival-management-hub.git"
   },
-  "homepage": "https://github.com/morganharris/FX-ManagementV2#readme",
+  "homepage": "https://github.com/acaciamorgan/festival-management-hub#readme",
   "bugs": {
-    "url": "https://github.com/morganharris/FX-ManagementV2/issues"
+    "url": "https://github.com/acaciamorgan/festival-management-hub/issues"
   }
 }
