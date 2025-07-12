@@ -3,15 +3,17 @@ import { Users, Calendar, MessageSquare, FileText, User, Settings, Send, Filter,
 
 const EventInterviewApp: React.FC = () => {
   const [currentUser, setCurrentUser] = useState({ 
-    role: 'journalist', 
+    role: 'programming', 
+    team: 'Programming Team',
     name: 'Sarah Johnson', 
-    outlet: 'Entertainment Weekly',
+    title: 'Programming Director',
     id: 1,
-    email: 'sarah.johnson@ew.com',
+    email: 'sarah.johnson@festival.com',
     lastActive: Date.now()
   });
   
-  const [activeTab, setActiveTab] = useState('celebrities');
+  const [activeModule, setActiveModule] = useState('programming');
+  const [activeTab, setActiveTab] = useState('films');
   const [selectedDay, setSelectedDay] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedCelebrities, setSelectedCelebrities] = useState([]);
@@ -62,6 +64,14 @@ const EventInterviewApp: React.FC = () => {
   const [isResizing, setIsResizing] = useState(false);
   const [selectedModalCelebrity, setSelectedModalCelebrity] = useState(null);
   const [selectedModalJournalist, setSelectedModalJournalist] = useState(null);
+  
+  // Film state management
+  const [films, setFilms] = useState([]);
+  const [filmSearchQuery, setFilmSearchQuery] = useState('');
+  const [filmStatusFilter, setFilmStatusFilter] = useState('all');
+  const [filmCategoryFilter, setFilmCategoryFilter] = useState('all');
+  const [selectedFilm, setSelectedFilm] = useState(null);
+  const [showFilmModal, setShowFilmModal] = useState(false);
   
   // Mock PR Team Members
   const [prTeamMembers] = useState([
@@ -154,6 +164,180 @@ const EventInterviewApp: React.FC = () => {
       completed: { 'Tara Strong': true, 'John DiMaggio': false },
       timestamp: '2025-07-06 11:30',
       isNew: false
+    }
+  ]);
+
+  // Mock film data for Programming module
+  const [mockFilms] = useState([
+    {
+      id: 1,
+      title: "Midnight in Monterey",
+      director: "Sofia Rodriguez",
+      country: "USA",
+      year: 2024,
+      runtime: 95,
+      genre: ["Drama", "Romance"],
+      category: "Feature Narrative",
+      status: "confirmed",
+      premiereType: "World Premiere",
+      synopsis: "A young musician discovers love and loss in the vibrant music scene of Monterey Bay.",
+      submissionDate: "2024-02-15",
+      selectionDate: "2024-04-20",
+      screeningTimes: ["Friday 7:00 PM", "Sunday 3:00 PM"],
+      venue: "Main Theater",
+      language: "English",
+      subtitles: ["Spanish", "French"],
+      rating: "PG-13",
+      productionCompany: "Sunset Films",
+      contact: {
+        name: "Maria Garcia",
+        email: "maria@sunsetfilms.com",
+        phone: "(555) 123-4567"
+      },
+      technicalSpecs: {
+        format: "DCP",
+        aspectRatio: "2.39:1",
+        soundFormat: "5.1 Surround"
+      },
+      cast: ["Emma Chen", "David Martinez", "Sarah Kim"],
+      awards: ["Best Cinematography - Sundance 2024"],
+      notes: "Director attending both screenings"
+    },
+    {
+      id: 2,
+      title: "Digital Ghosts",
+      director: "Alex Thompson",
+      country: "Canada",
+      year: 2024,
+      runtime: 78,
+      genre: ["Sci-Fi", "Thriller"],
+      category: "Feature Narrative",
+      status: "confirmed",
+      premiereType: "US Premiere",
+      synopsis: "In a near-future world, a programmer uncovers a conspiracy hidden in AI code.",
+      submissionDate: "2024-01-22",
+      selectionDate: "2024-03-15",
+      screeningTimes: ["Saturday 9:00 PM"],
+      venue: "Digital Theater",
+      language: "English",
+      subtitles: ["Spanish"],
+      rating: "R",
+      productionCompany: "Northern Lights Productions",
+      contact: {
+        name: "James Wilson",
+        email: "james@nlprod.ca",
+        phone: "(555) 234-5678"
+      },
+      technicalSpecs: {
+        format: "DCP",
+        aspectRatio: "1.85:1",
+        soundFormat: "7.1 Surround"
+      },
+      cast: ["Michael Roberts", "Lisa Zhang", "Tom Anderson"],
+      awards: [],
+      notes: "Special VFX presentation after screening"
+    },
+    {
+      id: 3,
+      title: "The Last Garden",
+      director: "Yuki Tanaka",
+      country: "Japan",
+      year: 2024,
+      runtime: 52,
+      genre: ["Documentary"],
+      category: "Documentary Short",
+      status: "confirmed",
+      premiereType: "International Premiere",
+      synopsis: "Following an elderly gardener's fight to preserve traditional farming in modern Tokyo.",
+      submissionDate: "2024-03-01",
+      selectionDate: "2024-05-10",
+      screeningTimes: ["Saturday 2:00 PM"],
+      venue: "Documentary Hall",
+      language: "Japanese",
+      subtitles: ["English", "Spanish"],
+      rating: "NR",
+      productionCompany: "Tokyo Documentary Collective",
+      contact: {
+        name: "Hiroshi Sato",
+        email: "hiroshi@tdcollective.jp",
+        phone: "+81-3-1234-5678"
+      },
+      technicalSpecs: {
+        format: "DCP",
+        aspectRatio: "16:9",
+        soundFormat: "Stereo"
+      },
+      cast: ["Kenji Yamamoto"],
+      awards: ["Audience Choice - Tokyo Film Festival 2024"],
+      notes: "Interpreter needed for Q&A"
+    },
+    {
+      id: 4,
+      title: "Broken Strings",
+      director: "Carlos Mendez",
+      country: "Mexico",
+      year: 2024,
+      runtime: 18,
+      genre: ["Drama"],
+      category: "Narrative Short",
+      status: "waitlist",
+      premiereType: "North American Premiere",
+      synopsis: "A street musician's guitar breaks on the day of his biggest audition.",
+      submissionDate: "2024-04-05",
+      selectionDate: null,
+      screeningTimes: [],
+      venue: "TBD",
+      language: "Spanish",
+      subtitles: ["English"],
+      rating: "PG",
+      productionCompany: "Indie Mexico Films",
+      contact: {
+        name: "Ana Rodriguez",
+        email: "ana@indiemx.com",
+        phone: "+52-55-1234-5678"
+      },
+      technicalSpecs: {
+        format: "DCP",
+        aspectRatio: "1.85:1",
+        soundFormat: "Stereo"
+      },
+      cast: ["Roberto Silva", "Carmen Lopez"],
+      awards: [],
+      notes: "Backup selection for shorts program"
+    },
+    {
+      id: 5,
+      title: "Ocean's Memory",
+      director: "Isabella Romano",
+      country: "Italy",
+      year: 2024,
+      runtime: 110,
+      genre: ["Drama", "Family"],
+      category: "Feature Narrative",
+      status: "under_review",
+      premiereType: "World Premiere",
+      synopsis: "Three generations of women reunite at their family's seaside home to scatter their matriarch's ashes.",
+      submissionDate: "2024-05-01",
+      selectionDate: null,
+      screeningTimes: [],
+      venue: "TBD",
+      language: "Italian",
+      subtitles: ["English"],
+      rating: "PG-13",
+      productionCompany: "Mediterranean Films",
+      contact: {
+        name: "Giuseppe Bianchi",
+        email: "giuseppe@medfilms.it",
+        phone: "+39-06-1234-5678"
+      },
+      technicalSpecs: {
+        format: "DCP",
+        aspectRatio: "2.35:1",
+        soundFormat: "5.1 Surround"
+      },
+      cast: ["Monica Bellucci", "Claudia Romano", "Sophia Bianchi"],
+      awards: [],
+      notes: "Programming committee reviewing"
     }
   ]);
   
@@ -379,6 +563,11 @@ const EventInterviewApp: React.FC = () => {
     
     return () => clearInterval(interval);
   }, []);
+
+  // Initialize films with mock data
+  useEffect(() => {
+    setFilms(mockFilms);
+  }, [mockFilms]);
 
   const getFilteredCelebrities = () => {
     let filtered = celebrities;
@@ -1213,6 +1402,60 @@ FAN EXPO Chicago PR Team`,
     }, 100);
   };
 
+  // Film utility functions
+  const getFilteredFilms = () => {
+    let filtered = films;
+    
+    // Filter by search query
+    if (filmSearchQuery) {
+      filtered = filtered.filter(film => 
+        film.title.toLowerCase().includes(filmSearchQuery.toLowerCase()) ||
+        film.director.toLowerCase().includes(filmSearchQuery.toLowerCase()) ||
+        film.country.toLowerCase().includes(filmSearchQuery.toLowerCase()) ||
+        film.genre.some(g => g.toLowerCase().includes(filmSearchQuery.toLowerCase()))
+      );
+    }
+    
+    // Filter by status
+    if (filmStatusFilter !== 'all') {
+      filtered = filtered.filter(film => film.status === filmStatusFilter);
+    }
+    
+    // Filter by category
+    if (filmCategoryFilter !== 'all') {
+      filtered = filtered.filter(film => film.category === filmCategoryFilter);
+    }
+    
+    return filtered;
+  };
+
+  const getFilmStats = () => {
+    const confirmed = films.filter(f => f.status === 'confirmed').length;
+    const underReview = films.filter(f => f.status === 'under_review').length;
+    const waitlist = films.filter(f => f.status === 'waitlist').length;
+    const total = films.length;
+    
+    return { confirmed, underReview, waitlist, total };
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'confirmed': return 'bg-green-100 text-green-800';
+      case 'under_review': return 'bg-yellow-100 text-yellow-800';
+      case 'waitlist': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'confirmed': return '✓';
+      case 'under_review': return '⏳';
+      case 'waitlist': return '⏸';
+      default: return '?';
+    }
+  };
+
   // Get unread message counts
   const getUnreadMessageCounts = () => {
     // For demo purposes, using some logic to simulate unread messages
@@ -1866,95 +2109,425 @@ FAN EXPO Chicago PR Team`,
         {/* Sidebar */}
         <nav className="w-64 bg-white shadow-sm h-screen relative z-10">
           <div className="p-4">
-            <div className="space-y-2">
-              <button
-                onClick={() => setActiveTab('celebrities')}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
-                  activeTab === 'celebrities' ? 'bg-pink-100 text-pink-700' : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <Users size={20} />
-                <span>Guests</span>
-              </button>
-              
-              {currentUser.role === 'pr' && (
-                <>
-                  <button
-                    onClick={() => setActiveTab('journalists')}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
-                      activeTab === 'journalists' ? 'bg-pink-100 text-pink-700' : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <User size={20} />
-                    <span>Journalists</span>
-                  </button>
-                  
-                  <button
-                    onClick={() => setActiveTab('agents')}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
-                      activeTab === 'agents' ? 'bg-pink-100 text-pink-700' : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Users size={20} />
-                    <span>Agents</span>
-                  </button>
-                </>
-              )}
-              
-              <button
-                onClick={() => setActiveTab('requests')}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
-                  activeTab === 'requests' ? 'bg-pink-100 text-pink-700' : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <Calendar size={20} />
-                <span>Interview Requests</span>
-                {getNewRequestsCount() > 0 && currentUser.role === 'pr' && (
-                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                    {getNewRequestsCount()}
-                  </span>
-                )}
-              </button>
-              
-              <button
-                onClick={() => setActiveTab('messages')}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
-                  activeTab === 'messages' ? 'bg-pink-100 text-pink-700' : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <MessageSquare size={20} />
-                <span>Messages</span>
-              </button>
-              
-              <button
-                onClick={() => setActiveTab('press')}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
-                  activeTab === 'press' ? 'bg-pink-100 text-pink-700' : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <FileText size={20} />
-                <span>Press Materials</span>
-              </button>
-              
-              {currentUser.role === 'pr' && (
+            {/* Module Selection */}
+            <div className="mb-6">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Modules</h3>
+              <div className="space-y-1">
                 <button
-                  onClick={() => setActiveTab('dashboard')}
+                  onClick={() => {
+                    setActiveModule('programming');
+                    setActiveTab('films');
+                  }}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
-                    activeTab === 'dashboard' ? 'bg-pink-100 text-pink-700' : 'text-gray-700 hover:bg-gray-100'
+                    activeModule === 'programming' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Star size={20} />
+                  <span>Programming</span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setActiveModule('scheduling');
+                    setActiveTab('schedule');
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
+                    activeModule === 'scheduling' ? 'bg-green-100 text-green-700' : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Calendar size={20} />
+                  <span>Scheduling & Venues</span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setActiveModule('press');
+                    setActiveTab('journalists');
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
+                    activeModule === 'press' ? 'bg-pink-100 text-pink-700' : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <FileText size={20} />
+                  <span>Press & Media</span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setActiveModule('operations');
+                    setActiveTab('guests');
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
+                    activeModule === 'operations' ? 'bg-purple-100 text-purple-700' : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   <Settings size={20} />
-                  <span>Dashboard</span>
+                  <span>Operations</span>
                 </button>
-              )}
+              </div>
+            </div>
+            
+            {/* Module-Specific Navigation */}
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                {activeModule === 'programming' && 'Programming Tools'}
+                {activeModule === 'scheduling' && 'Scheduling Tools'}
+                {activeModule === 'press' && 'Press Tools'}
+                {activeModule === 'operations' && 'Operations Tools'}
+              </h3>
+              
+              <div className="space-y-1">
+                {/* Programming Module Navigation */}
+                {activeModule === 'programming' && (
+                  <>
+                    <button
+                      onClick={() => setActiveTab('films')}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
+                        activeTab === 'films' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <FileText size={18} />
+                      <span>Films</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('submissions')}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
+                        activeTab === 'submissions' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Plus size={18} />
+                      <span>Submissions</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('categories')}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
+                        activeTab === 'categories' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Filter size={18} />
+                      <span>Categories</span>
+                    </button>
+                  </>
+                )}
+                
+                {/* Scheduling Module Navigation */}
+                {activeModule === 'scheduling' && (
+                  <>
+                    <button
+                      onClick={() => setActiveTab('schedule')}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
+                        activeTab === 'schedule' ? 'bg-green-50 text-green-700 border border-green-200' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Calendar size={18} />
+                      <span>Schedule</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('venues')}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
+                        activeTab === 'venues' ? 'bg-green-50 text-green-700 border border-green-200' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Users size={18} />
+                      <span>Venues</span>
+                    </button>
+                  </>
+                )}
+                
+                {/* Press Module Navigation */}
+                {activeModule === 'press' && (
+                  <>
+                    <button
+                      onClick={() => setActiveTab('journalists')}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
+                        activeTab === 'journalists' ? 'bg-pink-50 text-pink-700 border border-pink-200' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <User size={18} />
+                      <span>Journalists</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('press-requests')}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
+                        activeTab === 'press-requests' ? 'bg-pink-50 text-pink-700 border border-pink-200' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <MessageSquare size={18} />
+                      <span>Press Requests</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('messages')}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
+                        activeTab === 'messages' ? 'bg-pink-50 text-pink-700 border border-pink-200' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Mail size={18} />
+                      <span>Messages</span>
+                    </button>
+                  </>
+                )}
+                
+                {/* Operations Module Navigation */}
+                {activeModule === 'operations' && (
+                  <>
+                    <button
+                      onClick={() => setActiveTab('guests')}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
+                        activeTab === 'guests' ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Users size={18} />
+                      <span>Festival Guests</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('dashboard')}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left ${
+                        activeTab === 'dashboard' ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Settings size={18} />
+                      <span>Dashboard</span>
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </nav>
 
         {/* Main Content */}
         <main className="flex-1 p-6 bg-gray-100 relative z-10">
-          {/* Guests Tab */}
-          {activeTab === 'celebrities' && (
+          {/* Programming Module - Films Tab */}
+          {activeModule === 'programming' && activeTab === 'films' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Film Management</h2>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setShowFilmModal(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                  >
+                    <Plus size={16} />
+                    Add Film
+                  </button>
+                  <div className="text-sm text-gray-600">
+                    {getFilmStats().total} films total
+                  </div>
+                </div>
+              </div>
+              
+              {/* Film Statistics */}
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="bg-white rounded-lg border p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Confirmed</p>
+                      <p className="text-2xl font-bold text-green-600">{getFilmStats().confirmed}</p>
+                    </div>
+                    <CheckCircle className="text-green-500" size={24} />
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg border p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Under Review</p>
+                      <p className="text-2xl font-bold text-yellow-600">{getFilmStats().underReview}</p>
+                    </div>
+                    <Clock className="text-yellow-500" size={24} />
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg border p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Waitlist</p>
+                      <p className="text-2xl font-bold text-gray-600">{getFilmStats().waitlist}</p>
+                    </div>
+                    <AlertCircle className="text-gray-500" size={24} />
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg border p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Films</p>
+                      <p className="text-2xl font-bold text-blue-600">{getFilmStats().total}</p>
+                    </div>
+                    <Star className="text-blue-500" size={24} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Search and Filters */}
+              <div className="bg-white rounded-lg border p-4 mb-6">
+                <div className="flex flex-wrap gap-4 items-center">
+                  <div className="flex items-center gap-2">
+                    <Search size={18} />
+                    <input
+                      type="text"
+                      placeholder="Search films, directors, countries..."
+                      value={filmSearchQuery}
+                      onChange={(e) => setFilmSearchQuery(e.target.value)}
+                      className="px-3 py-2 border rounded-lg w-64"
+                    />
+                  </div>
+                  <select
+                    value={filmStatusFilter}
+                    onChange={(e) => setFilmStatusFilter(e.target.value)}
+                    className="px-3 py-2 border rounded-lg"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="confirmed">✓ Confirmed</option>
+                    <option value="under_review">⏳ Under Review</option>
+                    <option value="waitlist">⏸ Waitlist</option>
+                  </select>
+                  <select
+                    value={filmCategoryFilter}
+                    onChange={(e) => setFilmCategoryFilter(e.target.value)}
+                    className="px-3 py-2 border rounded-lg"
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="Feature Narrative">Feature Narrative</option>
+                    <option value="Documentary Short">Documentary Short</option>
+                    <option value="Narrative Short">Narrative Short</option>
+                  </select>
+                  {(filmSearchQuery || filmStatusFilter !== 'all' || filmCategoryFilter !== 'all') && (
+                    <button
+                      onClick={() => {
+                        setFilmSearchQuery('');
+                        setFilmStatusFilter('all');
+                        setFilmCategoryFilter('all');
+                      }}
+                      className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Films List */}
+              <div className="space-y-4">
+                {getFilteredFilms().map(film => (
+                  <div key={film.id} className="bg-white rounded-lg border p-6 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-lg font-semibold">{film.title}</h3>
+                          <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(film.status)}`}>
+                            {getStatusIcon(film.status)} {film.status.replace('_', ' ').toUpperCase()}
+                          </span>
+                          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                            {film.premiereType}
+                          </span>
+                        </div>
+                        <p className="text-gray-600 mb-2">
+                          <strong>Director:</strong> {film.director} | <strong>Country:</strong> {film.country} | <strong>Year:</strong> {film.year}
+                        </p>
+                        <p className="text-gray-600 mb-2">
+                          <strong>Runtime:</strong> {film.runtime} min | <strong>Category:</strong> {film.category} | <strong>Rating:</strong> {film.rating}
+                        </p>
+                        <p className="text-gray-700 mb-3">{film.synopsis}</p>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {film.genre.map(g => (
+                            <span key={g} className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
+                              {g}
+                            </span>
+                          ))}
+                        </div>
+                        {film.screeningTimes.length > 0 && (
+                          <div className="text-sm text-gray-600">
+                            <strong>Screenings:</strong> {film.screeningTimes.join(', ')} | <strong>Venue:</strong> {film.venue}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setSelectedFilm(film)}
+                        className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200"
+                      >
+                        View Details
+                      </button>
+                    </div>
+                    {film.notes && (
+                      <div className="bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-400">
+                        <p className="text-sm text-yellow-800">
+                          <strong>Notes:</strong> {film.notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                
+                {getFilteredFilms().length === 0 && (
+                  <div className="bg-white rounded-lg border p-8 text-center">
+                    <Search size={48} className="mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No films found</h3>
+                    <p className="text-gray-600">
+                      Try adjusting your search criteria or filters.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Programming Module - Submissions Tab */}
+          {activeModule === 'programming' && activeTab === 'submissions' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Film Submissions</h2>
+                <div className="text-sm text-gray-600">
+                  156 submissions under review
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg border p-8 text-center">
+                <div className="max-w-md mx-auto">
+                  <Plus size={48} className="mx-auto text-blue-500 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Submission Management</h3>
+                  <p className="text-gray-600 mb-4">
+                    Track and review all film submissions for the festival.
+                  </p>
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      Module under development - Submission workflow, review process, 
+                      and selection tools coming soon.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Programming Module - Categories Tab */}
+          {activeModule === 'programming' && activeTab === 'categories' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Festival Categories</h2>
+                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                  <Plus size={16} />
+                  Add Category
+                </button>
+              </div>
+              
+              <div className="bg-white rounded-lg border p-8 text-center">
+                <div className="max-w-md mx-auto">
+                  <Filter size={48} className="mx-auto text-blue-500 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Category Management</h3>
+                  <p className="text-gray-600 mb-4">
+                    Organize films into festival categories and competition sections.
+                  </p>
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      Module under development - Category creation, film assignment, 
+                      and competition management tools coming soon.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Guests Tab (now under Operations) */}
+          {activeModule === 'operations' && activeTab === 'guests' && (
             <div>
               <div className="flex justify-between items-center mb-6">
                 <div>
@@ -4020,6 +4593,160 @@ FAN EXPO Chicago PR Team`,
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Film Detail Modal */}
+      {selectedFilm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto mx-4">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-2xl font-bold">{selectedFilm.title}</h2>
+                <button
+                  onClick={() => setSelectedFilm(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Basic Information */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Film Information</h3>
+                  <div className="space-y-2 text-sm">
+                    <div><strong>Director:</strong> {selectedFilm.director}</div>
+                    <div><strong>Country:</strong> {selectedFilm.country}</div>
+                    <div><strong>Year:</strong> {selectedFilm.year}</div>
+                    <div><strong>Runtime:</strong> {selectedFilm.runtime} minutes</div>
+                    <div><strong>Category:</strong> {selectedFilm.category}</div>
+                    <div><strong>Rating:</strong> {selectedFilm.rating}</div>
+                    <div><strong>Language:</strong> {selectedFilm.language}</div>
+                    <div><strong>Subtitles:</strong> {selectedFilm.subtitles.join(', ')}</div>
+                    <div className="flex items-center gap-2">
+                      <strong>Status:</strong> 
+                      <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(selectedFilm.status)}`}>
+                        {getStatusIcon(selectedFilm.status)} {selectedFilm.status.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </div>
+                    <div><strong>Premiere Type:</strong> {selectedFilm.premiereType}</div>
+                  </div>
+                  
+                  <h4 className="text-md font-semibold mt-4 mb-2">Genres</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedFilm.genre.map(g => (
+                      <span key={g} className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
+                        {g}
+                      </span>
+                    ))}
+                  </div>
+
+                  {selectedFilm.cast.length > 0 && (
+                    <>
+                      <h4 className="text-md font-semibold mt-4 mb-2">Cast</h4>
+                      <div className="text-sm">
+                        {selectedFilm.cast.join(', ')}
+                      </div>
+                    </>
+                  )}
+                </div>
+                
+                {/* Production & Technical */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Production Details</h3>
+                  <div className="space-y-2 text-sm">
+                    <div><strong>Production Company:</strong> {selectedFilm.productionCompany}</div>
+                    <div><strong>Submission Date:</strong> {selectedFilm.submissionDate}</div>
+                    {selectedFilm.selectionDate && (
+                      <div><strong>Selection Date:</strong> {selectedFilm.selectionDate}</div>
+                    )}
+                  </div>
+                  
+                  <h4 className="text-md font-semibold mt-4 mb-2">Contact Information</h4>
+                  <div className="space-y-1 text-sm">
+                    <div><strong>Name:</strong> {selectedFilm.contact.name}</div>
+                    <div><strong>Email:</strong> {selectedFilm.contact.email}</div>
+                    <div><strong>Phone:</strong> {selectedFilm.contact.phone}</div>
+                  </div>
+                  
+                  <h4 className="text-md font-semibold mt-4 mb-2">Technical Specifications</h4>
+                  <div className="space-y-1 text-sm">
+                    <div><strong>Format:</strong> {selectedFilm.technicalSpecs.format}</div>
+                    <div><strong>Aspect Ratio:</strong> {selectedFilm.technicalSpecs.aspectRatio}</div>
+                    <div><strong>Sound:</strong> {selectedFilm.technicalSpecs.soundFormat}</div>
+                  </div>
+
+                  {selectedFilm.awards.length > 0 && (
+                    <>
+                      <h4 className="text-md font-semibold mt-4 mb-2">Awards & Recognition</h4>
+                      <div className="space-y-1 text-sm">
+                        {selectedFilm.awards.map((award, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <Star size={16} className="text-yellow-500" />
+                            {award}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+              
+              {/* Synopsis */}
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-3">Synopsis</h3>
+                <p className="text-gray-700 leading-relaxed">{selectedFilm.synopsis}</p>
+              </div>
+              
+              {/* Screening Information */}
+              {selectedFilm.screeningTimes.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-3">Screening Schedule</h3>
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="text-sm">
+                      <div><strong>Venue:</strong> {selectedFilm.venue}</div>
+                      <div><strong>Screenings:</strong></div>
+                      <ul className="list-disc list-inside ml-4 mt-1">
+                        {selectedFilm.screeningTimes.map((time, index) => (
+                          <li key={index}>{time}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Notes */}
+              {selectedFilm.notes && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-3">Notes</h3>
+                  <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
+                    <p className="text-yellow-800">{selectedFilm.notes}</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Action Buttons */}
+              <div className="mt-6 flex gap-3 pt-4 border-t">
+                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  Edit Film
+                </button>
+                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                  Update Status
+                </button>
+                <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                  Schedule Screening
+                </button>
+                <button 
+                  onClick={() => setSelectedFilm(null)}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
