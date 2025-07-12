@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 120">
+  <!-- This is a placeholder - you would replace this with the actual Acacia logo SVG -->
+  <rect width="300" height="120" fill="white" stroke="#333" stroke-width="2"/>
+  <text x="20" y="45" font-family="Arial" font-size="32" fill="#333" font-weight="normal">ACACIA</text>
+  <text x="20" y="75" font-family="Arial" font-size="16" fill="#333" font-weight="normal">CONSULTING GROUP</text>
+  <!-- Simple tree silhouette -->
+  <g transform="translate(220, 20)">
+    <path d="M40,80 L40,60 Q30,50 35,40 Q25,35 30,25 Q20,20 25,10 Q15,5 20,0 Q35,0 45,10 Q55,5 70,0 Q75,5 65,10 Q75,20 65,25 Q70,35 60,40 Q65,50 55,60 L55,80 Z" fill="#333"/>
+  </g>
+</svg>

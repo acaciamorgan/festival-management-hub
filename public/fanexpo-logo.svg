@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120">
+  <!-- This is a placeholder - you would replace this with the actual FAN EXPO logo SVG -->
+  <rect width="400" height="120" fill="#FF1493"/>
+  <text x="50" y="70" font-family="Arial Black" font-size="48" fill="white" font-weight="900">FAN</text>
+  <text x="180" y="70" font-family="Arial Black" font-size="48" fill="black" font-weight="900">EXPO</text>
+  <text x="50" y="100" font-family="Arial" font-size="20" fill="black" font-weight="bold">CHICAGO</text>
+</svg>
