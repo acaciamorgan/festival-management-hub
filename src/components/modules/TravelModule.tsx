@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { 
   Search, Filter, Plus, Edit3, Mail, Phone, Calendar, Clock,
   Plane, Building, User, MapPin, AlertCircle, CheckCircle, 
-  Upload, Download, Users, Film, Star, Globe
+  Upload, Download, Users, Film, Star, Globe, Save, X
 } from 'lucide-react';
+import { useData } from '../../contexts/DataContext';
 
 interface Flight {
   date: string;
@@ -67,6 +68,7 @@ interface TravelModuleProps {
 }
 
 const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
+  const { films, people } = useData();
   const [travelers, setTravelers] = useState<Traveler[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -240,6 +242,15 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
     return colors[status as keyof typeof colors] || 'text-gray-600';
   };
 
+  // Helper function to convert 24-hour time to 12-hour AM/PM format
+  const formatTime = (time24: string) => {
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
   const filteredTravelers = travelers.filter(traveler => {
     const matchesSearch = 
       traveler.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -407,12 +418,6 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
                     <div>
                       <div className="font-medium text-gray-900">{traveler.name}</div>
                       <div className="text-sm text-gray-600">{traveler.role}</div>
-                      {traveler.createdFromFilm && (
-                        <div className="text-xs text-blue-600 flex items-center mt-1">
-                          <Film className="w-3 h-3 mr-1" />
-                          From film database
-                        </div>
-                      )}
                     </div>
                   </td>
                   <td className="px-4 py-4">
@@ -430,7 +435,7 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
                     {traveler.arrivalFlight ? (
                       <div className="text-sm">
                         <div className="font-medium">{new Date(traveler.arrivalFlight.date).toLocaleDateString()}</div>
-                        <div className="text-gray-600">{traveler.arrivalFlight.time}</div>
+                        <div className="text-gray-600">{formatTime(traveler.arrivalFlight.time)}</div>
                         <div className="text-gray-500 text-xs">{traveler.arrivalFlight.originAirport} → {traveler.arrivalFlight.arrivalAirport}</div>
                       </div>
                     ) : (
@@ -441,7 +446,7 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
                     {traveler.departureFlight ? (
                       <div className="text-sm">
                         <div className="font-medium">{new Date(traveler.departureFlight.date).toLocaleDateString()}</div>
-                        <div className="text-gray-600">{traveler.departureFlight.time}</div>
+                        <div className="text-gray-600">{formatTime(traveler.departureFlight.time)}</div>
                         <div className="text-gray-500 text-xs">{traveler.departureFlight.originAirport} → {traveler.departureFlight.arrivalAirport}</div>
                       </div>
                     ) : (
@@ -564,7 +569,7 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
                           <div key={interview.id} className="bg-blue-50 p-3 rounded-lg">
                             <div className="font-medium text-gray-900">{interview.journalistName}</div>
                             <div className="text-sm text-gray-600">
-                              {new Date(interview.date).toLocaleDateString()} at {interview.time}
+                              {new Date(interview.date).toLocaleDateString()} at {formatTime(interview.time)}
                             </div>
                             <div className={`text-xs ${getInterviewStatusColor(interview.status)} capitalize`}>
                               {interview.status}
@@ -596,7 +601,7 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
                           </h3>
                           <div className="bg-gray-50 p-3 rounded-lg space-y-1 text-sm">
                             <div><span className="font-medium">Date:</span> {new Date(selectedTraveler.arrivalFlight.date).toLocaleDateString()}</div>
-                            <div><span className="font-medium">Time:</span> {selectedTraveler.arrivalFlight.time}</div>
+                            <div><span className="font-medium">Time:</span> {formatTime(selectedTraveler.arrivalFlight.time)}</div>
                             <div><span className="font-medium">Route:</span> {selectedTraveler.arrivalFlight.originAirport} → {selectedTraveler.arrivalFlight.arrivalAirport}</div>
                           </div>
                         </div>
@@ -610,7 +615,7 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
                           </h3>
                           <div className="bg-gray-50 p-3 rounded-lg space-y-1 text-sm">
                             <div><span className="font-medium">Date:</span> {new Date(selectedTraveler.departureFlight.date).toLocaleDateString()}</div>
-                            <div><span className="font-medium">Time:</span> {selectedTraveler.departureFlight.time}</div>
+                            <div><span className="font-medium">Time:</span> {formatTime(selectedTraveler.departureFlight.time)}</div>
                             <div><span className="font-medium">Route:</span> {selectedTraveler.departureFlight.originAirport} → {selectedTraveler.departureFlight.arrivalAirport}</div>
                           </div>
                         </div>
@@ -669,11 +674,179 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
 
               {user.permissions.travelModule === 'full_edit' && (
                 <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end">
-                  <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                  <button 
+                    onClick={() => {
+                      setShowTravelerModal(false);
+                      setShowAddModal(true);
+                    }}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  >
                     Edit Traveler
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Traveler Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">Add Traveler</h2>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                const newTraveler: Traveler = {
+                  id: travelers.length + 1,
+                  name: formData.get('name') as string,
+                  role: formData.get('role') as string,
+                  filmTitle: formData.get('filmTitle') as string || undefined,
+                  programPurpose: formData.get('programPurpose') as string,
+                  contactInfo: {
+                    primary: {
+                      email: formData.get('email') as string,
+                      phone: formData.get('phone') as string || undefined
+                    }
+                  },
+                  travelStatus: formData.get('travelStatus') as any,
+                  upcomingInterviews: [],
+                  notes: formData.get('notes') as string || undefined,
+                  createdFromFilm: false
+                };
+                setTravelers(prev => [...prev, newTraveler]);
+                setShowAddModal(false);
+              }}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                    <input type="text" name="name" required className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+                    <input type="text" name="role" required className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Director, Actor, etc." />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Film Title</label>
+                    <select name="filmTitle" className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                      <option value="">Select Film (optional)</option>
+                      {films.map(film => (
+                        <option key={film.id} value={film.title}>{film.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Travel Status *</label>
+                    <select name="travelStatus" required className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                      <option value="festival_arranged">Festival Arranged</option>
+                      <option value="distributor_handling">Distributor Handling</option>
+                      <option value="local">Local</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Program Purpose *</label>
+                  <textarea name="programPurpose" required rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Premiere, Q&A, panel discussion, etc."></textarea>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <input type="email" name="email" required className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input type="tel" name="phone" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <textarea name="notes" rows={3} className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Special requirements, distributor contact info, etc."></textarea>
+                </div>
+
+                <div className="flex justify-end space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  >
+                    Add Traveler
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Data Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-lg w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Import Traveler Data</h2>
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload CSV File</label>
+                  <input 
+                    type="file" 
+                    accept=".csv"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Expected columns: Name, Role, Film Title, Email, Phone, Travel Status, Purpose
+                  </p>
+                </div>
+
+                <div className="flex justify-end space-x-4 pt-4">
+                  <button
+                    onClick={() => setShowImportModal(false)}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Here you would handle the CSV import
+                      setShowImportModal(false);
+                    }}
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+                  >
+                    Import
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
