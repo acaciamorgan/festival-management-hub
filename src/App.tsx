@@ -1,7 +1,7 @@
-import EventInterviewApp from './components/EventInterviewApp'
+import FestivalManagementApp from './components/FestivalManagementApp'
 
 function App() {
-  return <EventInterviewApp />
+  return <FestivalManagementApp />
 }
 
 export default App
