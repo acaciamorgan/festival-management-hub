@@ -77,10 +77,25 @@ const TitleManagement: React.FC<TitleManagementProps> = ({ user }) => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Title Management</h2>
-          <p className="text-gray-600">Manage festival films and programs</p>
+        <div className="flex items-center space-x-6">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Title Management</h2>
+            <p className="text-gray-600">Manage festival films and programs</p>
+          </div>
+          
+          {/* Search Bar - moved to header level */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search films, directors..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-80 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
         </div>
+        
         <div className="flex items-center space-x-4">
           {/* View Toggle */}
           <div className="flex rounded-lg border border-gray-300 p-1">
@@ -116,56 +131,41 @@ const TitleManagement: React.FC<TitleManagementProps> = ({ user }) => {
         </div>
       </div>
 
-      {/* Search and Filters */}
+      {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search films, directors, countries..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-          
-          <div className="flex gap-4">
-            <select
-              value={selectedProgram}
-              onChange={(e) => setSelectedProgram(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Programs</option>
-              {programs.map(program => (
-                <option key={program} value={program}>{program}</option>
-              ))}
-            </select>
+        <div className="flex flex-wrap gap-4">
+          <select
+            value={selectedProgram}
+            onChange={(e) => setSelectedProgram(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Programs</option>
+            {programs.map(program => (
+              <option key={program} value={program}>{program}</option>
+            ))}
+          </select>
 
-            <select
-              value={selectedGenre}
-              onChange={(e) => setSelectedGenre(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Genres</option>
-              {genres.map(genre => (
-                <option key={genre} value={genre}>{genre}</option>
-              ))}
-            </select>
+          <select
+            value={selectedGenre}
+            onChange={(e) => setSelectedGenre(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Genres</option>
+            {genres.map(genre => (
+              <option key={genre} value={genre}>{genre}</option>
+            ))}
+          </select>
 
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="title">Sort by Title</option>
-              <option value="director">Sort by Director</option>
-              <option value="runtime">Sort by Runtime</option>
-              <option value="year">Sort by Year</option>
-            </select>
-          </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="title">Sort by Title</option>
+            <option value="director">Sort by Director</option>
+            <option value="runtime">Sort by Runtime</option>
+            <option value="year">Sort by Year</option>
+          </select>
         </div>
       </div>
 

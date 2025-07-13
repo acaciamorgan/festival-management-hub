@@ -51,6 +51,7 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
   const [showScreeningModal, setShowScreeningModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showRSVPModal, setShowRSVPModal] = useState(false);
+  const [showRSVPListModal, setShowRSVPListModal] = useState(false);
   const [editingScreening, setEditingScreening] = useState<number | null>(null);
   const [editValues, setEditValues] = useState<{
     date: string;
@@ -350,9 +351,6 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                   RSVPs
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Calendar
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -365,7 +363,15 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                   <tr key={screening.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4">
                       <div>
-                        <div className="font-medium text-gray-900">{screening.filmTitle}</div>
+                        <button 
+                          className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
+                          onClick={() => {
+                            // This would navigate to film card - placeholder for now
+                            console.log('Navigate to film card:', screening.filmTitle);
+                          }}
+                        >
+                          {screening.filmTitle}
+                        </button>
                         <div className="text-sm text-gray-600">{screening.runtime} minutes</div>
                       </div>
                     </td>
@@ -419,38 +425,15 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                       )}
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center">
-                        <span className="font-medium text-gray-900 mr-2">
-                          {screening.rsvpCount}
-                          {screening.capacity && ` / ${screening.capacity}`}
-                        </span>
-                        {capacityStatus && (
-                          <span className={`text-xs ${capacityStatus.color} flex items-center`}>
-                            <capacityStatus.icon className="w-3 h-3 mr-1" />
-                            {capacityStatus.text}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      {screening.calendarInvitesSent ? (
-                        <span className="flex items-center text-green-600 text-sm">
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Sent
-                        </span>
-                      ) : (
-                        <div className="flex items-center">
-                          <span className="text-gray-400 text-sm mr-2">Not sent</span>
-                          {user.permissions.pressScreeningManagement === 'full_edit' && (
-                            <button
-                              onClick={() => sendCalendarInvites(screening.id)}
-                              className="text-blue-600 hover:text-blue-800 text-xs"
-                            >
-                              Send
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      <button
+                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        onClick={() => {
+                          setSelectedScreening(screening);
+                          setShowRSVPListModal(true);
+                        }}
+                      >
+                        {screening.rsvpCount}
+                      </button>
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center space-x-2">
@@ -625,6 +608,157 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Screening Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Add Press Screening</h2>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Film Title</label>
+                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                      <option value="">Select Film</option>
+                      {films.map(film => (
+                        <option key={film.id} value={film.title}>{film.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Runtime (minutes)</label>
+                    <input type="number" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                    <input type="time" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Venue</label>
+                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">House/Theater Number</label>
+                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Staff Assigned</label>
+                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                      <option value="">Select Staff Member</option>
+                      {staff.map(member => (
+                        <option key={member.id} value={member.name}>
+                          {member.name} - {member.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Capacity (optional)</label>
+                    <input type="number" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-200 flex justify-end space-x-4 mt-6">
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    // Here you would save the screening
+                    setShowAddModal(false);
+                  }}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                >
+                  Add Screening
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RSVP List Modal */}
+      {showRSVPListModal && selectedScreening && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">RSVP List</h2>
+                  <p className="text-gray-600">
+                    {selectedScreening.filmTitle} - {new Date(selectedScreening.date).toLocaleDateString()} at {formatTime(selectedScreening.time)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowRSVPListModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {selectedScreening.rsvps.length > 0 ? (
+                  selectedScreening.rsvps.map((rsvp) => (
+                    <div key={rsvp.id} className="bg-gray-50 p-4 rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">{rsvp.journalistName}</div>
+                          <div className="text-sm text-gray-600">{rsvp.journalistOutlet}</div>
+                          <div className="text-sm text-gray-500">{rsvp.journalistEmail}</div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={rsvp.attended || false}
+                              onChange={(e) => updateAttendance(selectedScreening.id, rsvp.id, e.target.checked)}
+                              className="mr-2"
+                              disabled={user.permissions.pressScreeningManagement !== 'full_edit'}
+                            />
+                            <span className="text-sm text-gray-700">Attended</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    No RSVPs for this screening
+                  </div>
+                )}
               </div>
             </div>
           </div>

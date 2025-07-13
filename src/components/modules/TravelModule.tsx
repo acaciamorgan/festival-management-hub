@@ -78,6 +78,15 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
+  // Helper function to convert 24-hour time to 12-hour AM/PM format
+  const formatTime = (time24: string) => {
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
   // Mock data
   useEffect(() => {
     const mockTravelers: Traveler[] = [
@@ -240,15 +249,6 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
       'pitched': 'text-gray-600'
     };
     return colors[status as keyof typeof colors] || 'text-gray-600';
-  };
-
-  // Helper function to convert 24-hour time to 12-hour AM/PM format
-  const formatTime = (time24: string) => {
-    const [hours, minutes] = time24.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour % 12 || 12;
-    return `${hour12}:${minutes} ${ampm}`;
   };
 
   const filteredTravelers = travelers.filter(traveler => {

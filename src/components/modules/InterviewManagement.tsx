@@ -39,6 +39,7 @@ interface InterviewManagementProps {
 }
 
 const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
+  const { films, getFilmByTitle, getPersonByName } = useData();
   const [requests, setRequests] = useState<InterviewRequest[]>([]);
   
   // Helper function to convert 24-hour time to 12-hour AM/PM format
@@ -58,6 +59,14 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedRequests, setSelectedRequests] = useState<number[]>([]);
   const [selectedRequestForScheduling, setSelectedRequestForScheduling] = useState<InterviewRequest | null>(null);
+  const [showFilmModal, setShowFilmModal] = useState(false);
+  const [showJournalistModal, setShowJournalistModal] = useState(false);
+  const [selectedFilm, setSelectedFilm] = useState<any>(null);
+  const [selectedJournalist, setSelectedJournalist] = useState<any>(null);
+  const [editingField, setEditingField] = useState<{requestId: number, field: 'status' | 'priority'} | null>(null);
+  const [filmSearchQuery, setFilmSearchQuery] = useState('');
+  const [selectedFilmForAdd, setSelectedFilmForAdd] = useState<any>(null);
+  const [showFilmDropdown, setShowFilmDropdown] = useState(false);
 
   // Mock data
   useEffect(() => {
@@ -232,6 +241,31 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
 
   const statusCounts = getStatusCounts();
 
+  const filteredFilms = films.filter(film =>
+    film.title.toLowerCase().includes(filmSearchQuery.toLowerCase()) ||
+    film.director.toLowerCase().includes(filmSearchQuery.toLowerCase())
+  ).slice(0, 10); // Limit to 10 results for performance
+
+  const handleFilmClick = (filmTitle: string) => {
+    const film = getFilmByTitle(filmTitle);
+    if (film) {
+      setSelectedFilm(film);
+      setShowFilmModal(true);
+    }
+  };
+
+  const handleJournalistClick = (journalistName: string, journalistOutlet: string, journalistEmail: string) => {
+    const journalist = getPersonByName(journalistName) || {
+      id: Date.now(),
+      name: journalistName,
+      role: 'Journalist',
+      outlet: journalistOutlet,
+      email: journalistEmail
+    };
+    setSelectedJournalist(journalist);
+    setShowJournalistModal(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -263,17 +297,27 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
       {/* Status Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
-          { key: 'pitched', label: 'Pitched', color: 'bg-blue-50 border-blue-200 text-blue-800' },
-          { key: 'pending', label: 'Pending', color: 'bg-yellow-50 border-yellow-200 text-yellow-800' },
-          { key: 'approved', label: 'Approved', color: 'bg-green-50 border-green-200 text-green-800' },
-          { key: 'scheduled', label: 'Scheduled', color: 'bg-purple-50 border-purple-200 text-purple-800' },
-          { key: 'complete', label: 'Complete', color: 'bg-gray-50 border-gray-200 text-gray-800' },
-          { key: 'declined', label: 'Declined', color: 'bg-red-50 border-red-200 text-red-800' }
-        ].map(({ key, label, color }) => (
-          <div key={key} className={`p-4 rounded-lg border-2 ${color} cursor-pointer hover:opacity-80`} 
-               onClick={() => setStatusFilter(statusFilter === key ? 'all' : key)}>
+          { key: 'pitched', label: 'Pitched', color: 'bg-blue-50 border-blue-200 text-blue-800', activeColor: 'bg-blue-100 border-blue-500 text-blue-900 shadow-lg' },
+          { key: 'pending', label: 'Pending', color: 'bg-yellow-50 border-yellow-200 text-yellow-800', activeColor: 'bg-yellow-100 border-yellow-500 text-yellow-900 shadow-lg' },
+          { key: 'approved', label: 'Approved', color: 'bg-green-50 border-green-200 text-green-800', activeColor: 'bg-green-100 border-green-500 text-green-900 shadow-lg' },
+          { key: 'scheduled', label: 'Scheduled', color: 'bg-purple-50 border-purple-200 text-purple-800', activeColor: 'bg-purple-100 border-purple-500 text-purple-900 shadow-lg' },
+          { key: 'complete', label: 'Complete', color: 'bg-gray-50 border-gray-200 text-gray-800', activeColor: 'bg-gray-100 border-gray-500 text-gray-900 shadow-lg' },
+          { key: 'declined', label: 'Declined', color: 'bg-red-50 border-red-200 text-red-800', activeColor: 'bg-red-100 border-red-500 text-red-900 shadow-lg' }
+        ].map(({ key, label, color, activeColor }) => (
+          <div 
+            key={key} 
+            className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+              statusFilter === key ? activeColor : color
+            } ${statusFilter === key ? 'transform scale-105' : 'hover:opacity-80'}`} 
+            onClick={() => setStatusFilter(statusFilter === key ? 'all' : key)}
+          >
             <div className="text-2xl font-bold">{statusCounts[key as keyof typeof statusCounts]}</div>
             <div className="text-sm">{label}</div>
+            {statusFilter === key && (
+              <div className="text-xs mt-1 font-medium">
+                ✓ Active Filter
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -366,21 +410,80 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
                 <tr key={request.id} className="hover:bg-gray-50">
                   <td className="px-4 py-4">
                     <div>
-                      <div className="font-medium text-gray-900">{request.filmTitle}</div>
+                      <button
+                        onClick={() => handleFilmClick(request.filmTitle)}
+                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
+                      >
+                        {request.filmTitle}
+                      </button>
                       <div className="text-sm text-gray-600">{request.talentName} ({request.talentRole})</div>
                     </div>
                   </td>
                   <td className="px-4 py-4">
                     <div>
-                      <div className="font-medium text-gray-900">{request.journalistName}</div>
+                      <button
+                        onClick={() => handleJournalistClick(request.journalistName, request.journalistOutlet, request.journalistEmail)}
+                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
+                      >
+                        {request.journalistName}
+                      </button>
                       <div className="text-sm text-gray-600">{request.journalistOutlet}</div>
                     </div>
                   </td>
                   <td className="px-4 py-4">
-                    {getStatusBadge(request.status)}
+                    {editingField?.requestId === request.id && editingField?.field === 'status' ? (
+                      <select
+                        value={request.status}
+                        onChange={(e) => {
+                          updateRequestStatus(request.id, e.target.value);
+                          setEditingField(null);
+                        }}
+                        onBlur={() => setEditingField(null)}
+                        autoFocus
+                        className="text-xs border border-gray-300 rounded px-2 py-1"
+                      >
+                        <option value="pitched">Pitched</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="declined">Declined</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="complete">Complete</option>
+                      </select>
+                    ) : (
+                      <button
+                        onClick={() => user.permissions.interviewManagement === 'full_edit' && setEditingField({ requestId: request.id, field: 'status' })}
+                        className={`${user.permissions.interviewManagement === 'full_edit' ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+                      >
+                        {getStatusBadge(request.status)}
+                      </button>
+                    )}
                   </td>
                   <td className="px-4 py-4">
-                    {getPriorityBadge(request.priority)}
+                    {editingField?.requestId === request.id && editingField?.field === 'priority' ? (
+                      <select
+                        value={request.priority}
+                        onChange={(e) => {
+                          setRequests(prev => prev.map(r => 
+                            r.id === request.id ? { ...r, priority: e.target.value as 'A' | 'B' | 'C' } : r
+                          ));
+                          setEditingField(null);
+                        }}
+                        onBlur={() => setEditingField(null)}
+                        autoFocus
+                        className="text-xs border border-gray-300 rounded px-2 py-1"
+                      >
+                        <option value="A">Priority A</option>
+                        <option value="B">Priority B</option>
+                        <option value="C">Priority C</option>
+                      </select>
+                    ) : (
+                      <button
+                        onClick={() => user.permissions.interviewManagement === 'full_edit' && setEditingField({ requestId: request.id, field: 'priority' })}
+                        className={`${user.permissions.interviewManagement === 'full_edit' ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+                      >
+                        {getPriorityBadge(request.priority)}
+                      </button>
+                    )}
                   </td>
                   <td className="px-4 py-4">
                     {request.scheduledDate && request.scheduledTime ? (
@@ -401,60 +504,44 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
                   </td>
                   <td className="px-4 py-4">
                     <div className="flex space-x-2">
-                      {user.permissions.interviewManagement === 'full_edit' && (
+                      {user.permissions.interviewManagement === 'full_edit' ? (
                         <>
-                          {request.status === 'pitched' && (
-                            <>
-                              <button
-                                onClick={() => updateRequestStatus(request.id, 'pending')}
-                                className="text-blue-600 hover:text-blue-800 text-sm"
-                              >
-                                Mark Interested
-                              </button>
-                              <button
-                                onClick={() => updateRequestStatus(request.id, 'declined')}
-                                className="text-red-600 hover:text-red-800 text-sm"
-                              >
-                                Decline
-                              </button>
-                            </>
-                          )}
-                          {request.status === 'pending' && (
-                            <>
-                              <button
-                                onClick={() => updateRequestStatus(request.id, 'approved')}
-                                className="text-green-600 hover:text-green-800 text-sm"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => updateRequestStatus(request.id, 'declined')}
-                                className="text-red-600 hover:text-red-800 text-sm"
-                              >
-                                Decline
-                              </button>
-                            </>
-                          )}
-                          {request.status === 'approved' && (
+                          {(request.status === 'approved' || request.status === 'pending') && (
                             <button
                               onClick={() => {
                                 setSelectedRequestForScheduling(request);
                                 setShowScheduleModal(true);
                               }}
-                              className="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700"
+                              className="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700 flex items-center"
                             >
+                              <Calendar className="w-3 h-3 mr-1" />
                               Schedule
                             </button>
                           )}
-                          {request.status === 'scheduled' && (
+                          {request.status !== 'complete' && request.status !== 'declined' && (
                             <button
-                              onClick={() => updateRequestStatus(request.id, 'complete')}
-                              className="text-green-600 hover:text-green-800 text-sm"
+                              onClick={() => updateRequestStatus(request.id, 'declined')}
+                              className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 flex items-center"
                             >
-                              Mark Complete
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Cancel
                             </button>
                           )}
+                          {request.status === 'complete' && (
+                            <span className="text-gray-500 text-sm italic flex items-center">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Complete
+                            </span>
+                          )}
+                          {request.status === 'declined' && (
+                            <span className="text-gray-500 text-sm italic flex items-center">
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Cancelled
+                            </span>
+                          )}
                         </>
+                      ) : (
+                        <span className="text-gray-400 text-sm">View Only</span>
                       )}
                     </div>
                   </td>
@@ -581,9 +668,78 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
 
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                  <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Film Title</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={selectedFilmForAdd ? selectedFilmForAdd.title : filmSearchQuery}
+                        onChange={(e) => {
+                          setFilmSearchQuery(e.target.value);
+                          setSelectedFilmForAdd(null);
+                          setShowFilmDropdown(true);
+                        }}
+                        onFocus={() => setShowFilmDropdown(true)}
+                        placeholder="Search films..."
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-8"
+                      />
+                      <Film className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      
+                      {showFilmDropdown && (filmSearchQuery.length > 0 || !selectedFilmForAdd) && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                          {filteredFilms.length > 0 ? (
+                            filteredFilms.map((film) => (
+                              <div
+                                key={film.id}
+                                onClick={() => {
+                                  setSelectedFilmForAdd(film);
+                                  setFilmSearchQuery('');
+                                  setShowFilmDropdown(false);
+                                }}
+                                className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                              >
+                                <div className="font-medium text-gray-900">{film.title}</div>
+                                <div className="text-sm text-gray-600">
+                                  {film.director} • {film.originalReleaseYear} • {film.countries.join(', ')}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {film.programs.join(', ')}
+                                </div>
+                              </div>
+                            ))
+                          ) : filmSearchQuery.length > 0 ? (
+                            <div className="p-3 text-gray-500 text-sm">
+                              No films found matching "{filmSearchQuery}"
+                            </div>
+                          ) : (
+                            <div className="p-3 text-gray-500 text-sm">
+                              Start typing to search films...
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {selectedFilmForAdd && (
+                      <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-blue-900">{selectedFilmForAdd.title}</div>
+                            <div className="text-sm text-blue-700">
+                              {selectedFilmForAdd.director} • {selectedFilmForAdd.originalReleaseYear}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setSelectedFilmForAdd(null);
+                              setFilmSearchQuery('');
+                            }}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Talent Name</label>
@@ -738,9 +894,31 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
                   <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Room number, Zoom link, or phone details" />
                 </div>
 
-                <div className="flex items-center">
-                  <input type="checkbox" className="mr-2" defaultChecked />
-                  <label className="text-sm text-gray-700">Send calendar invites to participants</label>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="flex items-start">
+                    <div className="flex items-center mr-3">
+                      <input type="checkbox" className="mr-2" defaultChecked />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-blue-900">Send calendar invites</label>
+                      <div className="text-xs text-blue-700 mt-1">
+                        Calendar invites will be sent to:
+                      </div>
+                      <div className="text-xs text-blue-600 mt-1 space-y-1">
+                        <div className="flex items-center">
+                          <Mail className="w-3 h-3 mr-1" />
+                          {selectedRequestForScheduling.journalistName} ({selectedRequestForScheduling.journalistEmail})
+                        </div>
+                        <div className="flex items-center">
+                          <Mail className="w-3 h-3 mr-1" />
+                          {selectedRequestForScheduling.prStaffManaging} (PR Team)
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2 italic">
+                        Note: Talent coordination will be handled separately by PR team
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -764,6 +942,149 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
                 >
                   Schedule Interview
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Film Details Modal */}
+      {showFilmModal && selectedFilm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">{selectedFilm.title}</h2>
+                  {selectedFilm.originalLanguageTitle && (
+                    <p className="text-gray-600 italic">{selectedFilm.originalLanguageTitle}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowFilmModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-2">Basic Information</h3>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="font-medium">Director:</span> {selectedFilm.director}</p>
+                      <p><span className="font-medium">Countries:</span> {selectedFilm.countries.join(', ')}</p>
+                      <p><span className="font-medium">Runtime:</span> {selectedFilm.runtime} minutes</p>
+                      <p><span className="font-medium">Language:</span> {selectedFilm.language}</p>
+                      <p><span className="font-medium">Year:</span> {selectedFilm.originalReleaseYear}</p>
+                      {selectedFilm.premiereStatus && (
+                        <p><span className="font-medium">Premiere:</span> {selectedFilm.premiereStatus}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-2">Programs & Genres</h3>
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {selectedFilm.programs.map((program: string, index: number) => (
+                        <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+                          {program}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedFilm.genres.map((genre: string, index: number) => (
+                        <span key={index} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-2">Cast & Crew</h3>
+                    <div className="space-y-1 text-sm">
+                      {selectedFilm.crew.screenwriter && (
+                        <p><span className="font-medium">Screenwriter:</span> {selectedFilm.crew.screenwriter}</p>
+                      )}
+                      {selectedFilm.crew.cinematographer && (
+                        <p><span className="font-medium">Cinematographer:</span> {selectedFilm.crew.cinematographer}</p>
+                      )}
+                      {selectedFilm.crew.producer && (
+                        <p><span className="font-medium">Producer:</span> {selectedFilm.crew.producer}</p>
+                      )}
+                    </div>
+                    
+                    {selectedFilm.cast.length > 0 && (
+                      <div className="mt-2">
+                        <p className="font-medium text-sm">Principal Cast:</p>
+                        <p className="text-sm text-gray-600">{selectedFilm.cast.join(', ')}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Journalist Details Modal */}
+      {showJournalistModal && selectedJournalist && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">{selectedJournalist.name}</h2>
+                  <p className="text-gray-600">{selectedJournalist.role}</p>
+                </div>
+                <button
+                  onClick={() => setShowJournalistModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Contact Information</h3>
+                  <div className="space-y-2 text-sm">
+                    {selectedJournalist.outlet && (
+                      <p><span className="font-medium">Outlet:</span> {selectedJournalist.outlet}</p>
+                    )}
+                    {selectedJournalist.email && (
+                      <p><span className="font-medium">Email:</span> 
+                        <a href={`mailto:${selectedJournalist.email}`} className="text-blue-600 hover:underline ml-1">
+                          {selectedJournalist.email}
+                        </a>
+                      </p>
+                    )}
+                    {selectedJournalist.phone && (
+                      <p><span className="font-medium">Phone:</span> {selectedJournalist.phone}</p>
+                    )}
+                    {selectedJournalist.accreditation && (
+                      <p><span className="font-medium">Accreditation:</span> {selectedJournalist.accreditation}</p>
+                    )}
+                  </div>
+                </div>
+
+                {selectedJournalist.filmTitles && selectedJournalist.filmTitles.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-2">Associated Films</h3>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedJournalist.filmTitles.map((title: string, index: number) => (
+                        <span key={index} className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+                          {title}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

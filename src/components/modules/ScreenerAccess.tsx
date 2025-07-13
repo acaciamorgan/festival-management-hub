@@ -434,7 +434,15 @@ const ScreenerAccess: React.FC<ScreenerAccessProps> = ({ user }) => {
                 return (
                   <tr key={film.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4">
-                      <div className="font-medium text-gray-900">{film.filmTitle}</div>
+                      <button 
+                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
+                        onClick={() => {
+                          // This would navigate to film card - placeholder for now
+                          console.log('Navigate to film card:', film.filmTitle);
+                        }}
+                      >
+                        {film.filmTitle}
+                      </button>
                     </td>
                     <td className="px-4 py-4">
                       <div>

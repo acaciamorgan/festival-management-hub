@@ -74,6 +74,7 @@ const PhotoCoordination: React.FC<PhotoCoordinationProps> = ({ user }) => {
   const [selectedShoot, setSelectedShoot] = useState<PhotoShoot | null>(null);
   const [showShootModal, setShowShootModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'subjects' | 'shotlist' | 'logistics'>('overview');
+  const [showAddShootModal, setShowAddShootModal] = useState(false);
 
   // Mock data
   useEffect(() => {
@@ -425,6 +426,15 @@ const PhotoCoordination: React.FC<PhotoCoordinationProps> = ({ user }) => {
     return matchesSearch && matchesType && matchesStatus;
   });
 
+  // Helper function to convert 24-hour time to 12-hour AM/PM format
+  const formatTime = (time24: string) => {
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
   const sortedPhotoShoots = filteredPhotoShoots.sort((a, b) => {
     const dateA = new Date(`${a.date} ${a.time}`);
     const dateB = new Date(`${b.date} ${b.time}`);
@@ -456,7 +466,10 @@ const PhotoCoordination: React.FC<PhotoCoordinationProps> = ({ user }) => {
           <p className="text-gray-600">Manage festival photography and coverage</p>
         </div>
         {user.permissions.photoCoordination === 'full_edit' && (
-          <button className="bg-pink-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-pink-700">
+          <button 
+            onClick={() => setShowAddShootModal(true)}
+            className="bg-pink-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-pink-700"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Schedule Shoot
           </button>
@@ -553,7 +566,7 @@ const PhotoCoordination: React.FC<PhotoCoordinationProps> = ({ user }) => {
                         <div className="font-medium text-gray-900">
                           {new Date(shoot.date).toLocaleDateString()}
                         </div>
-                        <div className="text-sm text-gray-600">{shoot.time}</div>
+                        <div className="text-sm text-gray-600">{formatTime(shoot.time)}</div>
                         <div className="text-xs text-gray-500 flex items-center mt-1">
                           <MapPin className="w-3 h-3 mr-1" />
                           {shoot.location}
@@ -623,7 +636,7 @@ const PhotoCoordination: React.FC<PhotoCoordinationProps> = ({ user }) => {
                     {getEventTypeBadge(selectedShoot.eventType)}
                     {getStatusBadge(selectedShoot.status)}
                     <span className="text-gray-600">
-                      {new Date(selectedShoot.date).toLocaleDateString()} at {selectedShoot.time}
+                      {new Date(selectedShoot.date).toLocaleDateString()} at {formatTime(selectedShoot.time)}
                     </span>
                   </div>
                 </div>
@@ -759,7 +772,7 @@ const PhotoCoordination: React.FC<PhotoCoordinationProps> = ({ user }) => {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="font-semibold text-gray-900">
-                      Shot List ({selectedShoot.shotList.filter(s => s.completed).length}/{selectedShoot.shotList.length} completed)
+                      Shot List ({selectedShoot.shotList.length} shots)
                     </h3>
                     {user.permissions.photoCoordination === 'full_edit' && (
                       <button className="bg-pink-600 text-white px-3 py-1 rounded text-sm hover:bg-pink-700">
@@ -858,6 +871,104 @@ const PhotoCoordination: React.FC<PhotoCoordinationProps> = ({ user }) => {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Shoot Modal */}
+      {showAddShootModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">Schedule Photo Shoot</h2>
+                <button
+                  onClick={() => setShowAddShootModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Event Name</label>
+                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Portrait session, event coverage..." />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
+                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                      <option value="interview_portrait">Interview Portrait</option>
+                      <option value="filmmaker_portrait">Filmmaker Portrait</option>
+                      <option value="group_photo">Group Photo</option>
+                      <option value="event_coverage">Event Coverage</option>
+                      <option value="behind_scenes">Behind Scenes</option>
+                      <option value="promotional">Promotional</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                    <input type="time" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="30 minutes, 2 hours..." />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                  <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="CIFF Portrait Studio, AMC River East..." />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Photographer Name</label>
+                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Photographer Email</label>
+                    <input type="email" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subject(s)</label>
+                  <textarea className="w-full border border-gray-300 rounded-lg px-3 py-2" rows={2} placeholder="Names and roles of people being photographed"></textarea>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Special Instructions</label>
+                  <textarea className="w-full border border-gray-300 rounded-lg px-3 py-2" rows={3} placeholder="Shot requirements, wardrobe notes, equipment needs..."></textarea>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-200 flex justify-end space-x-4 mt-6">
+                <button
+                  onClick={() => setShowAddShootModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    // Here you would add the photo shoot
+                    setShowAddShootModal(false);
+                  }}
+                  className="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700"
+                >
+                  Schedule Shoot
+                </button>
+              </div>
             </div>
           </div>
         </div>

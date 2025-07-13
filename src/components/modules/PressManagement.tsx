@@ -29,6 +29,9 @@ interface Journalist {
     scheduledInterviews: number;
     completedInterviews: number;
   };
+  pressScreenings: {
+    rsvpCount: number;
+  };
 }
 
 interface User {
@@ -52,6 +55,8 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
   const [selectedJournalist, setSelectedJournalist] = useState<Journalist | null>(null);
   const [showJournalistModal, setShowJournalistModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [activityType, setActivityType] = useState<'pitches' | 'scheduled' | 'screenings' | null>(null);
 
   // Mock data
   useEffect(() => {
@@ -76,6 +81,9 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
           currentPitches: 3,
           scheduledInterviews: 2,
           completedInterviews: 5
+        },
+        pressScreenings: {
+          rsvpCount: 4
         }
       },
       {
@@ -96,6 +104,9 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
           currentPitches: 1,
           scheduledInterviews: 1,
           completedInterviews: 8
+        },
+        pressScreenings: {
+          rsvpCount: 2
         }
       },
       {
@@ -113,6 +124,9 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
           currentPitches: 2,
           scheduledInterviews: 0,
           completedInterviews: 3
+        },
+        pressScreenings: {
+          rsvpCount: 1
         }
       },
       {
@@ -128,6 +142,9 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
           currentPitches: 0,
           scheduledInterviews: 1,
           completedInterviews: 0
+        },
+        pressScreenings: {
+          rsvpCount: 0
         }
       },
       {
@@ -142,6 +159,9 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
           currentPitches: 1,
           scheduledInterviews: 0,
           completedInterviews: 0
+        },
+        pressScreenings: {
+          rsvpCount: 3
         }
       }
     ];
@@ -368,23 +388,64 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
               </div>
 
               <div className="mt-3 pt-3 border-t border-gray-200">
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span className="flex items-center">
+                <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-2">
+                  <button
+                    className="flex items-center justify-center p-1 rounded hover:bg-gray-100"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedJournalist(journalist);
+                      setActivityType('pitches');
+                      setShowActivityModal(true);
+                    }}
+                  >
                     <MessageSquare className="w-3 h-3 mr-1" />
                     {journalist.interviewActivity.currentPitches} pitches
-                  </span>
-                  <span className="flex items-center">
+                  </button>
+                  <button
+                    className="flex items-center justify-center p-1 rounded hover:bg-gray-100"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedJournalist(journalist);
+                      setActivityType('scheduled');
+                      setShowActivityModal(true);
+                    }}
+                  >
                     <Calendar className="w-3 h-3 mr-1" />
                     {journalist.interviewActivity.scheduledInterviews} scheduled
-                  </span>
-                  <span className="flex items-center">
-                    {journalist.credentialsPickedUp ? (
-                      <Check className="w-3 h-3 mr-1 text-green-600" />
-                    ) : (
-                      <Clock className="w-3 h-3 mr-1 text-yellow-600" />
-                    )}
-                    Credentials
-                  </span>
+                  </button>
+                  <button
+                    className="flex items-center justify-center p-1 rounded hover:bg-gray-100"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedJournalist(journalist);
+                      setActivityType('screenings');
+                      setShowActivityModal(true);
+                    }}
+                  >
+                    <span className="w-3 h-3 mr-1">🎬</span>
+                    {journalist.pressScreenings.rsvpCount} screenings
+                  </button>
+                  <label className="flex items-center justify-center cursor-pointer p-1 rounded hover:bg-gray-100" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={journalist.credentialsPickedUp}
+                      onChange={(e) => {
+                        if (user.permissions.pressManagement === 'full_edit') {
+                          const updatedJournalists = journalists.map(j =>
+                            j.id === journalist.id 
+                              ? { ...j, credentialsPickedUp: e.target.checked }
+                              : j
+                          );
+                          setJournalists(updatedJournalists);
+                        }
+                      }}
+                      disabled={user.permissions.pressManagement !== 'full_edit'}
+                      className="w-3 h-3 mr-1 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                    />
+                    <span className={journalist.credentialsPickedUp ? 'text-green-600' : 'text-yellow-600'}>
+                      Credentials
+                    </span>
+                  </label>
                 </div>
               </div>
             </div>
@@ -559,6 +620,152 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Journalist Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Add Journalist</h2>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Primary Outlet</label>
+                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone (optional)</label>
+                    <input type="tel" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                      <option value="">Select Type</option>
+                      <option value="TV">TV</option>
+                      <option value="Print/Online">Print/Online</option>
+                      <option value="Radio">Radio</option>
+                      <option value="Trade">Trade</option>
+                      <option value="College">College</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Accreditation Level</label>
+                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                      <option value="">Select Level</option>
+                      <option value="P">Premium Press</option>
+                      <option value="G">General Press</option>
+                      <option value="Unaccredited">Unaccredited</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Beat/Specialty</label>
+                  <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Special Notes (optional)</label>
+                  <textarea className="w-full border border-gray-300 rounded-lg px-3 py-2" rows={3}></textarea>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-200 flex justify-end space-x-4 mt-6">
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    // Here you would save the journalist
+                    setShowAddModal(false);
+                  }}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                >
+                  Add Journalist
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activity Modal */}
+      {showActivityModal && selectedJournalist && activityType && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {activityType === 'pitches' && 'Current Pitches'}
+                    {activityType === 'scheduled' && 'Scheduled Interviews'}
+                    {activityType === 'screenings' && 'Press Screenings RSVPs'}
+                  </h2>
+                  <p className="text-gray-600">{selectedJournalist.name} - {selectedJournalist.primaryOutlet}</p>
+                </div>
+                <button
+                  onClick={() => setShowActivityModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {activityType === 'pitches' && (
+                  <div className="text-gray-600">
+                    <p>Mock pitch data would be displayed here</p>
+                    <p>• Pitch for Director Interview - Film Title A</p>
+                    <p>• Cast Interview Request - Film Title B</p>
+                    <p>• Producer Q&A - Film Title C</p>
+                  </div>
+                )}
+                {activityType === 'scheduled' && (
+                  <div className="text-gray-600">
+                    <p>Mock scheduled interview data would be displayed here</p>
+                    <p>• Nov 15, 2:00 PM - Director Interview with John Smith</p>
+                    <p>• Nov 16, 4:30 PM - Cast Roundtable</p>
+                  </div>
+                )}
+                {activityType === 'screenings' && (
+                  <div className="text-gray-600">
+                    <p>Mock press screening RSVPs would be displayed here</p>
+                    <p>• Film Title A - Nov 14, 7:00 PM - RSVP Confirmed</p>
+                    <p>• Film Title B - Nov 15, 2:00 PM - RSVP Confirmed</p>
+                    <p>• Film Title C - Nov 16, 9:00 AM - RSVP Pending</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
