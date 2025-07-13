@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { 
   Search, Filter, Plus, Edit3, Mail, Phone, Calendar, Clock,
   MapPin, Users, CheckCircle, XCircle, Download, Upload, 
-  Eye, Settings, UserCheck, AlertCircle
+  Eye, Settings, UserCheck, AlertCircle, Save, X
 } from 'lucide-react';
+import { useData } from '../../contexts/DataContext';
 
 interface PressScreening {
   id: number;
@@ -41,6 +42,7 @@ interface PressScreeningManagementProps {
 }
 
 const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ user }) => {
+  const { films, staff } = useData();
   const [screenings, setScreenings] = useState<PressScreening[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
@@ -49,6 +51,12 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
   const [showScreeningModal, setShowScreeningModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showRSVPModal, setShowRSVPModal] = useState(false);
+  const [editingScreening, setEditingScreening] = useState<number | null>(null);
+  const [editValues, setEditValues] = useState<{
+    date: string;
+    time: string;
+    staffAssigned: string;
+  }>({ date: '', time: '', staffAssigned: '' });
 
   // Mock data
   useEffect(() => {
@@ -223,6 +231,40 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
     ));
   };
 
+  // Helper function to convert 24-hour time to 12-hour AM/PM format
+  const formatTime = (time24: string) => {
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  const startEditing = (screening: PressScreening) => {
+    setEditingScreening(screening.id);
+    setEditValues({
+      date: screening.date,
+      time: screening.time,
+      staffAssigned: screening.staffAssigned
+    });
+  };
+
+  const saveEditing = () => {
+    if (editingScreening) {
+      setScreenings(prev => prev.map(screening =>
+        screening.id === editingScreening
+          ? { ...screening, ...editValues }
+          : screening
+      ));
+      setEditingScreening(null);
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditingScreening(null);
+    setEditValues({ date: '', time: '', staffAssigned: '' });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -328,12 +370,29 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {new Date(screening.date).toLocaleDateString()}
+                      {editingScreening === screening.id ? (
+                        <div className="space-y-2">
+                          <input
+                            type="date"
+                            value={editValues.date}
+                            onChange={(e) => setEditValues(prev => ({ ...prev, date: e.target.value }))}
+                            className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                          />
+                          <input
+                            type="time"
+                            value={editValues.time}
+                            onChange={(e) => setEditValues(prev => ({ ...prev, time: e.target.value }))}
+                            className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                          />
                         </div>
-                        <div className="text-sm text-gray-600">{screening.time}</div>
-                      </div>
+                      ) : (
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {new Date(screening.date).toLocaleDateString()}
+                          </div>
+                          <div className="text-sm text-gray-600">{formatTime(screening.time)}</div>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-4">
                       <div>
@@ -341,8 +400,23 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                         <div className="text-sm text-gray-600">{screening.houseNumber}</div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-900">
-                      {screening.staffAssigned}
+                    <td className="px-4 py-4">
+                      {editingScreening === screening.id ? (
+                        <select
+                          value={editValues.staffAssigned}
+                          onChange={(e) => setEditValues(prev => ({ ...prev, staffAssigned: e.target.value }))}
+                          className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                        >
+                          <option value="">Select Staff Member</option>
+                          {staff.map(member => (
+                            <option key={member.id} value={member.name}>
+                              {member.name} - {member.title}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="text-sm text-gray-900">{screening.staffAssigned}</div>
+                      )}
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center">
@@ -379,15 +453,47 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                       )}
                     </td>
                     <td className="px-4 py-4">
-                      <button
-                        onClick={() => {
-                          setSelectedScreening(screening);
-                          setShowScreeningModal(true);
-                        }}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        Manage RSVPs
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        {editingScreening === screening.id ? (
+                          <>
+                            <button
+                              onClick={saveEditing}
+                              className="text-green-600 hover:text-green-800 text-sm flex items-center"
+                            >
+                              <Save className="w-3 h-3 mr-1" />
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelEditing}
+                              className="text-gray-600 hover:text-gray-800 text-sm flex items-center"
+                            >
+                              <X className="w-3 h-3 mr-1" />
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                setSelectedScreening(screening);
+                                setShowScreeningModal(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                              Manage RSVPs
+                            </button>
+                            {user.permissions.pressScreeningManagement === 'full_edit' && (
+                              <button
+                                onClick={() => startEditing(screening)}
+                                className="text-gray-600 hover:text-gray-800 text-sm flex items-center"
+                              >
+                                <Edit3 className="w-3 h-3 mr-1" />
+                                Edit
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -406,7 +512,7 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">{selectedScreening.filmTitle}</h2>
                   <p className="text-gray-600">
-                    {new Date(selectedScreening.date).toLocaleDateString()} at {selectedScreening.time}
+                    {new Date(selectedScreening.date).toLocaleDateString()} at {formatTime(selectedScreening.time)}
                   </p>
                   <p className="text-gray-600">
                     {selectedScreening.venue} - {selectedScreening.houseNumber}
