@@ -59,6 +59,18 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
     staffAssigned: string;
   }>({ date: '', time: '', staffAssigned: '' });
 
+  // Add screening form state
+  const [newScreening, setNewScreening] = useState({
+    selectedFilmId: '',
+    runtime: '',
+    date: '',
+    time: '',
+    selectedVenueId: '',
+    selectedHouseId: '',
+    capacity: '',
+    staffAssigned: ''
+  });
+
   // WAITING FOR HUMAN TO PROVIDE APPROVED MOCK DATA
   // CLAUDE IS FORBIDDEN FROM CREATING MOCK DATA
   useEffect(() => {
@@ -153,6 +165,46 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
   const cancelEditing = () => {
     setEditingScreening(null);
     setEditValues({ date: '', time: '', staffAssigned: '' });
+  };
+
+  // Get selected film object
+  const selectedFilm = films.find(film => film.id.toString() === newScreening.selectedFilmId);
+  
+  // Get selected venue object  
+  const selectedVenue = venues.find(venue => venue.id.toString() === newScreening.selectedVenueId);
+  
+  // Get selected house object
+  const selectedHouse = selectedVenue?.houses.find(house => house.id.toString() === newScreening.selectedHouseId);
+
+  // Handle film selection
+  const handleFilmChange = (filmId: string) => {
+    const film = films.find(f => f.id.toString() === filmId);
+    setNewScreening(prev => ({
+      ...prev,
+      selectedFilmId: filmId,
+      runtime: film ? film.runtime.toString() : ''
+    }));
+  };
+
+  // Handle venue selection
+  const handleVenueChange = (venueId: string) => {
+    const venue = venues.find(v => v.id.toString() === venueId);
+    setNewScreening(prev => ({
+      ...prev,
+      selectedVenueId: venueId,
+      selectedHouseId: '', // Reset house selection
+      capacity: '' // Reset capacity
+    }));
+  };
+
+  // Handle house selection
+  const handleHouseChange = (houseId: string) => {
+    const house = selectedVenue?.houses.find(h => h.id.toString() === houseId);
+    setNewScreening(prev => ({
+      ...prev,
+      selectedHouseId: houseId,
+      capacity: house?.capacity ? house.capacity.toString() : ''
+    }));
   };
 
   return (
@@ -522,10 +574,14 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Film Title</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    <select 
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      value={newScreening.selectedFilmId}
+                      onChange={(e) => handleFilmChange(e.target.value)}
+                    >
                       <option value="">Select Film</option>
                       {films.map(film => (
-                        <option key={film.id} value={film.title}>{film.title}</option>
+                        <option key={film.id} value={film.id}>{film.title}</option>
                       ))}
                     </select>
                   </div>
@@ -533,7 +589,8 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                     <label className="block text-sm font-medium text-gray-700 mb-1">Runtime (minutes)</label>
                     <input 
                       type="number" 
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      value={newScreening.runtime}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50" 
                       readOnly
                       placeholder="Auto-populated from film"
                     />
@@ -554,18 +611,29 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Venue</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    <select 
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      value={newScreening.selectedVenueId}
+                      onChange={(e) => handleVenueChange(e.target.value)}
+                    >
                       <option value="">Select Venue</option>
                       {venues.map(venue => (
-                        <option key={venue.id} value={venue.name}>{venue.name}</option>
+                        <option key={venue.id} value={venue.id}>{venue.name}</option>
                       ))}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">House/Theater Number</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
-                      <option value="">Select venue first</option>
-                      {/* Houses will be populated based on venue selection */}
+                    <select 
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      value={newScreening.selectedHouseId}
+                      onChange={(e) => handleHouseChange(e.target.value)}
+                      disabled={!selectedVenue}
+                    >
+                      <option value="">{selectedVenue ? 'Select House/Theater' : 'Select venue first'}</option>
+                      {selectedVenue?.houses.map(house => (
+                        <option key={house.id} value={house.id}>{house.name}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -586,7 +654,8 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                     <label className="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
                     <input 
                       type="number" 
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      value={newScreening.capacity}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50" 
                       readOnly
                       placeholder="Auto-populated from venue/house"
                     />
