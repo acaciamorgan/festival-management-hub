@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Search, Filter, Plus, Edit3, Mail, Phone, Calendar, Clock,
   User, Building, MessageSquare, CheckCircle, AlertCircle, 
-  XCircle, PlayCircle, Users, ChevronDown, Star
+  XCircle, PlayCircle, Users, ChevronDown, Star, Film
 } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 
@@ -68,88 +68,10 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
   const [selectedFilmForAdd, setSelectedFilmForAdd] = useState<any>(null);
   const [showFilmDropdown, setShowFilmDropdown] = useState(false);
 
-  // Mock data
+  // WAITING FOR HUMAN TO PROVIDE APPROVED MOCK DATA
+  // CLAUDE IS FORBIDDEN FROM CREATING MOCK DATA
   useEffect(() => {
-    const mockRequests: InterviewRequest[] = [
-      {
-        id: 1,
-        filmTitle: "Rita",
-        talentName: "Paz Vega",
-        talentRole: "Director/Star",
-        journalistName: "Sarah Johnson",
-        journalistOutlet: "Entertainment Weekly",
-        journalistEmail: "sarah@ew.com",
-        status: "scheduled",
-        priority: "A",
-        requestDate: "2024-10-08",
-        interviewFormat: "in-person",
-        scheduledDate: "2024-10-17",
-        scheduledTime: "14:30",
-        duration: 30,
-        location: "Room 205",
-        prStaffManaging: "Morgan Harris",
-        calendarInviteSent: true
-      },
-      {
-        id: 2,
-        filmTitle: "Color Book",
-        talentName: "David Fortune",
-        talentRole: "Director",
-        journalistName: "Mike Chen",
-        journalistOutlet: "The Hollywood Reporter",
-        journalistEmail: "mike@thr.com",
-        status: "approved",
-        priority: "A",
-        requestDate: "2024-10-10",
-        interviewFormat: "zoom",
-        prStaffManaging: "Morgan Harris",
-        notes: "Director's first feature film"
-      },
-      {
-        id: 3,
-        filmTitle: "Transplant",
-        talentName: "Jason Park",
-        talentRole: "Director",
-        journalistName: "Lisa Park",
-        journalistOutlet: "WGN News",
-        journalistEmail: "lisa@wgn.com",
-        status: "pending",
-        priority: "B",
-        requestDate: "2024-10-11",
-        interviewFormat: "in-person",
-        prStaffManaging: "Morgan Harris"
-      },
-      {
-        id: 4,
-        filmTitle: "Párvulos",
-        talentName: "Isaac Ezban",
-        talentRole: "Director",
-        journalistName: "David Rodriguez",
-        journalistOutlet: "Columbia College Chicago",
-        journalistEmail: "drodriguez@colum.edu",
-        status: "pitched",
-        priority: "C",
-        requestDate: "2024-10-12",
-        interviewFormat: "zoom",
-        prStaffManaging: "Morgan Harris"
-      },
-      {
-        id: 5,
-        filmTitle: "All We Imagine As Light",
-        talentName: "Payal Kapadia",
-        talentRole: "Director",
-        journalistName: "Jennifer Walsh",
-        journalistOutlet: "Film Independent Blog",
-        journalistEmail: "jen@filmindependent.com",
-        status: "declined",
-        priority: "B",
-        requestDate: "2024-10-09",
-        interviewFormat: "phone",
-        prStaffManaging: "Morgan Harris",
-        notes: "Director not available during festival dates"
-      }
-    ];
-    setRequests(mockRequests);
+    setRequests([]);
   }, []);
 
   const getStatusBadge = (status: string) => {

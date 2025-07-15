@@ -42,7 +42,7 @@ interface PressScreeningManagementProps {
 }
 
 const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ user }) => {
-  const { films, staff } = useData();
+  const { films, staff, venues } = useData();
   const [screenings, setScreenings] = useState<PressScreening[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
@@ -59,121 +59,10 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
     staffAssigned: string;
   }>({ date: '', time: '', staffAssigned: '' });
 
-  // Mock data
+  // WAITING FOR HUMAN TO PROVIDE APPROVED MOCK DATA
+  // CLAUDE IS FORBIDDEN FROM CREATING MOCK DATA
   useEffect(() => {
-    const mockScreenings: PressScreening[] = [
-      {
-        id: 1,
-        filmTitle: "All We Imagine As Light",
-        runtime: 118,
-        date: "2024-10-10",
-        time: "13:00",
-        venue: "AMC River East 21",
-        houseNumber: "Theater 5",
-        staffAssigned: "Morgan Harris",
-        rsvpCount: 12,
-        capacity: 50,
-        calendarInvitesSent: true,
-        rsvps: [
-          {
-            id: 1,
-            journalistName: "Sarah Johnson",
-            journalistOutlet: "Entertainment Weekly",
-            journalistEmail: "sarah@ew.com",
-            rsvpDate: "2024-10-01",
-            attended: true,
-            checkedIn: true
-          },
-          {
-            id: 2,
-            journalistName: "Mike Chen", 
-            journalistOutlet: "The Hollywood Reporter",
-            journalistEmail: "mike@thr.com",
-            rsvpDate: "2024-10-02",
-            attended: true,
-            checkedIn: true
-          },
-          {
-            id: 3,
-            journalistName: "Lisa Park",
-            journalistOutlet: "WGN News", 
-            journalistEmail: "lisa@wgn.com",
-            rsvpDate: "2024-10-03",
-            checkedIn: false
-          }
-        ]
-      },
-      {
-        id: 2,
-        filmTitle: "Blitz",
-        runtime: 120,
-        date: "2024-10-12",
-        time: "14:30",
-        venue: "AMC River East 21",
-        houseNumber: "Theater 3",
-        staffAssigned: "Sarah Chen",
-        rsvpCount: 8,
-        capacity: 50,
-        calendarInvitesSent: false,
-        rsvps: [
-          {
-            id: 4,
-            journalistName: "David Rodriguez",
-            journalistOutlet: "Columbia College Chicago",
-            journalistEmail: "drodriguez@colum.edu", 
-            rsvpDate: "2024-10-05",
-            checkedIn: false
-          },
-          {
-            id: 5,
-            journalistName: "Jennifer Walsh",
-            journalistOutlet: "Film Independent Blog",
-            journalistEmail: "jen@filmindependent.com",
-            rsvpDate: "2024-10-06",
-            addedManually: true,
-            checkedIn: false
-          }
-        ]
-      },
-      {
-        id: 3,
-        filmTitle: "Rita", 
-        runtime: 95,
-        date: "2024-10-15",
-        time: "10:00",
-        venue: "Music Box Theatre",
-        houseNumber: "Main Screen",
-        staffAssigned: "Mike Johnson",
-        rsvpCount: 15,
-        capacity: 40,
-        calendarInvitesSent: true,
-        rsvps: [
-          {
-            id: 6,
-            journalistName: "Alex Rivera",
-            journalistOutlet: "Local News 5",
-            journalistEmail: "alex@news5.com",
-            rsvpDate: "2024-10-07",
-            checkedIn: false
-          }
-        ]
-      },
-      {
-        id: 4,
-        filmTitle: "Color Book",
-        runtime: 102,
-        date: "2024-10-17",
-        time: "11:15",
-        venue: "Gene Siskel Film Center",
-        houseNumber: "Theater 1",
-        staffAssigned: "Morgan Harris",
-        rsvpCount: 6,
-        capacity: 30,
-        calendarInvitesSent: false,
-        rsvps: []
-      }
-    ];
-    setScreenings(mockScreenings);
+    setScreenings([]);
   }, []);
 
   const getCapacityStatus = (rsvpCount: number, capacity?: number) => {
@@ -642,7 +531,12 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Runtime (minutes)</label>
-                    <input type="number" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                    <input 
+                      type="number" 
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      readOnly
+                      placeholder="Auto-populated from film"
+                    />
                   </div>
                 </div>
 
@@ -660,11 +554,19 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Venue</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                      <option value="">Select Venue</option>
+                      {venues.map(venue => (
+                        <option key={venue.id} value={venue.name}>{venue.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">House/Theater Number</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                      <option value="">Select venue first</option>
+                      {/* Houses will be populated based on venue selection */}
+                    </select>
                   </div>
                 </div>
 
@@ -681,8 +583,13 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Capacity (optional)</label>
-                    <input type="number" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
+                    <input 
+                      type="number" 
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      readOnly
+                      placeholder="Auto-populated from venue/house"
+                    />
                   </div>
                 </div>
               </div>

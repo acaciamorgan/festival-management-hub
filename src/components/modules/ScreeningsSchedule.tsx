@@ -3,6 +3,7 @@ import {
   Search, Filter, Calendar, Clock, MapPin, Users, 
   Film, Star, Eye, ChevronDown, ChevronUp, Plus
 } from 'lucide-react';
+import { useData } from '../../contexts/DataContext';
 
 interface ScheduleEvent {
   id: number;
@@ -35,6 +36,7 @@ interface ScreeningsScheduleProps {
 }
 
 const ScreeningsSchedule: React.FC<ScreeningsScheduleProps> = ({ user }) => {
+  const { venues } = useData();
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
@@ -52,121 +54,10 @@ const ScreeningsSchedule: React.FC<ScreeningsScheduleProps> = ({ user }) => {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  // Mock data
+  // WAITING FOR HUMAN TO PROVIDE APPROVED MOCK DATA
+  // CLAUDE IS FORBIDDEN FROM CREATING MOCK DATA
   useEffect(() => {
-    const mockEvents: ScheduleEvent[] = [
-      {
-        id: 1,
-        type: 'screening',
-        title: 'All We Imagine As Light',
-        subtitle: 'International Feature Competition',
-        date: '2024-10-17',
-        time: '19:00',
-        endTime: '21:00',
-        venue: 'AMC River East 21',
-        room: 'Theater 5',
-        capacity: 250,
-        program: 'International Feature Competition',
-        priority: 'high',
-        status: 'confirmed',
-        attendees: 220,
-        publicEvent: true
-      },
-      {
-        id: 2,
-        type: 'red_carpet',
-        title: 'All We Imagine As Light Red Carpet',
-        subtitle: 'Press and VIP arrivals',
-        date: '2024-10-17',
-        time: '18:30',
-        endTime: '19:00',
-        venue: 'AMC River East 21',
-        room: 'Red Carpet Area',
-        priority: 'high',
-        status: 'confirmed',
-        publicEvent: false
-      },
-      {
-        id: 3,
-        type: 'screening',
-        title: 'Rita',
-        subtitle: 'International Feature Competition',
-        date: '2024-10-18',
-        time: '14:30',
-        endTime: '16:15',
-        venue: 'Gene Siskel Film Center',
-        room: 'Main Theater',
-        capacity: 184,
-        program: 'International Feature Competition',
-        priority: 'high',
-        status: 'confirmed',
-        attendees: 150,
-        publicEvent: true
-      },
-      {
-        id: 4,
-        type: 'interview',
-        title: 'Paz Vega Interview',
-        subtitle: 'Rita Q&A Session',
-        date: '2024-10-18',
-        time: '16:30',
-        endTime: '17:00',
-        venue: 'Gene Siskel Film Center',
-        room: 'Green Room',
-        priority: 'medium',
-        status: 'confirmed',
-        publicEvent: false
-      },
-      {
-        id: 5,
-        type: 'photo_shoot',
-        title: 'Payal Kapadia Portrait Session',
-        subtitle: 'Director portraits for press kit',
-        date: '2024-10-17',
-        time: '14:00',
-        endTime: '14:45',
-        venue: 'CIFF Portrait Studio',
-        room: 'Palmer House',
-        priority: 'medium',
-        status: 'confirmed',
-        publicEvent: false
-      },
-      {
-        id: 6,
-        type: 'special_event',
-        title: 'Opening Night Gala',
-        subtitle: 'Festival kickoff celebration',
-        date: '2024-10-16',
-        time: '20:00',
-        endTime: '23:00',
-        venue: 'Music Box Theatre',
-        room: 'Main Auditorium',
-        capacity: 750,
-        priority: 'high',
-        status: 'confirmed',
-        attendees: 650,
-        publicEvent: true
-      },
-      {
-        id: 7,
-        type: 'screening',
-        title: 'Blitz',
-        subtitle: 'Special Presentation',
-        date: '2024-10-19',
-        time: '21:00',
-        endTime: '23:00',
-        venue: 'AMC River East 21',
-        room: 'Theater 3',
-        capacity: 250,
-        program: 'Special Presentation',
-        priority: 'high',
-        status: 'confirmed',
-        attendees: 200,
-        publicEvent: true
-      }
-    ];
-    setEvents(mockEvents);
-    setSelectedDate('2024-10-17'); // Default to first day with events
+    setEvents([]);
   }, []);
 
   const getEventTypeBadge = (type: string) => {
@@ -232,7 +123,7 @@ const ScreeningsSchedule: React.FC<ScreeningsScheduleProps> = ({ user }) => {
     return groups;
   }, {} as Record<string, ScheduleEvent[]>);
 
-  const venues = [...new Set(events.map(e => e.venue))];
+  const availableVenues = venues.filter(v => !v.isTBD);
   const eventTypes = [...new Set(events.map(e => e.type))];
 
   return (
@@ -318,8 +209,8 @@ const ScreeningsSchedule: React.FC<ScreeningsScheduleProps> = ({ user }) => {
               className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
             >
               <option value="all">All Venues</option>
-              {venues.map(venue => (
-                <option key={venue} value={venue}>{venue}</option>
+              {availableVenues.map(venue => (
+                <option key={venue.id} value={venue.name}>{venue.name}</option>
               ))}
             </select>
 

@@ -4,6 +4,7 @@ import {
   FileText, Link, Send, CheckCircle, AlertCircle, XCircle,
   Download, Upload, Eye, Globe, MessageSquare, Users
 } from 'lucide-react';
+import { useData } from '../../contexts/DataContext';
 
 interface DistributorContact {
   name: string;
@@ -15,7 +16,7 @@ interface ScreenerAccessFilm {
   id: number;
   filmTitle: string;
   distributor: DistributorContact;
-  accessType: 'cinesend' | 'direct_link' | 'distributor_request' | 'screenings_only';
+  accessType: 'pending' | 'cinesend' | 'direct_link' | 'distributor_request' | 'screenings_only';
   
   // Distributor coordination
   requestSentDate?: string;
@@ -56,6 +57,7 @@ interface ScreenerAccessProps {
 }
 
 const ScreenerAccess: React.FC<ScreenerAccessProps> = ({ user }) => {
+  const { films: filmCards } = useData();
   const [films, setFilms] = useState<ScreenerAccessFilm[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -64,140 +66,33 @@ const ScreenerAccess: React.FC<ScreenerAccessProps> = ({ user }) => {
   const [showFilmModal, setShowFilmModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'setup' | 'requests'>('setup');
 
-  // Mock data
+  // Initialize films from DataContext film cards with default values
   useEffect(() => {
-    const mockFilms: ScreenerAccessFilm[] = [
-      {
-        id: 1,
-        filmTitle: "All We Imagine As Light",
-        distributor: {
-          name: "Sarah Wilson",
-          email: "sarah@petitchaos.com",
-          company: "Petit Chaos"
-        },
-        accessType: 'cinesend',
-        requestSentDate: "2024-09-15",
-        distributorResponse: 'cinesend_yes',
-        instructionsSent: true,
-        instructionsSentDate: "2024-09-20",
-        filmUploaded: true,
-        uploadedDate: "2024-09-25",
-        pressRequests: [
-          {
-            id: 1,
-            journalistName: "Sarah Johnson",
-            journalistOutlet: "Entertainment Weekly", 
-            journalistEmail: "sarah@ew.com",
-            requestDate: "2024-10-01",
-            status: "approved",
-            approvedDate: "2024-10-01"
-          },
-          {
-            id: 2,
-            journalistName: "Mike Chen",
-            journalistOutlet: "The Hollywood Reporter",
-            journalistEmail: "mike@thr.com", 
-            requestDate: "2024-10-03",
-            status: "pending"
-          }
-        ]
+    const screenerAccessFilms: ScreenerAccessFilm[] = filmCards.map(filmCard => ({
+      id: filmCard.id,
+      filmTitle: filmCard.title,
+      distributor: {
+        name: '',
+        email: '',
+        company: ''
       },
-      {
-        id: 2,
-        filmTitle: "Blitz",
-        distributor: {
-          name: "John Davis",
-          email: "john@newregency.com",
-          company: "New Regency"
-        },
-        accessType: 'direct_link',
-        requestSentDate: "2024-09-10",
-        distributorResponse: 'direct_link',
-        directLink: "https://secure.newregency.com/blitz-screener",
-        directLinkPassword: "BlitzCIFF2024!",
-        pressRequests: [
-          {
-            id: 3,
-            journalistName: "Lisa Park",
-            journalistOutlet: "WGN News",
-            journalistEmail: "lisa@wgn.com",
-            requestDate: "2024-09-28",
-            status: "link_sent",
-            approvedDate: "2024-09-28",
-            notes: "Sent secure link and password"
-          }
-        ]
-      },
-      {
-        id: 3,
-        filmTitle: "Rita", 
-        distributor: {
-          name: "Carlos Martinez",
-          email: "carlos@odafilms.com",
-          company: "Oda Films"
-        },
-        accessType: 'distributor_request',
-        requestSentDate: "2024-09-12",
-        distributorResponse: 'distributor_handles',
-        pressRequests: [
-          {
-            id: 4,
-            journalistName: "David Rodriguez",
-            journalistOutlet: "Columbia College Chicago",
-            journalistEmail: "drodriguez@colum.edu",
-            requestDate: "2024-10-02",
-            status: "sent_to_distributor",
-            approvedDate: "2024-10-02"
-          },
-          {
-            id: 5,
-            journalistName: "Jennifer Walsh", 
-            journalistOutlet: "Film Independent Blog",
-            journalistEmail: "jen@filmindependent.com",
-            requestDate: "2024-10-05",
-            status: "pending"
-          }
-        ]
-      },
-      {
-        id: 4,
-        filmTitle: "Color Book",
-        distributor: {
-          name: "Emma Thompson",
-          email: "emma@distributor.com", 
-          company: "Independent Films LLC"
-        },
-        accessType: 'screenings_only',
-        requestSentDate: "2024-09-08",
-        distributorResponse: 'no_digital',
-        pressRequests: []
-      },
-      {
-        id: 5,
-        filmTitle: "Transplant",
-        distributor: {
-          name: "Alex Kim",
-          email: "alex@filmstudio.com",
-          company: "Studio Films"
-        },
-        accessType: 'cinesend',
-        requestSentDate: "2024-09-20",
-        distributorResponse: 'awaiting',
-        pressRequests: []
-      }
-    ];
-    setFilms(mockFilms);
-  }, []);
+      accessType: 'pending' as 'pending',
+      distributorResponse: 'awaiting',
+      pressRequests: []
+    }));
+    setFilms(screenerAccessFilms);
+  }, [filmCards]);
 
   const getAccessTypeBadge = (type: string) => {
     const badges = {
+      'pending': { color: 'bg-orange-100 text-orange-800', text: 'Pending' },
       'cinesend': { color: 'bg-green-100 text-green-800', text: 'Cinesend' },
       'direct_link': { color: 'bg-blue-100 text-blue-800', text: 'Direct Link' },
       'distributor_request': { color: 'bg-purple-100 text-purple-800', text: 'Distributor Request' },
       'screenings_only': { color: 'bg-gray-100 text-gray-800', text: 'Screenings Only' }
     };
     
-    const badge = badges[type as keyof typeof badges] || badges['screenings_only'];
+    const badge = badges[type as keyof typeof badges] || badges['pending'];
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
         {badge.text}
@@ -392,6 +287,7 @@ const ScreenerAccess: React.FC<ScreenerAccessProps> = ({ user }) => {
               className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Access Types</option>
+              <option value="pending">Pending</option>
               <option value="cinesend">Cinesend</option>
               <option value="direct_link">Direct Link</option>
               <option value="distributor_request">Distributor Request</option>
@@ -437,8 +333,11 @@ const ScreenerAccess: React.FC<ScreenerAccessProps> = ({ user }) => {
                       <button 
                         className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
                         onClick={() => {
-                          // This would navigate to film card - placeholder for now
-                          console.log('Navigate to film card:', film.filmTitle);
+                          const filmCard = filmCards.find(fc => fc.id === film.id);
+                          if (filmCard) {
+                            console.log('Show film card modal for:', filmCard);
+                            // TODO: Show film card modal
+                          }
                         }}
                       >
                         {film.filmTitle}

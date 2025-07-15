@@ -5,6 +5,9 @@ import {
   Grid, List, Eye
 } from 'lucide-react';
 import { useData, Film as FilmType } from '../../contexts/DataContext';
+import ResizableTable from '../shared/ResizableTable';
+import TalentName from '../shared/TalentName';
+import TalentCardModal from '../shared/TalentCardModal';
 
 interface User {
   id: number;
@@ -27,9 +30,253 @@ const TitleManagement: React.FC<TitleManagementProps> = ({ user }) => {
   const [showFilmModal, setShowFilmModal] = useState(false);
   const [showAddFilmModal, setShowAddFilmModal] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  
+  // Talent card modal state
+  const [selectedTalent, setSelectedTalent] = useState<any>(null);
+  const [showTalentModal, setShowTalentModal] = useState(false);
 
   const programs = [...new Set(films.flatMap(film => film.programs))];
   const genres = [...new Set(films.flatMap(film => film.genres))];
+  
+  const openTalentModal = (person: any) => {
+    setSelectedTalent(person);
+    setShowTalentModal(true);
+  };
+
+  const getScreenerAccessBadge = (type?: string) => {
+    const badges = {
+      'cinesend': { color: 'bg-green-100 text-green-800', text: 'Cinesend' },
+      'direct_link': { color: 'bg-blue-100 text-blue-800', text: 'Direct Link' },
+      'distributor_request': { color: 'bg-yellow-100 text-yellow-800', text: 'Distributor Request' },
+      'screenings_only': { color: 'bg-gray-100 text-gray-800', text: 'Screenings Only' }
+    };
+    
+    const badge = badges[type as keyof typeof badges] || badges['screenings_only'];
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
+        {badge.text}
+      </span>
+    );
+  };
+
+  const tableColumns = [
+    {
+      key: 'title',
+      header: 'Title',
+      width: 200,
+      minWidth: 150,
+      render: (value: any, film: FilmType) => (
+        <div>
+          <div className="font-medium text-gray-900">{film.title}</div>
+          {film.originalLanguageTitle && film.originalLanguageTitle !== film.title && (
+            <div className="text-sm text-gray-500 italic">{film.originalLanguageTitle}</div>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'director',
+      header: 'Director',
+      width: 150,
+      minWidth: 120,
+      render: (value: string) => (
+        <TalentName
+          name={value}
+          onTalentClick={openTalentModal}
+          className="text-sm"
+        />
+      )
+    },
+    {
+      key: 'countries',
+      header: 'Countries',
+      width: 120,
+      minWidth: 100,
+      render: (value: string[], film: FilmType) => (
+        <span className="text-sm text-gray-900">{film.countries.join(', ')}</span>
+      )
+    },
+    {
+      key: 'language',
+      header: 'Language',
+      width: 100,
+      minWidth: 80,
+      render: (value: string) => <span className="text-sm text-gray-900">{value}</span>
+    },
+    {
+      key: 'subtitles',
+      header: 'Subtitles',
+      width: 80,
+      minWidth: 70,
+      render: (value: boolean) => <span className="text-sm text-gray-900">{value ? 'Yes' : 'No'}</span>
+    },
+    {
+      key: 'programs',
+      header: 'Programs',
+      width: 180,
+      minWidth: 140,
+      render: (value: string[], film: FilmType) => (
+        <div className="flex flex-wrap gap-1">
+          {film.programs.map((program, index) => (
+            <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+              {program}
+            </span>
+          ))}
+        </div>
+      )
+    },
+    {
+      key: 'genres',
+      header: 'Genres',
+      width: 120,
+      minWidth: 100,
+      render: (value: string[], film: FilmType) => (
+        <div className="flex flex-wrap gap-1">
+          {film.genres.map((genre, index) => (
+            <span key={index} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+              {genre}
+            </span>
+          ))}
+        </div>
+      )
+    },
+    {
+      key: 'runtime',
+      header: 'Runtime',
+      width: 80,
+      minWidth: 70,
+      render: (value: number) => <span className="text-sm text-gray-900">{value} min</span>
+    },
+    {
+      key: 'originalReleaseYear',
+      header: 'Year',
+      width: 80,
+      minWidth: 60,
+      render: (value: number) => <span className="text-sm text-gray-900">{value}</span>
+    },
+    {
+      key: 'premiereStatus',
+      header: 'Premiere',
+      width: 120,
+      minWidth: 100,
+      render: (value: string) => (
+        value ? (
+          <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
+            {value}
+          </span>
+        ) : null
+      )
+    },
+    {
+      key: 'cast',
+      header: 'Principal Cast',
+      width: 180,
+      minWidth: 150,
+      render: (value: string[], film: FilmType) => (
+        <div className="text-sm text-gray-900">
+          {film.cast.slice(0, 3).map((castMember, index) => (
+            <span key={index}>
+              <TalentName
+                name={castMember}
+                onTalentClick={openTalentModal}
+                className="text-sm"
+              />
+              {index < Math.min(film.cast.length, 3) - 1 && ', '}
+            </span>
+          ))}
+          {film.cast.length > 3 && (
+            <span className="text-gray-500"> +{film.cast.length - 3} more</span>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'screenwriter',
+      header: 'Screenwriter',
+      width: 150,
+      minWidth: 120,
+      render: (value: any, film: FilmType) => (
+        film.crew.screenwriter ? (
+          <TalentName
+            name={film.crew.screenwriter}
+            onTalentClick={openTalentModal}
+            className="text-sm"
+          />
+        ) : (
+          <span className="text-sm text-gray-900">—</span>
+        )
+      )
+    },
+    {
+      key: 'cinematographer',
+      header: 'Cinematographer',
+      width: 150,
+      minWidth: 120,
+      render: (value: any, film: FilmType) => (
+        film.crew.cinematographer ? (
+          <TalentName
+            name={film.crew.cinematographer}
+            onTalentClick={openTalentModal}
+            className="text-sm"
+          />
+        ) : (
+          <span className="text-sm text-gray-900">—</span>
+        )
+      )
+    },
+    {
+      key: 'producer',
+      header: 'Producer',
+      width: 150,
+      minWidth: 120,
+      render: (value: any, film: FilmType) => (
+        film.crew.producer ? (
+          <TalentName
+            name={film.crew.producer}
+            onTalentClick={openTalentModal}
+            className="text-sm"
+          />
+        ) : (
+          <span className="text-sm text-gray-900">—</span>
+        )
+      )
+    },
+    {
+      key: 'productionCompanies',
+      header: 'Production Companies',
+      width: 180,
+      minWidth: 150,
+      render: (value: any, film: FilmType) => (
+        <span className="text-sm text-gray-900">{film.production.companies?.join(', ') || '—'}</span>
+      )
+    },
+    {
+      key: 'screenerAccessType',
+      header: 'Screener Access',
+      width: 120,
+      minWidth: 100,
+      render: (value: string) => getScreenerAccessBadge(value)
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      width: 100,
+      minWidth: 80,
+      render: (value: any, film: FilmType) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedFilm(film);
+            setShowFilmModal(true);
+          }}
+          className="text-blue-600 hover:text-blue-800 flex items-center"
+        >
+          <Eye className="w-4 h-4 mr-1" />
+          View
+        </button>
+      )
+    }
+  ];
 
   const filteredFilms = films.filter(film => {
     const matchesSearch = film.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -57,22 +304,6 @@ const TitleManagement: React.FC<TitleManagementProps> = ({ user }) => {
     }
   });
 
-  const getScreenerAccessBadge = (type?: string) => {
-    const badges = {
-      'cinesend': { color: 'bg-green-100 text-green-800', text: 'Cinesend' },
-      'direct_link': { color: 'bg-blue-100 text-blue-800', text: 'Direct Link' },
-      'distributor_request': { color: 'bg-yellow-100 text-yellow-800', text: 'Distributor' },
-      'screenings_only': { color: 'bg-gray-100 text-gray-800', text: 'Screenings Only' }
-    };
-    
-    const badge = badges[type as keyof typeof badges] || badges['screenings_only'];
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
-        {badge.text}
-      </span>
-    );
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -97,30 +328,9 @@ const TitleManagement: React.FC<TitleManagementProps> = ({ user }) => {
         </div>
         
         <div className="flex items-center space-x-4">
-          {/* View Toggle */}
-          <div className="flex rounded-lg border border-gray-300 p-1">
-            <button
-              onClick={() => setViewMode('table')}
-              className={`px-3 py-1 rounded-md flex items-center ${
-                viewMode === 'table' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <List className="w-4 h-4 mr-1" />
-              Table
-            </button>
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`px-3 py-1 rounded-md flex items-center ${
-                viewMode === 'cards' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <Grid className="w-4 h-4 mr-1" />
-              Cards
-            </button>
-          </div>
-          
           {user.permissions.titleManagement === 'full_edit' && (
             <button 
+              type="button"
               onClick={() => setShowAddFilmModal(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700"
             >
@@ -166,162 +376,41 @@ const TitleManagement: React.FC<TitleManagementProps> = ({ user }) => {
             <option value="runtime">Sort by Runtime</option>
             <option value="year">Sort by Year</option>
           </select>
+          
+          {/* View Toggle */}
+          <div className="flex rounded-lg border border-gray-300 p-1">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-3 py-1 rounded-md flex items-center ${
+                viewMode === 'table' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <List className="w-4 h-4 mr-1" />
+              Table
+            </button>
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`px-3 py-1 rounded-md flex items-center ${
+                viewMode === 'cards' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Grid className="w-4 h-4 mr-1" />
+              Cards
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Films Display - Table or Cards */}
       {viewMode === 'table' ? (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-max w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10 min-w-[200px]">
-                    Title
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
-                    Director
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                    Countries
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
-                    Language
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">
-                    Subtitles
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">
-                    Programs
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                    Genres
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">
-                    Runtime
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">
-                    Year
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                    Premiere
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">
-                    Principal Cast
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
-                    Screenwriter
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
-                    Cinematographer
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
-                    Producer
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">
-                    Production Companies
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                    Screener Access
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sortedFilms.map((film) => (
-                  <tr key={film.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4 sticky left-0 bg-white z-10 min-w-[200px]">
-                      <div>
-                        <div className="font-medium text-gray-900">{film.title}</div>
-                        {film.originalLanguageTitle && film.originalLanguageTitle !== film.title && (
-                          <div className="text-sm text-gray-500 italic">{film.originalLanguageTitle}</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 min-w-[150px]">
-                      {film.director}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 min-w-[120px]">
-                      {film.countries.join(', ')}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 min-w-[100px]">
-                      {film.language}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 min-w-[80px]">
-                      {film.subtitles ? 'Yes' : 'No'}
-                    </td>
-                    <td className="px-4 py-4 min-w-[180px]">
-                      <div className="flex flex-wrap gap-1">
-                        {film.programs.map((program, index) => (
-                          <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                            {program}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 min-w-[120px]">
-                      <div className="flex flex-wrap gap-1">
-                        {film.genres.map((genre, index) => (
-                          <span key={index} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
-                            {genre}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 min-w-[80px]">
-                      {film.runtime} min
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 min-w-[80px]">
-                      {film.originalReleaseYear}
-                    </td>
-                    <td className="px-4 py-4 min-w-[120px]">
-                      {film.premiereStatus && (
-                        <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
-                          {film.premiereStatus}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 min-w-[180px]">
-                      {film.cast.slice(0, 3).join(', ')}
-                      {film.cast.length > 3 && (
-                        <span className="text-gray-500"> +{film.cast.length - 3} more</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 min-w-[150px]">
-                      {film.crew.screenwriter || '—'}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 min-w-[150px]">
-                      {film.crew.cinematographer || '—'}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 min-w-[150px]">
-                      {film.crew.producer || '—'}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 min-w-[180px]">
-                      {film.production.companies?.join(', ') || '—'}
-                    </td>
-                    <td className="px-4 py-4 min-w-[120px]">
-                      {getScreenerAccessBadge(film.screenerAccessType)}
-                    </td>
-                    <td className="px-4 py-4 min-w-[100px]">
-                      <button
-                        onClick={() => {
-                          setSelectedFilm(film);
-                          setShowFilmModal(true);
-                        }}
-                        className="text-blue-600 hover:text-blue-800 flex items-center"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <ResizableTable
+          columns={tableColumns}
+          data={sortedFilms}
+          onRowClick={(film) => {
+            setSelectedFilm(film);
+            setShowFilmModal(true);
+          }}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedFilms.map((film) => (
@@ -350,7 +439,11 @@ const TitleManagement: React.FC<TitleManagementProps> = ({ user }) => {
                 <div className="space-y-2 text-sm text-gray-600">
                   <div className="flex items-center">
                     <Users className="w-4 h-4 mr-2" />
-                    <span>{film.director}</span>
+                    <TalentName
+                      name={film.director}
+                      onTalentClick={openTalentModal}
+                      className="text-sm"
+                    />
                   </div>
                   
                   <div className="flex items-center">
@@ -407,7 +500,7 @@ const TitleManagement: React.FC<TitleManagementProps> = ({ user }) => {
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">Basic Information</h3>
                     <div className="space-y-1 text-sm">
-                      <p><span className="font-medium">Director:</span> {selectedFilm.director}</p>
+                      <p><span className="font-medium">Director:</span> <TalentName name={selectedFilm.director} onTalentClick={openTalentModal} className="text-sm" /></p>
                       <p><span className="font-medium">Countries:</span> {selectedFilm.countries.join(', ')}</p>
                       <p><span className="font-medium">Runtime:</span> {selectedFilm.runtime} minutes</p>
                       <p><span className="font-medium">Language:</span> {selectedFilm.language}</p>
@@ -442,23 +535,34 @@ const TitleManagement: React.FC<TitleManagementProps> = ({ user }) => {
                     <h3 className="font-semibold text-gray-900 mb-2">Cast & Crew</h3>
                     <div className="space-y-1 text-sm">
                       {selectedFilm.crew.screenwriter && (
-                        <p><span className="font-medium">Screenwriter:</span> {selectedFilm.crew.screenwriter}</p>
+                        <p><span className="font-medium">Screenwriter:</span> <TalentName name={selectedFilm.crew.screenwriter} onTalentClick={openTalentModal} className="text-sm" /></p>
                       )}
                       {selectedFilm.crew.cinematographer && (
-                        <p><span className="font-medium">Cinematographer:</span> {selectedFilm.crew.cinematographer}</p>
+                        <p><span className="font-medium">Cinematographer:</span> <TalentName name={selectedFilm.crew.cinematographer} onTalentClick={openTalentModal} className="text-sm" /></p>
                       )}
                       {selectedFilm.crew.editor && (
-                        <p><span className="font-medium">Editor:</span> {selectedFilm.crew.editor}</p>
+                        <p><span className="font-medium">Editor:</span> <TalentName name={selectedFilm.crew.editor} onTalentClick={openTalentModal} className="text-sm" /></p>
                       )}
                       {selectedFilm.crew.producer && (
-                        <p><span className="font-medium">Producer:</span> {selectedFilm.crew.producer}</p>
+                        <p><span className="font-medium">Producer:</span> <TalentName name={selectedFilm.crew.producer} onTalentClick={openTalentModal} className="text-sm" /></p>
                       )}
                     </div>
                     
                     {selectedFilm.cast.length > 0 && (
                       <div className="mt-2">
                         <p className="font-medium text-sm">Principal Cast:</p>
-                        <p className="text-sm text-gray-600">{selectedFilm.cast.join(', ')}</p>
+                        <div className="text-sm text-gray-600">
+                          {selectedFilm.cast.map((castMember, idx) => (
+                            <span key={idx}>
+                              <TalentName
+                                name={castMember}
+                                onTalentClick={openTalentModal}
+                                className="text-sm"
+                              />
+                              {idx < selectedFilm.cast.length - 1 && ', '}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -642,6 +746,15 @@ const TitleManagement: React.FC<TitleManagementProps> = ({ user }) => {
       <div className="text-sm text-gray-600 text-center">
         Showing {sortedFilms.length} of {films.length} films
       </div>
+      
+      {/* Talent Card Modal */}
+      {showTalentModal && selectedTalent && (
+        <TalentCardModal
+          person={selectedTalent}
+          isOpen={showTalentModal}
+          onClose={() => setShowTalentModal(false)}
+        />
+      )}
     </div>
   );
 };

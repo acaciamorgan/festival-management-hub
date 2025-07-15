@@ -5,6 +5,8 @@ import {
   Upload, Download, Users, Film, Star, Globe, Save, X
 } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
+import FilmDetailModal from '../shared/FilmDetailModal';
+import GuestDetailModal from '../shared/GuestDetailModal';
 
 interface Flight {
   date: string;
@@ -68,7 +70,7 @@ interface TravelModuleProps {
 }
 
 const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
-  const { films, people } = useData();
+  const { films, people, getFilmByTitle, addTravelerToPeople } = useData();
   const [travelers, setTravelers] = useState<Traveler[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -77,6 +79,10 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
   const [showTravelerModal, setShowTravelerModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showFilmModal, setShowFilmModal] = useState(false);
+  const [selectedFilm, setSelectedFilm] = useState<any>(null);
+  const [showGuestModal, setShowGuestModal] = useState(false);
+  const [selectedGuest, setSelectedGuest] = useState<any>(null);
 
   // Helper function to convert 24-hour time to 12-hour AM/PM format
   const formatTime = (time24: string) => {
@@ -87,143 +93,47 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  // Mock data
+  const handleGuestClick = (traveler: Traveler) => {
+    // Convert traveler data to guest format for modal
+    const guestData = {
+      id: traveler.id,
+      name: traveler.name,
+      role: traveler.role,
+      filmTitles: traveler.filmTitle ? [traveler.filmTitle] : [],
+      email: traveler.contactInfo.primary.email,
+      phone: traveler.contactInfo.primary.phone,
+      arrivalDate: traveler.arrivalFlight?.date,
+      departureDate: traveler.departureFlight?.date,
+      flightDetails: {
+        arrival: traveler.arrivalFlight ? `${traveler.arrivalFlight.originAirport} → ${traveler.arrivalFlight.arrivalAirport} at ${formatTime(traveler.arrivalFlight.time)}` : undefined,
+        departure: traveler.departureFlight ? `${traveler.departureFlight.originAirport} → ${traveler.departureFlight.arrivalAirport} at ${formatTime(traveler.departureFlight.time)}` : undefined,
+      },
+      accommodation: traveler.hotel ? {
+        hotel: traveler.hotel.name,
+        checkIn: traveler.hotel.checkInDate,
+        checkOut: traveler.hotel.checkOutDate,
+      } : undefined,
+      specialRequests: traveler.hotel?.specialRequests,
+      interviews: traveler.upcomingInterviews || [],
+      // Note: Photo shoots would need to be fetched from PhotoCoordination module in real implementation
+      photoShoots: []
+    };
+    
+    setSelectedGuest(guestData);
+    setShowGuestModal(true);
+  };
+
+  // Sync existing travelers to central people database
   useEffect(() => {
-    const mockTravelers: Traveler[] = [
-      {
-        id: 1,
-        name: 'Paz Vega',
-        role: 'Director/Star',
-        filmTitle: 'Rita',
-        programPurpose: 'Rita film premiere and Q&A',
-        contactInfo: {
-          primary: {
-            email: 'pzvega5@gmail.com',
-            phone: '+34 123 456 789'
-          },
-          publicistManager: {
-            name: 'Orson Martinez',
-            email: 'orson@odafilms.com',
-            phone: '+1 555 123 4567'
-          }
-        },
-        travelStatus: 'festival_arranged',
-        arrivalFlight: {
-          date: '2024-10-15',
-          time: '14:30',
-          originAirport: 'MAD',
-          arrivalAirport: 'ORD'
-        },
-        departureFlight: {
-          date: '2024-10-19',
-          time: '10:15',
-          originAirport: 'ORD',
-          arrivalAirport: 'MAD'
-        },
-        hotel: {
-          name: 'The Chicago Hotel',
-          address: '333 N Dearborn St, Chicago, IL 60654',
-          checkInDate: '2024-10-15',
-          checkOutDate: '2024-10-19',
-          roomDetails: 'Suite with city view',
-          specialRequests: 'Late checkout preferred'
-        },
-        upcomingInterviews: [
-          {
-            id: 1,
-            journalistName: 'Sarah Johnson (Entertainment Weekly)',
-            date: '2024-10-17',
-            time: '14:30',
-            status: 'scheduled'
-          },
-          {
-            id: 2,
-            journalistName: 'Mike Chen (The Hollywood Reporter)',
-            date: '2024-10-18',
-            time: '11:00',
-            status: 'approved'
-          }
-        ],
-        createdFromFilm: true
-      },
-      {
-        id: 2,
-        name: 'David Fortune',
-        role: 'Director',
-        filmTitle: 'Color Book',
-        programPurpose: 'Color Book premiere and filmmaker discussion',
-        contactInfo: {
-          primary: {
-            email: 'david@colorbook.com',
-            phone: '+1 213 555 7890'
-          }
-        },
-        travelStatus: 'distributor_handling',
-        upcomingInterviews: [
-          {
-            id: 3,
-            journalistName: 'Lisa Park (WGN News)',
-            date: '2024-10-17',
-            time: '16:00',
-            status: 'pending'
-          }
-        ],
-        notes: 'Distributor managing all arrangements - contact through sales agent',
-        createdFromFilm: true
-      },
-      {
-        id: 3,
-        name: 'Jason Park',
-        role: 'Director',
-        filmTitle: 'Transplant',
-        programPurpose: 'Transplant screening and industry panel',
-        contactInfo: {
-          primary: {
-            email: 'jason@transplantfilm.com'
-          }
-        },
-        travelStatus: 'local',
-        upcomingInterviews: [],
-        notes: 'Chicago-based filmmaker, arranging own logistics',
-        createdFromFilm: true
-      },
-      {
-        id: 4,
-        name: 'Jane Smith',
-        role: 'Industry Speaker',
-        programPurpose: 'Lifetime Achievement Award ceremony and masterclass on film preservation',
-        contactInfo: {
-          primary: {
-            email: 'jane.smith@preservation.org',
-            phone: '+1 555 987 6543'
-          }
-        },
-        travelStatus: 'festival_arranged',
-        arrivalFlight: {
-          date: '2024-10-16',
-          time: '09:45',
-          originAirport: 'LAX',
-          arrivalAirport: 'ORD'
-        },
-        departureFlight: {
-          date: '2024-10-20',
-          time: '15:20',
-          originAirport: 'ORD',
-          arrivalAirport: 'LAX'
-        },
-        hotel: {
-          name: 'Palmer House Hilton',
-          address: '17 E Monroe St, Chicago, IL 60603',
-          checkInDate: '2024-10-16',
-          checkOutDate: '2024-10-20',
-          roomDetails: 'Presidential suite',
-          specialRequests: 'Quiet floor, early check-in'
-        },
-        upcomingInterviews: [],
-        createdFromFilm: false
-      }
-    ];
-    setTravelers(mockTravelers);
+    travelers.forEach(traveler => {
+      addTravelerToPeople(traveler);
+    });
+  }, [travelers, addTravelerToPeople]);
+
+  // WAITING FOR HUMAN TO PROVIDE APPROVED MOCK DATA
+  // CLAUDE IS FORBIDDEN FROM CREATING MOCK DATA
+  useEffect(() => {
+    setTravelers([]);
   }, []);
 
   const getStatusBadge = (status: string) => {
@@ -302,6 +212,7 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
           {user.permissions.travelModule === 'full_edit' && (
             <>
               <button 
+                type="button"
                 onClick={() => setShowImportModal(true)}
                 className="bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-gray-700"
               >
@@ -309,6 +220,7 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
                 Import Data
               </button>
               <button 
+                type="button"
                 onClick={() => setShowAddModal(true)}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700"
               >
@@ -416,14 +328,31 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
                 <tr key={traveler.id} className="hover:bg-gray-50">
                   <td className="px-4 py-4">
                     <div>
-                      <div className="font-medium text-gray-900">{traveler.name}</div>
+                      <button 
+                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
+                        onClick={() => handleGuestClick(traveler)}
+                      >
+                        {traveler.name}
+                      </button>
                       <div className="text-sm text-gray-600">{traveler.role}</div>
                     </div>
                   </td>
                   <td className="px-4 py-4">
                     <div>
                       {traveler.filmTitle && (
-                        <div className="font-medium text-gray-900">{traveler.filmTitle}</div>
+                        <button 
+                          className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const film = getFilmByTitle(traveler.filmTitle!);
+                            if (film) {
+                              setSelectedFilm(film);
+                              setShowFilmModal(true);
+                            }
+                          }}
+                        >
+                          {traveler.filmTitle}
+                        </button>
                       )}
                       <div className="text-sm text-gray-600">{traveler.programPurpose}</div>
                     </div>
@@ -514,7 +443,18 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
                     <h3 className="font-semibold text-gray-900 mb-2">Program/Purpose</h3>
                     <div className="bg-gray-50 p-3 rounded-lg">
                       {selectedTraveler.filmTitle && (
-                        <div className="font-medium text-gray-900 mb-1">{selectedTraveler.filmTitle}</div>
+                        <button 
+                          className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left mb-1"
+                          onClick={() => {
+                            const film = getFilmByTitle(selectedTraveler.filmTitle!);
+                            if (film) {
+                              setSelectedFilm(film);
+                              setShowFilmModal(true);
+                            }
+                          }}
+                        >
+                          {selectedTraveler.filmTitle}
+                        </button>
                       )}
                       <div className="text-sm text-gray-600">{selectedTraveler.programPurpose}</div>
                     </div>
@@ -707,26 +647,57 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
 
               <form onSubmit={(e) => {
                 e.preventDefault();
-                const formData = new FormData(e.target as HTMLFormElement);
-                const newTraveler: Traveler = {
-                  id: travelers.length + 1,
-                  name: formData.get('name') as string,
-                  role: formData.get('role') as string,
-                  filmTitle: formData.get('filmTitle') as string || undefined,
-                  programPurpose: formData.get('programPurpose') as string,
-                  contactInfo: {
-                    primary: {
-                      email: formData.get('email') as string,
-                      phone: formData.get('phone') as string || undefined
-                    }
-                  },
-                  travelStatus: formData.get('travelStatus') as any,
-                  upcomingInterviews: [],
-                  notes: formData.get('notes') as string || undefined,
-                  createdFromFilm: false
-                };
-                setTravelers(prev => [...prev, newTraveler]);
-                setShowAddModal(false);
+                try {
+                  const formData = new FormData(e.target as HTMLFormElement);
+                  
+                  // Get form values
+                  const name = formData.get('name') as string;
+                  const role = formData.get('role') as string;
+                  const filmTitle = formData.get('filmTitle') as string;
+                  const programPurpose = formData.get('programPurpose') as string;
+                  const email = formData.get('email') as string;
+                  const phone = formData.get('phone') as string;
+                  const travelStatus = formData.get('travelStatus') as string;
+                  const notes = formData.get('notes') as string;
+
+                  // Validate required fields
+                  if (!name || !role || !programPurpose || !email || !travelStatus) {
+                    alert('Please fill in all required fields (marked with *)');
+                    return;
+                  }
+
+                  const newTraveler: Traveler = {
+                    id: travelers.length + 1,
+                    name: name.trim(),
+                    role: role.trim(),
+                    filmTitle: filmTitle || undefined,
+                    programPurpose: programPurpose.trim(),
+                    contactInfo: {
+                      primary: {
+                        email: email.trim(),
+                        phone: phone ? phone.trim() : undefined
+                      }
+                    },
+                    travelStatus: travelStatus as 'local' | 'distributor_handling' | 'festival_arranged',
+                    upcomingInterviews: [],
+                    notes: notes ? notes.trim() : undefined,
+                    createdFromFilm: false
+                  };
+                  
+                  console.log('Adding new traveler:', newTraveler);
+                  setTravelers(prev => [...prev, newTraveler]);
+                  
+                  // Also add traveler to central people database so they become clickable in film cards
+                  addTravelerToPeople(newTraveler);
+                  
+                  setShowAddModal(false);
+                  
+                  // Clear form (optional, but good UX)
+                  (e.target as HTMLFormElement).reset();
+                } catch (error) {
+                  console.error('Error adding traveler:', error);
+                  alert('There was an error adding the traveler. Please try again.');
+                }
               }}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
@@ -851,6 +822,20 @@ const TravelModule: React.FC<TravelModuleProps> = ({ user }) => {
           </div>
         </div>
       )}
+
+      {/* Film Detail Modal */}
+      <FilmDetailModal 
+        film={selectedFilm}
+        isOpen={showFilmModal}
+        onClose={() => setShowFilmModal(false)}
+      />
+
+      {/* Guest Detail Modal */}
+      <GuestDetailModal 
+        guest={selectedGuest}
+        isOpen={showGuestModal}
+        onClose={() => setShowGuestModal(false)}
+      />
 
       {/* Results Summary */}
       <div className="text-sm text-gray-600 text-center">

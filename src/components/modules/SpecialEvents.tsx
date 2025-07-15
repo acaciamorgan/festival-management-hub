@@ -4,6 +4,7 @@ import {
   MapPin, Clock, Users, Star, Wine, Music, Camera,
   Utensils, Gift, Award, Mic, Theater
 } from 'lucide-react';
+import { useData } from '../../contexts/DataContext';
 
 interface SpecialEvent {
   id: number;
@@ -37,6 +38,7 @@ interface SpecialEventsProps {
 }
 
 const SpecialEvents: React.FC<SpecialEventsProps> = ({ user }) => {
+  const { venues } = useData();
   const [events, setEvents] = useState<SpecialEvent[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<SpecialEvent | null>(null);
@@ -53,125 +55,10 @@ const SpecialEvents: React.FC<SpecialEventsProps> = ({ user }) => {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  // Mock data
+  // WAITING FOR HUMAN TO PROVIDE APPROVED MOCK DATA
+  // CLAUDE IS FORBIDDEN FROM CREATING MOCK DATA
   useEffect(() => {
-    const mockEvents: SpecialEvent[] = [
-      {
-        id: 1,
-        title: 'Opening Night Gala',
-        description: 'Annual festival opening celebration with premiere screening and reception',
-        category: 'gala',
-        date: '2024-10-16',
-        startTime: '19:00',
-        endTime: '23:30',
-        venue: 'Music Box Theatre',
-        capacity: 750,
-        expectedAttendees: 650,
-        inviteOnly: true,
-        status: 'confirmed',
-        organizer: 'Morgan Harris',
-        budget: 45000,
-        requirements: ['Red carpet setup', 'Photography team', 'Catering for 650', 'VIP lounge', 'Sound system'],
-        vipGuests: ['Payal Kapadia', 'Steve McQueen', 'Board Members'],
-        notes: 'Black tie event. Press arrival at 6:30 PM.'
-      },
-      {
-        id: 2,
-        title: 'Filmmaker Brunch',
-        description: 'Exclusive networking brunch for competition filmmakers',
-        category: 'networking',
-        date: '2024-10-18',
-        startTime: '10:00',
-        endTime: '13:00',
-        venue: 'The Palmer House Hilton',
-        capacity: 50,
-        expectedAttendees: 35,
-        inviteOnly: true,
-        status: 'confirmed',
-        organizer: 'Sarah Chen',
-        budget: 8500,
-        requirements: ['Brunch catering', 'Round table setup', 'Name tags', 'Welcome packets'],
-        vipGuests: ['Competition Directors', 'Jury Members'],
-        notes: 'Casual dress code. Networking focused.'
-      },
-      {
-        id: 3,
-        title: 'Awards Ceremony',
-        description: 'Annual CIFF awards presentation and celebration',
-        category: 'awards',
-        date: '2024-10-20',
-        startTime: '18:00',
-        endTime: '21:00',
-        venue: 'Gene Siskel Film Center',
-        capacity: 200,
-        expectedAttendees: 180,
-        inviteOnly: false,
-        status: 'planning',
-        organizer: 'Mike Rodriguez',
-        budget: 25000,
-        requirements: ['Award trophies', 'Stage setup', 'Livestream equipment', 'Reception catering'],
-        vipGuests: ['Award Winners', 'Jury Members', 'Festival Board'],
-        notes: 'Public event with livestream. Press invited.'
-      },
-      {
-        id: 4,
-        title: 'Industry Reception',
-        description: 'Cocktail reception for industry professionals and press',
-        category: 'reception',
-        date: '2024-10-19',
-        startTime: '17:30',
-        endTime: '19:30',
-        venue: 'AMC River East 21 - VIP Lounge',
-        capacity: 100,
-        expectedAttendees: 85,
-        inviteOnly: true,
-        status: 'confirmed',
-        organizer: 'Morgan Harris',
-        budget: 12000,
-        requirements: ['Bar service', 'Hors d\'oeuvres', 'Cocktail tables', 'Background music'],
-        vipGuests: ['Industry Executives', 'Press Corps', 'Distributors'],
-        notes: 'Business casual. Networking focus.'
-      },
-      {
-        id: 5,
-        title: 'Documentary Workshop',
-        description: 'Masterclass on documentary filmmaking techniques',
-        category: 'workshop',
-        date: '2024-10-17',
-        startTime: '14:00',
-        endTime: '16:30',
-        venue: 'Columbia College Chicago',
-        capacity: 80,
-        expectedAttendees: 75,
-        inviteOnly: false,
-        status: 'confirmed',
-        organizer: 'Sarah Chen',
-        budget: 3500,
-        requirements: ['Projection equipment', 'Microphones', 'Chairs classroom style', 'Water stations'],
-        vipGuests: ['Workshop Leader: Alex Rivera'],
-        notes: 'Open to public. Student discounts available.'
-      },
-      {
-        id: 6,
-        title: 'Closing Night Party',
-        description: 'Festival farewell celebration with music and dancing',
-        category: 'party',
-        date: '2024-10-20',
-        startTime: '22:00',
-        endTime: '02:00',
-        venue: 'Revolution Brewing',
-        capacity: 200,
-        expectedAttendees: 150,
-        inviteOnly: false,
-        status: 'planning',
-        organizer: 'Mike Rodriguez',
-        budget: 15000,
-        requirements: ['DJ/Live music', 'Open bar', 'Food stations', 'Dance floor'],
-        vipGuests: ['Festival Alumni', 'Local Filmmakers'],
-        notes: 'Casual event. Open to all festival attendees.'
-      }
-    ];
-    setEvents(mockEvents);
+    setEvents([]);
   }, []);
 
   const getCategoryIcon = (category: string) => {
@@ -341,6 +228,7 @@ const SpecialEvents: React.FC<SpecialEventsProps> = ({ user }) => {
           
           {user.permissions.specialEvents === 'full_edit' && (
             <button 
+              type="button"
               onClick={() => setShowAddModal(true)}
               className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-purple-700"
             >

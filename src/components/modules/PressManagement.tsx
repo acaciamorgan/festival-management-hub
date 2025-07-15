@@ -55,117 +55,50 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
   const [selectedJournalist, setSelectedJournalist] = useState<Journalist | null>(null);
   const [showJournalistModal, setShowJournalistModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [activityType, setActivityType] = useState<'pitches' | 'scheduled' | 'screenings' | null>(null);
+  const [newJournalist, setNewJournalist] = useState({
+    name: '',
+    email: '',
+    primaryOutlet: '',
+    secondaryOutlet: '',
+    primaryOutletUrl: '',
+    secondaryOutletUrl: '',
+    phone: '',
+    type: '',
+    accreditationLevel: '',
+    beatSpecialty: '',
+    geography: '',
+    specialNotes: '',
+    twitter: '',
+    instagram: '',
+    linkedin: ''
+  });
+  const [editJournalist, setEditJournalist] = useState({
+    id: 0,
+    name: '',
+    email: '',
+    primaryOutlet: '',
+    secondaryOutlet: '',
+    primaryOutletUrl: '',
+    secondaryOutletUrl: '',
+    phone: '',
+    type: '',
+    accreditationLevel: '',
+    beatSpecialty: '',
+    geography: '',
+    specialNotes: '',
+    twitter: '',
+    instagram: '',
+    linkedin: ''
+  });
 
   // Mock data
+  // WAITING FOR HUMAN TO PROVIDE APPROVED MOCK DATA
+  // CLAUDE IS FORBIDDEN FROM CREATING MOCK DATA
   useEffect(() => {
-    const mockJournalists: Journalist[] = [
-      {
-        id: 1,
-        name: 'Sarah Johnson',
-        primaryOutlet: 'Entertainment Weekly',
-        type: 'Print/Online',
-        beatSpecialty: 'Film Critics',
-        accreditationLevel: 'P',
-        email: 'sarah@ew.com',
-        phone: '(555) 123-4567',
-        primaryOutletUrl: 'https://ew.com',
-        socialMedia: {
-          twitter: '@sarahjohnsonEW',
-          linkedin: 'sarah-johnson-ew'
-        },
-        credentialsPickedUp: true,
-        specialNotes: 'VIP access requested',
-        interviewActivity: {
-          currentPitches: 3,
-          scheduledInterviews: 2,
-          completedInterviews: 5
-        },
-        pressScreenings: {
-          rsvpCount: 4
-        }
-      },
-      {
-        id: 2,
-        name: 'Mike Chen',
-        primaryOutlet: 'The Hollywood Reporter',
-        secondaryOutlets: ['Variety (Freelance)'],
-        type: 'Trade',
-        beatSpecialty: 'Entertainment Business',
-        accreditationLevel: 'P',
-        email: 'mike@thr.com',
-        phone: '(555) 234-5678',
-        socialMedia: {
-          twitter: '@mikechenthr'
-        },
-        credentialsPickedUp: false,
-        interviewActivity: {
-          currentPitches: 1,
-          scheduledInterviews: 1,
-          completedInterviews: 8
-        },
-        pressScreenings: {
-          rsvpCount: 2
-        }
-      },
-      {
-        id: 3,
-        name: 'Lisa Park',
-        primaryOutlet: 'WGN News',
-        type: 'TV',
-        beatSpecialty: 'Local Entertainment',
-        accreditationLevel: 'G',
-        email: 'lisa@wgn.com',
-        phone: '(555) 345-6789',
-        credentialsPickedUp: true,
-        specialNotes: 'Dietary restrictions: vegetarian',
-        interviewActivity: {
-          currentPitches: 2,
-          scheduledInterviews: 0,
-          completedInterviews: 3
-        },
-        pressScreenings: {
-          rsvpCount: 1
-        }
-      },
-      {
-        id: 4,
-        name: 'David Rodriguez',
-        primaryOutlet: 'Columbia College Chicago',
-        type: 'College',
-        beatSpecialty: 'Student Media',
-        accreditationLevel: 'G',
-        email: 'drodriguez@colum.edu',
-        credentialsPickedUp: false,
-        interviewActivity: {
-          currentPitches: 0,
-          scheduledInterviews: 1,
-          completedInterviews: 0
-        },
-        pressScreenings: {
-          rsvpCount: 0
-        }
-      },
-      {
-        id: 5,
-        name: 'Jennifer Walsh',
-        primaryOutlet: 'Film Independent Blog',
-        type: 'Print/Online',
-        beatSpecialty: 'Independent Films',
-        accreditationLevel: 'Unaccredited',
-        email: 'jen@filmindependent.com',
-        interviewActivity: {
-          currentPitches: 1,
-          scheduledInterviews: 0,
-          completedInterviews: 0
-        },
-        pressScreenings: {
-          rsvpCount: 3
-        }
-      }
-    ];
-    setJournalists(mockJournalists);
+    setJournalists([]);
   }, []);
 
   const getAccreditationBadge = (level: string) => {
@@ -260,6 +193,142 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
     return sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />;
   };
 
+  const handleAddJournalist = () => {
+    // Validate required fields
+    if (!newJournalist.name || !newJournalist.email || !newJournalist.primaryOutlet) {
+      alert('Please fill in all required fields (Name, Email, Primary Outlet)');
+      return;
+    }
+
+    // Create complete journalist object with all required fields
+    const journalistToAdd: Journalist = {
+      id: Math.max(...journalists.map(j => j.id)) + 1,
+      name: newJournalist.name.trim(),
+      primaryOutlet: newJournalist.primaryOutlet.trim(),
+      secondaryOutlets: newJournalist.secondaryOutlet.trim() ? [newJournalist.secondaryOutlet.trim()] : undefined,
+      type: newJournalist.type as 'TV' | 'Print/Online' | 'Radio' | 'Trade' | 'College',
+      beatSpecialty: newJournalist.beatSpecialty.trim() || 'General',
+      accreditationLevel: newJournalist.accreditationLevel as 'P' | 'G' | 'Unaccredited',
+      email: newJournalist.email.trim(),
+      phone: newJournalist.phone.trim() || undefined,
+      primaryOutletUrl: newJournalist.primaryOutletUrl.trim() || undefined,
+      secondaryOutletUrls: newJournalist.secondaryOutletUrl.trim() ? [newJournalist.secondaryOutletUrl.trim()] : undefined,
+      socialMedia: {
+        twitter: newJournalist.twitter.trim() || undefined,
+        instagram: newJournalist.instagram.trim() || undefined,
+        linkedin: newJournalist.linkedin.trim() || undefined
+      },
+      credentialsPickedUp: false,
+      specialNotes: newJournalist.specialNotes.trim() || undefined,
+      interviewActivity: {
+        currentPitches: 0,
+        scheduledInterviews: 0,
+        completedInterviews: 0
+      },
+      pressScreenings: {
+        rsvpCount: 0
+      }
+    };
+
+    // Add to journalists list
+    setJournalists(prev => [...prev, journalistToAdd]);
+    
+    // Reset form and close modal
+    setNewJournalist({
+      name: '',
+      email: '',
+      primaryOutlet: '',
+      secondaryOutlet: '',
+      primaryOutletUrl: '',
+      secondaryOutletUrl: '',
+      phone: '',
+      type: '',
+      accreditationLevel: '',
+      beatSpecialty: '',
+      geography: '',
+      specialNotes: '',
+      twitter: '',
+      instagram: '',
+      linkedin: ''
+    });
+    setShowAddModal(false);
+  };
+
+  const handleEditJournalist = (journalist: Journalist) => {
+    setEditJournalist({
+      id: journalist.id,
+      name: journalist.name,
+      email: journalist.email,
+      primaryOutlet: journalist.primaryOutlet,
+      secondaryOutlet: journalist.secondaryOutlets?.[0] || '',
+      primaryOutletUrl: journalist.primaryOutletUrl || '',
+      secondaryOutletUrl: journalist.secondaryOutletUrls?.[0] || '',
+      phone: journalist.phone || '',
+      type: journalist.type,
+      accreditationLevel: journalist.accreditationLevel,
+      beatSpecialty: journalist.beatSpecialty,
+      geography: '', // This field wasn't in original data
+      specialNotes: journalist.specialNotes || '',
+      twitter: journalist.socialMedia?.twitter || '',
+      instagram: journalist.socialMedia?.instagram || '',
+      linkedin: journalist.socialMedia?.linkedin || ''
+    });
+    setShowJournalistModal(false);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateJournalist = () => {
+    // Validate required fields
+    if (!editJournalist.name || !editJournalist.email || !editJournalist.primaryOutlet) {
+      alert('Please fill in all required fields (Name, Email, Primary Outlet)');
+      return;
+    }
+
+    // Update journalist in the list
+    setJournalists(prev => prev.map(j => 
+      j.id === editJournalist.id ? {
+        ...j,
+        name: editJournalist.name.trim(),
+        email: editJournalist.email.trim(),
+        primaryOutlet: editJournalist.primaryOutlet.trim(),
+        secondaryOutlets: editJournalist.secondaryOutlet.trim() ? [editJournalist.secondaryOutlet.trim()] : undefined,
+        primaryOutletUrl: editJournalist.primaryOutletUrl.trim() || undefined,
+        secondaryOutletUrls: editJournalist.secondaryOutletUrl.trim() ? [editJournalist.secondaryOutletUrl.trim()] : undefined,
+        phone: editJournalist.phone.trim() || undefined,
+        type: editJournalist.type as 'TV' | 'Print/Online' | 'Radio' | 'Trade' | 'College',
+        accreditationLevel: editJournalist.accreditationLevel as 'P' | 'G' | 'Unaccredited',
+        beatSpecialty: editJournalist.beatSpecialty.trim() || j.beatSpecialty,
+        specialNotes: editJournalist.specialNotes.trim() || undefined,
+        socialMedia: {
+          twitter: editJournalist.twitter.trim() || undefined,
+          instagram: editJournalist.instagram.trim() || undefined,
+          linkedin: editJournalist.linkedin.trim() || undefined
+        }
+      } : j
+    ));
+
+    // Reset form and close modal
+    setEditJournalist({
+      id: 0,
+      name: '',
+      email: '',
+      primaryOutlet: '',
+      secondaryOutlet: '',
+      primaryOutletUrl: '',
+      secondaryOutletUrl: '',
+      phone: '',
+      type: '',
+      accreditationLevel: '',
+      beatSpecialty: '',
+      geography: '',
+      specialNotes: '',
+      twitter: '',
+      instagram: '',
+      linkedin: ''
+    });
+    setShowEditModal(false);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -270,6 +339,7 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
         </div>
         {user.permissions.pressManagement === 'full_edit' && (
           <button 
+            type="button"
             onClick={() => setShowAddModal(true)}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700"
           >
@@ -464,6 +534,7 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
                   <p className="text-gray-600">{selectedJournalist.primaryOutlet}</p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setShowJournalistModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -615,7 +686,10 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
 
               {user.permissions.pressManagement === 'full_edit' && (
                 <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end">
-                  <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                  <button 
+                    onClick={() => handleEditJournalist(selectedJournalist)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  >
                     Edit Journalist
                   </button>
                 </div>
@@ -628,11 +702,12 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
       {/* Add Journalist Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <h2 className="text-xl font-bold text-gray-900">Add Journalist</h2>
                 <button
+                  type="button"
                   onClick={() => setShowAddModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -641,32 +716,92 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
               </div>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                {/* Required Fields */}
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                    <input 
+                      type="text" 
+                      value={newJournalist.name}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, name: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <input 
+                      type="email" 
+                      value={newJournalist.email}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, email: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Primary Outlet *</label>
+                    <input 
+                      type="text" 
+                      value={newJournalist.primaryOutlet}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, primaryOutlet: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    />
                   </div>
                 </div>
 
+                {/* Optional Outlet Fields */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Primary Outlet</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Outlet</label>
+                    <input 
+                      type="text" 
+                      value={newJournalist.secondaryOutlet}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, secondaryOutlet: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone (optional)</label>
-                    <input type="tel" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input 
+                      type="tel" 
+                      value={newJournalist.phone}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, phone: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    />
                   </div>
                 </div>
 
+                {/* URL Fields */}
                 <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Primary Outlet URL</label>
+                    <input 
+                      type="url" 
+                      value={newJournalist.primaryOutletUrl}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, primaryOutletUrl: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      placeholder="https://"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Outlet URL</label>
+                    <input 
+                      type="url" 
+                      value={newJournalist.secondaryOutletUrl}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, secondaryOutletUrl: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      placeholder="https://"
+                    />
+                  </div>
+                </div>
+
+                {/* Dropdowns */}
+                <div className="grid grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    <select 
+                      value={newJournalist.type}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, type: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
                       <option value="">Select Type</option>
                       <option value="TV">TV</option>
                       <option value="Print/Online">Print/Online</option>
@@ -676,42 +811,315 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Accreditation Level</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Accreditation</label>
+                    <select 
+                      value={newJournalist.accreditationLevel}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, accreditationLevel: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
                       <option value="">Select Level</option>
                       <option value="P">Premium Press</option>
                       <option value="G">General Press</option>
                       <option value="Unaccredited">Unaccredited</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Geography</label>
+                    <select 
+                      value={newJournalist.geography}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, geography: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
+                      <option value="">Select Geography</option>
+                      <option value="Local">Local</option>
+                      <option value="Regional">Regional</option>
+                      <option value="National">National</option>
+                      <option value="International">International</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Beat/Specialty</label>
+                    <input 
+                      type="text" 
+                      value={newJournalist.beatSpecialty}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, beatSpecialty: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Beat/Specialty</label>
-                  <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                {/* Social Media */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Twitter</label>
+                    <input 
+                      type="text" 
+                      value={newJournalist.twitter}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, twitter: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      placeholder="@username"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
+                    <input 
+                      type="text" 
+                      value={newJournalist.instagram}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, instagram: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      placeholder="@username"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn</label>
+                    <input 
+                      type="text" 
+                      value={newJournalist.linkedin}
+                      onChange={(e) => setNewJournalist(prev => ({...prev, linkedin: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      placeholder="profile-name"
+                    />
+                  </div>
                 </div>
 
+                {/* Notes */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Special Notes (optional)</label>
-                  <textarea className="w-full border border-gray-300 rounded-lg px-3 py-2" rows={3}></textarea>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Special Notes</label>
+                  <textarea 
+                    value={newJournalist.specialNotes}
+                    onChange={(e) => setNewJournalist(prev => ({...prev, specialNotes: e.target.value}))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    rows={3}
+                  ></textarea>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-gray-200 flex justify-end space-x-4 mt-6">
                 <button
+                  type="button"
                   onClick={() => setShowAddModal(false)}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    // Here you would save the journalist
-                    setShowAddModal(false);
-                  }}
+                  onClick={handleAddJournalist}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                 >
                   Add Journalist
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Journalist Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Edit Journalist</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-4">
+                {/* Required Fields */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                    <input 
+                      type="text" 
+                      value={editJournalist.name}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, name: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <input 
+                      type="email" 
+                      value={editJournalist.email}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, email: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Primary Outlet *</label>
+                    <input 
+                      type="text" 
+                      value={editJournalist.primaryOutlet}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, primaryOutlet: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    />
+                  </div>
+                </div>
+
+                {/* Optional Outlet Fields */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Outlet</label>
+                    <input 
+                      type="text" 
+                      value={editJournalist.secondaryOutlet}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, secondaryOutlet: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input 
+                      type="tel" 
+                      value={editJournalist.phone}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, phone: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    />
+                  </div>
+                </div>
+
+                {/* URL Fields */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Primary Outlet URL</label>
+                    <input 
+                      type="url" 
+                      value={editJournalist.primaryOutletUrl}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, primaryOutletUrl: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      placeholder="https://"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Outlet URL</label>
+                    <input 
+                      type="url" 
+                      value={editJournalist.secondaryOutletUrl}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, secondaryOutletUrl: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      placeholder="https://"
+                    />
+                  </div>
+                </div>
+
+                {/* Dropdowns */}
+                <div className="grid grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <select 
+                      value={editJournalist.type}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, type: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
+                      <option value="">Select Type</option>
+                      <option value="TV">TV</option>
+                      <option value="Print/Online">Print/Online</option>
+                      <option value="Radio">Radio</option>
+                      <option value="Trade">Trade</option>
+                      <option value="College">College</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Accreditation</label>
+                    <select 
+                      value={editJournalist.accreditationLevel}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, accreditationLevel: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
+                      <option value="">Select Level</option>
+                      <option value="P">Premium Press</option>
+                      <option value="G">General Press</option>
+                      <option value="Unaccredited">Unaccredited</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Geography</label>
+                    <select 
+                      value={editJournalist.geography}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, geography: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
+                      <option value="">Select Geography</option>
+                      <option value="Local">Local</option>
+                      <option value="Regional">Regional</option>
+                      <option value="National">National</option>
+                      <option value="International">International</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Beat/Specialty</label>
+                    <input 
+                      type="text" 
+                      value={editJournalist.beatSpecialty}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, beatSpecialty: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    />
+                  </div>
+                </div>
+
+                {/* Social Media */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Twitter</label>
+                    <input 
+                      type="text" 
+                      value={editJournalist.twitter}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, twitter: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      placeholder="@username"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
+                    <input 
+                      type="text" 
+                      value={editJournalist.instagram}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, instagram: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      placeholder="@username"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn</label>
+                    <input 
+                      type="text" 
+                      value={editJournalist.linkedin}
+                      onChange={(e) => setEditJournalist(prev => ({...prev, linkedin: e.target.value}))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                      placeholder="profile-name"
+                    />
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Special Notes</label>
+                  <textarea 
+                    value={editJournalist.specialNotes}
+                    onChange={(e) => setEditJournalist(prev => ({...prev, specialNotes: e.target.value}))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+                    rows={3}
+                  ></textarea>
+                </div>
+              </div>
+              <div className="pt-4 border-t border-gray-200 flex justify-end space-x-4 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateJournalist}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                >
+                  Update Journalist
                 </button>
               </div>
             </div>
@@ -734,6 +1142,7 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
                   <p className="text-gray-600">{selectedJournalist.name} - {selectedJournalist.primaryOutlet}</p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setShowActivityModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
