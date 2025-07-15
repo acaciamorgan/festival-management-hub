@@ -456,7 +456,7 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{selectedJournalist.name}</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">{selectedJournalist.firstName} {selectedJournalist.lastName}</h2>
                   <p className="text-gray-600">{selectedJournalist.primaryOutlet}</p>
                 </div>
                 <button
@@ -479,11 +479,11 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
                           {selectedJournalist.email}
                         </a>
                       </div>
-                      {selectedJournalist.phone && (
+                      {selectedJournalist.cellPhone && (
                         <div className="flex items-center">
                           <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                          <a href={`tel:${selectedJournalist.phone}`} className="text-blue-600 hover:underline">
-                            {selectedJournalist.phone}
+                          <a href={`tel:${selectedJournalist.cellPhone}`} className="text-blue-600 hover:underline">
+                            {selectedJournalist.cellPhone}
                           </a>
                         </div>
                       )}
@@ -493,31 +493,30 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">Professional Details</h3>
                     <div className="space-y-2 text-sm">
-                      <p><span className="font-medium">Type:</span> {getTypeBadge(selectedJournalist.type)}</p>
-                      <p><span className="font-medium">Beat/Specialty:</span> {selectedJournalist.beatSpecialty}</p>
-                      <p><span className="font-medium">Accreditation:</span> {getAccreditationBadge(selectedJournalist.accreditationLevel)}</p>
-                      <div className="flex items-center">
-                        <span className="font-medium mr-2">Credentials:</span>
-                        {selectedJournalist.credentialsPickedUp ? (
-                          <span className="flex items-center text-green-600">
+                      {selectedJournalist.primaryOutletType && (
+                        <p><span className="font-medium">Type:</span> {getTypeBadge(selectedJournalist.primaryOutletType)}</p>
+                      )}
+                      {selectedJournalist.primaryOutletMarket && (
+                        <p><span className="font-medium">Market:</span> {selectedJournalist.primaryOutletMarket}</p>
+                      )}
+                      <p><span className="font-medium">Accreditation:</span> {getAccreditationBadge(selectedJournalist.status)}</p>
+                      {selectedJournalist.isFilmCriticsMember && (
+                        <div className="flex items-center">
+                          <span className="font-medium mr-2">Film Critics Member:</span>
+                          <span className="flex items-center text-blue-600">
                             <Check className="w-4 h-4 mr-1" />
-                            Picked Up
+                            {selectedJournalist.filmCriticsOrganizations || 'Yes'}
                           </span>
-                        ) : (
-                          <span className="flex items-center text-yellow-600">
-                            <Clock className="w-4 h-4 mr-1" />
-                            Pending Pickup
-                          </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {selectedJournalist.specialNotes && (
+                  {selectedJournalist.primaryOutletCirculation && (
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">Special Notes</h3>
-                      <p className="text-sm text-gray-600 bg-yellow-50 p-3 rounded-lg">
-                        {selectedJournalist.specialNotes}
+                      <h3 className="font-semibold text-gray-900 mb-2">Outlet Details</h3>
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Circulation:</span> {selectedJournalist.primaryOutletCirculation}
                       </p>
                     </div>
                   )}
@@ -531,82 +530,46 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
                         <span className="font-medium">Primary Outlet:</span>
                         <div className="ml-4">
                           <p>{selectedJournalist.primaryOutlet}</p>
-                          {selectedJournalist.primaryOutletUrl && (
-                            <a 
-                              href={selectedJournalist.primaryOutletUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline flex items-center"
-                            >
-                              <ExternalLink className="w-3 h-3 mr-1" />
-                              Visit Website
-                            </a>
+                          {selectedJournalist.primaryOutletType && (
+                            <p className="text-sm text-gray-500">Type: {selectedJournalist.primaryOutletType}</p>
                           )}
                         </div>
                       </div>
                       
-                      {selectedJournalist.secondaryOutlets && selectedJournalist.secondaryOutlets.length > 0 && (
+                      {selectedJournalist.additionalOutlets && (
                         <div>
-                          <span className="font-medium">Secondary Outlets:</span>
-                          <ul className="ml-4">
-                            {selectedJournalist.secondaryOutlets.map((outlet, index) => (
-                              <li key={index}>{outlet}</li>
-                            ))}
-                          </ul>
+                          <span className="font-medium">Additional Outlets:</span>
+                          <p className="ml-4">{selectedJournalist.additionalOutlets}</p>
                         </div>
                       )}
 
-                      {(selectedJournalist.socialMedia.twitter || selectedJournalist.socialMedia.instagram || selectedJournalist.socialMedia.linkedin) && (
+                      {selectedJournalist.twitterHandle && (
                         <div>
                           <span className="font-medium">Social Media:</span>
                           <div className="ml-4 space-y-1">
-                            {selectedJournalist.socialMedia.twitter && (
-                              <div className="flex items-center">
-                                <Twitter className="w-4 h-4 mr-2 text-blue-400" />
-                                <span>{selectedJournalist.socialMedia.twitter}</span>
-                              </div>
-                            )}
-                            {selectedJournalist.socialMedia.instagram && (
-                              <div className="flex items-center">
-                                <span className="w-4 h-4 mr-2 text-pink-500">📷</span>
-                                <span>{selectedJournalist.socialMedia.instagram}</span>
-                              </div>
-                            )}
-                            {selectedJournalist.socialMedia.linkedin && (
-                              <div className="flex items-center">
-                                <span className="w-4 h-4 mr-2 text-blue-600">💼</span>
-                                <span>{selectedJournalist.socialMedia.linkedin}</span>
-                              </div>
-                            )}
+                            <div className="flex items-center">
+                              <Twitter className="w-4 h-4 mr-2 text-blue-400" />
+                              <span>{selectedJournalist.twitterHandle}</span>
+                            </div>
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-2">Interview Activity</h3>
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div className="bg-blue-50 p-3 rounded-lg">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {selectedJournalist.interviewActivity.currentPitches}
-                        </div>
-                        <div className="text-xs text-gray-600">Current Pitches</div>
-                      </div>
-                      <div className="bg-green-50 p-3 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">
-                          {selectedJournalist.interviewActivity.scheduledInterviews}
-                        </div>
-                        <div className="text-xs text-gray-600">Scheduled</div>
-                      </div>
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <div className="text-2xl font-bold text-gray-600">
-                          {selectedJournalist.interviewActivity.completedInterviews}
-                        </div>
-                        <div className="text-xs text-gray-600">Completed</div>
+                  {(selectedJournalist.editorFirstName || selectedJournalist.editorEmail) && (
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">Editor Information</h3>
+                      <div className="bg-gray-50 p-3 rounded-lg space-y-1 text-sm">
+                        {selectedJournalist.editorFirstName && (
+                          <p><span className="font-medium">Editor:</span> {selectedJournalist.editorFirstName} {selectedJournalist.editorLastName}</p>
+                        )}
+                        {selectedJournalist.editorEmail && (
+                          <p><span className="font-medium">Email:</span> {selectedJournalist.editorEmail}</p>
+                        )}
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
