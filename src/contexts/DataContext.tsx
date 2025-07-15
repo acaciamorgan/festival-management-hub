@@ -85,6 +85,32 @@ export interface Venue {
   isTBD?: boolean;
 }
 
+export interface Journalist {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  cellPhone?: string;
+  officePhone?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zipCode?: string;
+  twitterHandle?: string;
+  isFilmCriticsMember: boolean;
+  filmCriticsOrganizations?: string;
+  primaryOutlet: string;
+  additionalOutlets?: string;
+  primaryOutletType?: string;
+  primaryOutletCountry?: string;
+  primaryOutletMarket?: string;
+  primaryOutletCirculation?: string;
+  editorFirstName?: string;
+  editorLastName?: string;
+  editorEmail?: string;
+  status: 'Accredited - G' | 'Accredited - P' | 'Pending' | 'Denied';
+}
+
 export interface StaffMember {
   id: number;
   name: string;
@@ -99,6 +125,7 @@ interface DataContextType {
   films: Film[];
   people: Person[];
   venues: Venue[];
+  journalists: Journalist[];
   staff: StaffMember[];
   updateFilm: (film: Film) => void;
   addFilm: (film: Film) => void;
@@ -115,6 +142,8 @@ interface DataContextType {
   getStaffByName: (name: string) => StaffMember | undefined;
   getVenueById: (id: number) => Venue | undefined;
   getVenueByName: (name: string) => Venue | undefined;
+  getJournalistById: (id: number) => Journalist | undefined;
+  getJournalistByEmail: (email: string) => Journalist | undefined;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -135,6 +164,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const [films, setFilms] = useState<Film[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [journalists, setJournalists] = useState<Journalist[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
 
   // APPROVED MOCK DATA PROVIDED BY HUMAN - FILM CARDS ONLY
@@ -445,6 +475,263 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
     setVenues(approvedVenues);
     
+    // APPROVED JOURNALIST DATA PROVIDED BY HUMAN - JOURNALIST CARDS ONLY
+    // SINGLE SOURCE OF TRUTH FOR ALL JOURNALISTS/PRESS
+    const approvedJournalists: Journalist[] = [
+      {
+        id: 1,
+        firstName: "Varun",
+        lastName: "Khushalani",
+        email: "vktest@gmail.com",
+        cellPhone: "4432753356",
+        officePhone: "4432753356",
+        city: "Morristown",
+        state: "NJ",
+        country: "United States",
+        zipCode: "07960",
+        twitterHandle: "",
+        isFilmCriticsMember: false,
+        filmCriticsOrganizations: "",
+        primaryOutlet: "14 East Magazine",
+        additionalOutlets: "",
+        primaryOutletType: "Magazine, Online, College",
+        primaryOutletCountry: "United States",
+        primaryOutletMarket: "Chicago",
+        primaryOutletCirculation: "1000, approx",
+        editorFirstName: "Hailey",
+        editorLastName: "Bosek",
+        editorEmail: "haileybosek15@gmail.com",
+        status: "Accredited - G"
+      },
+      {
+        id: 2,
+        firstName: "Victor",
+        lastName: "Aragon",
+        email: "testfandads@gmail.com",
+        cellPhone: "773-620-3143",
+        officePhone: "773-620-3143",
+        city: "Chicago",
+        state: "IL",
+        country: "USA",
+        zipCode: "60618",
+        twitterHandle: "@Fandads",
+        isFilmCriticsMember: true,
+        filmCriticsOrganizations: "Chicago Indie Critics",
+        primaryOutlet: "Fandads.com",
+        additionalOutlets: "",
+        primaryOutletType: "Online",
+        primaryOutletCountry: "USA",
+        primaryOutletMarket: "Chicago",
+        primaryOutletCirculation: "1900",
+        editorFirstName: "Victor",
+        editorLastName: "Aragon",
+        editorEmail: "fandads@gmail.com",
+        status: "Accredited - G"
+      },
+      {
+        id: 3,
+        firstName: "Won",
+        lastName: "Park",
+        email: "neomusicatest@hotmail.com",
+        cellPhone: "773-769-3581",
+        officePhone: "773-769-3581",
+        city: "Chicago",
+        state: "IL",
+        country: "USA",
+        zipCode: "60659",
+        twitterHandle: "",
+        isFilmCriticsMember: false,
+        filmCriticsOrganizations: "",
+        primaryOutlet: "News Magazine Chicago",
+        additionalOutlets: "Kyocharo",
+        primaryOutletType: "Weekly newspaper, Television",
+        primaryOutletCountry: "USA",
+        primaryOutletMarket: "Chicago",
+        primaryOutletCirculation: "24,000",
+        editorFirstName: "Won",
+        editorLastName: "Park",
+        editorEmail: "neomusica@hotmail.com",
+        status: "Accredited - G"
+      },
+      {
+        id: 4,
+        firstName: "Zachary",
+        lastName: "Lee",
+        email: "zacharylee7test29@gmail.com",
+        cellPhone: "7739549593",
+        officePhone: "",
+        city: "Chicago",
+        state: "Illinois",
+        country: "United States",
+        zipCode: "60625",
+        twitterHandle: "@zacharoni22",
+        isFilmCriticsMember: true,
+        filmCriticsOrganizations: "Chicago Film Critics Association",
+        primaryOutlet: "The Chicago Reader",
+        additionalOutlets: "RogerEbert.com, Third Coast Review",
+        primaryOutletType: "Weekly newspaper, Online",
+        primaryOutletCountry: "United States",
+        primaryOutletMarket: "Chicago",
+        primaryOutletCirculation: "Total Monthly Reach: Weekly Print: Digital + Social: M people copies M monthly users Email uniques: 42,000 Website monthly users: 690,000 Twitter: 283,000 Facebook: 95,000 Instagram: 61,000+",
+        editorFirstName: "Taryn",
+        editorLastName: "Allen",
+        editorEmail: "tallen@chicagoreader.com",
+        status: "Accredited - G"
+      },
+      {
+        id: 5,
+        firstName: "Zachary",
+        lastName: "Zweifler",
+        email: "zacharyzweiflertest@gmail.com",
+        cellPhone: "5179174174",
+        officePhone: "5179174174",
+        city: "Hamtramck",
+        state: "MI",
+        country: "United States",
+        zipCode: "48215",
+        twitterHandle: "@filmwithfamily",
+        isFilmCriticsMember: false,
+        filmCriticsOrganizations: "",
+        primaryOutlet: "Film with Family",
+        additionalOutlets: "",
+        primaryOutletType: "Podcast",
+        primaryOutletCountry: "USA",
+        primaryOutletMarket: "National",
+        primaryOutletCirculation: "",
+        editorFirstName: "Zach",
+        editorLastName: "Zweifler",
+        editorEmail: "filmwithfamilypodcast@gmail.com",
+        status: "Accredited - G"
+      },
+      {
+        id: 6,
+        firstName: "Zbigniew",
+        lastName: "Banas",
+        email: "zbanas@yahootest.com",
+        cellPhone: "312-304-2217",
+        officePhone: "312-304-2217",
+        city: "Chicago",
+        state: "IL",
+        country: "USA",
+        zipCode: "60654",
+        twitterHandle: "",
+        isFilmCriticsMember: true,
+        filmCriticsOrganizations: "Chicago Film Critics Association",
+        primaryOutlet: "WPNA-FM Radio",
+        additionalOutlets: "WEUR-AM Radio, Polish Daily News",
+        primaryOutletType: "Radio",
+        primaryOutletCountry: "USA",
+        primaryOutletMarket: "Greater Chicagoland",
+        primaryOutletCirculation: "50,000",
+        editorFirstName: "Jacek",
+        editorLastName: "Niemczyk",
+        editorEmail: "niemczyk@wpna.fm",
+        status: "Accredited - G"
+      },
+      {
+        id: 7,
+        firstName: "Andi",
+        lastName: "Ortiz",
+        email: "andi.ortiz@thetest.com",
+        cellPhone: "8473467361",
+        officePhone: "",
+        city: "Schaumburg",
+        state: "IL",
+        country: "United States",
+        zipCode: "60194",
+        twitterHandle: "",
+        isFilmCriticsMember: false,
+        filmCriticsOrganizations: "",
+        primaryOutlet: "TheWrap.com",
+        additionalOutlets: "",
+        primaryOutletType: "Online",
+        primaryOutletCountry: "United States",
+        primaryOutletMarket: "Los Angeles/Hollywood",
+        primaryOutletCirculation: "8.5 million/month",
+        editorFirstName: "Adam",
+        editorLastName: "Chitwood",
+        editorEmail: "adam.chitwood@thewrap.com",
+        status: "Accredited - P"
+      },
+      {
+        id: 8,
+        firstName: "Bill",
+        lastName: "Stamets",
+        email: "bstamets@itestc.org",
+        cellPhone: "7734498410",
+        officePhone: "312 4219060",
+        city: "Chicago",
+        state: "IL",
+        country: "United States",
+        zipCode: "60637",
+        twitterHandle: "",
+        isFilmCriticsMember: false,
+        filmCriticsOrganizations: "",
+        primaryOutlet: "Chicago Sun-Times",
+        additionalOutlets: "",
+        primaryOutletType: "Daily newspaper",
+        primaryOutletCountry: "United States",
+        primaryOutletMarket: "Chicago",
+        primaryOutletCirculation: "N/A",
+        editorFirstName: "Darel",
+        editorLastName: "Jevens",
+        editorEmail: "djevens@suntimes.com",
+        status: "Accredited - P"
+      },
+      {
+        id: 9,
+        firstName: "Brian",
+        lastName: "Hieggelke",
+        email: "brian@newcityfakecom",
+        cellPhone: "",
+        officePhone: "",
+        city: "",
+        state: "",
+        country: "",
+        zipCode: "",
+        twitterHandle: "",
+        isFilmCriticsMember: false,
+        filmCriticsOrganizations: "",
+        primaryOutlet: "Newcity",
+        additionalOutlets: "",
+        primaryOutletType: "",
+        primaryOutletCountry: "",
+        primaryOutletMarket: "",
+        primaryOutletCirculation: "",
+        editorFirstName: "",
+        editorLastName: "",
+        editorEmail: "",
+        status: "Accredited - P"
+      },
+      {
+        id: 10,
+        firstName: "Brian",
+        lastName: "Tallerico",
+        email: "brian@eberttestdigital.biz",
+        cellPhone: "",
+        officePhone: "",
+        city: "",
+        state: "",
+        country: "",
+        zipCode: "",
+        twitterHandle: "",
+        isFilmCriticsMember: false,
+        filmCriticsOrganizations: "",
+        primaryOutlet: "RogerEbert.com",
+        additionalOutlets: "",
+        primaryOutletType: "",
+        primaryOutletCountry: "",
+        primaryOutletMarket: "",
+        primaryOutletCirculation: "",
+        editorFirstName: "",
+        editorLastName: "",
+        editorEmail: "",
+        status: "Accredited - P"
+      }
+    ];
+
+    setJournalists(approvedJournalists);
+    
     // Keep other arrays empty until human provides approved data
     setPeople([]);
     setStaff([]);
@@ -544,6 +831,16 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     );
   };
 
+  const getJournalistById = (id: number) => {
+    return journalists.find(journalist => journalist.id === id);
+  };
+
+  const getJournalistByEmail = (email: string) => {
+    return journalists.find(journalist => 
+      journalist.email.toLowerCase() === email.toLowerCase()
+    );
+  };
+
   const getPersonSchedule = (personId: number) => {
     const person = people.find(p => p.id === personId);
     if (!person) return [];
@@ -577,6 +874,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     films,
     people,
     venues,
+    journalists,
     staff,
     updateFilm,
     addFilm,
@@ -590,6 +888,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     getStaffByName,
     getVenueById,
     getVenueByName,
+    getJournalistById,
+    getJournalistByEmail,
     getPersonSchedule,
     getPersonPhotosAndCarpets,
     getTravelInfoForPerson

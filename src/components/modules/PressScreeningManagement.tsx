@@ -97,7 +97,7 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
     return dateA.getTime() - dateB.getTime();
   });
 
-  const venues = [...new Set(screenings.map(s => s.venue))];
+  const screeningVenues = [...new Set(screenings.map(s => s.venue))];
   const dates = [...new Set(screenings.map(s => s.date))].sort();
 
   const updateAttendance = (screeningId: number, rsvpId: number, attended: boolean) => {
@@ -210,7 +210,7 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
               className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Venues</option>
-              {venues.map(venue => (
+              {screeningVenues.map(venue => (
                 <option key={venue} value={venue}>{venue}</option>
               ))}
             </select>
