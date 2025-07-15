@@ -207,6 +207,57 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
     }));
   };
 
+  // Handle adding a new screening
+  const handleAddScreening = () => {
+    // Validate required fields
+    if (!newScreening.selectedFilmId || !newScreening.date || !newScreening.time || !newScreening.selectedVenueId || !newScreening.selectedHouseId) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    const film = films.find(f => f.id.toString() === newScreening.selectedFilmId);
+    const venue = venues.find(v => v.id.toString() === newScreening.selectedVenueId);
+    const house = venue?.houses.find(h => h.id.toString() === newScreening.selectedHouseId);
+
+    if (!film || !venue || !house) {
+      alert('Invalid selection. Please try again.');
+      return;
+    }
+
+    const newScreeningObject: PressScreening = {
+      id: Date.now(), // Simple ID generation
+      filmTitle: film.title,
+      runtime: film.runtime,
+      date: newScreening.date,
+      time: newScreening.time,
+      venue: venue.name,
+      houseNumber: house.name,
+      staffAssigned: newScreening.staffAssigned || 'Unassigned',
+      rsvpCount: 0,
+      capacity: house.capacity,
+      rsvps: [],
+      calendarInvitesSent: false
+    };
+
+    // Add to screenings list
+    setScreenings(prev => [...prev, newScreeningObject]);
+
+    // Reset form
+    setNewScreening({
+      selectedFilmId: '',
+      runtime: '',
+      date: '',
+      time: '',
+      selectedVenueId: '',
+      selectedHouseId: '',
+      capacity: '',
+      staffAssigned: ''
+    });
+
+    // Close modal
+    setShowAddModal(false);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -671,10 +722,7 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    // Here you would save the screening
-                    setShowAddModal(false);
-                  }}
+                  onClick={handleAddScreening}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                 >
                   Add Screening
