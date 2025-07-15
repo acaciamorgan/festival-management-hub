@@ -4,35 +4,7 @@ import {
   User, Building, Check, Clock, AlertCircle, Globe, Twitter,
   ChevronDown, ChevronUp, MessageSquare, Calendar
 } from 'lucide-react';
-
-interface Journalist {
-  id: number;
-  name: string;
-  primaryOutlet: string;
-  secondaryOutlets?: string[];
-  type: 'TV' | 'Print/Online' | 'Radio' | 'Trade' | 'College';
-  beatSpecialty: string;
-  accreditationLevel: 'P' | 'G' | 'Unaccredited';
-  email: string;
-  phone?: string;
-  primaryOutletUrl?: string;
-  secondaryOutletUrls?: string[];
-  socialMedia: {
-    twitter?: string;
-    instagram?: string;
-    linkedin?: string;
-  };
-  credentialsPickedUp: boolean;
-  specialNotes?: string;
-  interviewActivity: {
-    currentPitches: number;
-    scheduledInterviews: number;
-    completedInterviews: number;
-  };
-  pressScreenings: {
-    rsvpCount: number;
-  };
-}
+import { useData, Journalist } from '../../contexts/DataContext';
 
 interface User {
   id: number;
@@ -46,7 +18,7 @@ interface PressManagementProps {
 }
 
 const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
-  const [journalists, setJournalists] = useState<Journalist[]>([]);
+  const { journalists } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -95,20 +67,17 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
   });
 
   // Mock data
-  // WAITING FOR HUMAN TO PROVIDE APPROVED MOCK DATA
-  // CLAUDE IS FORBIDDEN FROM CREATING MOCK DATA
-  useEffect(() => {
-    setJournalists([]);
-  }, []);
+  // Using journalists from DataContext as single source of truth
 
-  const getAccreditationBadge = (level: string) => {
+  const getAccreditationBadge = (status: string) => {
     const badges = {
-      'P': { color: 'bg-purple-100 text-purple-800', text: 'Premium Press' },
-      'G': { color: 'bg-green-100 text-green-800', text: 'General Press' },
-      'Unaccredited': { color: 'bg-gray-100 text-gray-800', text: 'Unaccredited' }
+      'Accredited - P': { color: 'bg-purple-100 text-purple-800', text: 'Premium Press' },
+      'Accredited - G': { color: 'bg-green-100 text-green-800', text: 'General Press' },
+      'Pending': { color: 'bg-yellow-100 text-yellow-800', text: 'Pending' },
+      'Denied': { color: 'bg-red-100 text-red-800', text: 'Denied' }
     };
     
-    const badge = badges[level as keyof typeof badges] || badges['Unaccredited'];
+    const badge = badges[status as keyof typeof badges] || badges['Pending'];
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
         {badge.text}
@@ -134,14 +103,15 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
   };
 
   const filteredJournalists = journalists.filter(journalist => {
+    const fullName = `${journalist.firstName} ${journalist.lastName}`;
     const matchesSearch = 
-      journalist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       journalist.primaryOutlet.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      journalist.beatSpecialty.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (journalist.primaryOutletMarket && journalist.primaryOutletMarket.toLowerCase().includes(searchQuery.toLowerCase())) ||
       journalist.email.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesType = filterType === 'all' || journalist.type === filterType;
-    const matchesAccreditation = filterAccreditation === 'all' || journalist.accreditationLevel === filterAccreditation;
+    const matchesType = filterType === 'all' || (journalist.primaryOutletType && journalist.primaryOutletType.toLowerCase().includes(filterType.toLowerCase()));
+    const matchesAccreditation = filterAccreditation === 'all' || journalist.status === filterAccreditation;
     
     return matchesSearch && matchesType && matchesAccreditation;
   });
@@ -151,27 +121,25 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
     
     switch (sortBy) {
       case 'name':
-        const lastNameA = a.name.split(' ').pop() || '';
-        const lastNameB = b.name.split(' ').pop() || '';
-        valueA = lastNameA.toLowerCase();
-        valueB = lastNameB.toLowerCase();
+        valueA = a.lastName.toLowerCase();
+        valueB = b.lastName.toLowerCase();
         break;
       case 'outlet':
         valueA = a.primaryOutlet.toLowerCase();
         valueB = b.primaryOutlet.toLowerCase();
         break;
       case 'type':
-        valueA = a.type.toLowerCase();
-        valueB = b.type.toLowerCase();
+        valueA = (a.primaryOutletType || '').toLowerCase();
+        valueB = (b.primaryOutletType || '').toLowerCase();
         break;
       case 'accreditation':
-        const accreditationOrder = { 'P': 3, 'G': 2, 'Unaccredited': 1 };
-        valueA = accreditationOrder[a.accreditationLevel as keyof typeof accreditationOrder];
-        valueB = accreditationOrder[b.accreditationLevel as keyof typeof accreditationOrder];
+        const accreditationOrder = { 'Accredited - P': 3, 'Accredited - G': 2, 'Pending': 1, 'Denied': 0 };
+        valueA = accreditationOrder[a.status as keyof typeof accreditationOrder] || 0;
+        valueB = accreditationOrder[b.status as keyof typeof accreditationOrder] || 0;
         break;
       default:
-        valueA = a.name.toLowerCase();
-        valueB = b.name.toLowerCase();
+        valueA = `${a.firstName} ${a.lastName}`.toLowerCase();
+        valueB = `${b.firstName} ${b.lastName}`.toLowerCase();
     }
     
     if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
@@ -385,9 +353,10 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
               className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Accreditation</option>
-              <option value="P">Premium Press</option>
-              <option value="G">General Press</option>
-              <option value="Unaccredited">Unaccredited</option>
+              <option value="Accredited - P">Premium Press</option>
+              <option value="Accredited - G">General Press</option>
+              <option value="Pending">Pending</option>
+              <option value="Denied">Denied</option>
             </select>
           </div>
         </div>
@@ -429,12 +398,12 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
             <div className="p-4">
               <div className="flex justify-between items-start mb-3">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg text-gray-900">{journalist.name}</h3>
+                  <h3 className="font-semibold text-lg text-gray-900">{journalist.firstName} {journalist.lastName}</h3>
                   <p className="text-gray-600 text-sm">{journalist.primaryOutlet}</p>
                 </div>
                 <div className="flex flex-col gap-1 items-end">
-                  {getAccreditationBadge(journalist.accreditationLevel)}
-                  {getTypeBadge(journalist.type)}
+                  {getAccreditationBadge(journalist.status)}
+                  {journalist.primaryOutletType && getTypeBadge(journalist.primaryOutletType)}
                 </div>
               </div>
 
@@ -444,78 +413,35 @@ const PressManagement: React.FC<PressManagementProps> = ({ user }) => {
                   <span className="truncate">{journalist.email}</span>
                 </div>
                 
-                {journalist.phone && (
+                {journalist.cellPhone && (
                   <div className="flex items-center text-gray-600">
                     <Phone className="w-4 h-4 mr-2 flex-shrink-0" />
-                    <span>{journalist.phone}</span>
+                    <span>{journalist.cellPhone}</span>
                   </div>
                 )}
 
-                <div className="flex items-center text-gray-600">
-                  <Building className="w-4 h-4 mr-2 flex-shrink-0" />
-                  <span>{journalist.beatSpecialty}</span>
-                </div>
+                {journalist.primaryOutletMarket && (
+                  <div className="flex items-center text-gray-600">
+                    <Building className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span>{journalist.primaryOutletMarket}</span>
+                  </div>
+                )}
               </div>
 
               <div className="mt-3 pt-3 border-t border-gray-200">
-                <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-2">
-                  <button
-                    className="flex items-center justify-center p-1 rounded hover:bg-gray-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedJournalist(journalist);
-                      setActivityType('pitches');
-                      setShowActivityModal(true);
-                    }}
-                  >
-                    <MessageSquare className="w-3 h-3 mr-1" />
-                    {journalist.interviewActivity.currentPitches} pitches
-                  </button>
-                  <button
-                    className="flex items-center justify-center p-1 rounded hover:bg-gray-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedJournalist(journalist);
-                      setActivityType('scheduled');
-                      setShowActivityModal(true);
-                    }}
-                  >
-                    <Calendar className="w-3 h-3 mr-1" />
-                    {journalist.interviewActivity.scheduledInterviews} scheduled
-                  </button>
-                  <button
-                    className="flex items-center justify-center p-1 rounded hover:bg-gray-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedJournalist(journalist);
-                      setActivityType('screenings');
-                      setShowActivityModal(true);
-                    }}
-                  >
-                    <span className="w-3 h-3 mr-1">🎬</span>
-                    {journalist.pressScreenings.rsvpCount} screenings
-                  </button>
-                  <label className="flex items-center justify-center cursor-pointer p-1 rounded hover:bg-gray-100" onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={journalist.credentialsPickedUp}
-                      onChange={(e) => {
-                        if (user.permissions.pressManagement === 'full_edit') {
-                          const updatedJournalists = journalists.map(j =>
-                            j.id === journalist.id 
-                              ? { ...j, credentialsPickedUp: e.target.checked }
-                              : j
-                          );
-                          setJournalists(updatedJournalists);
-                        }
-                      }}
-                      disabled={user.permissions.pressManagement !== 'full_edit'}
-                      className="w-3 h-3 mr-1 text-green-600 rounded border-gray-300 focus:ring-green-500"
-                    />
-                    <span className={journalist.credentialsPickedUp ? 'text-green-600' : 'text-yellow-600'}>
-                      Credentials
+                <div className="flex justify-between items-center text-xs text-gray-500">
+                  {journalist.isFilmCriticsMember && (
+                    <span className="text-blue-600 flex items-center">
+                      <Check className="w-3 h-3 mr-1" />
+                      Film Critics Member
                     </span>
-                  </label>
+                  )}
+                  {journalist.twitterHandle && (
+                    <span className="flex items-center">
+                      <Twitter className="w-3 h-3 mr-1" />
+                      {journalist.twitterHandle}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
