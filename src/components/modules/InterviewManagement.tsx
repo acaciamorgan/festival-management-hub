@@ -39,7 +39,7 @@ interface InterviewManagementProps {
 }
 
 const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
-  const { films, getFilmByTitle, getPersonByName } = useData();
+  const { films, journalists, getFilmByTitle, getPersonByName } = useData();
   const [requests, setRequests] = useState<InterviewRequest[]>([]);
   
   // Helper function to convert 24-hour time to 12-hour AM/PM format
@@ -67,6 +67,9 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
   const [filmSearchQuery, setFilmSearchQuery] = useState('');
   const [selectedFilmForAdd, setSelectedFilmForAdd] = useState<any>(null);
   const [showFilmDropdown, setShowFilmDropdown] = useState(false);
+  const [journalistSearchQuery, setJournalistSearchQuery] = useState('');
+  const [selectedJournalistForAdd, setSelectedJournalistForAdd] = useState<any>(null);
+  const [showJournalistDropdown, setShowJournalistDropdown] = useState(false);
 
   // WAITING FOR HUMAN TO PROVIDE APPROVED MOCK DATA
   // CLAUDE IS FORBIDDEN FROM CREATING MOCK DATA
@@ -167,6 +170,13 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
     film.title.toLowerCase().includes(filmSearchQuery.toLowerCase()) ||
     film.director.toLowerCase().includes(filmSearchQuery.toLowerCase())
   ).slice(0, 10); // Limit to 10 results for performance
+
+  const filteredJournalists = journalists.filter(journalist => {
+    const fullName = `${journalist.firstName} ${journalist.lastName}`;
+    return fullName.toLowerCase().includes(journalistSearchQuery.toLowerCase()) ||
+           journalist.primaryOutlet.toLowerCase().includes(journalistSearchQuery.toLowerCase()) ||
+           journalist.email.toLowerCase().includes(journalistSearchQuery.toLowerCase());
+  }).slice(0, 10); // Limit to 10 results for performance
 
   const handleFilmClick = (filmTitle: string) => {
     const film = getFilmByTitle(filmTitle);
@@ -676,7 +686,8 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2" defaultValue="New">
+                      <option value="New">New</option>
                       <option value="A">Priority A</option>
                       <option value="B">Priority B</option>
                       <option value="C">Priority C</option>
@@ -685,20 +696,95 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                  <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Journalist Name</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={selectedJournalistForAdd ? `${selectedJournalistForAdd.firstName} ${selectedJournalistForAdd.lastName}` : journalistSearchQuery}
+                        onChange={(e) => {
+                          setJournalistSearchQuery(e.target.value);
+                          setSelectedJournalistForAdd(null);
+                          setShowJournalistDropdown(true);
+                        }}
+                        onFocus={() => setShowJournalistDropdown(true)}
+                        placeholder="Search journalists..."
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-8"
+                      />
+                      <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      
+                      {showJournalistDropdown && (journalistSearchQuery.length > 0 || !selectedJournalistForAdd) && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                          {filteredJournalists.length > 0 ? (
+                            filteredJournalists.map((journalist) => (
+                              <div
+                                key={journalist.id}
+                                onClick={() => {
+                                  setSelectedJournalistForAdd(journalist);
+                                  setJournalistSearchQuery('');
+                                  setShowJournalistDropdown(false);
+                                }}
+                                className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                              >
+                                <div className="font-medium text-gray-900">{journalist.firstName} {journalist.lastName}</div>
+                                <div className="text-sm text-gray-600">{journalist.primaryOutlet}</div>
+                                <div className="text-xs text-gray-500">{journalist.email}</div>
+                              </div>
+                            ))
+                          ) : journalistSearchQuery.length > 0 ? (
+                            <div className="p-3 text-gray-500 text-sm">
+                              No journalists found matching "{journalistSearchQuery}"
+                            </div>
+                          ) : (
+                            <div className="p-3 text-gray-500 text-sm">
+                              Start typing to search journalists...
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {selectedJournalistForAdd && (
+                      <div className="mt-2 p-2 bg-green-50 rounded-lg border border-green-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-green-900">{selectedJournalistForAdd.firstName} {selectedJournalistForAdd.lastName}</div>
+                            <div className="text-sm text-green-700">{selectedJournalistForAdd.primaryOutlet}</div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setSelectedJournalistForAdd(null);
+                              setJournalistSearchQuery('');
+                            }}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Outlet</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                    <input 
+                      type="text" 
+                      value={selectedJournalistForAdd ? selectedJournalistForAdd.primaryOutlet : ''}
+                      readOnly
+                      placeholder="Auto-populated from journalist"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50" 
+                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Journalist Email</label>
-                    <input type="email" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+                    <input 
+                      type="email" 
+                      value={selectedJournalistForAdd ? selectedJournalistForAdd.email : ''}
+                      readOnly
+                      placeholder="Auto-populated from journalist"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50" 
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Interview Format</label>
@@ -721,7 +807,8 @@ const InterviewManagement: React.FC<InterviewManagementProps> = ({ user }) => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Managing PR Staff</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2" defaultValue="Unassigned">
+                      <option value="Unassigned">Unassigned</option>
                       <option>Morgan Harris</option>
                       <option>Sarah Chen</option>
                       <option>Mike Johnson</option>
