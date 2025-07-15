@@ -209,18 +209,28 @@ const PressScreeningManagement: React.FC<PressScreeningManagementProps> = ({ use
 
   // Handle adding a new screening
   const handleAddScreening = () => {
-    // Validate required fields
-    if (!newScreening.selectedFilmId || !newScreening.date || !newScreening.time || !newScreening.selectedVenueId || !newScreening.selectedHouseId) {
+    // Validate required fields (house is optional for single-house venues)
+    if (!newScreening.selectedFilmId || !newScreening.date || !newScreening.time || !newScreening.selectedVenueId) {
       alert('Please fill in all required fields');
       return;
     }
 
     const film = films.find(f => f.id.toString() === newScreening.selectedFilmId);
     const venue = venues.find(v => v.id.toString() === newScreening.selectedVenueId);
-    const house = venue?.houses.find(h => h.id.toString() === newScreening.selectedHouseId);
-
-    if (!film || !venue || !house) {
+    
+    if (!film || !venue) {
       alert('Invalid selection. Please try again.');
+      return;
+    }
+
+    // For venues with only one house, auto-select it if none selected
+    let house = venue.houses.find(h => h.id.toString() === newScreening.selectedHouseId);
+    if (!house && venue.houses.length === 1) {
+      house = venue.houses[0];
+    }
+    
+    if (!house) {
+      alert('Please select a house/theater for this venue.');
       return;
     }
 
