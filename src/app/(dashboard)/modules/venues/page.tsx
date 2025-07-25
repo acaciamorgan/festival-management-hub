@@ -1,0 +1,420 @@
+'use client'
+
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { VenueCard, TheaterHouse, VenueType } from '@/types'
+import { VenueFormModal } from '@/components/forms/venue-form-modal'
+import { VenueCardPopup } from '@/components/cards/venue-card-popup'
+
+export default function VenueManagementPage() {
+  const [venues, setVenues] = useState<VenueCard[]>([])
+  const [filteredVenues, setFilteredVenues] = useState<VenueCard[]>([])
+  const [loading, setLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedVenueType, setSelectedVenueType] = useState('')
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'name', direction: 'asc' })
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
+  const [selectedVenue, setSelectedVenue] = useState<VenueCard | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showVenueCard, setShowVenueCard] = useState<VenueCard | null>(null)
+
+  const supabase = createClient()
+
+  // Phone number formatting function
+  const formatPhoneNumber = (phone: string): string => {
+    const cleaned = phone.replace(/\D/g, '')
+    if (cleaned.length === 10) {
+      return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`
+    }
+    return phone // Return original if not 10 digits
+  }
+
+  const loadVenues = useCallback(async () => {
+    setLoading(true)
+    try {
+      // Load venues with their theater houses
+      const { data: venuesData, error: venuesError } = await supabase
+        .from('venues')
+        .select('*')
+        .order('name', { ascending: true })
+
+      if (venuesError) throw venuesError
+
+      // Load theater houses for movie theaters
+      const { data: housesData, error: housesError } = await supabase
+        .from('theater_houses')
+        .select('*')
+        .order('house_name', { ascending: true })
+
+      if (housesError) throw housesError
+
+      // Combine venues with their houses and create display string
+      const venuesWithHouses = (venuesData || []).map(venue => {
+        const venueHouses = (housesData || []).filter(house => house.venue_id === venue.id)
+        
+        const houses_display = venue.venue_type === 'Movie Theater' && venueHouses.length > 0
+          ? venueHouses.map(house => `${house.house_name} (${house.seat_count})`).join(', ')
+          : venue.venue_type === 'Movie Theater' ? 'No houses configured' : 'N/A'
+
+        return {
+          ...venue,
+          houses: venueHouses,
+          houses_display
+        }
+      })
+
+      setVenues(venuesWithHouses)
+      setFilteredVenues(venuesWithHouses)
+    } catch (error) {
+      console.error('Error loading venues:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [supabase])
+
+  // Get unique venue types for filtering
+  const uniqueVenueTypes = useMemo(() => {
+    const types = new Set<string>()
+    venues.forEach(venue => {
+      if (venue.venue_type) types.add(venue.venue_type)
+    })
+    return Array.from(types).sort()
+  }, [venues])
+
+  // Smart sorting function (ignores articles and special characters)
+  const normalizeForSort = (str: string | undefined | null): string => {
+    if (!str) return ''
+    return str
+      .replace(/^(the|a|an)\s+/i, '')
+      .replace(/[^\w\s]/g, '')
+      .toLowerCase()
+      .trim()
+  }
+
+  // Filtering and sorting
+  const applyFiltersAndSort = useMemo(() => {
+    const filtered = venues.filter(venue => {
+      // Search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase()
+        const searchableText = [
+          venue.name,
+          venue.address,
+          venue.venue_type,
+          venue.contact_names?.join(' '),
+          venue.contact_emails?.join(' '),
+          venue.contact_phones?.join(' '),
+          venue.houses_display
+        ].filter(Boolean).map(text => text?.toString().toLowerCase()).join(' ')
+        
+        if (!searchableText.includes(searchLower)) return false
+      }
+
+      // Venue type filter
+      if (selectedVenueType && venue.venue_type !== selectedVenueType) {
+        return false
+      }
+
+      return true
+    })
+
+    // Apply sorting
+    if (sortConfig) {
+      filtered.sort((a, b) => {
+        const aVal = a[sortConfig.key as keyof VenueCard]
+        const bVal = b[sortConfig.key as keyof VenueCard]
+        
+        const aNorm = normalizeForSort(aVal?.toString())
+        const bNorm = normalizeForSort(bVal?.toString())
+        
+        if (aNorm < bNorm) return sortConfig.direction === 'asc' ? -1 : 1
+        if (aNorm > bNorm) return sortConfig.direction === 'asc' ? 1 : -1
+        return 0
+      })
+    }
+
+    return filtered
+  }, [venues, searchTerm, selectedVenueType, sortConfig])
+
+  const handleSort = (key: string) => {
+    setSortConfig(prev => {
+      if (prev?.key === key) {
+        return {
+          key,
+          direction: prev.direction === 'asc' ? 'desc' : 'asc'
+        }
+      }
+      return { key, direction: 'asc' }
+    })
+  }
+
+  const handleResize = (columnKey: string, width: number) => {
+    setColumnWidths(prev => ({
+      ...prev,
+      [columnKey]: width
+    }))
+  }
+
+  const handleDeleteVenue = async (venueId: string) => {
+    try {
+      const { error } = await supabase
+        .from('venues')
+        .delete()
+        .eq('id', venueId)
+      
+      if (error) throw error
+      
+      setVenues(prev => prev.filter(v => v.id !== venueId))
+    } catch (error) {
+      console.error('Error deleting venue:', error)
+      alert('Error deleting venue. Please try again.')
+    }
+  }
+
+  useEffect(() => {
+    setFilteredVenues(applyFiltersAndSort)
+  }, [applyFiltersAndSort])
+
+  useEffect(() => {
+    loadVenues()
+  }, [loadVenues])
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <span className="text-2xl mr-3">🏢</span>
+            <h1 className="text-2xl font-semibold text-gray-900">Venue Management</h1>
+          </div>
+          
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+          >
+            Add Venue
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="space-y-4">
+          {/* Search */}
+          <div className="flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700">Search:</label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search venues, addresses, contacts..."
+              className="flex-1 border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Venue Type Filter */}
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium text-gray-700">Type:</label>
+              <select
+                value={selectedVenueType}
+                onChange={(e) => setSelectedVenueType(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Types</option>
+                {uniqueVenueTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Clear Filters */}
+            {(searchTerm || selectedVenueType) && (
+              <button
+                onClick={() => {
+                  setSearchTerm('')
+                  setSelectedVenueType('')
+                }}
+                className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 hover:border-gray-300"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Results Summary */}
+      <div className="bg-gray-50 px-6 py-2 text-sm text-gray-600 border-b border-gray-200">
+        Showing {filteredVenues.length} of {venues.length} venues
+        {searchTerm && ` for "${searchTerm}"`}
+        {selectedVenueType && ` (${selectedVenueType})`}
+      </div>
+
+      {/* Data Grid */}
+      <div className="flex-1 overflow-auto bg-white">
+        <div className="min-w-full overflow-x-auto overflow-y-auto max-h-full">
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-lg text-gray-500">Loading venues...</div>
+          </div>
+        ) : (
+          <table className="min-w-full">
+            <thead className="bg-gray-50 sticky top-0">
+              <tr>
+                {[
+                  { key: 'name', label: 'Venue Name', width: 200, sortable: true },
+                  { key: 'address', label: 'Address', width: 250, sortable: true },
+                  { key: 'venue_type', label: 'Type', width: 120, sortable: true },
+                  { key: 'houses_display', label: 'Houses', width: 250, sortable: false },
+                  { key: 'contact_emails', label: 'Email', width: 200, sortable: false },
+                  { key: 'contact_phones', label: 'Phone', width: 150, sortable: false }
+                ].map((column) => (
+                  <th
+                    key={column.key}
+                    className={`px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative ${
+                      column.sortable ? 'cursor-pointer hover:bg-gray-100' : ''
+                    }`}
+                    style={{ 
+                      width: columnWidths[column.key] || column.width,
+                      minWidth: '100px'
+                    }}
+                    onClick={() => column.sortable && handleSort(column.key)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>{column.label}</span>
+                      {column.sortable && (
+                        <span className="ml-2">
+                          {sortConfig?.key === column.key ? (
+                            sortConfig.direction === 'asc' ? '↑' : '↓'
+                          ) : '↕️'}
+                        </span>
+                      )}
+                    </div>
+                    {/* Resize handle */}
+                    <div
+                      className="absolute right-0 top-0 h-full w-2 cursor-col-resize bg-transparent hover:bg-blue-500 opacity-0 hover:opacity-100 transition-opacity"
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        
+                        const startX = e.pageX
+                        const startWidth = columnWidths[column.key] || column.width || 150
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          e.preventDefault()
+                          const newWidth = Math.max(100, startWidth + (e.pageX - startX))
+                          handleResize(column.key, newWidth)
+                        }
+
+                        const handleMouseUp = (e: MouseEvent) => {
+                          e.preventDefault()
+                          document.removeEventListener('mousemove', handleMouseMove)
+                          document.removeEventListener('mouseup', handleMouseUp)
+                        }
+
+                        document.addEventListener('mousemove', handleMouseMove)
+                        document.addEventListener('mouseup', handleMouseUp)
+                      }}
+                    />
+                  </th>
+                ))}
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredVenues.map((venue) => (
+                <tr
+                  key={venue.id}
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => setShowVenueCard(venue)}
+                >
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['name'] || 200}px` }}>
+                    {venue.name}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['address'] || 250}px` }}>
+                    {venue.address}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['venue_type'] || 120}px` }}>
+                    {venue.venue_type}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['houses_display'] || 250}px` }}>
+                    {venue.houses_display}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_emails'] || 200}px` }}>
+                    {venue.contact_emails?.[0] || '—'}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_phones'] || 150}px` }}>
+                    {venue.contact_phones?.[0] ? formatPhoneNumber(venue.contact_phones[0]) : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-center text-sm font-medium">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedVenue(venue)
+                      }}
+                      className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-xs font-medium"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        
+        {!loading && filteredVenues.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            {venues.length === 0 ? 'No venues found. Add your first venue!' : 'No venues match your search criteria.'}
+          </div>
+        )}
+        </div>
+      </div>
+
+      {/* Venue Form Modal */}
+      <VenueFormModal
+        venue={showAddModal ? null : selectedVenue}
+        isOpen={showAddModal || !!selectedVenue}
+        onClose={() => {
+          setShowAddModal(false)
+          setSelectedVenue(null)
+        }}
+        onSave={(savedVenue) => {
+          if (selectedVenue) {
+            // Update existing venue in list
+            setVenues(prev => 
+              prev.map(v => v.id === savedVenue.id ? savedVenue : v)
+            )
+          } else {
+            // Add new venue to list
+            setVenues(prev => [savedVenue, ...prev])
+          }
+          setShowAddModal(false)
+          setSelectedVenue(null)
+        }}
+      />
+
+      {/* Venue Card Popup */}
+      {showVenueCard && (
+        <VenueCardPopup
+          venue={showVenueCard}
+          onClose={() => setShowVenueCard(null)}
+          onUpdate={(updatedVenue) => {
+            setVenues(prev => 
+              prev.map(v => v.id === updatedVenue.id ? updatedVenue : v)
+            )
+            setShowVenueCard(null)
+          }}
+          onDelete={(venueId) => {
+            setVenues(prev => prev.filter(v => v.id !== venueId))
+            setShowVenueCard(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}

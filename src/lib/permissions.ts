@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { UserPermissions } from '@/types'
 
 export async function getUserPermissions(userId: string): Promise<UserPermissions | null> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   try {
     const { data, error } = await supabase
@@ -38,7 +38,7 @@ export async function hasModulePermission(
 }
 
 export async function requireAuth() {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const {
     data: { user },

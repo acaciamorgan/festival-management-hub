@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CardType } from '@/types'
+import { CardType, FormFieldValue, FormChangeHandler } from '@/types'
 
 interface CardFormField {
   name: string
@@ -15,8 +15,8 @@ interface CardFormField {
 interface CardFormProps {
   cardType: CardType
   fields: CardFormField[]
-  initialData?: Record<string, any>
-  onSubmit: (data: Record<string, any>) => Promise<void>
+  initialData?: Record<string, FormFieldValue>
+  onSubmit: (data: Record<string, FormFieldValue>) => Promise<void>
   onCancel: () => void
   isEditing?: boolean
 }
@@ -43,7 +43,7 @@ export function CardForm({
     }
   }
 
-  const handleChange = (name: string, value: any) => {
+  const handleChange: FormChangeHandler = (name: string, value: FormFieldValue) => {
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -68,7 +68,7 @@ export function CardForm({
 
                 {field.type === 'textarea' ? (
                   <textarea
-                    value={formData[field.name] || ''}
+                    value={String(formData[field.name] || '')}
                     onChange={(e) => handleChange(field.name, e.target.value)}
                     placeholder={field.placeholder}
                     required={field.required}
@@ -77,7 +77,7 @@ export function CardForm({
                   />
                 ) : field.type === 'select' ? (
                   <select
-                    value={formData[field.name] || ''}
+                    value={String(formData[field.name] || '')}
                     onChange={(e) => handleChange(field.name, e.target.value)}
                     required={field.required}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -92,7 +92,7 @@ export function CardForm({
                 ) : (
                   <input
                     type={field.type}
-                    value={formData[field.name] || ''}
+                    value={String(formData[field.name] || '')}
                     onChange={(e) => handleChange(field.name, e.target.value)}
                     placeholder={field.placeholder}
                     required={field.required}

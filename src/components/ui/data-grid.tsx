@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { GridColumn } from '@/types'
+import { GridColumn, GridData } from '@/types'
 
-interface DataGridProps<T> {
-  data: T[]
+interface DataGridProps {
+  data: GridData[]
   columns: GridColumn[]
-  onRowClick?: (row: T) => void
-  onEdit?: (row: T) => void
-  onDelete?: (row: T) => void
+  onRowClick?: (row: GridData) => void
+  onEdit?: (row: GridData) => void
+  onDelete?: (row: GridData) => void
   canEdit?: boolean
   canDelete?: boolean
   className?: string
@@ -25,7 +25,7 @@ function smartSort(a: string, b: string): number {
   return cleanA.localeCompare(cleanB)
 }
 
-export function DataGrid<T extends Record<string, any>>({
+export function DataGrid({
   data,
   columns,
   onRowClick,
@@ -34,7 +34,7 @@ export function DataGrid<T extends Record<string, any>>({
   canEdit = false,
   canDelete = false,
   className = ''
-}: DataGridProps<T>) {
+}: DataGridProps) {
   const [sortConfig, setSortConfig] = useState<{
     key: string
     direction: 'asc' | 'desc'
@@ -54,8 +54,10 @@ export function DataGrid<T extends Record<string, any>>({
         return sortConfig.direction === 'asc' ? result : -result
       }
 
-      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1
-      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1
+      if (aVal !== null && aVal !== undefined && bVal !== null && bVal !== undefined) {
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1
+      }
       return 0
     })
   }, [data, sortConfig])
@@ -154,7 +156,9 @@ export function DataGrid<T extends Record<string, any>>({
                     className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                     style={{ width: columnWidths[column.key] || column.width }}
                   >
-                    {row[column.key]}
+                    {typeof row[column.key] === 'object' 
+                      ? JSON.stringify(row[column.key]) 
+                      : String(row[column.key] || '')}
                   </td>
                 ))}
                 {(canEdit || canDelete) && (

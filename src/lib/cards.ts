@@ -14,7 +14,7 @@ export async function getCards<T extends BaseCard>(
   cardType: CardType,
   userId?: string
 ): Promise<T[]> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   let query = supabase.from(cardType).select('*')
   
@@ -36,7 +36,7 @@ export async function getCard<T extends BaseCard>(
   cardType: CardType,
   id: string
 ): Promise<T | null> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from(cardType)
@@ -56,7 +56,7 @@ export async function createCard<T extends Omit<BaseCard, 'id' | 'created_at' | 
   cardType: CardType,
   cardData: T
 ): Promise<BaseCard | null> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from(cardType)
@@ -77,7 +77,7 @@ export async function updateCard<T extends Partial<BaseCard>>(
   id: string,
   updates: T
 ): Promise<BaseCard | null> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from(cardType)
@@ -98,7 +98,7 @@ export async function deleteCard(
   cardType: CardType,
   id: string
 ): Promise<boolean> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from(cardType)

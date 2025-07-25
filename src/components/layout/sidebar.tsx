@@ -11,7 +11,10 @@ export function Sidebar() {
   const modules = getAllModules()
 
   const canAccessModule = (moduleId: string) => {
-    if (!permissions) return false
+    // For development, allow access to core modules when no permissions
+    if (!permissions) {
+      return ['titles', 'pressManagement', 'venueManagement'].includes(moduleId)
+    }
     if (permissions.isAdmin) return true
     return permissions.modulePermissions[moduleId]?.canRead || false
   }

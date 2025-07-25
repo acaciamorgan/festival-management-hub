@@ -10,6 +10,15 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
     cardTypes: ['titles'],
     route: '/modules/titles'
   },
+  pressManagement: {
+    id: 'pressManagement',
+    name: 'Press Management',
+    icon: 'newspaper',
+    hasGridView: true,
+    hasRSVP: false,
+    cardTypes: ['press'],
+    route: '/modules/press-management'
+  },
   pressScreenings: {
     id: 'pressScreenings',
     name: 'Press Screenings',
@@ -81,16 +90,7 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
     hasGridView: true,
     hasRSVP: false,
     cardTypes: ['venues'],
-    route: '/modules/venue-management'
-  },
-  pressManagement: {
-    id: 'pressManagement',
-    name: 'Press Management',
-    icon: 'newspaper',
-    hasGridView: true,
-    hasRSVP: false,
-    cardTypes: ['press'],
-    route: '/modules/press-management'
+    route: '/modules/venues'
   },
   reportsAnalytics: {
     id: 'reportsAnalytics',

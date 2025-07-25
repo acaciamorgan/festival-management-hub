@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { RSVPForm, RSVPResponse, RSVPField } from '@/types'
+import { RSVPForm, RSVPResponse, RSVPField, FormFieldValue } from '@/types'
 
 // RSVP Form Management
 export async function createRSVPForm(
@@ -7,7 +7,7 @@ export async function createRSVPForm(
   moduleType: string,
   fields: RSVPField[]
 ): Promise<RSVPForm | null> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('rsvp_forms')
@@ -28,7 +28,7 @@ export async function createRSVPForm(
 }
 
 export async function getRSVPForm(eventId: string): Promise<RSVPForm | null> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('rsvp_forms')
@@ -47,10 +47,9 @@ export async function getRSVPForm(eventId: string): Promise<RSVPForm | null> {
 // RSVP Response Management
 export async function submitRSVPResponse(
   eventId: string,
-  responses: Record<string, any>,
-  token?: string
+  responses: Record<string, FormFieldValue>
 ): Promise<RSVPResponse | null> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Check if this email matches any existing Cards
   const email = responses.email
@@ -104,7 +103,7 @@ export async function submitRSVPResponse(
 }
 
 export async function getRSVPResponses(eventId: string): Promise<RSVPResponse[]> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('rsvp_responses')
@@ -123,7 +122,7 @@ export async function getRSVPResponses(eventId: string): Promise<RSVPResponse[]>
 // Token Management for secure RSVP links
 export async function generateRSVPToken(eventId: string): Promise<string> {
   const token = crypto.randomUUID()
-  const supabase = createClient()
+  const supabase = await createClient()
 
   await supabase
     .from('rsvp_tokens')
@@ -138,7 +137,7 @@ export async function generateRSVPToken(eventId: string): Promise<string> {
 }
 
 export async function validateRSVPToken(token: string): Promise<string | null> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('rsvp_tokens')

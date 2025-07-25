@@ -1,19 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { ModuleConfig } from '@/types'
+import { ModuleLayoutProps } from '@/types'
 import { DataGrid } from '@/components/ui/data-grid'
 import { useAuth } from '@/components/providers/auth-provider'
 
-interface ModuleLayoutProps {
-  moduleConfig: ModuleConfig
-  data: any[]
-  columns: any[]
-  onAdd?: () => void
-  onEdit?: (item: any) => void
-  onDelete?: (item: any) => void
-  children?: React.ReactNode
-}
 
 export function ModuleLayout({
   moduleConfig,

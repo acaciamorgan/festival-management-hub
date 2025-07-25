@@ -1,16 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { RSVPField } from '@/types'
+import { RSVPField, FormFieldValue, FormChangeHandler } from '@/types'
 
 interface PublicRSVPFormProps {
   eventTitle: string
   fields: RSVPField[]
-  onSubmit: (responses: Record<string, any>) => Promise<void>
+  onSubmit: (responses: Record<string, FormFieldValue>) => Promise<void>
 }
 
 export function PublicRSVPForm({ eventTitle, fields, onSubmit }: PublicRSVPFormProps) {
-  const [responses, setResponses] = useState<Record<string, any>>({})
+  const [responses, setResponses] = useState<Record<string, FormFieldValue>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
 
@@ -29,7 +29,7 @@ export function PublicRSVPForm({ eventTitle, fields, onSubmit }: PublicRSVPFormP
     }
   }
 
-  const handleChange = (name: string, value: any) => {
+  const handleChange: FormChangeHandler = (name: string, value: FormFieldValue) => {
     setResponses(prev => ({
       ...prev,
       [name]: value
@@ -68,7 +68,7 @@ export function PublicRSVPForm({ eventTitle, fields, onSubmit }: PublicRSVPFormP
 
             {field.type === 'textarea' ? (
               <textarea
-                value={responses[field.name] || ''}
+                value={String(responses[field.name] || '')}
                 onChange={(e) => handleChange(field.name, e.target.value)}
                 required={field.required}
                 rows={3}
@@ -76,7 +76,7 @@ export function PublicRSVPForm({ eventTitle, fields, onSubmit }: PublicRSVPFormP
               />
             ) : field.type === 'select' ? (
               <select
-                value={responses[field.name] || ''}
+                value={String(responses[field.name] || '')}
                 onChange={(e) => handleChange(field.name, e.target.value)}
                 required={field.required}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -91,7 +91,7 @@ export function PublicRSVPForm({ eventTitle, fields, onSubmit }: PublicRSVPFormP
             ) : (
               <input
                 type={field.type}
-                value={responses[field.name] || ''}
+                value={String(responses[field.name] || '')}
                 onChange={(e) => handleChange(field.name, e.target.value)}
                 required={field.required}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
