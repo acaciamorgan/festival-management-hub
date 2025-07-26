@@ -1,6 +1,15 @@
 import { ModuleConfig } from '@/types'
 
 export const moduleConfigs: Record<string, ModuleConfig> = {
+  programmingPipeline: {
+    id: 'programmingPipeline',
+    name: 'Programming Pipeline',
+    icon: 'cog',
+    hasGridView: true,
+    hasRSVP: false,
+    cardTypes: ['contacts'],
+    route: '/modules/programming-pipeline'
+  },
   titles: {
     id: 'titles',
     name: 'Titles & Programs',
