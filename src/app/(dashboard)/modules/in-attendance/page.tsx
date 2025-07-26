@@ -39,25 +39,26 @@ export default function InAttendancePage() {
 
       if (guestsError) throw guestsError
 
-      // Load guest-film relationships
-      const { data: guestFilmsData, error: filmsError } = await supabase
-        .from('guest_films')
-        .select('*')
+      // Load guest-film and guest-program relationships
+      const [guestFilmsResponse, guestProgramsResponse] = await Promise.all([
+        supabase.from('guest_films').select('*'),
+        supabase.from('guest_programs').select('*')
+      ])
 
-      if (filmsError) throw filmsError
+      if (guestFilmsResponse.error) throw guestFilmsResponse.error
+      if (guestProgramsResponse.error) throw guestProgramsResponse.error
 
-      // Combine guests with their films and create display string
+      // Combine guests with their films and programs associations
       const guestsWithFilms = (guestsData || []).map(guest => {
-        const guestFilms = (guestFilmsData || []).filter(gf => gf.guest_id === guest.id)
+        const guestFilms = (guestFilmsResponse.data || []).filter(gf => gf.guest_id === guest.id)
+        const guestPrograms = (guestProgramsResponse.data || []).filter(gp => gp.guest_id === guest.id)
         
-        const films_display = guestFilms.length > 0
-          ? guestFilms.map(gf => gf.film_title).join(', ')
-          : '—'
-
         return {
           ...guest,
           films: guestFilms,
-          films_display
+          programs: guestPrograms,
+          // Use the stored films_display field which includes free text
+          films_display: guest.films_display || '—'
         }
       })
 
@@ -188,7 +189,23 @@ export default function InAttendancePage() {
 
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return '—'
-    return new Date(dateString).toLocaleDateString()
+    const date = new Date(dateString)
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    const year = date.getFullYear().toString().slice(-2)
+    return `${month}/${day}/${year}`
+  }
+
+  const formatTime = (timeString: string | undefined): string => {
+    if (!timeString) return '—'
+    
+    // Convert 24-hour format to 12-hour AM/PM format
+    const [hours, minutes] = timeString.split(':')
+    const hour24 = parseInt(hours, 10)
+    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+    
+    return `${hour12}:${minutes} ${ampm}`
   }
 
   const formatArrivalInfo = (guest: GuestCard): string => {
@@ -197,7 +214,7 @@ export default function InAttendancePage() {
       parts.push(`${guest.arrival_airline} ${guest.arrival_flight_number}`)
     }
     if (guest.inbound_arrival_time) {
-      parts.push(`arrives ${guest.inbound_arrival_time}`)
+      parts.push(`arrives ${formatTime(guest.inbound_arrival_time)}`)
     }
     if (guest.arrival_origin_airport) {
       parts.push(`from ${guest.arrival_origin_airport}`)
@@ -211,7 +228,7 @@ export default function InAttendancePage() {
       parts.push(`${guest.departure_airline} ${guest.departure_flight_number}`)
     }
     if (guest.outbound_departure_time) {
-      parts.push(`departs ${guest.outbound_departure_time}`)
+      parts.push(`departs ${formatTime(guest.outbound_departure_time)}`)
     }
     if (guest.destination_airport) {
       parts.push(`to ${guest.destination_airport}`)
@@ -259,37 +276,50 @@ export default function InAttendancePage() {
 
         if (shortFilmData && !shortError) {
           filmData = shortFilmData
+        } else {
+          // If not found in films, try programs
+          const { data: programData, error: programError } = await supabase
+            .from('programs')
+            .select('*')
+            .eq('title', filmTitle)
+            .maybeSingle()
+
+          if (programData && !programError) {
+            filmData = programData
+          }
         }
       }
 
       if (filmData) {
         setShowFilmCard(filmData)
       } else {
-        alert(`Film "${filmTitle}" not found in database`)
+        alert(`"${filmTitle}" not found in database`)
       }
     } catch (error) {
-      console.error('Error fetching film:', error)
-      alert('Error loading film details')
+      console.error('Error fetching title:', error)
+      alert('Error loading details')
     }
   }
 
-  const [allFilmTitles, setAllFilmTitles] = useState<string[]>([])
+  const [allTitles, setAllTitles] = useState<string[]>([])
 
-  // Load all film titles for smart parsing
+  // Load all film and program titles for smart parsing
   useEffect(() => {
     const loadFilmTitles = async () => {
       try {
-        const [featureFilms, shortFilms] = await Promise.all([
+        const [featureFilms, shortFilms, programs] = await Promise.all([
           supabase.from('feature_films').select('title'),
-          supabase.from('short_films').select('title')
+          supabase.from('short_films').select('title'),
+          supabase.from('programs').select('title')
         ])
         
         const titles = [
           ...(featureFilms.data || []).map(f => f.title),
-          ...(shortFilms.data || []).map(f => f.title)
+          ...(shortFilms.data || []).map(f => f.title),
+          ...(programs.data || []).map(p => p.title)
         ].filter(Boolean)
         
-        setAllFilmTitles(titles)
+        setAllTitles(titles)
       } catch (error) {
         console.error('Error loading film titles:', error)
       }
@@ -299,12 +329,12 @@ export default function InAttendancePage() {
   }, [supabase])
 
   const smartParseFilmTitles = (filmsText: string): string[] => {
-    if (!filmsText || filmsText === '—' || allFilmTitles.length === 0) {
+    if (!filmsText || filmsText === '—' || allTitles.length === 0) {
       return []
     }
 
     // Sort film titles by length (longest first) to match longer titles first
-    const sortedTitles = [...allFilmTitles].sort((a, b) => b.length - a.length)
+    const sortedTitles = [...allTitles].sort((a, b) => b.length - a.length)
     const foundTitles: string[] = []
     let remainingText = filmsText
 
@@ -573,7 +603,7 @@ export default function InAttendancePage() {
 
       {/* Data Grid */}
       <div className="flex-1 overflow-hidden bg-white">
-        <div className="overflow-x-auto overflow-y-auto h-full">
+        <div className="overflow-x-auto overflow-y-auto" style={{ height: 'calc(100vh - 200px)' }}>
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-lg text-gray-500">Loading guests...</div>
@@ -583,35 +613,37 @@ export default function InAttendancePage() {
             <thead className="bg-gray-50 sticky top-0">
               <tr>
                 {[
-                  { key: 'checked_in', label: 'Checked In', width: 80, sortable: true },
                   { key: 'name', label: 'Name', width: 150, sortable: true },
                   { key: 'role', label: 'Role', width: 120, sortable: false },
                   { key: 'films_display', label: 'Film / Program Titles', width: 200, sortable: false },
+                  { key: 'checked_in', label: 'Checked In', width: 80, sortable: true },
                   { key: 'guest_type', label: 'Type', width: 80, sortable: true },
                   { key: 'arranging_travel', label: 'Travel', width: 80, sortable: true },
                   { key: 'country', label: 'Country', width: 100, sortable: true },
                   { key: 'arrival_date', label: 'Arrival Date', width: 100, sortable: true },
                   { key: 'arrival_airline', label: 'Arrival Airline', width: 100, sortable: false },
                   { key: 'arrival_flight_number', label: 'Flight #', width: 80, sortable: false },
-                  { key: 'inbound_departure_time', label: 'Depart Time', width: 100, sortable: false },
-                  { key: 'arrival_origin_airport', label: 'Origin', width: 80, sortable: false },
-                  { key: 'arrival_airport', label: 'Arrival Airport', width: 100, sortable: false },
-                  { key: 'inbound_arrival_time', label: 'Arrive Time', width: 100, sortable: false },
+                  { key: 'arrival_takeoff_time', label: 'Depart Time', width: 100, sortable: false },
+                  { key: 'arrival_origin', label: 'Origin', width: 80, sortable: false },
+                  { key: 'arrival_destination', label: 'Arrival Airport', width: 100, sortable: false },
+                  { key: 'arrival_landing_time', label: 'Arrive Time', width: 100, sortable: false },
                   { key: 'departure_date', label: 'Departure Date', width: 100, sortable: true },
-                  { key: 'outbound_departure_time', label: 'Depart Time', width: 100, sortable: false },
+                  { key: 'departure_takeoff_time', label: 'Depart Time', width: 100, sortable: false },
                   { key: 'departure_airline', label: 'Departure Airline', width: 100, sortable: false },
                   { key: 'departure_flight_number', label: 'Flight #', width: 80, sortable: false },
-                  { key: 'departure_airport', label: 'Departure Airport', width: 100, sortable: false },
-                  { key: 'destination_airport', label: 'Destination', width: 100, sortable: false },
-                  { key: 'outbound_arrival_time', label: 'Arrive Time', width: 100, sortable: false },
+                  { key: 'departure_origin', label: 'Departure Airport', width: 100, sortable: false },
+                  { key: 'departure_destination', label: 'Destination', width: 100, sortable: false },
+                  { key: 'departure_landing_time', label: 'Arrive Time', width: 100, sortable: false },
                   { key: 'hotel_name', label: 'Hotel', width: 120, sortable: false },
-                  { key: 'confirmed', label: 'Confirmed', width: 80, sortable: true },
-                  { key: 'notes', label: 'Notes', width: 200, sortable: false }
+                  { key: 'notes', label: 'Notes', width: 200, sortable: false },
+                  { key: 'confirmed', label: 'Confirmed', width: 80, sortable: true }
                 ].map((column) => (
                   <th
                     key={column.key}
                     className={`px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative ${
                       column.sortable ? 'cursor-pointer hover:bg-gray-100' : ''
+                    } ${
+                      column.key === 'name' ? 'sticky left-0 bg-gray-50 z-10' : ''
                     }`}
                     style={{ 
                       width: columnWidths[column.key] || column.width,
@@ -669,6 +701,15 @@ export default function InAttendancePage() {
                   className="hover:bg-gray-50 cursor-pointer"
                   onClick={() => setShowGuestCard(guest)}
                 >
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-0 bg-white z-10" style={{ minWidth: `${columnWidths['name'] || 150}px` }}>
+                    {guest.name}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['role'] || 120}px` }}>
+                    {guest.role || '—'}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['films_display'] || 200}px` }}>
+                    {renderFilmTitles(guest.films_display)}
+                  </td>
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center" style={{ minWidth: `${columnWidths['checked_in'] || 80}px` }}>
                     <input
                       type="checkbox"
@@ -679,15 +720,6 @@ export default function InAttendancePage() {
                       }}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
-                  </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['name'] || 150}px` }}>
-                    {guest.name}
-                  </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['role'] || 120}px` }}>
-                    {guest.role || '—'}
-                  </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['films_display'] || 200}px` }}>
-                    {renderFilmTitles(guest.films_display)}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guest_type'] || 100}px` }}>
                     {guest.guest_type}
@@ -707,23 +739,23 @@ export default function InAttendancePage() {
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_flight_number'] || 80}px` }}>
                     {guest.arrival_flight_number || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['inbound_departure_time'] || 100}px` }}>
-                    {guest.inbound_departure_time || '—'}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_takeoff_time'] || 100}px` }}>
+                    {formatTime(guest.arrival_takeoff_time)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_origin_airport'] || 80}px` }}>
-                    {guest.arrival_origin_airport || '—'}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_origin'] || 80}px` }}>
+                    {guest.arrival_origin || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_airport'] || 100}px` }}>
-                    {guest.arrival_airport || '—'}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_destination'] || 100}px` }}>
+                    {guest.arrival_destination || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['inbound_arrival_time'] || 100}px` }}>
-                    {guest.inbound_arrival_time || '—'}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_landing_time'] || 100}px` }}>
+                    {formatTime(guest.arrival_landing_time)}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_date'] || 100}px` }}>
                     {formatDate(guest.departure_date)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['outbound_departure_time'] || 100}px` }}>
-                    {guest.outbound_departure_time || '—'}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_takeoff_time'] || 100}px` }}>
+                    {formatTime(guest.departure_takeoff_time)}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_airline'] || 100}px` }}>
                     {guest.departure_airline || '—'}
@@ -731,14 +763,14 @@ export default function InAttendancePage() {
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_flight_number'] || 80}px` }}>
                     {guest.departure_flight_number || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_airport'] || 100}px` }}>
-                    {guest.departure_airport || '—'}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_origin'] || 100}px` }}>
+                    {guest.departure_origin || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['destination_airport'] || 100}px` }}>
-                    {guest.destination_airport || '—'}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_destination'] || 100}px` }}>
+                    {guest.departure_destination || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['outbound_arrival_time'] || 100}px` }}>
-                    {guest.outbound_arrival_time || '—'}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_landing_time'] || 100}px` }}>
+                    {formatTime(guest.departure_landing_time)}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['hotel_name'] || 120}px` }}>
                     {guest.hotel_name || '—'}
@@ -808,6 +840,10 @@ export default function InAttendancePage() {
         <GuestCardPopup
           guest={showGuestCard}
           onClose={() => setShowGuestCard(null)}
+          onEdit={(guest) => {
+            setSelectedGuest(guest)
+            setShowGuestCard(null)
+          }}
           onUpdate={(updatedGuest) => {
             setGuests(prev => 
               prev.map(g => g.id === updatedGuest.id ? updatedGuest : g)

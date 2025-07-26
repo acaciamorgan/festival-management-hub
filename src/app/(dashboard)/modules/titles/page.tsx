@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { FilmCard } from '@/types'
+import { FilmCard, ProgramCard, VenueCard, GuestCard } from '@/types'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 
 interface FeatureFilm {
@@ -92,8 +92,10 @@ export default function TitlesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('features')
   const [films, setFilms] = useState<FeatureFilm[]>([])
   const [shorts, setShorts] = useState<ShortFilm[]>([])
+  const [programs, setPrograms] = useState<ProgramCard[]>([])
   const [filteredFilms, setFilteredFilms] = useState<FeatureFilm[]>([])
   const [filteredShorts, setFilteredShorts] = useState<ShortFilm[]>([])
+  const [filteredPrograms, setFilteredPrograms] = useState<ProgramCard[]>([])
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<string>('')
@@ -108,6 +110,9 @@ export default function TitlesPage() {
   const [selectedFilm, setSelectedFilm] = useState<FeatureFilm | ShortFilm | null>(null)
   const [showCreateProgramModal, setShowCreateProgramModal] = useState(false)
   const [editingProgram, setEditingProgram] = useState<any>(null)
+  const [showCreateEventModal, setShowCreateEventModal] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<ProgramCard | null>(null)
+  const [showIndustryDaysOnly, setShowIndustryDaysOnly] = useState(false)
   
   const supabase = createClient()
 
@@ -174,6 +179,43 @@ export default function TitlesPage() {
       console.error('Error loading shorts:', error)
       setShorts([])
       setFilteredShorts([])
+    } finally {
+      setLoading(false)
+    }
+  }, [supabase])
+
+  const formatTime = (timeString: string | null): string => {
+    if (!timeString) return ''
+    
+    // Convert 24-hour format to 12-hour AM/PM format
+    const [hours, minutes] = timeString.split(':')
+    const hour24 = parseInt(hours, 10)
+    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+    
+    return `${hour12}:${minutes} ${ampm}`
+  }
+
+  const loadPrograms = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('programs')
+        .select('*')
+        .order('event_date, start_time, title')
+      
+      if (error) {
+        console.error('Error loading programs:', error)
+        setPrograms([])
+        setFilteredPrograms([])
+      } else {
+        setPrograms(data || [])
+        setFilteredPrograms(data || [])
+      }
+    } catch (error) {
+      console.error('Error loading programs:', error)
+      setPrograms([])
+      setFilteredPrograms([])
     } finally {
       setLoading(false)
     }
@@ -913,19 +955,21 @@ export default function TitlesPage() {
       loadFilms()
     } else if (viewMode === 'shorts') {
       loadShorts()
+    } else if (viewMode === 'programs') {
+      loadPrograms()
     }
-  }, [loadFilms, loadShorts, viewMode])
+  }, [loadFilms, loadShorts, loadPrograms, viewMode])
   
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">🎬 Films</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">🎬 Titles & Programs</h1>
             <p className="text-sm text-gray-600 mt-1">
               {viewMode === 'features' && `${filteredFilms.length} of ${films.length} films`}
               {viewMode === 'shorts' && `${filteredShorts.length} of ${shorts.length} shorts`}
-              {viewMode === 'programs' && 'Program Cards (Coming Soon)'}
+              {viewMode === 'programs' && `${filteredPrograms.length} of ${programs.length} programs`}
             </p>
           </div>
           <div className="flex items-center space-x-4">
@@ -936,6 +980,26 @@ export default function TitlesPage() {
               >
                 ➕ Create Shorts Program
               </button>
+            )}
+            {viewMode === 'programs' && (
+              <>
+                <button
+                  onClick={() => setShowCreateEventModal(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
+                >
+                  ➕ Create Program
+                </button>
+                <button
+                  onClick={() => setShowIndustryDaysOnly(!showIndustryDaysOnly)}
+                  className={`px-4 py-2 rounded-md transition-colors ${
+                    showIndustryDaysOnly
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {showIndustryDaysOnly ? '📋 Show All Programs' : '🏢 Industry Days Only'}
+                </button>
+              </>
             )}
             <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors">
               {uploading ? 'Uploading...' : '📂 Upload CSV'}
@@ -1098,37 +1162,147 @@ export default function TitlesPage() {
       
       <div className="flex-1 overflow-auto p-6">
         {viewMode === 'programs' ? (
-          <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-            <h2 className="text-lg font-medium mb-4">Program Cards</h2>
-            <p className="text-gray-600 mb-4">Program Cards feature coming soon.</p>
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    {[
+                      { key: 'title', label: 'Program Title', width: 250 },
+                      { key: 'event_date', label: 'Date', width: 100 },
+                      { key: 'start_time', label: 'Start Time', width: 100 },
+                      { key: 'end_time', label: 'End Time', width: 100 },
+                      { key: 'venue_name', label: 'Venue', width: 150 },
+                      { key: 'participants', label: 'Participants', width: 200 },
+                      { key: 'description', label: 'Description', width: 300 },
+                      { key: 'is_industry_days', label: 'Industry Days', width: 120 }
+                    ].map((column) => (
+                      <th
+                        key={column.key}
+                        className={`relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 ${
+                          column.key === 'title' ? 'sticky left-0 z-10' : ''
+                        }`}
+                        style={{ minWidth: `${columnWidths[column.key] || column.width}px` }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => handleSort(column.key)}
+                            className="flex items-center space-x-1 hover:text-gray-700"
+                          >
+                            <span>{column.label}</span>
+                            {sortConfig?.key === column.key && (
+                              <span className="text-blue-600">
+                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            const startX = e.clientX
+                            const startWidth = columnWidths[column.key] || column.width
+                            
+                            const handleMouseMove = (e: MouseEvent) => {
+                              const newWidth = Math.max(50, startWidth + (e.clientX - startX))
+                              setColumnWidths(prev => ({ ...prev, [column.key]: newWidth }))
+                            }
+                            
+                            const handleMouseUp = () => {
+                              document.removeEventListener('mousemove', handleMouseMove)
+                              document.removeEventListener('mouseup', handleMouseUp)
+                            }
+                            
+                            document.addEventListener('mousemove', handleMouseMove)
+                            document.addEventListener('mouseup', handleMouseUp)
+                          }}
+                        />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {(showIndustryDaysOnly ? filteredPrograms.filter(p => p.is_industry_days) : filteredPrograms).map((program) => (
+                    <tr key={program.id} className="hover:bg-gray-50">
+                      <td 
+                        className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50 sticky left-0 bg-white z-10" 
+                        style={{ minWidth: `${columnWidths['title'] || 250}px` }}
+                        onClick={() => setEditingEvent(program)}
+                      >
+                        <span className="text-blue-600 hover:text-blue-800 hover:underline">
+                          {program.title}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['event_date'] || 100}px` }}>
+                        {program.event_date ? (() => {
+                          const date = new Date(program.event_date)
+                          const month = (date.getMonth() + 1).toString().padStart(2, '0')
+                          const day = date.getDate().toString().padStart(2, '0')
+                          const year = date.getFullYear().toString().slice(-2)
+                          return `${month}/${day}/${year}`
+                        })() : ''}
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['start_time'] || 100}px` }}>{formatTime(program.start_time)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['end_time'] || 100}px` }}>{formatTime(program.end_time)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['venue_name'] || 150}px` }}>
+                        {program.venue_name && (
+                          <span className="text-blue-600 hover:text-blue-800 cursor-pointer hover:underline">
+                            {program.venue_name}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['participants'] || 200}px` }}>{program.participants}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['description'] || 300}px` }}>
+                        <div className="max-w-xs truncate" title={program.description || ''}>
+                          {program.description}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['is_industry_days'] || 120}px` }}>
+                        {program.is_industry_days && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Industry Days
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
               <p className="mt-4 text-gray-600">
-                Loading {viewMode === 'features' ? 'films' : 'shorts'}...
+                Loading {viewMode === 'features' ? 'films' : viewMode === 'shorts' ? 'shorts' : 'programs'}...
               </p>
             </div>
           </div>
-        ) : (viewMode === 'features' ? films.length === 0 : shorts.length === 0) ? (
+        ) : (viewMode === 'features' ? films.length === 0 : viewMode === 'shorts' ? shorts.length === 0 : programs.length === 0) ? (
           <div className="bg-white rounded-lg shadow-sm p-6 text-center">
             <h2 className="text-lg font-medium mb-4">
-              No {viewMode === 'features' ? 'Films' : 'Shorts'} Yet
+              No {viewMode === 'features' ? 'Films' : viewMode === 'shorts' ? 'Shorts' : 'Programs'} Yet
             </h2>
             <p className="text-gray-600 mb-4">
-              Upload a CSV file to add {viewMode === 'features' ? 'films' : 'shorts'} to the database.
+              {viewMode === 'programs' 
+                ? 'Click "Create Program" to add your first program event.'
+                : `Upload a CSV file to add ${viewMode === 'features' ? 'films' : 'shorts'} to the database.`
+              }
             </p>
-            <label className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md cursor-pointer transition-colors inline-block">
-              📂 Upload CSV File
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleCSVUpload}
-                disabled={uploading}
-                className="hidden"
-              />
-            </label>
+            {viewMode !== 'programs' && (
+              <label className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md cursor-pointer transition-colors inline-block">
+                📂 Upload CSV File
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
         ) : viewMode === 'features' ? (
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -1166,7 +1340,9 @@ export default function TitlesPage() {
                     ].map((column) => (
                       <th
                         key={column.key}
-                        className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50"
+                        className={`relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 ${
+                          column.key === 'title' ? 'sticky left-0 z-10' : ''
+                        }`}
                         style={{ minWidth: `${columnWidths[column.key] || column.width}px` }}
                       >
                         <div className="flex items-center justify-between">
@@ -1212,7 +1388,7 @@ export default function TitlesPage() {
                   {filteredFilms.map((film) => (
                     <tr key={film.id} className="hover:bg-gray-50">
                       <td 
-                        className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50" 
+                        className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50 sticky left-0 bg-white z-10" 
                         style={{ minWidth: `${columnWidths['title'] || 200}px` }}
                         onClick={() => setSelectedFilm(film)}
                       >
@@ -1341,7 +1517,9 @@ export default function TitlesPage() {
                           ].map((column) => (
                             <th
                               key={column.key}
-                              className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50"
+                              className={`relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 ${
+                                column.key === 'title' ? 'sticky left-0 z-10' : ''
+                              }`}
                               style={{ minWidth: `${columnWidths[column.key] || column.width}px` }}
                             >
                               <div className="flex items-center justify-between">
@@ -1392,7 +1570,7 @@ export default function TitlesPage() {
                               {short.program_order}
                             </td>
                             <td 
-                              className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50" 
+                              className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50 sticky left-0 bg-white z-10" 
                               style={{ minWidth: `${columnWidths['title'] || 200}px` }}
                               onClick={() => setSelectedFilm(short)}
                             >
@@ -1474,6 +1652,23 @@ export default function TitlesPage() {
             (editingProgram && short.shorts_program_id === editingProgram.id)
           )}
           editingProgram={editingProgram}
+          supabase={supabase}
+        />
+      )}
+
+      {/* Create Program Event Modal */}
+      {showCreateEventModal && (
+        <CreateProgramEventModal
+          onClose={() => {
+            setShowCreateEventModal(false)
+            setEditingEvent(null)
+          }}
+          onSave={() => {
+            setShowCreateEventModal(false)
+            setEditingEvent(null)
+            loadPrograms()
+          }}
+          editingEvent={editingEvent}
           supabase={supabase}
         />
       )}
@@ -1757,6 +1952,283 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? 'Creating...' : 'Create Program'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Create Program Event Modal Component
+interface CreateProgramEventModalProps {
+  onClose: () => void
+  onSave: () => void
+  editingEvent?: ProgramCard | null
+  supabase: any
+}
+
+function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase }: CreateProgramEventModalProps) {
+  const [title, setTitle] = useState('')
+  const [eventDate, setEventDate] = useState('')
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
+  const [venueName, setVenueName] = useState('')
+  const [venueAddress, setVenueAddress] = useState('')
+  const [participants, setParticipants] = useState('')
+  const [description, setDescription] = useState('')
+  const [isIndustryDays, setIsIndustryDays] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [venues, setVenues] = useState<VenueCard[]>([])
+  const [guests, setGuests] = useState<GuestCard[]>([])
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+
+  // Load venues and guests for auto-suggest
+  useEffect(() => {
+    const loadVenuesAndGuests = async () => {
+      const [venuesResponse, guestsResponse] = await Promise.all([
+        supabase.from('venues').select('*'),
+        supabase.from('guests').select('*')
+      ])
+      
+      if (venuesResponse.data) setVenues(venuesResponse.data)
+      if (guestsResponse.data) setGuests(guestsResponse.data)
+    }
+    loadVenuesAndGuests()
+  }, [supabase])
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editingEvent) {
+      setTitle(editingEvent.title || '')
+      setEventDate(editingEvent.event_date || '')
+      setStartTime(editingEvent.start_time || '')
+      setEndTime(editingEvent.end_time || '')
+      setVenueName(editingEvent.venue_name || '')
+      setVenueAddress(editingEvent.venue_address || '')
+      setParticipants(editingEvent.participants || '')
+      setDescription(editingEvent.description || '')
+      setIsIndustryDays(editingEvent.is_industry_days || false)
+    }
+  }, [editingEvent])
+
+  const handleVenueSelect = (venue: VenueCard) => {
+    setVenueName(venue.name)
+    setVenueAddress(venue.address)
+  }
+
+  const handleSave = async () => {
+    if (!title.trim()) return
+
+    setSaving(true)
+    try {
+      const programData = {
+        title: title.trim(),
+        event_date: eventDate || null,
+        start_time: startTime || null,
+        end_time: endTime || null,
+        venue_name: venueName.trim() || null,
+        venue_address: venueAddress.trim() || null,
+        participants: participants.trim() || null,
+        description: description.trim() || null,
+        is_industry_days: isIndustryDays
+      }
+
+      if (editingEvent) {
+        const { error } = await supabase
+          .from('programs')
+          .update(programData)
+          .eq('id', editingEvent.id)
+
+        if (error) {
+          console.error('Error updating program:', error)
+          alert(`Error updating program: ${error.message}`)
+          return
+        }
+      } else {
+        const { error } = await supabase
+          .from('programs')
+          .insert([programData])
+
+        if (error) {
+          console.error('Error creating program:', error)
+          alert(`Error creating program: ${error.message}`)
+          return
+        }
+      }
+
+      onSave()
+    } catch (error) {
+      console.error('Error saving program:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    })
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    })
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+    >
+      <div 
+        className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          cursor: isDragging ? 'grabbing' : 'auto'
+        }}
+      >
+        <div 
+          className="px-6 py-4 border-b border-gray-200 cursor-grab active:cursor-grabbing"
+          onMouseDown={handleMouseDown}
+        >
+          <h2 className="text-xl font-semibold text-gray-900 select-none">
+            {editingEvent ? 'Edit Program' : 'Create Program'}
+          </h2>
+        </div>
+        
+        <div className="p-6 overflow-y-auto max-h-[70vh] space-y-4">
+          {/* Program Title - Required */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Program/Event Title *
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Industry Panel: The Future of Distribution"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+
+          {/* Date and Time */}
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+              <input
+                type="date"
+                value={eventDate}
+                onChange={(e) => setEventDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Venue */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Venue</label>
+            <input
+              type="text"
+              value={venueName}
+              onChange={(e) => setVenueName(e.target.value)}
+              placeholder="Search venues or enter manually..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              list="venues-datalist"
+            />
+            <datalist id="venues-datalist">
+              {venues.map(venue => (
+                <option key={venue.id} value={venue.name} />
+              ))}
+            </datalist>
+            {venueAddress && (
+              <p className="mt-1 text-sm text-gray-500">{venueAddress}</p>
+            )}
+          </div>
+
+          {/* Participants */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Participants</label>
+            <textarea
+              value={participants}
+              onChange={(e) => setParticipants(e.target.value)}
+              placeholder="List participants (names will auto-suggest from Guest Cards)..."
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Program Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Brief description of the program/event..."
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Industry Days Toggle */}
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="industry-days"
+              checked={isIndustryDays}
+              onChange={(e) => setIsIndustryDays(e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label htmlFor="industry-days" className="ml-2 block text-sm text-gray-700">
+              Part of Industry Days
+            </label>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!title.trim() || saving}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? 'Saving...' : editingEvent ? 'Update Program' : 'Create Program'}
           </button>
         </div>
       </div>

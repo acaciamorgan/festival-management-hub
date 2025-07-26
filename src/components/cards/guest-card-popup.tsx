@@ -8,6 +8,7 @@ import { FilmCardPopup } from './film-card-popup'
 interface GuestCardPopupProps {
   guest: GuestCard
   onClose: () => void
+  onEdit?: (guest: GuestCard) => void
   onUpdate?: (updatedGuest: GuestCard) => void
   onDelete?: (guestId: string) => void
 }
@@ -42,13 +43,76 @@ function CollapsibleSection({ title, children, isEmpty = false, defaultExpanded 
   )
 }
 
-export function GuestCardPopup({ guest, onClose, onUpdate, onDelete }: GuestCardPopupProps) {
+export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: GuestCardPopupProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [position, setPosition] = useState({ x: 100, y: 100 })
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [showFilmCard, setShowFilmCard] = useState<FilmCard | null>(null)
+  const [photoShoots, setPhotoShoots] = useState<any[]>([])
+  const [redCarpets, setRedCarpets] = useState<any[]>([])
 
   const supabase = createClient()
+
+  // Load photo shoots and red carpets for this guest
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        // Load photo shoots
+        const { data: shootsData, error: shootsError } = await supabase
+          .from('photo_shoots')
+          .select(`
+            id,
+            shoot_date,
+            shoot_time,
+            subjects_display,
+            venues(name)
+          `)
+          .or(`subjects_display.ilike.%${guest.name}%`)
+          .order('shoot_date', { ascending: false })
+
+        if (shootsError) {
+          console.error('Error loading photo shoots:', shootsError)
+        } else {
+          // Filter to only include shoots where this guest is actually mentioned
+          const relevantShoots = (shootsData || []).filter(shoot => {
+            if (!shoot.subjects_display) return false
+            const subjects = shoot.subjects_display.split(',').map((s: string) => s.trim())
+            return subjects.includes(guest.name)
+          })
+          setPhotoShoots(relevantShoots)
+        }
+
+        // Load red carpets
+        const { data: carpetsData, error: carpetsError } = await supabase
+          .from('red_carpets')
+          .select(`
+            id,
+            carpet_date,
+            carpet_start_time,
+            subjects_display,
+            venues(name)
+          `)
+          .or(`subjects_display.ilike.%${guest.name}%`)
+          .order('carpet_date', { ascending: false })
+
+        if (carpetsError) {
+          console.error('Error loading red carpets:', carpetsError)
+        } else {
+          // Filter to only include carpets where this guest is actually mentioned
+          const relevantCarpets = (carpetsData || []).filter(carpet => {
+            if (!carpet.subjects_display) return false
+            const subjects = carpet.subjects_display.split(',').map((s: string) => s.trim())
+            return subjects.includes(guest.name)
+          })
+          setRedCarpets(relevantCarpets)
+        }
+      } catch (error) {
+        console.error('Error loading events:', error)
+      }
+    }
+
+    loadEvents()
+  }, [guest.name, supabase])
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true)
@@ -104,12 +168,35 @@ export function GuestCardPopup({ guest, onClose, onUpdate, onDelete }: GuestCard
 
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return 'Not specified'
-    return new Date(dateString).toLocaleDateString()
+    const date = new Date(dateString)
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    const year = date.getFullYear().toString().slice(-2)
+    return `${month}/${day}/${year}`
   }
 
   const formatTime = (timeString: string | undefined): string => {
     if (!timeString) return ''
-    return timeString
+    
+    // Convert 24-hour format to 12-hour AM/PM format
+    const [hours, minutes] = timeString.split(':')
+    const hour24 = parseInt(hours, 10)
+    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+    
+    return `${hour12}:${minutes} ${ampm}`
+  }
+
+  const formatTimeForDisplay = (timeString: string | undefined): string => {
+    if (!timeString) return 'Not specified'
+    
+    // Convert 24-hour format to 12-hour AM/PM format
+    const [hours, minutes] = timeString.split(':')
+    const hour24 = parseInt(hours, 10)
+    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+    
+    return `${hour12}:${minutes} ${ampm}`
   }
 
   const openFilmCard = async (filmTitle: string) => {
@@ -130,19 +217,32 @@ export function GuestCardPopup({ guest, onClose, onUpdate, onDelete }: GuestCard
           .single()
 
         if (shortError) {
-          console.warn('Film not found in database:', filmTitle)
-          alert(`Film "${filmTitle}" not found in database`)
-          return
+          // If not found in films, try programs
+          const { data: programData, error: programError } = await supabase
+            .from('programs')
+            .select('*')
+            .eq('title', filmTitle)
+            .single()
+
+          if (programError) {
+            console.warn('Title not found in database:', filmTitle)
+            alert(`"${filmTitle}" not found in database`)
+            return
+          }
+          
+          // Found a program - set it as filmData to display
+          filmData = programData
+        } else {
+          filmData = shortFilmData
         }
-        filmData = shortFilmData
       }
 
       if (filmData) {
         setShowFilmCard(filmData)
       }
     } catch (error) {
-      console.error('Error fetching film:', error)
-      alert('Error loading film details')
+      console.error('Error fetching title:', error)
+      alert('Error loading details')
     }
   }
 
@@ -198,8 +298,9 @@ export function GuestCardPopup({ guest, onClose, onUpdate, onDelete }: GuestCard
           <div className="flex items-center space-x-4">
             <button
               onClick={() => {
-                // TODO: Open edit modal
-                console.log('Edit guest:', guest.id)
+                if (onEdit) {
+                  onEdit(guest)
+                }
               }}
               className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm font-medium"
             >
@@ -422,8 +523,61 @@ export function GuestCardPopup({ guest, onClose, onUpdate, onDelete }: GuestCard
             <p className="text-sm text-gray-500">Interview data will be pulled from Interview Management Module when implemented.</p>
           </CollapsibleSection>
 
-          <CollapsibleSection title="Red Carpets & Photo Opps" isEmpty={true}>
-            <p className="text-sm text-gray-500">Red carpet and photo opportunity data will be pulled from respective modules when implemented.</p>
+          <CollapsibleSection title="Red Carpets & Photo Shoots" isEmpty={photoShoots.length === 0 && redCarpets.length === 0}>
+            {(photoShoots.length > 0 || redCarpets.length > 0) ? (
+              <div className="space-y-2">
+                {/* Photo Shoots */}
+                {photoShoots.map((shoot) => {
+                  const date = shoot.shoot_date ? (() => {
+                    const d = new Date(shoot.shoot_date)
+                    const month = (d.getMonth() + 1).toString().padStart(2, '0')
+                    const day = d.getDate().toString().padStart(2, '0')
+                    const year = d.getFullYear().toString().slice(-2)
+                    return `${month}/${day}/${year}`
+                  })() : 'TBD'
+                  
+                  const time = shoot.shoot_time ? formatTimeForDisplay(shoot.shoot_time) : 'TBD'
+                  const venue = shoot.venues?.name || 'TBD'
+                  const subjects = shoot.subjects_display || 'TBD'
+                  
+                  return (
+                    <div key={`shoot-${shoot.id}`} className="text-sm text-gray-900">
+                      📸 Photo Shoot - {date}, {time} at {venue} ({subjects})
+                    </div>
+                  )
+                })}
+                
+                {/* Red Carpets */}
+                {redCarpets.map((carpet) => {
+                  const date = carpet.carpet_date ? (() => {
+                    const d = new Date(carpet.carpet_date)
+                    const month = (d.getMonth() + 1).toString().padStart(2, '0')
+                    const day = d.getDate().toString().padStart(2, '0')
+                    const year = d.getFullYear().toString().slice(-2)
+                    return `${month}/${day}/${year}`
+                  })() : 'TBD'
+                  
+                  const time = carpet.carpet_start_time ? (() => {
+                    const [hours, minutes] = carpet.carpet_start_time.split(':')
+                    const hour24 = parseInt(hours, 10)
+                    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+                    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+                    return `${hour12}:${minutes} ${ampm}`
+                  })() : 'TBD'
+                  
+                  const venue = carpet.venues?.name || 'TBD'
+                  const subjects = carpet.subjects_display || 'TBD'
+                  
+                  return (
+                    <div key={`carpet-${carpet.id}`} className="text-sm text-gray-900">
+                      🎭 Red Carpet - {date}, {time} at {venue} ({subjects})
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No red carpets or photo shoots found for this guest.</p>
+            )}
           </CollapsibleSection>
 
           <CollapsibleSection title="Events" isEmpty={true}>

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface FilmCardProps {
   film: {
@@ -62,6 +63,31 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
   const [position, setPosition] = useState({ x: 100, y: 100 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [filmPhotoShoots, setFilmPhotoShoots] = useState<any[]>([])
+  const [filmRedCarpets, setFilmRedCarpets] = useState<any[]>([])
+
+  const supabase = createClient()
+
+  const formatTimeForDisplay = (timeString: string | undefined): string => {
+    if (!timeString) return 'TBD'
+    
+    // Convert 24-hour format to 12-hour AM/PM format
+    const [hours, minutes] = timeString.split(':')
+    const hour24 = parseInt(hours, 10)
+    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+    
+    return `${hour12}:${minutes} ${ampm}`
+  }
+
+  const formatDateForDisplay = (dateString: string | undefined): string => {
+    if (!dateString) return 'TBD'
+    const date = new Date(dateString)
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    const year = date.getFullYear().toString().slice(-2)
+    return `${month}/${day}/${year}`
+  }
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true)
@@ -71,14 +97,14 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
     })
   }
 
-  const handleMouseMove = (e: MouseEvent) => {
+  const handleMouseMove = useCallback((e: MouseEvent) => {
     if (isDragging) {
       setPosition({
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y
       })
     }
-  }
+  }, [isDragging, dragStart.x, dragStart.y])
 
   const handleMouseUp = () => {
     setIsDragging(false)
@@ -94,7 +120,69 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isDragging, dragStart])
+  }, [isDragging, handleMouseMove])
+
+  // Load photo shoots and red carpets for this film
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        // Load photo shoots
+        const { data: shootsData, error: shootsError } = await supabase
+          .from('photo_shoots')
+          .select(`
+            id,
+            shoot_date,
+            shoot_time,
+            subjects_display,
+            venues(name)
+          `)
+          .or(`film_program_display.ilike.%${film.title}%`)
+          .order('shoot_date', { ascending: false })
+
+        if (shootsError) {
+          console.error('Error loading photo shoots:', shootsError)
+        } else {
+          // Filter to only include shoots where this film is actually mentioned
+          const relevantShoots = (shootsData || []).filter(shoot => {
+            if (!shoot.film_program_display) return false
+            const titles = shoot.film_program_display.split(',').map((s: string) => s.trim())
+            return titles.includes(film.title)
+          })
+          setFilmPhotoShoots(relevantShoots)
+        }
+
+        // Load red carpets
+        const { data: carpetsData, error: carpetsError } = await supabase
+          .from('red_carpets')
+          .select(`
+            id,
+            carpet_date,
+            carpet_start_time,
+            subjects_display,
+            film_program_display,
+            venues(name)
+          `)
+          .or(`film_program_display.ilike.%${film.title}%`)
+          .order('carpet_date', { ascending: false })
+
+        if (carpetsError) {
+          console.error('Error loading red carpets:', carpetsError)
+        } else {
+          // Filter to only include carpets where this film is actually mentioned
+          const relevantCarpets = (carpetsData || []).filter(carpet => {
+            if (!carpet.film_program_display) return false
+            const titles = carpet.film_program_display.split(',').map((s: string) => s.trim())
+            return titles.includes(film.title)
+          })
+          setFilmRedCarpets(relevantCarpets)
+        }
+      } catch (error) {
+        console.error('Error loading events:', error)
+      }
+    }
+
+    loadEvents()
+  }, [film.title, supabase])
 
   return (
     <div 
@@ -182,11 +270,54 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               </div>
             </CollapsibleSection>
 
-            <CollapsibleSection title="Red Carpets & Photo Shoots" isEmpty={true}>
-              {/* Will be populated from Red Carpets and Photo Shoots Modules */}
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">Red carpet events and photo shoot schedules will appear here.</p>
-              </div>
+            <CollapsibleSection title="Red Carpets & Photo Shoots" isEmpty={filmPhotoShoots.length === 0 && filmRedCarpets.length === 0}>
+              {(filmPhotoShoots.length > 0 || filmRedCarpets.length > 0) ? (
+                <div className="space-y-2">
+                  {/* Photo Shoots */}
+                  {filmPhotoShoots.map((shoot) => {
+                    const date = formatDateForDisplay(shoot.shoot_date)
+                    const time = formatTimeForDisplay(shoot.shoot_time)
+                    const venue = shoot.venues?.name || 'TBD'
+                    const subjects = shoot.subjects_display || 'TBD'
+                    
+                    return (
+                      <div key={`shoot-${shoot.id}`} className="text-sm text-gray-900">
+                        📸 Photo Shoot - {date}, {time} at {venue} ({subjects})
+                      </div>
+                    )
+                  })}
+                  
+                  {/* Red Carpets */}
+                  {filmRedCarpets.map((carpet) => {
+                    const date = carpet.carpet_date ? (() => {
+                      const d = new Date(carpet.carpet_date)
+                      const month = (d.getMonth() + 1).toString().padStart(2, '0')
+                      const day = d.getDate().toString().padStart(2, '0')
+                      const year = d.getFullYear().toString().slice(-2)
+                      return `${month}/${day}/${year}`
+                    })() : 'TBD'
+                    
+                    const time = carpet.carpet_start_time ? (() => {
+                      const [hours, minutes] = carpet.carpet_start_time.split(':')
+                      const hour24 = parseInt(hours, 10)
+                      const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+                      const ampm = hour24 >= 12 ? 'PM' : 'AM'
+                      return `${hour12}:${minutes} ${ampm}`
+                    })() : 'TBD'
+                    
+                    const venue = carpet.venues?.name || 'TBD'
+                    const subjects = carpet.subjects_display || 'TBD'
+                    
+                    return (
+                      <div key={`carpet-${carpet.id}`} className="text-sm text-gray-900">
+                        🎭 Red Carpet - {date}, {time} at {venue} ({subjects})
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No red carpets or photo shoots found for this film.</p>
+              )}
             </CollapsibleSection>
 
             <CollapsibleSection title="Interviews" isEmpty={true}>

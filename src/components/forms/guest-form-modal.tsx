@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/components/providers/auth-provider'
 import { GuestCard, GuestType, ArrangingTravel, GuestFilm } from '@/types'
 
 interface GuestFormModalProps {
@@ -29,19 +30,19 @@ interface GuestFormData {
   arrival_date: string
   arrival_airline: string
   arrival_flight_number: string
-  inbound_departure_time: string
-  arrival_origin_airport: string
-  arrival_airport: string
-  inbound_arrival_time: string
+  arrival_takeoff_time: string
+  arrival_origin: string
+  arrival_destination: string
+  arrival_landing_time: string
   
   // Departure
   departure_date: string
-  outbound_departure_time: string
+  departure_takeoff_time: string
   departure_airline: string
   departure_flight_number: string
-  departure_airport: string
-  destination_airport: string
-  outbound_arrival_time: string
+  departure_origin: string
+  departure_destination: string
+  departure_landing_time: string
   
   // Hotel
   hotel_name: string
@@ -53,10 +54,11 @@ interface GuestFormData {
   notes: string
   
   // Films (as string for form input)
-  selected_films: string[]
+  film_titles: string
 }
 
 export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModalProps) {
+  const { user } = useAuth()
   const [formData, setFormData] = useState<GuestFormData>({
     name: '',
     country: '',
@@ -85,7 +87,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
     hotel_confirmation_number: '',
     checked_in: false,
     notes: '',
-    selected_films: []
+    film_titles: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -93,16 +95,20 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [availableFilms, setAvailableFilms] = useState<{id: string, title: string}[]>([])
+  const [availablePrograms, setAvailablePrograms] = useState<{id: string, title: string}[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [filteredSuggestions, setFilteredSuggestions] = useState<{id: string, title: string, type: 'film' | 'program'}[]>([])
 
   const supabase = createClient()
 
   // Load available films and programs
   useEffect(() => {
-    const loadFilms = async () => {
+    const loadFilmsAndPrograms = async () => {
       try {
-        const [featureFilms, shortFilms] = await Promise.all([
+        const [featureFilms, shortFilms, programs] = await Promise.all([
           supabase.from('feature_films').select('id, title').order('title'),
-          supabase.from('short_films').select('id, title').order('title')
+          supabase.from('short_films').select('id, title').order('title'),
+          supabase.from('programs').select('id, title').order('title')
         ])
         
         const allFilms = [
@@ -111,13 +117,14 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         ]
         
         setAvailableFilms(allFilms)
+        setAvailablePrograms(programs.data || [])
       } catch (error) {
-        console.error('Error loading films:', error)
+        console.error('Error loading films and programs:', error)
       }
     }
     
     if (isOpen) {
-      loadFilms()
+      loadFilmsAndPrograms()
     }
   }, [isOpen, supabase])
 
@@ -186,7 +193,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         hotel_confirmation_number: guest.hotel_confirmation_number || '',
         checked_in: guest.checked_in || false,
         notes: guest.notes || '',
-        selected_films: guest.films?.map(f => f.film_title) || []
+        film_titles: guest.films_display || ''
       })
     } else {
       setFormData({
@@ -217,11 +224,67 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         hotel_confirmation_number: '',
         checked_in: false,
         notes: '',
-        selected_films: []
+        film_titles: ''
       })
     }
     setErrors({})
   }, [guest, isOpen])
+
+  // Handle autocomplete filtering
+  const handleFilmProgramInput = (value: string) => {
+    setFormData(prev => ({ ...prev, film_titles: value }))
+    
+    // Get the last entered term (after last comma)
+    const terms = value.split(',').map(t => t.trim())
+    const lastTerm = terms[terms.length - 1]
+    
+    if (lastTerm.length >= 1) {
+      const filmSuggestions = availableFilms
+        .filter(film => film.title.toLowerCase().includes(lastTerm.toLowerCase()))
+        .map(film => ({ ...film, type: 'film' as const }))
+      
+      const programSuggestions = availablePrograms
+        .filter(program => program.title.toLowerCase().includes(lastTerm.toLowerCase()))
+        .map(program => ({ ...program, type: 'program' as const }))
+      
+      const allSuggestions = [...filmSuggestions, ...programSuggestions]
+      setFilteredSuggestions(allSuggestions.slice(0, 8)) // Limit to 8 suggestions
+      setShowSuggestions(allSuggestions.length > 0)
+    } else {
+      setShowSuggestions(false)
+    }
+  }
+
+  // Handle suggestion selection
+  const handleSuggestionSelect = (suggestion: {id: string, title: string, type: 'film' | 'program'}) => {
+    const terms = formData.film_titles.split(',').map(t => t.trim())
+    terms[terms.length - 1] = suggestion.title
+    setFormData(prev => ({ ...prev, film_titles: terms.join(', ') }))
+    setShowSuggestions(false)
+  }
+
+  // Handle 2-digit year conversion for date fields
+  const normalizeDateValue = (dateValue: string): string => {
+    if (!dateValue) return dateValue
+    
+    // Check if it's in MM/DD/YY or similar format
+    const dateRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/
+    const match = dateValue.match(dateRegex)
+    
+    if (match) {
+      const [, month, day, year] = match
+      const fullYear = `20${year}` // Convert YY to 20YY
+      return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+    }
+    
+    // Check if it's just YY format at the end
+    const yearOnlyRegex = /^(\d{4})-(\d{2})-(\d{2})$|^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/
+    if (yearOnlyRegex.test(dateValue)) {
+      return dateValue // Already properly formatted
+    }
+    
+    return dateValue
+  }
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
@@ -248,6 +311,16 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
     setIsSubmitting(true)
 
     try {
+      // Check for existing guest by name (case-insensitive)
+      const { data: existingGuests, error: checkError } = await supabase
+        .from('guests')
+        .select('id')
+        .ilike('name', formData.name.trim())
+
+      if (checkError) throw checkError
+
+      const existingGuest = existingGuests && existingGuests.length > 0 ? existingGuests[0] : null
+
       const guestData = {
         name: formData.name.trim(),
         country: formData.country.trim() || null,
@@ -257,36 +330,53 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         contact_name: formData.contact_name.trim() || null,
         contact_email: formData.contact_email.trim() || null,
         arranging_travel: formData.arranging_travel,
-        arrival_date: formData.arrival_date || null,
-        arrival_takeoff_time: formData.arrival_takeoff_time || null,
-        arrival_landing_time: formData.arrival_landing_time || null,
+        arrival_date: normalizeDateValue(formData.arrival_date) || null,
+        inbound_departure_time: formData.arrival_takeoff_time || null,
+        inbound_arrival_time: formData.arrival_landing_time || null,
         arrival_airline: formData.arrival_airline.trim() || null,
         arrival_flight_number: formData.arrival_flight_number.trim() || null,
-        arrival_origin: formData.arrival_origin.trim() || null,
-        arrival_destination: formData.arrival_destination.trim() || null,
-        departure_date: formData.departure_date || null,
-        departure_takeoff_time: formData.departure_takeoff_time || null,
-        departure_landing_time: formData.departure_landing_time || null,
+        arrival_origin_airport: formData.arrival_origin.trim() || null,
+        arrival_airport: formData.arrival_destination.trim() || null,
+        departure_date: normalizeDateValue(formData.departure_date) || null,
+        outbound_departure_time: formData.departure_takeoff_time || null,
+        outbound_arrival_time: formData.departure_landing_time || null,
         departure_airline: formData.departure_airline.trim() || null,
         departure_flight_number: formData.departure_flight_number.trim() || null,
-        departure_origin: formData.departure_origin.trim() || null,
-        departure_destination: formData.departure_destination.trim() || null,
+        departure_airport: formData.departure_origin.trim() || null,
+        destination_airport: formData.departure_destination.trim() || null,
         hotel_name: formData.hotel_name.trim() || null,
         hotel_address: formData.hotel_address.trim() || null,
         hotel_confirmation_number: formData.hotel_confirmation_number.trim() || null,
         checked_in: formData.checked_in,
         notes: formData.notes.trim() || null,
+        films_display: formData.film_titles.trim() || '—',
         updated_at: new Date().toISOString()
       }
+
+      console.log('Attempting to save guest data:', guestData)
 
       let savedGuest: GuestCard
 
       if (guest) {
-        // Update existing guest
+        // Update existing guest (editing mode)
         const { data, error } = await supabase
           .from('guests')
           .update(guestData)
           .eq('id', guest.id)
+          .select()
+          .single()
+
+        if (error) throw error
+        savedGuest = data
+      } else if (existingGuest) {
+        // Update existing guest found by name
+        const { data, error } = await supabase
+          .from('guests')
+          .update({
+            ...guestData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingGuest.id)
           .select()
           .single()
 
@@ -298,7 +388,8 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
           .from('guests')
           .insert([{
             ...guestData,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            created_by: user?.id
           }])
           .select()
           .single()
@@ -307,54 +398,97 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         savedGuest = data
       }
 
-      // Handle film associations
+      // Handle film and program associations
       if (formData.film_titles.trim()) {
-        // Delete existing film associations if editing
-        if (guest) {
-          await supabase
-            .from('guest_films')
-            .delete()
-            .eq('guest_id', guest.id)
+        // Delete existing film and program associations if editing or updating existing guest
+        if (guest || existingGuest) {
+          await Promise.all([
+            supabase.from('guest_films').delete().eq('guest_id', savedGuest.id),
+            supabase.from('guest_programs').delete().eq('guest_id', savedGuest.id)
+          ])
         }
 
-        // Parse film titles and create associations
+        // Parse film/program titles and create associations
         const filmTitles = formData.film_titles.split(',').map(title => title.trim()).filter(title => title)
         
         if (filmTitles.length > 0) {
-          // First, try to find matching films in the database
-          const { data: filmsData, error: filmsError } = await supabase
-            .from('feature_films')
-            .select('id, title')
-            .in('title', filmTitles)
+          // Try to find matching films and programs
+          const [featureFilms, shortFilms, programs] = await Promise.all([
+            supabase.from('feature_films').select('id, title').in('title', filmTitles),
+            supabase.from('short_films').select('id, title').in('title', filmTitles),
+            supabase.from('programs').select('id, title').in('title', filmTitles)
+          ])
 
-          if (filmsError) console.warn('Error finding films:', filmsError)
+          const allMatchedFilms = [
+            ...(featureFilms.data || []),
+            ...(shortFilms.data || [])
+          ]
+          
+          const allMatchedPrograms = programs.data || []
 
-          const filmAssociations = filmTitles.map(title => {
-            const matchedFilm = filmsData?.find(f => f.title === title)
-            return {
-              guest_id: savedGuest.id,
-              film_id: matchedFilm?.id || null,
-              film_title: title
+          // Create associations based on where each title is found
+          const filmAssociations = []
+          const programAssociations = []
+          
+          for (const title of filmTitles) {
+            const matchedFilm = allMatchedFilms.find(f => f.title === title)
+            const matchedProgram = allMatchedPrograms.find(p => p.title === title)
+            
+            if (matchedFilm) {
+              filmAssociations.push({
+                guest_id: savedGuest.id,
+                film_id: matchedFilm.id,
+                film_title: title
+              })
+            } else if (matchedProgram) {
+              programAssociations.push({
+                guest_id: savedGuest.id,
+                program_id: matchedProgram.id,
+                program_title: title
+              })
             }
-          })
+            // If neither matched, it's free text and will be preserved in films_display
+          }
 
-          const { data: guestFilmsData, error: guestFilmsError } = await supabase
-            .from('guest_films')
-            .insert(filmAssociations)
-            .select()
+          // Save film associations
+          if (filmAssociations.length > 0) {
+            const { data: guestFilmsData, error: guestFilmsError } = await supabase
+              .from('guest_films')
+              .insert(filmAssociations)
+              .select()
 
-          if (guestFilmsError) throw guestFilmsError
+            if (guestFilmsError) {
+              console.warn('Error saving film associations:', guestFilmsError)
+            } else {
+              savedGuest.films = guestFilmsData
+            }
+          } else {
+            savedGuest.films = []
+          }
 
-          // Add films to saved guest
-          savedGuest.films = guestFilmsData
-          savedGuest.films_display = filmTitles.join(', ')
+          // Save program associations
+          if (programAssociations.length > 0) {
+            const { error: guestProgramsError } = await supabase
+              .from('guest_programs')
+              .insert(programAssociations)
+
+            if (guestProgramsError) {
+              console.warn('Error saving program associations:', guestProgramsError)
+            }
+          }
+
         } else {
           savedGuest.films = []
-          savedGuest.films_display = '—'
         }
       } else {
+        // Clear associations when no titles provided
+        if (guest || existingGuest) {
+          await Promise.all([
+            supabase.from('guest_films').delete().eq('guest_id', savedGuest.id),
+            supabase.from('guest_programs').delete().eq('guest_id', savedGuest.id)
+          ])
+        }
         savedGuest.films = []
-        savedGuest.films_display = '—'
       }
 
       onSave(savedGuest)
@@ -493,20 +627,49 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
               {/* Film Associations */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Film Associations</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Film and/or Program Associations</h3>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Film Titles
+                    Film(s) / Program(s)
                   </label>
-                  <input
-                    type="text"
-                    value={formData.film_titles}
-                    onChange={(e) => setFormData(prev => ({ ...prev, film_titles: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter film titles separated by commas"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.film_titles}
+                      onChange={(e) => handleFilmProgramInput(e.target.value)}
+                      onFocus={() => {
+                        if (filteredSuggestions.length > 0) {
+                          setShowSuggestions(true)
+                        }
+                      }}
+                      onBlur={() => {
+                        // Delay hiding suggestions to allow selection
+                        setTimeout(() => setShowSuggestions(false), 200)
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter film or program titles separated by commas"
+                    />
+                    
+                    {/* Autocomplete suggestions */}
+                    {showSuggestions && filteredSuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                        {filteredSuggestions.map((suggestion, index) => (
+                          <div
+                            key={`${suggestion.type}-${suggestion.id}`}
+                            className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
+                            onClick={() => handleSuggestionSelect(suggestion)}
+                          >
+                            <span className="font-medium">{suggestion.title}</span>
+                            <span className="text-gray-500 text-xs ml-2">
+                              ({suggestion.type === 'film' ? 'Film' : 'Program'})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500 mt-1">
-                    Separate multiple films with commas. Films will be linked to existing Film Cards when possible.
+                    Separate multiple films/programs with commas. Matched items will be linked to existing Film or Program Cards.
                   </p>
                 </div>
               </div>
@@ -573,6 +736,12 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="date"
                         value={formData.arrival_date}
                         onChange={(e) => setFormData(prev => ({ ...prev, arrival_date: e.target.value }))}
+                        onBlur={(e) => {
+                          const normalized = normalizeDateValue(e.target.value)
+                          if (normalized !== e.target.value) {
+                            setFormData(prev => ({ ...prev, arrival_date: normalized }))
+                          }
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
@@ -647,6 +816,12 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="date"
                         value={formData.departure_date}
                         onChange={(e) => setFormData(prev => ({ ...prev, departure_date: e.target.value }))}
+                        onBlur={(e) => {
+                          const normalized = normalizeDateValue(e.target.value)
+                          if (normalized !== e.target.value) {
+                            setFormData(prev => ({ ...prev, departure_date: normalized }))
+                          }
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>

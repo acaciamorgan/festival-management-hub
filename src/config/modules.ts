@@ -3,7 +3,7 @@ import { ModuleConfig } from '@/types'
 export const moduleConfigs: Record<string, ModuleConfig> = {
   titles: {
     id: 'titles',
-    name: 'Titles',
+    name: 'Titles & Programs',
     icon: 'film',
     hasGridView: true,
     hasRSVP: false,

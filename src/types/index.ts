@@ -236,3 +236,20 @@ export interface VenueCard {
   updated_at: string
   created_by: string
 }
+
+// Program Management Types
+export interface ProgramCard {
+  id: string
+  title: string
+  event_date?: string | null
+  start_time?: string | null
+  end_time?: string | null
+  venue_name?: string | null
+  venue_address?: string | null
+  participants?: string | null
+  description?: string | null
+  is_industry_days: boolean
+  created_at: string
+  updated_at: string
+  created_by: string
+}
