@@ -4,6 +4,10 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { FilmCard, ProgramCard, VenueCard, GuestCard } from '@/types'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
+import { GuestCardPopup } from '@/components/cards/guest-card-popup'
+import { FilmEditModal } from '@/components/forms/film-edit-modal'
+import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import { normalizeDateValue } from '@/lib/date-utils'
 
 interface FeatureFilm {
   id: string
@@ -113,8 +117,107 @@ export default function TitlesPage() {
   const [showCreateEventModal, setShowCreateEventModal] = useState(false)
   const [editingEvent, setEditingEvent] = useState<ProgramCard | null>(null)
   const [showIndustryDaysOnly, setShowIndustryDaysOnly] = useState(false)
+  const [editingFilm, setEditingFilm] = useState<FeatureFilm | ShortFilm | null>(null)
+  const [editingFilmType, setEditingFilmType] = useState<'feature' | 'short'>('feature')
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showGuestCard, setShowGuestCard] = useState<GuestCard | null>(null)
+  const [showGuestMode, setShowGuestMode] = useState(false)
+  const [confirmedGuests, setConfirmedGuests] = useState<Set<string>>(new Set())
   
   const supabase = createClient()
+
+  // Load confirmed guests only when Show Guests toggle is activated
+  useEffect(() => {
+    const loadConfirmedGuests = async () => {
+      if (!showGuestMode) {
+        setConfirmedGuests(new Set())
+        return
+      }
+
+      try {
+        const { data: guests, error } = await supabase
+          .from('guests')
+          .select('name')
+          .eq('confirmed', true)
+
+        if (!error && guests) {
+          setConfirmedGuests(new Set(guests.map(g => g.name)))
+        }
+      } catch (error) {
+        console.error('Error loading confirmed guest names:', error)
+      }
+    }
+
+    loadConfirmedGuests()
+  }, [showGuestMode, supabase])
+
+  const openGuestCard = async (guestName: string) => {
+    try {
+      const { data: guestData, error } = await supabase
+        .from('guests')
+        .select(`
+          *,
+          guest_films:guest_films(film_title),
+          guest_programs:guest_programs(program_title)
+        `)
+        .eq('name', guestName)
+        .single()
+
+      if (error || !guestData) {
+        console.warn('Guest not found in database:', guestName)
+        return
+      }
+
+      const formattedGuest = {
+        ...guestData,
+        films: guestData.guest_films || [],
+        films_display: [
+          ...(guestData.guest_films || []).map((f: any) => f.film_title),
+          ...(guestData.guest_programs || []).map((p: any) => p.program_title)
+        ].join(', ') || '—'
+      }
+
+      setShowGuestCard(formattedGuest)
+    } catch (error) {
+      console.error('Error fetching guest:', error)
+    }
+  }
+
+  const renderPersonName = (name: string | undefined) => {
+    if (!name) return '—'
+    
+    // Split by comma and check each name for guest card existence
+    const names = name.split(',').map(n => n.trim()).filter(n => n)
+    if (names.length === 0) return '—'
+    
+    return (
+      <div className="flex flex-wrap gap-1">
+        {names.map((personName, index) => {
+          // Only show as clickable if Show Guests mode is on AND person is a confirmed guest
+          const isConfirmedGuest = showGuestMode && confirmedGuests.has(personName)
+          
+          return (
+            <span key={index}>
+              {isConfirmedGuest ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openGuestCard(personName)
+                  }}
+                  className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                >
+                  {personName}
+                </button>
+              ) : (
+                <span className="text-gray-900">{personName}</span>
+              )}
+              {index < names.length - 1 && <span className="text-gray-400">, </span>}
+            </span>
+          )
+        })}
+      </div>
+    )
+  }
 
   const loadFilms = useCallback(async () => {
     setLoading(true)
@@ -344,18 +447,22 @@ export default function TitlesPage() {
   const applyFiltersAndSort = useMemo(() => {
     const currentData = viewMode === 'features' ? films : shorts
     const filtered = currentData.filter(item => {
-      // Search filter
+      // Search filter (accent-insensitive)
       if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase()
-        const searchableText = [
+        const searchableFields = [
           item.title, item.original_language_title, item.director,
           item.countries, item.screenwriter, item.cinematographer,
           item.art_director, item.editor, item.principal_cast,
           item.sound_designer, item.music_score, item.producer,
           item.executive_producer, item.production_companies
-        ].join(' ').toLowerCase()
+        ]
         
-        if (!searchableText.includes(searchLower)) return false
+        const accentInsensitiveFilter = createAccentInsensitiveFilter(
+          searchTerm,
+          () => searchableFields
+        )
+        
+        if (!accentInsensitiveFilter(item)) return false
       }
       
       // Program filter
@@ -973,6 +1080,16 @@ export default function TitlesPage() {
             </p>
           </div>
           <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setShowGuestMode(!showGuestMode)}
+              className={`px-4 py-2 rounded-md transition-colors font-medium ${
+                showGuestMode 
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
+            >
+              👥 {showGuestMode ? 'Hide Guests' : 'Show Guests'}
+            </button>
             {viewMode === 'shorts' && (
               <button
                 onClick={() => setShowCreateProgramModal(true)}
@@ -1336,7 +1453,8 @@ export default function TitlesPage() {
                       { key: 'film_website', label: 'Film Website', width: 150 },
                       { key: 'trailer_url', label: 'Trailer URL', width: 150 },
                       { key: 'premiere_status', label: 'Premiere Status', width: 120 },
-                      { key: 'content_warnings', label: 'Content Warnings', width: 150 }
+                      { key: 'content_warnings', label: 'Content Warnings', width: 150 },
+                      { key: 'actions', label: 'Actions', width: 80 }
                     ].map((column) => (
                       <th
                         key={column.key}
@@ -1398,7 +1516,7 @@ export default function TitlesPage() {
                       </td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['source'] || 100}px` }}>{film.source}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['original_language_title'] || 180}px` }}>{film.original_language_title}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['director'] || 150}px` }}>{film.director}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['director'] || 150}px` }}>{renderPersonName(film.director)}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['countries'] || 150}px` }}>{film.countries}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['programs'] || 150}px` }}>{film.programs}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['genres'] || 120}px` }}>{film.genres}</td>
@@ -1407,15 +1525,15 @@ export default function TitlesPage() {
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['subtitles'] || 80}px` }}>{film.subtitles}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['captions'] || 80}px` }}>{film.captions}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['original_release_year'] || 70}px` }}>{film.original_release_year}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['screenwriter'] || 150}px` }}>{film.screenwriter}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['cinematographer'] || 150}px` }}>{film.cinematographer}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['art_director'] || 120}px` }}>{film.art_director}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['editor'] || 100}px` }}>{film.editor}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{film.principal_cast}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['sound_designer'] || 120}px` }}>{film.sound_designer}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['music_score'] || 120}px` }}>{film.music_score}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['producer'] || 150}px` }}>{film.producer}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['executive_producer'] || 150}px` }}>{film.executive_producer}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['screenwriter'] || 150}px` }}>{renderPersonName(film.screenwriter)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['cinematographer'] || 150}px` }}>{renderPersonName(film.cinematographer)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['art_director'] || 120}px` }}>{renderPersonName(film.art_director)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['editor'] || 100}px` }}>{renderPersonName(film.editor)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{renderPersonName(film.principal_cast)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['sound_designer'] || 120}px` }}>{renderPersonName(film.sound_designer)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['music_score'] || 120}px` }}>{renderPersonName(film.music_score)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['producer'] || 150}px` }}>{renderPersonName(film.producer)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['executive_producer'] || 150}px` }}>{renderPersonName(film.executive_producer)}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['production_companies'] || 180}px` }}>{film.production_companies}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['film_website'] || 150}px` }}>
                         {film.film_website && (
@@ -1432,7 +1550,20 @@ export default function TitlesPage() {
                         )}
                       </td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['premiere_status'] || 120}px` }}>{film.premiere_status}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['content_warnings'] || 150}px` }}>{film.content_warnings}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['content_warnings'] || 150}px` }}>{film.content_warnings}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 80}px` }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setEditingFilm(film)
+                            setEditingFilmType('feature')
+                            setShowEditModal(true)
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium"
+                        >
+                          Edit
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1513,7 +1644,8 @@ export default function TitlesPage() {
                             { key: 'film_website', label: 'Film Website', width: 150 },
                             { key: 'trailer_url', label: 'Trailer URL', width: 150 },
                             { key: 'premiere_status', label: 'Premiere Status', width: 120 },
-                            { key: 'content_warnings', label: 'Content Warnings', width: 150 }
+                            { key: 'content_warnings', label: 'Content Warnings', width: 150 },
+                            { key: 'actions', label: 'Actions', width: 80 }
                           ].map((column) => (
                             <th
                               key={column.key}
@@ -1580,7 +1712,7 @@ export default function TitlesPage() {
                             </td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['source'] || 100}px` }}>{short.source}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['original_language_title'] || 180}px` }}>{short.original_language_title}</td>
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['director'] || 150}px` }}>{short.director}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['director'] || 150}px` }}>{renderPersonName(short.director)}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['countries'] || 150}px` }}>{short.countries}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['programs'] || 150}px` }}>{short.programs}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['genres'] || 120}px` }}>{short.genres}</td>
@@ -1591,13 +1723,13 @@ export default function TitlesPage() {
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['original_release_year'] || 70}px` }}>{short.original_release_year}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['screenwriter'] || 150}px` }}>{short.screenwriter}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['cinematographer'] || 150}px` }}>{short.cinematographer}</td>
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['art_director'] || 120}px` }}>{short.art_director}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['art_director'] || 120}px` }}>{renderPersonName(short.art_director)}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['editor'] || 100}px` }}>{short.editor}</td>
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{short.principal_cast}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{renderPersonName(short.principal_cast)}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['sound_designer'] || 120}px` }}>{short.sound_designer}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['music_score'] || 120}px` }}>{short.music_score}</td>
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['producer'] || 150}px` }}>{short.producer}</td>
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['executive_producer'] || 150}px` }}>{short.executive_producer}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['producer'] || 150}px` }}>{renderPersonName(short.producer)}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['executive_producer'] || 150}px` }}>{renderPersonName(short.executive_producer)}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['production_companies'] || 180}px` }}>{short.production_companies}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['film_website'] || 150}px` }}>
                               {short.film_website && (
@@ -1614,7 +1746,20 @@ export default function TitlesPage() {
                               )}
                             </td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['premiere_status'] || 120}px` }}>{short.premiere_status}</td>
-                            <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['content_warnings'] || 150}px` }}>{short.content_warnings}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['content_warnings'] || 150}px` }}>{short.content_warnings}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 80}px` }}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditingFilm(short)
+                                  setEditingFilmType('short')
+                                  setShowEditModal(true)
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium"
+                              >
+                                Edit
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1632,6 +1777,14 @@ export default function TitlesPage() {
         <FilmCardPopup
           film={selectedFilm}
           onClose={() => setSelectedFilm(null)}
+        />
+      )}
+
+      {/* Guest Card Popup */}
+      {showGuestCard && (
+        <GuestCardPopup
+          guest={showGuestCard}
+          onClose={() => setShowGuestCard(null)}
         />
       )}
 
@@ -1672,6 +1825,35 @@ export default function TitlesPage() {
           supabase={supabase}
         />
       )}
+
+      {/* Film Edit Modal */}
+      <FilmEditModal
+        film={editingFilm}
+        filmType={editingFilmType}
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setEditingFilm(null)
+        }}
+        onSave={() => {
+          setShowEditModal(false)
+          setEditingFilm(null)
+          if (editingFilmType === 'feature') {
+            loadFilms()
+          } else {
+            loadShorts()
+          }
+        }}
+        onDelete={() => {
+          setShowEditModal(false)
+          setEditingFilm(null)
+          if (editingFilmType === 'feature') {
+            loadFilms()
+          } else {
+            loadShorts()
+          }
+        }}
+      />
     </div>
   )
 }
@@ -1813,10 +1995,9 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
     setIsDragging(false)
   }
 
-  // Filter available shorts based on search term
-  const filteredAvailableShorts = availableShorts.filter(short =>
-    short.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    short.director.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter available shorts based on search term (accent-insensitive)
+  const filteredAvailableShorts = availableShorts.filter(
+    createAccentInsensitiveFilter(searchTerm, (short) => [short.title, short.director])
   )
 
   return (
@@ -1878,7 +2059,7 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
                     onClick={() => addShort(short)}
                   >
                     <div className="font-medium text-sm">{short.title}</div>
-                    <div className="text-xs text-gray-600">{short.director} • {short.run_time}min</div>
+                    <div className="text-xs text-gray-600">{renderPersonName(short.director)} • {short.run_time}min</div>
                   </div>
                 ))}
                 {filteredAvailableShorts.length === 0 && (
@@ -1900,7 +2081,7 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
                   >
                     <div className="flex-1">
                       <div className="font-medium text-sm">{index + 1}. {short.title}</div>
-                      <div className="text-xs text-gray-600">{short.director} • {short.run_time}min</div>
+                      <div className="text-xs text-gray-600">{renderPersonName(short.director)} • {short.run_time}min</div>
                     </div>
                     <div className="flex space-x-1">
                       {index > 0 && (
@@ -2132,6 +2313,12 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase }: Cr
                 type="date"
                 value={eventDate}
                 onChange={(e) => setEventDate(e.target.value)}
+                onBlur={(e) => {
+                  const normalized = normalizeDateValue(e.target.value)
+                  if (normalized !== e.target.value) {
+                    setEventDate(normalized)
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>

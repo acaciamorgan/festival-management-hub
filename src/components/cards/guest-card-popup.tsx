@@ -65,7 +65,8 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
             shoot_date,
             shoot_time,
             subjects_display,
-            venues(name)
+            film_program_display,
+            venue_id
           `)
           .or(`subjects_display.ilike.%${guest.name}%`)
           .order('shoot_date', { ascending: false })
@@ -272,8 +273,14 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
 
   return (
     <>
+      {/* Transparent background overlay */}
+      <div 
+        className="fixed inset-0 bg-transparent z-50"
+        onClick={onClose}
+      />
+      
       <div
-        className="fixed bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto z-50"
+        className="fixed bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto z-[60]"
         onClick={(e) => e.stopPropagation()}
         style={{ 
           left: `${position.x}px`, 
@@ -307,7 +314,10 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
               Edit
             </button>
             <button
-              onClick={onClose}
+              onClick={(e) => {
+                e.stopPropagation()
+                onClose()
+              }}
               className="text-gray-400 hover:text-gray-600 text-xl"
             >
               ×

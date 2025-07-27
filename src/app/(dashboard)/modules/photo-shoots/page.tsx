@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { PhotoShootFormModal } from '@/components/forms/photo-shoot-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
+import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 
 interface PhotoShoot {
   id: string
@@ -121,18 +122,19 @@ export default function PhotoShootsPage() {
   // Filter and search logic
   const filteredPhotoShoots = useMemo(() => {
     return photoShoots.filter(shoot => {
-      // Search filter
+      // Search filter with accent-insensitive search
       if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase()
-        const searchableText = [
-          shoot.film_program_display,
-          shoot.subjects_display,
-          shoot.photographer,
-          shoot.videographer,
-          shoot.venue_name
-        ].filter(Boolean).join(' ').toLowerCase()
-        
-        if (!searchableText.includes(searchLower)) return false
+        const searchFilter = createAccentInsensitiveFilter<PhotoShoot>(
+          searchTerm,
+          (shoot) => [
+            shoot.film_program_display,
+            shoot.subjects_display,
+            shoot.photographer,
+            shoot.videographer,
+            shoot.venue_name
+          ]
+        )
+        if (!searchFilter(shoot)) return false
       }
 
       // Selects filter

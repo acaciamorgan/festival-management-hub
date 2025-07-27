@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { FilmContact } from '@/types'
+import { GuestCardPopup } from './guest-card-popup'
 
 interface FilmCardProps {
   film: {
@@ -65,8 +67,45 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [filmPhotoShoots, setFilmPhotoShoots] = useState<any[]>([])
   const [filmRedCarpets, setFilmRedCarpets] = useState<any[]>([])
+  const [filmContacts, setFilmContacts] = useState<FilmContact[]>([])
+  const [filmPressScreenings, setFilmPressScreenings] = useState<any[]>([])
+  const [filmDetails, setFilmDetails] = useState<any>(null)
+  const [showGuestCard, setShowGuestCard] = useState<any>(null)
+  const [filmGuests, setFilmGuests] = useState<any[]>([])
 
   const supabase = createClient()
+
+  const openGuestCard = async (guestName: string) => {
+    try {
+      const { data: guestData, error } = await supabase
+        .from('guests')
+        .select(`
+          *,
+          guest_films:guest_films(film_title),
+          guest_programs:guest_programs(program_title)
+        `)
+        .eq('name', guestName)
+        .single()
+
+      if (error || !guestData) {
+        console.warn('Guest not found in database:', guestName)
+        return
+      }
+
+      const formattedGuest = {
+        ...guestData,
+        films: guestData.guest_films || [],
+        films_display: [
+          ...(guestData.guest_films || []).map((f: any) => f.film_title),
+          ...(guestData.guest_programs || []).map((p: any) => p.program_title)
+        ].join(', ') || '—'
+      }
+
+      setShowGuestCard(formattedGuest)
+    } catch (error) {
+      console.error('Error fetching guest:', error)
+    }
+  }
 
   const formatTimeForDisplay = (timeString: string | undefined): string => {
     if (!timeString) return 'TBD'
@@ -134,7 +173,8 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             shoot_date,
             shoot_time,
             subjects_display,
-            venues(name)
+            film_program_display,
+            venue_id
           `)
           .or(`film_program_display.ilike.%${film.title}%`)
           .order('shoot_date', { ascending: false })
@@ -148,7 +188,24 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             const titles = shoot.film_program_display.split(',').map((s: string) => s.trim())
             return titles.includes(film.title)
           })
-          setFilmPhotoShoots(relevantShoots)
+          
+          // Load venue names for the photo shoots
+          const shootsWithVenues = await Promise.all(
+            relevantShoots.map(async (shoot) => {
+              if (shoot.venue_id) {
+                const { data: venueData } = await supabase
+                  .from('venues')
+                  .select('name')
+                  .eq('id', shoot.venue_id)
+                  .single()
+                
+                return { ...shoot, venues: venueData }
+              }
+              return { ...shoot, venues: null }
+            })
+          )
+          
+          setFilmPhotoShoots(shootsWithVenues)
         }
 
         // Load red carpets
@@ -176,6 +233,130 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
           })
           setFilmRedCarpets(relevantCarpets)
         }
+
+        // Load press screenings
+        const { data: screeningsData, error: screeningsError } = await supabase
+          .from('press_screenings')
+          .select(`
+            id,
+            screening_date,
+            screening_time,
+            title,
+            venue_id,
+            house,
+            rsvp_responses_url,
+            canceled,
+            venues(name)
+          `)
+          .eq('title', film.title)
+          .order('screening_date', { ascending: true })
+
+        if (screeningsError) {
+          console.error('Error loading press screenings:', screeningsError)
+        } else {
+          setFilmPressScreenings(screeningsData || [])
+        }
+
+        // Load film contacts - determine film type and load accordingly
+        const loadContacts = async () => {
+          try {
+            // Try feature films first
+            const { data: featureData, error: featureError } = await supabase
+              .from('feature_films')
+              .select('id')
+              .eq('id', film.id)
+              .single()
+
+            let filmType: 'feature' | 'short' = 'feature'
+            
+            if (featureError || !featureData) {
+              // If not found in features, it's likely a short film
+              filmType = 'short'
+            }
+
+            // Load contacts for this film
+            const { data: contactsData, error: contactsError } = await supabase
+              .from('film_contacts')
+              .select('*')
+              .eq('film_id', film.id)
+              .eq('film_type', filmType)
+              .order('contact_type, name')
+
+            if (contactsError) {
+              console.error('Error loading film contacts:', contactsError)
+              setFilmContacts([])
+            } else {
+              setFilmContacts(contactsData || [])
+            }
+          } catch (error) {
+            console.error('Error loading film contacts:', error)
+            setFilmContacts([])
+          }
+        }
+
+        await loadContacts()
+
+        // Load guests associated with this film
+        const loadGuests = async () => {
+          try {
+            // Load guests who have this film in their guest_films associations
+            const { data: guestFilms, error: guestFilmsError } = await supabase
+              .from('guest_films')
+              .select(`
+                guest_id,
+                guests (
+                  id,
+                  name,
+                  role,
+                  arrival_date,
+                  departure_date,
+                  confirmed,
+                  checked_in
+                )
+              `)
+              .eq('film_title', film.title)
+
+            let allGuests: any[] = []
+
+            if (!guestFilmsError && guestFilms) {
+              allGuests = guestFilms.map((gf: any) => gf.guests).filter(Boolean)
+            }
+
+            // Also check for guests associated via guest_programs if this is a program
+            const { data: guestPrograms, error: guestProgramsError } = await supabase
+              .from('guest_programs')
+              .select(`
+                guest_id,
+                guests (
+                  id,
+                  name,
+                  role,
+                  arrival_date,
+                  departure_date,
+                  confirmed,
+                  checked_in
+                )
+              `)
+              .eq('program_title', film.title)
+
+            if (!guestProgramsError && guestPrograms) {
+              const programGuests = guestPrograms.map((gp: any) => gp.guests).filter(Boolean)
+              allGuests = [...allGuests, ...programGuests]
+            }
+
+            // Remove duplicates based on guest ID
+            const uniqueGuests = allGuests.filter((guest, index, self) => 
+              index === self.findIndex(g => g.id === guest.id)
+            )
+
+            setFilmGuests(uniqueGuests)
+          } catch (error) {
+            console.error('Error loading film guests:', error)
+            setFilmGuests([])
+          }
+        }
+
+        await loadGuests()
       } catch (error) {
         console.error('Error loading events:', error)
       }
@@ -185,14 +366,15 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
   }, [film.title, supabase])
 
   return (
-    <div 
-      className="fixed bg-white rounded-lg shadow-2xl border border-gray-300 z-50 max-w-4xl w-[800px] max-h-[80vh] overflow-hidden"
-      style={{ 
-        left: `${position.x}px`, 
-        top: `${position.y}px`,
-        cursor: isDragging ? 'grabbing' : 'default'
-      }}
-    >
+    <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+      <div 
+        className="bg-white rounded-lg shadow-2xl border border-gray-300 max-w-4xl w-[800px] max-h-[80vh] overflow-hidden pointer-events-auto"
+        style={{ 
+          left: `${position.x}px`, 
+          top: `${position.y}px`,
+          cursor: isDragging ? 'grabbing' : 'default'
+        }}
+      >
       {/* Draggable Header */}
       <div 
         className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 cursor-grab active:cursor-grabbing"
@@ -263,11 +445,53 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
           {/* Collapsible sections */}
           <div className="divide-y divide-gray-200">
-            <CollapsibleSection title="Press Screenings & Links" isEmpty={true}>
-              {/* Will be populated from Press Screenings and Screener Access Modules */}
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">Press screenings, media events, and screener access information will appear here.</p>
-              </div>
+            <CollapsibleSection title="Press Screenings & Links" isEmpty={filmPressScreenings.length === 0}>
+              {filmPressScreenings.length > 0 ? (
+                <div className="space-y-2">
+                  {filmPressScreenings.map((screening) => {
+                    const date = screening.screening_date ? (() => {
+                      const d = new Date(screening.screening_date)
+                      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+                      const dayName = dayNames[d.getDay()]
+                      const month = (d.getMonth() + 1).toString().padStart(2, '0')
+                      const day = d.getDate().toString().padStart(2, '0')
+                      return `${dayName}, ${month}/${day}`
+                    })() : 'TBD'
+                    
+                    const time = screening.screening_time ? (() => {
+                      const [hours, minutes] = screening.screening_time.split(':')
+                      const hour24 = parseInt(hours, 10)
+                      const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+                      const ampm = hour24 >= 12 ? 'PM' : 'AM'
+                      return `${hour12}:${minutes} ${ampm}`
+                    })() : 'TBD'
+                    
+                    const venue = screening.venues?.name || 'TBD'
+                    const house = screening.house ? ` (${screening.house})` : ''
+                    const canceledText = screening.canceled ? ' [CANCELED]' : ''
+                    
+                    return (
+                      <div key={`screening-${screening.id}`} className={`text-sm ${screening.canceled ? 'text-red-600 line-through' : 'text-gray-900'}`}>
+                        <div className="flex items-center justify-between">
+                          <span>
+                            🎬 Press Screening - {date}, {time} at {venue}{house}{canceledText}
+                          </span>
+                          {screening.rsvp_responses_url && !screening.canceled && (
+                            <button
+                              onClick={() => window.open(screening.rsvp_responses_url, '_blank')}
+                              className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs"
+                            >
+                              View RSVPs
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No press screenings scheduled for this film.</p>
+              )}
             </CollapsibleSection>
 
             <CollapsibleSection title="Red Carpets & Photo Shoots" isEmpty={filmPhotoShoots.length === 0 && filmRedCarpets.length === 0}>
@@ -282,7 +506,30 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                     
                     return (
                       <div key={`shoot-${shoot.id}`} className="text-sm text-gray-900">
-                        📸 Photo Shoot - {date}, {time} at {venue} ({subjects})
+                        📸 Photo Shoot - {date}, {time} at {venue} (
+                        {shoot.subjects_display ? (
+                          <span>
+                            {shoot.subjects_display.split(', ').map((name, index) => {
+                              const trimmedName = name.trim()
+                              return (
+                                <span key={index}>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openGuestCard(trimmedName)
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                                  >
+                                    {name}
+                                  </button>
+                                  {index < shoot.subjects_display.split(', ').length - 1 && <span className="text-gray-400">, </span>}
+                                </span>
+                              )
+                            })}
+                          </span>
+                        ) : (
+                          'TBD'
+                        )})
                       </div>
                     )
                   })}
@@ -327,14 +574,113 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               </div>
             </CollapsibleSection>
 
-            <CollapsibleSection title="In Attendance" isEmpty={true}>
-              {/* Will be populated from In Attendance Module and Guest Cards */}
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">Guest attendance information and travel details will appear here.</p>
-              </div>
+            <CollapsibleSection title="In Attendance" isEmpty={filmGuests.length === 0}>
+              {filmGuests.length > 0 ? (
+                <div className="space-y-3">
+                  {filmGuests.map((guest) => {
+                    const arrivalDate = guest.arrival_date ? (() => {
+                      const d = new Date(guest.arrival_date)
+                      const month = (d.getMonth() + 1).toString().padStart(2, '0')
+                      const day = d.getDate().toString().padStart(2, '0')
+                      const year = d.getFullYear().toString().slice(-2)
+                      return `${month}/${day}/${year}`
+                    })() : 'TBD'
+                    
+                    const departureDate = guest.departure_date ? (() => {
+                      const d = new Date(guest.departure_date)
+                      const month = (d.getMonth() + 1).toString().padStart(2, '0')
+                      const day = d.getDate().toString().padStart(2, '0')
+                      const year = d.getFullYear().toString().slice(-2)
+                      return `${month}/${day}/${year}`
+                    })() : 'TBD'
+                    
+                    return (
+                      <div key={guest.id} className="border-l-4 border-green-400 pl-4 py-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openGuestCard(guest.name)
+                                }}
+                                className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                              >
+                                {guest.name}
+                              </button>
+                              <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                                guest.confirmed 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {guest.confirmed ? 'Confirmed' : 'Pending'}
+                              </span>
+                              {guest.checked_in && (
+                                <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                  Checked In
+                                </span>
+                              )}
+                            </div>
+                            {guest.role && (
+                              <p className="text-sm text-gray-600 mt-1">{guest.role}</p>
+                            )}
+                            <div className="text-sm text-gray-600 mt-1">
+                              <span className="font-medium">In:</span> {arrivalDate} • <span className="font-medium">Out:</span> {departureDate}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No confirmed guests found for this film.</p>
+              )}
+            </CollapsibleSection>
+
+            <CollapsibleSection title="Contact Information" isEmpty={filmContacts.length === 0}>
+              {filmContacts.length > 0 ? (
+                <div className="space-y-4">
+                  {filmContacts.map((contact) => (
+                    <div key={contact.id} className="border-l-4 border-blue-400 pl-4 py-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{contact.name}</h4>
+                          {contact.company && (
+                            <p className="text-sm text-gray-600 mt-1">{contact.company}</p>
+                          )}
+                          {contact.email && (
+                            <p className="text-sm text-blue-600 mt-1">
+                              <a href={`mailto:${contact.email}`} className="hover:underline">
+                                {contact.email}
+                              </a>
+                            </p>
+                          )}
+                        </div>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 ml-4">
+                          {contact.contact_type}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-gray-500 text-sm">
+                  No contact information available for this film.
+                </div>
+              )}
             </CollapsibleSection>
           </div>
         </div>
+      </div>
+
+      {/* Guest Card Popup */}
+      {showGuestCard && (
+        <GuestCardPopup
+          guest={showGuestCard}
+          onClose={() => setShowGuestCard(null)}
+        />
+      )}
     </div>
   )
 }

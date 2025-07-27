@@ -112,10 +112,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
           supabase.from('short_films').select('id, title').order('title'),
           supabase.from('programs').select('id, title').order('title'),
           supabase.from('guests').select('id, name').order('name'),
-          supabase.from('venues').select(`
-            *,
-            theater_houses(house_name, seat_count)
-          `).order('name'),
+          supabase.from('venues').select('*').order('name'),
           // Get unique short film program names
           supabase.from('short_films').select('programs').not('programs', 'is', null)
         ])
@@ -128,7 +125,22 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         setAvailableFilms(films)
         setAvailablePrograms(programs.data || [])
         setAvailableGuests(guests.data || [])
-        setAvailableVenues(venues.data || [])
+        // Load theater houses for venues separately
+        if (venues.data && venues.data.length > 0) {
+          const venuesWithHouses = await Promise.all(
+            venues.data.map(async (venue) => {
+              const { data: houses } = await supabase
+                .from('theater_houses')
+                .select('house_name, seat_count')
+                .eq('venue_id', venue.id)
+              
+              return { ...venue, theater_houses: houses || [] }
+            })
+          )
+          setAvailableVenues(venuesWithHouses)
+        } else {
+          setAvailableVenues(venues.data || [])
+        }
 
         // Extract unique short film program names
         const uniquePrograms = new Set<string>()
@@ -345,6 +357,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         updated_at: new Date().toISOString()
       }
 
+      console.log('Photo Shoot: Attempting to save data:', photoShootData)
+
       let savedPhotoShoot: any
 
       if (photoShoot) {
@@ -356,10 +370,20 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
           .select()
           .single()
 
-        if (error) throw error
+        if (error) {
+          console.error('Photo Shoot: Error updating photo shoot:', error)
+          throw error
+        }
+        console.log('Photo Shoot: Updated successfully:', data)
         savedPhotoShoot = data
       } else {
         // Create new photo shoot
+        console.log('Photo Shoot: Creating new photo shoot:', {
+          ...photoShootData,
+          created_at: new Date().toISOString(),
+          created_by: user?.id
+        })
+        
         const { data, error } = await supabase
           .from('photo_shoots')
           .insert([{
@@ -370,7 +394,11 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
           .select()
           .single()
 
-        if (error) throw error
+        if (error) {
+          console.error('Photo Shoot: Error creating photo shoot:', error)
+          throw error
+        }
+        console.log('Photo Shoot: Created successfully:', data)
         savedPhotoShoot = data
       }
 
