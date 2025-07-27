@@ -115,9 +115,6 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
       newErrors.name = 'Venue name is required'
     }
 
-    if (!formData.address.trim()) {
-      newErrors.address = 'Venue address is required'
-    }
 
     // Validate theater houses for movie theaters
     if (formData.venue_type === 'Movie Theater') {
@@ -152,12 +149,8 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
 
       const venueData = {
         name: formData.name.trim(),
-        address: formData.address.trim(),
-        venue_type: formData.venue_type,
-        contact_names: cleanContactNames.length > 0 ? cleanContactNames : null,
-        contact_emails: cleanContactEmails.length > 0 ? cleanContactEmails : null,
-        contact_phones: cleanContactPhones.length > 0 ? cleanContactPhones : null,
-        updated_at: new Date().toISOString()
+        address: formData.address.trim() || null,
+        venue_type: formData.venue_type
       }
 
       let savedVenue: VenueCard
@@ -171,10 +164,14 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
           .select()
           .single()
 
-        if (error) throw error
+        if (error) {
+          console.error('Error updating venue:', error)
+          throw error
+        }
         savedVenue = data
       } else {
         // Create new venue
+        console.log('Creating venue with data:', venueData)
         const { data, error } = await supabase
           .from('venues')
           .insert([{
@@ -184,7 +181,11 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
           .select()
           .single()
 
-        if (error) throw error
+        if (error) {
+          console.error('Error creating venue:', error)
+          throw error
+        }
+        console.log('Venue created successfully:', data)
         savedVenue = data
       }
 
@@ -207,12 +208,17 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
             created_at: new Date().toISOString()
           }))
 
+          console.log('Inserting theater houses:', housesToInsert)
           const { data: housesData, error: housesError } = await supabase
             .from('theater_houses')
             .insert(housesToInsert)
             .select()
 
-          if (housesError) throw housesError
+          if (housesError) {
+            console.error('Error creating theater houses:', housesError)
+            throw housesError
+          }
+          console.log('Theater houses created successfully:', housesData)
 
           // Add houses to saved venue
           savedVenue.houses = housesData
@@ -368,7 +374,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Venue Address <span className="text-red-500">*</span>
+                  Venue Address
                 </label>
                 <textarea
                   value={formData.address}

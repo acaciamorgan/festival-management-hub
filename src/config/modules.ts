@@ -101,6 +101,15 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
     cardTypes: ['venues'],
     route: '/modules/venues'
   },
+  contactsManagement: {
+    id: 'contactsManagement',
+    name: 'Contacts Management',
+    icon: 'address-book',
+    hasGridView: true,
+    hasRSVP: false,
+    cardTypes: ['contacts'],
+    route: '/modules/contacts'
+  },
   reportsAnalytics: {
     id: 'reportsAnalytics',
     name: 'Reports & Analytics',

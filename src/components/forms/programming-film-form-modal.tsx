@@ -6,9 +6,9 @@ import { useAuth } from '@/components/providers/auth-provider'
 
 interface Contact {
   id: string
-  company: string | null
+  contact_company: string | null
   contact_name: string
-  email: string | null
+  contact_email: string | null
   phone: string | null
   notes: string | null
   contact_type: string | null
@@ -27,26 +27,44 @@ interface ContactPair {
 
 interface ProgrammingFilm {
   id: string
-  film_title: string
-  original_title: string | null
-  director: string | null
-  country: string | null
-  category: string | null
-  travel_status: string | null
-  travel_notes: string | null
-  synopsis_writer: string | null
-  synopsis_approved: boolean
-  synopsis_notes: string | null
-  materials_received: boolean
-  materials_notes: string | null
+  film: string // matches CSV "Film"
+  original_title: string | null // matches CSV "Original Title"
+  director: string | null // matches CSV "Director"
+  country: string | null // matches CSV "Country"
+  category: string | null // matches CSV "Category"
+  runtime: number | null // new field for minutes
+  
+  // Programming workflow fields (matches CSV)
+  travel: string | null // matches CSV "Travel"
+  synopsis: string | null // matches CSV "Synopsis" (writer name)
+  written: boolean // matches CSV "Written" (X = true)
+  approved: string | null // matches CSV "Approved" (Logline, X, etc.)
+  content_consideration: string | null // matches CSV "Content Consideration"
+  
+  // Program assignments - stored as array like other modules
+  programs: string[] // array of program names, up to 5
+  
+  // Materials and submission tracking
+  contacted_for_materials: boolean // matches CSV "Contacted for materials"
+  form_submitted: boolean // matches CSV "Form Submitted"
+  uploaded_materials: boolean // matches CSV "Uploaded Materials"
+  materials_received: boolean // matches CSV "Materials Received"
+  accessibility_screening: boolean // matches CSV "Accessibility Screening?"
+  premiere_status: string | null // matches CSV "Premiere Status"
+  cards_made: boolean // matches CSV "Cards made"
+  
+  // Visual and metadata
   color_highlight: string | null
+  cell_highlights: Record<string, string> | null // Individual cell highlighting
   programming_notes: string | null
-  priority_level: string | null
-  status: string
+  status: string // only draft status - no publishing
   contacts: Array<{
     contact: Contact
     role: string | null
   }>
+  created_at: string
+  updated_at: string
+  created_by: string
 }
 
 interface ProgrammingFilmFormModalProps {
@@ -64,23 +82,35 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [existingContacts, setExistingContacts] = useState<Contact[]>([])
 
+  const PROGRAM_OPTIONS = [
+    'Opening', 'Closing', 'Centerpiece', 'Special Presentation', 'After Dark',
+    'Black Perspectives', 'City & State', 'Comedy', 'Documentary', 'Documentary Competition',
+    'International Competition', 'New Directors Competition', 'OutLook', 'Retrospective',
+    'Snapshots', 'Spotlight'
+  ]
+
   const [formData, setFormData] = useState({
-    film_title: '',
+    film: '',
     original_title: '',
     director: '',
     country: '',
     category: 'feature',
-    travel_status: '',
-    travel_notes: '',
-    synopsis_writer: '',
-    synopsis_approved: false,
-    synopsis_notes: '',
+    runtime: null as number | null,
+    travel: '',
+    synopsis: '',
+    written: false,
+    approved: false,
+    content_consideration: '',
+    programs: [] as string[],
+    contacted_for_materials: false,
+    form_submitted: false,
+    uploaded_materials: false,
     materials_received: false,
-    materials_notes: '',
+    accessibility_screening: false,
+    premiere_status: '',
+    cards_made: false,
     color_highlight: '',
     programming_notes: '',
-    priority_level: 'medium',
-    status: 'draft',
     contacts: [
       {
         company: '',
@@ -122,27 +152,32 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
   useEffect(() => {
     if (film) {
       setFormData({
-        film_title: film.film_title || '',
+        film: film.film || '',
         original_title: film.original_title || '',
         director: film.director || '',
         country: film.country || '',
         category: film.category || 'feature',
-        travel_status: film.travel_status || '',
-        travel_notes: film.travel_notes || '',
-        synopsis_writer: film.synopsis_writer || '',
-        synopsis_approved: film.synopsis_approved || false,
-        synopsis_notes: film.synopsis_notes || '',
+        runtime: film.runtime,
+        travel: film.travel || '',
+        synopsis: film.synopsis || '',
+        written: film.written || false,
+        approved: !!film.approved,
+        content_consideration: film.content_consideration || '',
+        programs: film.programs || [],
+        contacted_for_materials: film.contacted_for_materials || false,
+        form_submitted: film.form_submitted || false,
+        uploaded_materials: film.uploaded_materials || false,
         materials_received: film.materials_received || false,
-        materials_notes: film.materials_notes || '',
+        accessibility_screening: film.accessibility_screening || false,
+        premiere_status: film.premiere_status || '',
+        cards_made: film.cards_made || false,
         color_highlight: film.color_highlight || '',
         programming_notes: film.programming_notes || '',
-        priority_level: film.priority_level || 'medium',
-        status: film.status || 'draft',
         contacts: film.contacts.length > 0 
           ? film.contacts.map(c => ({
-              company: c.contact.company || '',
+              company: c.contact.contact_company || '',
               contact_name: c.contact.contact_name || '',
-              email: c.contact.email || '',
+              email: c.contact.contact_email || '',
               phone: c.contact.phone || '',
               role: c.role || '',
               notes: '',
@@ -162,22 +197,27 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
       })
     } else {
       setFormData({
-        film_title: '',
+        film: '',
         original_title: '',
         director: '',
         country: '',
         category: 'feature',
-        travel_status: '',
-        travel_notes: '',
-        synopsis_writer: '',
-        synopsis_approved: false,
-        synopsis_notes: '',
+        runtime: null,
+        travel: '',
+        synopsis: '',
+        written: false,
+        approved: false,
+        content_consideration: '',
+        programs: [],
+        contacted_for_materials: false,
+        form_submitted: false,
+        uploaded_materials: false,
         materials_received: false,
-        materials_notes: '',
+        accessibility_screening: false,
+        premiere_status: '',
+        cards_made: false,
         color_highlight: '',
         programming_notes: '',
-        priority_level: 'medium',
-        status: 'draft',
         contacts: [{
           company: '',
           contact_name: '',
@@ -264,9 +304,9 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
       contacts: prev.contacts.map((contact, i) => 
         i === index ? {
           ...contact,
-          company: selectedContact.company || '',
+          company: selectedContact.contact_company || '',
           contact_name: selectedContact.contact_name,
-          email: selectedContact.email || '',
+          email: selectedContact.contact_email || '',
           phone: selectedContact.phone || '',
           isExisting: true,
           existingContactId: selectedContact.id
@@ -281,15 +321,15 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
     const search = searchTerm.toLowerCase()
     return existingContacts.filter(contact => 
       contact.contact_name.toLowerCase().includes(search) ||
-      (contact.company && contact.company.toLowerCase().includes(search)) ||
-      (contact.email && contact.email.toLowerCase().includes(search))
+      (contact.contact_company && contact.contact_company.toLowerCase().includes(search)) ||
+      (contact.contact_email && contact.contact_email.toLowerCase().includes(search))
     ).slice(0, 5)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.film_title.trim()) {
+    if (!formData.film.trim()) {
       alert('Film title is required')
       return
     }
@@ -304,22 +344,27 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
         const { error: filmError } = await supabase
           .from('programming_films')
           .update({
-            film_title: formData.film_title.trim(),
+            film: formData.film.trim(),
             original_title: formData.original_title.trim() || null,
             director: formData.director.trim() || null,
             country: formData.country.trim() || null,
             category: formData.category,
-            travel_status: formData.travel_status.trim() || null,
-            travel_notes: formData.travel_notes.trim() || null,
-            synopsis_writer: formData.synopsis_writer.trim() || null,
-            synopsis_approved: formData.synopsis_approved,
-            synopsis_notes: formData.synopsis_notes.trim() || null,
+            runtime: formData.runtime,
+            travel: formData.travel.trim() || null,
+            synopsis: formData.synopsis.trim() || null,
+            written: formData.written,
+            approved: formData.approved ? 'X' : null,
+            content_consideration: formData.content_consideration.trim() || null,
+            programs: formData.programs.filter(p => p.trim() !== ''),
+            contacted_for_materials: formData.contacted_for_materials,
+            form_submitted: formData.form_submitted,
+            uploaded_materials: formData.uploaded_materials,
             materials_received: formData.materials_received,
-            materials_notes: formData.materials_notes.trim() || null,
+            accessibility_screening: formData.accessibility_screening,
+            premiere_status: formData.premiere_status.trim() || null,
+            cards_made: formData.cards_made,
             color_highlight: formData.color_highlight.trim() || null,
-            programming_notes: formData.programming_notes.trim() || null,
-            priority_level: formData.priority_level,
-            status: formData.status
+            programming_notes: formData.programming_notes.trim() || null
           })
           .eq('id', film.id)
 
@@ -330,22 +375,27 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
         const { data: newFilm, error: filmError } = await supabase
           .from('programming_films')
           .insert({
-            film_title: formData.film_title.trim(),
+            film: formData.film.trim(),
             original_title: formData.original_title.trim() || null,
             director: formData.director.trim() || null,
             country: formData.country.trim() || null,
             category: formData.category,
-            travel_status: formData.travel_status.trim() || null,
-            travel_notes: formData.travel_notes.trim() || null,
-            synopsis_writer: formData.synopsis_writer.trim() || null,
-            synopsis_approved: formData.synopsis_approved,
-            synopsis_notes: formData.synopsis_notes.trim() || null,
+            runtime: formData.runtime,
+            travel: formData.travel.trim() || null,
+            synopsis: formData.synopsis.trim() || null,
+            written: formData.written,
+            approved: formData.approved ? 'X' : null,
+            content_consideration: formData.content_consideration.trim() || null,
+            programs: formData.programs.filter(p => p.trim() !== ''),
+            contacted_for_materials: formData.contacted_for_materials,
+            form_submitted: formData.form_submitted,
+            uploaded_materials: formData.uploaded_materials,
             materials_received: formData.materials_received,
-            materials_notes: formData.materials_notes.trim() || null,
+            accessibility_screening: formData.accessibility_screening,
+            premiere_status: formData.premiere_status.trim() || null,
+            cards_made: formData.cards_made,
             color_highlight: formData.color_highlight.trim() || null,
             programming_notes: formData.programming_notes.trim() || null,
-            priority_level: formData.priority_level,
-            status: formData.status,
             created_by: user?.id
           })
           .select()
@@ -378,9 +428,9 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
           const { data: newContact, error: contactError } = await supabase
             .from('contacts')
             .insert({
-              company: contactData.company.trim() || null,
+              contact_company: contactData.company.trim() || null,
               contact_name: contactData.contact_name.trim(),
-              email: contactData.email.trim() || null,
+              contact_email: contactData.email.trim() || null,
               phone: contactData.phone.trim() || null,
               notes: contactData.notes.trim() || null,
               created_by: user?.id
@@ -419,11 +469,6 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
 
   return (
     <>
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black bg-opacity-50 z-40"
-        onClick={onClose}
-      />
       
       {/* Modal */}
       <div 
@@ -458,14 +503,14 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
             {/* Basic Film Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="film_title" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="film" className="block text-sm font-medium text-gray-700 mb-1">
                   Film Title <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  id="film_title"
-                  value={formData.film_title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, film_title: e.target.value }))}
+                  id="film"
+                  value={formData.film}
+                  onChange={(e) => setFormData(prev => ({ ...prev, film: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
@@ -526,61 +571,80 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
               </div>
 
               <div>
-                <label htmlFor="priority_level" className="block text-sm font-medium text-gray-700 mb-1">
-                  Priority Level
+                <label htmlFor="runtime" className="block text-sm font-medium text-gray-700 mb-1">
+                  Runtime (minutes)
                 </label>
-                <select
-                  id="priority_level"
-                  value={formData.priority_level}
-                  onChange={(e) => setFormData(prev => ({ ...prev, priority_level: e.target.value }))}
+                <input
+                  type="number"
+                  id="runtime"
+                  value={formData.runtime || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, runtime: e.target.value ? parseInt(e.target.value) : null }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
+                  placeholder="90"
+                />
               </div>
+
             </div>
 
-            {/* Programming Status Fields */}
+            {/* Programming Workflow Fields (CSV Structure) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="travel_status" className="block text-sm font-medium text-gray-700 mb-1">
-                  Travel Status
-                </label>
-                <select
-                  id="travel_status"
-                  value={formData.travel_status}
-                  onChange={(e) => setFormData(prev => ({ ...prev, travel_status: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select...</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                  <option value="Maybe">Maybe</option>
-                  <option value="TBD">TBD</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="synopsis_writer" className="block text-sm font-medium text-gray-700 mb-1">
-                  Synopsis Writer
+                <label htmlFor="travel" className="block text-sm font-medium text-gray-700 mb-1">
+                  Travel
                 </label>
                 <input
                   type="text"
-                  id="synopsis_writer"
-                  value={formData.synopsis_writer}
-                  onChange={(e) => setFormData(prev => ({ ...prev, synopsis_writer: e.target.value }))}
+                  id="travel"
+                  value={formData.travel}
+                  onChange={(e) => setFormData(prev => ({ ...prev, travel: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Yes/No/Maybe/TBD"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="content_consideration" className="block text-sm font-medium text-gray-700 mb-1">
+                  Content Consideration
+                </label>
+                <input
+                  type="text"
+                  id="content_consideration"
+                  value={formData.content_consideration}
+                  onChange={(e) => setFormData(prev => ({ ...prev, content_consideration: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
-              <div className="flex items-center space-x-4">
+              <div>
+                <label htmlFor="synopsis" className="block text-sm font-medium text-gray-700 mb-1">
+                  Synopsis Written By
+                </label>
+                <input
+                  type="text"
+                  id="synopsis"
+                  value={formData.synopsis}
+                  onChange={(e) => setFormData(prev => ({ ...prev, synopsis: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Writer name"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <label className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={formData.synopsis_approved}
-                    onChange={(e) => setFormData(prev => ({ ...prev, synopsis_approved: e.target.checked }))}
+                    checked={formData.written}
+                    onChange={(e) => setFormData(prev => ({ ...prev, written: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Written</span>
+                </label>
+
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.approved}
+                    onChange={(e) => setFormData(prev => ({ ...prev, approved: e.target.checked ? 'X' : '' }))}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
                   <span className="ml-2 text-sm text-gray-700">Synopsis Approved</span>
@@ -589,51 +653,111 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                 <label className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={formData.materials_received}
-                    onChange={(e) => setFormData(prev => ({ ...prev, materials_received: e.target.checked }))}
+                    checked={formData.contacted_for_materials}
+                    onChange={(e) => setFormData(prev => ({ ...prev, contacted_for_materials: e.target.checked }))}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <span className="ml-2 text-sm text-gray-700">Materials Received</span>
+                  <span className="ml-2 text-sm text-gray-700">Contacted for Materials</span>
                 </label>
               </div>
 
-              <div>
-                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  id="status"
-                  value={formData.status}
-                  onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="ready_to_publish">Ready to Publish</option>
-                  <option value="published">Published</option>
-                </select>
+            </div>
+
+            {/* Program Assignments (Up to 5) */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Program Assignments</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[0, 1, 2, 3, 4].map(index => (
+                  <div key={index}>
+                    <label htmlFor={`program_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
+                      Program {index + 1}
+                    </label>
+                    <select
+                      id={`program_${index}`}
+                      value={formData.programs[index] || ''}
+                      onChange={(e) => {
+                        const newPrograms = [...formData.programs]
+                        if (e.target.value) {
+                          newPrograms[index] = e.target.value
+                        } else {
+                          newPrograms.splice(index, 1)
+                        }
+                        setFormData(prev => ({ ...prev, programs: newPrograms }))
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select Program...</option>
+                      {PROGRAM_OPTIONS.map(program => (
+                        <option key={program} value={program}>{program}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Color Highlighting */}
+
+            {/* Additional Tracking Fields */}
             <div>
-              <label htmlFor="color_highlight" className="block text-sm font-medium text-gray-700 mb-1">
-                Row Highlight Color
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  id="color_highlight"
-                  value={formData.color_highlight || '#ffffff'}
-                  onChange={(e) => setFormData(prev => ({ ...prev, color_highlight: e.target.value }))}
-                  className="w-16 h-10 border border-gray-300 rounded-md"
-                />
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, color_highlight: '' }))}
-                  className="text-sm text-gray-500 hover:text-gray-700"
-                >
-                  Clear
-                </button>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Submission & Materials Tracking</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="premiere_status" className="block text-sm font-medium text-gray-700 mb-1">
+                    Premiere Status
+                  </label>
+                  <input
+                    type="text"
+                    id="premiere_status"
+                    value={formData.premiere_status}
+                    onChange={(e) => setFormData(prev => ({ ...prev, premiere_status: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="World, North American, US, etc."
+                  />
+                </div>
+
+                <div className="flex items-center space-x-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.form_submitted}
+                      onChange={(e) => setFormData(prev => ({ ...prev, form_submitted: e.target.checked }))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Form Submitted</span>
+                  </label>
+
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.uploaded_materials}
+                      onChange={(e) => setFormData(prev => ({ ...prev, uploaded_materials: e.target.checked }))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Uploaded Materials</span>
+                  </label>
+                </div>
+
+                <div className="flex items-center space-x-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.accessibility_screening}
+                      onChange={(e) => setFormData(prev => ({ ...prev, accessibility_screening: e.target.checked }))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Accessibility Screening</span>
+                  </label>
+
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.cards_made}
+                      onChange={(e) => setFormData(prev => ({ ...prev, cards_made: e.target.checked }))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Cards Made</span>
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -691,11 +815,11 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                                   className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
                                 >
                                   <div className="font-medium">{existingContact.contact_name}</div>
-                                  {existingContact.company && (
-                                    <div className="text-sm text-gray-500">{existingContact.company}</div>
+                                  {existingContact.contact_company && (
+                                    <div className="text-sm text-gray-500">{existingContact.contact_company}</div>
                                   )}
-                                  {existingContact.email && (
-                                    <div className="text-sm text-gray-500">{existingContact.email}</div>
+                                  {existingContact.contact_email && (
+                                    <div className="text-sm text-gray-500">{existingContact.contact_email}</div>
                                   )}
                                 </button>
                               ))}
@@ -814,21 +938,47 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
             </div>
 
             {/* Form Actions */}
-            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                {loading ? 'Saving...' : film ? 'Update Film' : 'Save Film'}
-              </button>
+            <div className="flex justify-between items-center pt-6 border-t border-gray-200">
+              {film && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (confirm('Are you sure you want to delete this film? This action cannot be undone.')) {
+                      try {
+                        await supabase
+                          .from('programming_films')
+                          .delete()
+                          .eq('id', film.id)
+                        
+                        window.location.reload()
+                        onClose()
+                      } catch (error) {
+                        console.error('Error deleting film:', error)
+                        alert('Error deleting film. Please try again.')
+                      }
+                    }
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  Delete Film
+                </button>
+              )}
+              <div className="flex space-x-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {loading ? 'Saving...' : film ? 'Update Film' : 'Save Film'}
+                </button>
+              </div>
             </div>
           </form>
         </div>

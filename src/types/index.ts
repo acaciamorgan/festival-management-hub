@@ -1,5 +1,5 @@
 // Core Card Types
-export type CardType = 'titles' | 'venues' | 'guests' | 'press' | 'programs'
+export type CardType = 'titles' | 'venues' | 'guests' | 'press' | 'programs' | 'contacts' | 'press-screenings'
 
 // Module Configuration
 export interface ModuleConfig {
@@ -249,6 +249,72 @@ export interface ProgramCard {
   participants?: string | null
   description?: string | null
   is_industry_days: boolean
+  created_at: string
+  updated_at: string
+  created_by: string
+}
+
+// Contact Management Types
+export interface ContactCard {
+  id: string
+  contact_name: string
+  contact_company?: string | null
+  contact_email?: string | null
+  phone?: string | null
+  notes?: string | null
+  contact_type?: string | null
+  mailing_address?: string | null
+  created_at: string
+  updated_at: string
+  created_by: string
+  // Associated films (computed)
+  associated_films?: string[]
+  associated_films_data?: Array<{
+    id: string
+    title: string
+    film_type: 'feature' | 'short'
+    director?: string
+    countries?: string
+    programs?: string
+  }>
+}
+
+// Film Contact Types
+export type FilmContactType = 'Distributor/Studio' | 'Production Team' | 'Publicity' | 'Other'
+
+export interface FilmContact {
+  id: string
+  film_id: string
+  film_type: 'feature' | 'short'
+  name: string
+  company?: string
+  email?: string
+  contact_type: FilmContactType
+  created_at: string
+  updated_at: string
+  created_by: string
+}
+
+// Press Screenings Types
+export interface PressScreeningCard {
+  id: string
+  film_id: string
+  film_type: 'feature' | 'short'
+  title: string
+  runtime?: number
+  screening_date?: string | null
+  screening_time?: string | null
+  venue_id?: string | null
+  venue_name?: string | null
+  house?: string | null
+  film_approved: boolean
+  locked: boolean
+  invites_out: boolean
+  canceled: boolean
+  staffer?: string | null
+  notes?: string | null
+  rsvp_form_url?: string | null
+  rsvp_responses_url?: string | null
   created_at: string
   updated_at: string
   created_by: string

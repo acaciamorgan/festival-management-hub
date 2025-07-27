@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { VenueCard, TheaterHouse, VenueType } from '@/types'
 import { VenueFormModal } from '@/components/forms/venue-form-modal'
 import { VenueCardPopup } from '@/components/cards/venue-card-popup'
+import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 
 export default function VenueManagementPage() {
   const [venues, setVenues] = useState<VenueCard[]>([])
@@ -94,20 +95,21 @@ export default function VenueManagementPage() {
   // Filtering and sorting
   const applyFiltersAndSort = useMemo(() => {
     const filtered = venues.filter(venue => {
-      // Search filter
+      // Search filter with accent-insensitive search
       if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase()
-        const searchableText = [
-          venue.name,
-          venue.address,
-          venue.venue_type,
-          venue.contact_names?.join(' '),
-          venue.contact_emails?.join(' '),
-          venue.contact_phones?.join(' '),
-          venue.houses_display
-        ].filter(Boolean).map(text => text?.toString().toLowerCase()).join(' ')
-        
-        if (!searchableText.includes(searchLower)) return false
+        const searchFilter = createAccentInsensitiveFilter<VenueCard>(
+          searchTerm,
+          (venue) => [
+            venue.name,
+            venue.address,
+            venue.venue_type,
+            venue.contact_names?.join(' '),
+            venue.contact_emails?.join(' '),
+            venue.contact_phones?.join(' '),
+            venue.houses_display
+          ]
+        )
+        if (!searchFilter(venue)) return false
       }
 
       // Venue type filter
@@ -384,15 +386,8 @@ export default function VenueManagementPage() {
           setSelectedVenue(null)
         }}
         onSave={(savedVenue) => {
-          if (selectedVenue) {
-            // Update existing venue in list
-            setVenues(prev => 
-              prev.map(v => v.id === savedVenue.id ? savedVenue : v)
-            )
-          } else {
-            // Add new venue to list
-            setVenues(prev => [savedVenue, ...prev])
-          }
+          // Reload all venues to get proper houses data
+          loadVenues()
           setShowAddModal(false)
           setSelectedVenue(null)
         }}
@@ -404,9 +399,8 @@ export default function VenueManagementPage() {
           venue={showVenueCard}
           onClose={() => setShowVenueCard(null)}
           onUpdate={(updatedVenue) => {
-            setVenues(prev => 
-              prev.map(v => v.id === updatedVenue.id ? updatedVenue : v)
-            )
+            // Reload all venues to get proper houses data
+            loadVenues()
             setShowVenueCard(null)
           }}
           onDelete={(venueId) => {

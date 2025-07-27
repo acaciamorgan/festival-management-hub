@@ -107,10 +107,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
           supabase.from('short_films').select('id, title').order('title'),
           supabase.from('programs').select('id, title').order('title'),
           supabase.from('guests').select('id, name').order('name'),
-          supabase.from('venues').select(`
-            *,
-            theater_houses(house_name, seat_count)
-          `).order('name'),
+          supabase.from('venues').select('*').order('name'),
           // Get unique short film program names
           supabase.from('short_films').select('programs').not('programs', 'is', null)
         ])
@@ -123,7 +120,24 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
         setAvailableFilms(films)
         setAvailablePrograms(programs.data || [])
         setAvailableGuests(guests.data || [])
-        setAvailableVenues(venues.data || [])
+        // Load theater houses for venues separately
+        if (venues.data && venues.data.length > 0) {
+          const venuesWithHouses = await Promise.all(
+            venues.data.map(async (venue) => {
+              const { data: houses } = await supabase
+                .from('theater_houses')
+                .select('house_name, seat_count')
+                .eq('venue_id', venue.id)
+              
+              return { ...venue, theater_houses: houses || [] }
+            })
+          )
+          console.log('Red Carpet: Loaded venues with houses:', venuesWithHouses)
+          setAvailableVenues(venuesWithHouses)
+        } else {
+          console.log('Red Carpet: Loaded venues without houses:', venues.data || [])
+          setAvailableVenues(venues.data || [])
+        }
 
         // Extract unique short film program names
         const uniquePrograms = new Set<string>()
@@ -763,37 +777,9 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                 <input
-                  type="text"
-                  placeholder="MM/DD/YY"
-                  value={formData.carpet_date ? (() => {
-                    const date = new Date(formData.carpet_date)
-                    const month = (date.getMonth() + 1).toString().padStart(2, '0')
-                    const day = date.getDate().toString().padStart(2, '0')
-                    const year = date.getFullYear().toString().slice(-2)
-                    return `${month}/${day}/${year}`
-                  })() : ''}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    // Try to parse MM/DD/YY format
-                    const dateRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/
-                    const match = value.match(dateRegex)
-                    
-                    if (match) {
-                      const [, month, day, year] = match
-                      const fullYear = `20${year}`
-                      const isoDate = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
-                      setFormData(prev => ({ ...prev, carpet_date: isoDate }))
-                    } else {
-                      // Store the raw value while user is typing
-                      setFormData(prev => ({ ...prev, carpet_date: value }))
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const normalized = normalizeDateValue(e.target.value)
-                    if (normalized !== e.target.value) {
-                      setFormData(prev => ({ ...prev, carpet_date: normalized }))
-                    }
-                  }}
+                  type="date"
+                  value={formData.carpet_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, carpet_date: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>

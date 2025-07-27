@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PressCardPopup } from '@/components/cards/press-card-popup'
 import { PressCard, SocialMedia } from '@/types'
+import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 
 
 export default function PressManagementPage() {
@@ -148,14 +149,15 @@ export default function PressManagementPage() {
   // Filtering and sorting
   const applyFiltersAndSort = useMemo(() => {
     const filtered = press.filter(p => {
-      // Search filter
+      // Search filter (accent-insensitive)
       if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase()
-        const searchableText = [
-          p.name, p.email, p.media_outlet, p.phone
-        ].join(' ').toLowerCase()
+        const searchableFields = [p.name, p.email, p.media_outlet, p.phone]
+        const accentInsensitiveFilter = createAccentInsensitiveFilter(
+          searchTerm,
+          () => searchableFields
+        )
         
-        if (!searchableText.includes(searchLower)) return false
+        if (!accentInsensitiveFilter(p)) return false
       }
       
       // Accreditation level filter

@@ -7,6 +7,8 @@ import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { GuestFormModal } from '@/components/forms/guest-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { parseCSVContent, importGuestsFromCSV } from '@/lib/csv-import'
+import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import { normalizeDateValue } from '@/lib/date-utils'
 
 export default function InAttendancePage() {
   const [guests, setGuests] = useState<GuestCard[]>([])
@@ -25,8 +27,46 @@ export default function InAttendancePage() {
   const [showGuestCard, setShowGuestCard] = useState<GuestCard | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<string>('')
+  const [showFilmsMode, setShowFilmsMode] = useState(false)
+  const [existingFilms, setExistingFilms] = useState<Set<string>>(new Set())
 
   const supabase = createClient()
+
+  // Load existing films and programs only when Show Films toggle is activated
+  useEffect(() => {
+    const loadExistingFilms = async () => {
+      if (!showFilmsMode) {
+        setExistingFilms(new Set())
+        return
+      }
+
+      try {
+        const [featureFilms, shortFilms, programs] = await Promise.all([
+          supabase.from('feature_films').select('title'),
+          supabase.from('short_films').select('title'),
+          supabase.from('programs').select('title')
+        ])
+
+        const allTitles = new Set<string>()
+        
+        if (featureFilms.data) {
+          featureFilms.data.forEach(film => allTitles.add(film.title))
+        }
+        if (shortFilms.data) {
+          shortFilms.data.forEach(film => allTitles.add(film.title))
+        }
+        if (programs.data) {
+          programs.data.forEach(program => allTitles.add(program.title))
+        }
+
+        setExistingFilms(allTitles)
+      } catch (error) {
+        console.error('Error loading film/program titles:', error)
+      }
+    }
+
+    loadExistingFilms()
+  }, [showFilmsMode, supabase])
 
   const loadGuests = useCallback(async () => {
     setLoading(true)
@@ -102,20 +142,21 @@ export default function InAttendancePage() {
   // Filtering and sorting
   const applyFiltersAndSort = useMemo(() => {
     const filtered = guests.filter(guest => {
-      // Search filter
+      // Search filter with accent-insensitive search
       if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase()
-        const searchableText = [
-          guest.name,
-          guest.country,
-          guest.role,
-          guest.guest_type,
-          guest.films_display,
-          guest.hotel_name,
-          guest.notes
-        ].filter(Boolean).map(text => text?.toString().toLowerCase()).join(' ')
-        
-        if (!searchableText.includes(searchLower)) return false
+        const searchFilter = createAccentInsensitiveFilter<GuestCard>(
+          searchTerm,
+          (guest) => [
+            guest.name,
+            guest.country,
+            guest.role,
+            guest.guest_type,
+            guest.films_display,
+            guest.hotel_name,
+            guest.notes
+          ]
+        )
+        if (!searchFilter(guest)) return false
       }
 
       // Guest type filter
@@ -362,40 +403,58 @@ export default function InAttendancePage() {
       const simpleTitles = filmsDisplay.split(', ')
       return (
         <div className="flex flex-wrap gap-1">
-          {simpleTitles.map((title, index) => (
-            <span key={index}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  openFilmCard(title.trim())
-                }}
-                className="text-blue-600 hover:text-blue-800 hover:underline text-left"
-              >
-                {title}
-              </button>
-              {index < simpleTitles.length - 1 && <span className="text-gray-400">, </span>}
-            </span>
-          ))}
+          {simpleTitles.map((title, index) => {
+            const trimmedTitle = title.trim()
+            const isExistingFilm = showFilmsMode && existingFilms.has(trimmedTitle)
+            
+            return (
+              <span key={index}>
+                {isExistingFilm ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openFilmCard(trimmedTitle)
+                    }}
+                    className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                  >
+                    {title}
+                  </button>
+                ) : (
+                  <span className="text-gray-900">{title}</span>
+                )}
+                {index < simpleTitles.length - 1 && <span className="text-gray-400">, </span>}
+              </span>
+            )
+          })}
         </div>
       )
     }
     
     return (
       <div className="flex flex-wrap gap-1">
-        {filmTitles.map((title, index) => (
-          <span key={index}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                openFilmCard(title.trim())
-              }}
-              className="text-blue-600 hover:text-blue-800 hover:underline text-left"
-            >
-              {title}
-            </button>
-            {index < filmTitles.length - 1 && <span className="text-gray-400">, </span>}
-          </span>
-        ))}
+        {filmTitles.map((title, index) => {
+          const trimmedTitle = title.trim()
+          const isExistingFilm = showFilmsMode && existingFilms.has(trimmedTitle)
+          
+          return (
+            <span key={index}>
+              {isExistingFilm ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openFilmCard(trimmedTitle)
+                  }}
+                  className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                >
+                  {title}
+                </button>
+              ) : (
+                <span className="text-gray-900">{title}</span>
+              )}
+              {index < filmTitles.length - 1 && <span className="text-gray-400">, </span>}
+            </span>
+          )
+        })}
       </div>
     )
   }
@@ -460,6 +519,16 @@ export default function InAttendancePage() {
           </div>
           
           <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowFilmsMode(!showFilmsMode)}
+              className={`px-4 py-2 rounded-md transition-colors font-medium ${
+                showFilmsMode 
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
+            >
+              🎬 {showFilmsMode ? 'Hide Films' : 'Show Films'}
+            </button>
             <button
               onClick={() => setShowAddModal(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
@@ -569,6 +638,12 @@ export default function InAttendancePage() {
                 type="date"
                 value={todayDate}
                 onChange={(e) => setTodayDate(e.target.value)}
+                onBlur={(e) => {
+                  const normalized = normalizeDateValue(e.target.value)
+                  if (normalized !== e.target.value) {
+                    setTodayDate(normalized)
+                  }
+                }}
                 className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>

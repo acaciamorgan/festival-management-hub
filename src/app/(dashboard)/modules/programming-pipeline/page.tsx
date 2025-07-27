@@ -3,13 +3,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { ColorPalette } from '@/components/ColorPalette'
 import { ProgrammingFilmFormModal } from '@/components/forms/programming-film-form-modal'
+import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 
 interface Contact {
   id: string
-  company: string | null
+  contact_company: string | null
   contact_name: string
-  email: string | null
+  contact_email: string | null
   phone: string | null
   notes: string | null
   contact_type: string | null
@@ -17,23 +19,37 @@ interface Contact {
 
 interface ProgrammingFilm {
   id: string
-  film_title: string
-  original_title: string | null
-  director: string | null
-  country: string | null
-  category: string | null
-  travel_status: string | null
-  travel_notes: string | null
-  synopsis_writer: string | null
-  synopsis_approved: boolean
-  synopsis_notes: string | null
-  materials_received: boolean
-  materials_notes: string | null
+  film: string // matches CSV "Film"
+  original_title: string | null // matches CSV "Original Title"
+  director: string | null // matches CSV "Director"
+  country: string | null // matches CSV "Country"
+  category: string | null // matches CSV "Category"
+  runtime: number | null // new field for minutes
+  
+  // Programming workflow fields (matches CSV)
+  travel: string | null // matches CSV "Travel"
+  synopsis: string | null // matches CSV "Synopsis" (writer name)
+  written: boolean // matches CSV "Written" (X = true)
+  approved: string | null // matches CSV "Approved" (Logline, X, etc.)
+  content_consideration: string | null // matches CSV "Content Consideration"
+  
+  // Program assignments - stored as array like other modules
+  programs: string[] // array of program names, up to 5
+  
+  // Materials and submission tracking
+  contacted_for_materials: boolean // matches CSV "Contacted for materials"
+  form_submitted: boolean // matches CSV "Form Submitted"
+  uploaded_materials: boolean // matches CSV "Uploaded Materials"
+  materials_received: boolean // matches CSV "Materials Received"
+  accessibility_screening: boolean // matches CSV "Accessibility Screening?"
+  premiere_status: string | null // matches CSV "Premiere Status"
+  cards_made: boolean // matches CSV "Cards made"
+  
+  // Visual and metadata
   color_highlight: string | null
+  cell_highlights: Record<string, string> | null // Individual cell highlighting
   programming_notes: string | null
-  priority_level: string | null
-  status: string
-  published_to_titles: boolean
+  status: string // only draft status - no publishing
   contacts: Array<{
     contact: Contact
     role: string | null
@@ -43,32 +59,6 @@ interface ProgrammingFilm {
   created_by: string
 }
 
-interface ProgrammingFilmFormData {
-  film_title: string
-  original_title: string
-  director: string
-  country: string
-  category: string
-  travel_status: string
-  travel_notes: string
-  synopsis_writer: string
-  synopsis_approved: boolean
-  synopsis_notes: string
-  materials_received: boolean
-  materials_notes: string
-  color_highlight: string
-  programming_notes: string
-  priority_level: string
-  contacts: Array<{
-    company: string
-    contact_name: string
-    email: string
-    phone: string
-    role: string
-    notes: string
-  }>
-}
-
 export default function ProgrammingPipelinePage() {
   const { user } = useAuth()
   const [programmingFilms, setProgrammingFilms] = useState<ProgrammingFilm[]>([])
@@ -76,10 +66,21 @@ export default function ProgrammingPipelinePage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedFilm, setSelectedFilm] = useState<ProgrammingFilm | null>(null)
-  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'ready_to_publish'>('all')
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'feature' | 'short'>('all')
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'updated_at', direction: 'desc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
+  
+  // Color palette state
+  const [selectedColor, setSelectedColor] = useState<string | null>(null)
+  const [editingCell, setEditingCell] = useState<{filmId: string, field: string} | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [highlightedCells, setHighlightedCells] = useState<Record<string, Record<string, string>>>({})
+  const [notesState, setNotesState] = useState<Record<string, Record<string, string>>>({})
+  const [showNoteModal, setShowNoteModal] = useState(false)
+  const [currentNote, setCurrentNote] = useState<{filmId: string, field: string, note: string}>({filmId: '', field: '', note: ''})
+  const [noteModalPosition, setNoteModalPosition] = useState({ x: 100, y: 100 })
+  const [isNoteDragging, setIsNoteDragging] = useState(false)
+  const [noteDragStart, setNoteDragStart] = useState({ x: 0, y: 0 })
 
   const supabase = createClient()
 
@@ -117,34 +118,199 @@ export default function ProgrammingPipelinePage() {
     loadProgrammingFilms()
   }, [loadProgrammingFilms])
 
+  // Simplified cell highlighting
+  const [isDragging, setIsDragging] = useState(false)
+  const [draggedCells, setDraggedCells] = useState<Set<string>>(new Set())
+  
+  const handleCellHighlight = async (filmId: string, fieldName: string) => {
+    if (!selectedColor) return
+
+    try {
+      const film = programmingFilms.find(f => f.id === filmId)
+      const currentHighlights = film?.cell_highlights || {}
+      
+      const updatedHighlights = {
+        ...currentHighlights,
+        [fieldName]: selectedColor
+      }
+
+      const { error } = await supabase
+        .from('programming_films')
+        .update({ cell_highlights: updatedHighlights })
+        .eq('id', filmId)
+
+      if (error) throw error
+
+      setProgrammingFilms(prev => prev.map(film => 
+        film.id === filmId 
+          ? { ...film, cell_highlights: updatedHighlights } 
+          : film
+      ))
+      
+    } catch (error) {
+      console.error('Error updating cell highlight:', error)
+    }
+  }
+
+  // Handle notes
+  const handleNoteClick = (e: React.MouseEvent, filmId: string, fieldName: string) => {
+    e.stopPropagation()
+    const film = programmingFilms.find(f => f.id === filmId)
+    const existingNote = film?.programming_notes || ''
+    setCurrentNote({filmId, field: fieldName, note: existingNote})
+    setShowNoteModal(true)
+  }
+
+  const saveNote = async () => {
+    try {
+      const { error } = await supabase
+        .from('programming_films')
+        .update({ programming_notes: currentNote.note || null })
+        .eq('id', currentNote.filmId)
+
+      if (error) throw error
+
+      setProgrammingFilms(prev => prev.map(film => 
+        film.id === currentNote.filmId 
+          ? { ...film, programming_notes: currentNote.note || null } 
+          : film
+      ))
+      
+      setShowNoteModal(false)
+      setCurrentNote({filmId: '', field: '', note: ''})
+    } catch (error) {
+      console.error('Error saving note:', error)
+    }
+  }
+
+  // Note modal drag handlers
+  const handleNoteModalMouseDown = (e: React.MouseEvent) => {
+    setIsNoteDragging(true)
+    setNoteDragStart({
+      x: e.clientX - noteModalPosition.x,
+      y: e.clientY - noteModalPosition.y
+    })
+  }
+
+  const handleNoteModalMouseMove = useCallback((e: MouseEvent) => {
+    if (isNoteDragging) {
+      setNoteModalPosition({
+        x: e.clientX - noteDragStart.x,
+        y: e.clientY - noteDragStart.y
+      })
+    }
+  }, [isNoteDragging, noteDragStart.x, noteDragStart.y])
+
+  const handleNoteModalMouseUp = () => {
+    setIsNoteDragging(false)
+  }
+
+  useEffect(() => {
+    if (isNoteDragging) {
+      document.addEventListener('mousemove', handleNoteModalMouseMove)
+      document.addEventListener('mouseup', handleNoteModalMouseUp)
+    }
+    
+    return () => {
+      document.removeEventListener('mousemove', handleNoteModalMouseMove)
+      document.removeEventListener('mouseup', handleNoteModalMouseUp)
+    }
+  }, [isNoteDragging, handleNoteModalMouseMove])
+
+  // Simplified drag highlighting
+  const handleMouseDown = (e: React.MouseEvent, filmId: string, fieldName: string) => {
+    if (selectedColor) {
+      e.preventDefault()
+      setIsDragging(true)
+      const cellKey = `${filmId}-${fieldName}`
+      setDraggedCells(new Set([cellKey]))
+      handleCellHighlight(filmId, fieldName)
+    }
+  }
+
+  const handleMouseEnter = (filmId: string, fieldName: string) => {
+    if (isDragging && selectedColor) {
+      const cellKey = `${filmId}-${fieldName}`
+      setDraggedCells(prev => new Set(prev).add(cellKey))
+      handleCellHighlight(filmId, fieldName)
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+    setDraggedCells(new Set())
+  }
+
+  useEffect(() => {
+    if (isDragging) {
+      const handleGlobalMouseUp = () => handleMouseUp()
+      document.addEventListener('mouseup', handleGlobalMouseUp)
+      return () => document.removeEventListener('mouseup', handleGlobalMouseUp)
+    }
+  }, [isDragging])
+
+  // Handle inline editing
+  const handleCellEdit = (filmId: string, field: string, currentValue: any) => {
+    setEditingCell({ filmId, field })
+    setEditValue(String(currentValue || ''))
+  }
+
+  const handleCellSave = async () => {
+    if (!editingCell) return
+
+    try {
+      const { error } = await supabase
+        .from('programming_films')
+        .update({ [editingCell.field]: editValue })
+        .eq('id', editingCell.filmId)
+
+      if (error) throw error
+
+      // Update local state
+      setProgrammingFilms(prev => prev.map(film => 
+        film.id === editingCell.filmId 
+          ? { ...film, [editingCell.field]: editValue } 
+          : film
+      ))
+
+      setEditingCell(null)
+      setEditValue('')
+    } catch (error) {
+      console.error('Error updating field:', error)
+    }
+  }
+
+  const handleCellCancel = () => {
+    setEditingCell(null)
+    setEditValue('')
+  }
+
   // Filter and search logic
   const filteredFilms = useMemo(() => {
     return programmingFilms.filter(film => {
-      // Search filter
+      // Search filter with accent-insensitive search
       if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase()
-        const searchableText = [
-          film.film_title,
-          film.original_title,
-          film.director,
-          film.country,
-          film.synopsis_writer,
-          ...film.contacts.map(c => c.contact.company),
-          ...film.contacts.map(c => c.contact.contact_name)
-        ].filter(Boolean).join(' ').toLowerCase()
-        
-        if (!searchableText.includes(searchLower)) return false
+        const searchFilter = createAccentInsensitiveFilter<ProgrammingFilm>(
+          searchTerm,
+          (film) => [
+            film.film,
+            film.original_title,
+            film.director,
+            film.country,
+            film.synopsis,
+            ...film.contacts.map(c => c.contact.contact_company),
+            ...film.contacts.map(c => c.contact.contact_name)
+          ]
+        )
+        if (!searchFilter(film)) return false
       }
-
-      // Status filter
-      if (statusFilter !== 'all' && film.status !== statusFilter) return false
 
       // Category filter  
       if (categoryFilter !== 'all' && film.category !== categoryFilter) return false
 
       return true
     })
-  }, [programmingFilms, searchTerm, statusFilter, categoryFilter])
+  }, [programmingFilms, searchTerm, categoryFilter])
 
   // Sort logic
   const sortedFilms = useMemo(() => {
@@ -185,72 +351,52 @@ export default function ProgrammingPipelinePage() {
     return `${month}/${day}/${year}`
   }
 
-  const getStatusBadge = (status: string) => {
-    const statusColors = {
-      'draft': 'bg-gray-100 text-gray-800',
-      'ready_to_publish': 'bg-yellow-100 text-yellow-800',
-      'published': 'bg-green-100 text-green-800'
-    }
-    
+  const getStatusBadge = () => {
     return (
-      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}`}>
-        {status.replace('_', ' ').toUpperCase()}
+      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+        DRAFT
       </span>
     )
   }
 
-  const exportToExcel = () => {
-    // Create CSV content that Excel can open
+  const exportToCSV = () => {
+    // CSV export functionality (same as before)
     const headers = [
-      'Film Title',
-      'Original Title',
-      'Director',
-      'Country',
-      'Category',
-      'Travel Status',
-      'Travel Notes',
-      'Synopsis Writer',
-      'Synopsis Approved',
-      'Synopsis Notes',
-      'Materials Received',
-      'Materials Notes',
-      'Contact Companies',
-      'Contact Names',
-      'Contact Emails',
-      'Contact Roles',
-      'Programming Notes',
-      'Priority Level',
-      'Status',
-      'Last Updated'
+      'Travel', 'Synopsis', 'Written', 'Approved', 'Content Consideration', 'Film',
+      'Original Title', 'Director', 'Country', 'Contact Company', 'Contact Name', 
+      'Contact email', 'Category', 'Program', 'Program 2', 'Program 3',
+      'Contacted for materials', 'Form Submitted', 'Uploaded Materials',
+      'Accessibility Screening?', 'Premiere Status', 'Cards made'
     ]
 
     const csvData = sortedFilms.map(film => {
-      const contactCompanies = film.contacts.map(c => c.contact.company || '').join('; ')
+      const contactCompanies = film.contacts.map(c => c.contact.contact_company || '').join('; ')
       const contactNames = film.contacts.map(c => c.contact.contact_name).join('; ')
-      const contactEmails = film.contacts.map(c => c.contact.email || '').join('; ')
-      const contactRoles = film.contacts.map(c => c.role || '').join('; ')
+      const contactEmails = film.contacts.map(c => c.contact.contact_email || '').join('; ')
       
       return [
-        film.film_title,
+        film.travel || '',
+        film.synopsis || '',
+        film.written ? 'X' : '',
+        film.approved || '',
+        film.content_consideration || '',
+        film.film,
         film.original_title || '',
         film.director || '',
         film.country || '',
-        film.category || '',
-        film.travel_status || '',
-        film.travel_notes || '',
-        film.synopsis_writer || '',
-        film.synopsis_approved ? 'Yes' : 'No',
-        film.synopsis_notes || '',
-        film.materials_received ? 'Yes' : 'No',
-        film.materials_notes || '',
         contactCompanies,
         contactNames,
         contactEmails,
-        contactRoles,
-        film.programming_notes || '',
-        film.priority_level || '',
-        film.status || '',
-        formatDate(film.updated_at)
+        film.category || '',
+        film.program || '',
+        film.program_2 || '',
+        film.program_3 || '',
+        film.contacted_for_materials ? 'Yes' : 'No',
+        film.form_submitted ? 'Yes' : 'No', 
+        film.uploaded_materials ? 'Yes' : 'No',
+        film.accessibility_screening ? 'Yes' : 'No',
+        film.premiere_status || '',
+        film.cards_made ? 'Yes' : 'No'
       ]
     })
 
@@ -259,7 +405,6 @@ export default function ProgrammingPipelinePage() {
       headers.join(','),
       ...csvData.map(row => 
         row.map(cell => {
-          // Escape cells that contain commas, quotes, or newlines
           const cellStr = String(cell || '')
           if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
             return `"${cellStr.replace(/"/g, '""')}"`
@@ -281,13 +426,113 @@ export default function ProgrammingPipelinePage() {
     document.body.removeChild(link)
   }
 
+  // Render cell with highlighting and notes support
+  const renderCell = (film: ProgrammingFilm, field: string, value: any, isEditable: boolean = false) => {
+    const cellHighlight = film.cell_highlights?.[field]
+    const hasNote = field === 'programming_notes' ? !!film.programming_notes : false
+    const isEditing = editingCell?.filmId === film.id && editingCell?.field === field
+
+    if (isEditing && isEditable) {
+      return (
+        <div 
+          className="relative flex items-center space-x-1"
+          style={{ backgroundColor: cellHighlight || 'transparent' }}
+        >
+          <input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleCellSave()
+              if (e.key === 'Escape') handleCellCancel()
+            }}
+            onBlur={handleCellSave}
+            className="w-full px-1 py-0 text-sm border border-blue-500 rounded focus:outline-none"
+            autoFocus
+          />
+        </div>
+      )
+    }
+
+    return (
+      <div
+        className={`relative px-1 py-1 rounded ${
+          isEditable ? 'cursor-text hover:bg-blue-50' : 'cursor-default'
+        } ${selectedColor ? 'cursor-crosshair' : ''}`}
+        style={{ backgroundColor: cellHighlight || 'transparent' }}
+        onClick={(e) => {
+          if (selectedColor) {
+            e.preventDefault()
+            handleCellHighlight(film.id, field)
+          } else if (isEditable) {
+            handleCellEdit(film.id, field, value)
+          }
+        }}
+        onMouseDown={(e) => selectedColor ? handleMouseDown(e, film.id, field) : undefined}
+        onMouseEnter={() => selectedColor ? handleMouseEnter(film.id, field) : undefined}
+        title={isEditable ? "Click to edit" : undefined}
+      >
+        {value || '—'}
+        
+        {/* Note indicator */}
+        <div
+          className="absolute top-0 right-0 w-3 h-3 bg-yellow-400 rounded-full cursor-pointer hover:bg-yellow-500 flex items-center justify-center text-xs font-bold text-yellow-800"
+          onClick={(e) => handleNoteClick(e, film.id, field)}
+          title="Add/Edit Note"
+        >
+          {hasNote ? '!' : '+'}
+        </div>
+      </div>
+    )
+  }
+
+  // Render checkbox cell with highlighting and notes
+  const renderCheckboxCell = (film: ProgrammingFilm, field: string, checked: boolean, onChange: (checked: boolean) => void) => {
+    const cellHighlight = film.cell_highlights?.[field]
+    const hasNote = field === 'programming_notes' ? !!film.programming_notes : false
+    
+    return (
+      <div 
+        className={`relative px-1 py-1 rounded text-center ${selectedColor ? 'cursor-crosshair' : ''}`}
+        style={{ backgroundColor: cellHighlight || 'transparent' }}
+        onClick={(e) => {
+          if (selectedColor) {
+            e.preventDefault()
+            handleCellHighlight(film.id, field)
+          }
+        }}
+        onMouseDown={(e) => selectedColor ? handleMouseDown(e, film.id, field) : undefined}
+        onMouseEnter={() => selectedColor ? handleMouseEnter(film.id, field) : undefined}
+      >
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => {
+            e.stopPropagation()
+            onChange(e.target.checked)
+          }}
+          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+        />
+        
+        {/* Note indicator */}
+        <div
+          className="absolute top-0 right-0 w-3 h-3 bg-yellow-400 rounded-full cursor-pointer hover:bg-yellow-500 flex items-center justify-center text-xs font-bold text-yellow-800"
+          onClick={(e) => handleNoteClick(e, film.id, field)}
+          title="Add/Edit Note"
+        >
+          {hasNote ? '!' : '+'}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">🎬 Programming Pipeline</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">🎬 Programming Pipeline - Films Grid</h1>
             <p className="text-sm text-gray-600 mt-1">
               {sortedFilms.length} of {programmingFilms.length} films
             </p>
@@ -300,7 +545,7 @@ export default function ProgrammingPipelinePage() {
               Add Film
             </button>
             <button
-              onClick={exportToExcel}
+              onClick={exportToCSV}
               className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-medium"
             >
               Download CSV
@@ -324,19 +569,6 @@ export default function ProgrammingPipelinePage() {
         
         {/* Filters Row */}
         <div className="flex flex-wrap items-center gap-4">
-          {/* Status Filter */}
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">Status:</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'draft' | 'ready_to_publish')}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All</option>
-              <option value="draft">Draft</option>
-              <option value="ready_to_publish">Ready to Publish</option>
-            </select>
-          </div>
 
           {/* Category Filter */}
           <div className="flex items-center space-x-2">
@@ -353,11 +585,10 @@ export default function ProgrammingPipelinePage() {
           </div>
 
           {/* Clear Filters */}
-          {(searchTerm || statusFilter !== 'all' || categoryFilter !== 'all') && (
+          {(searchTerm || categoryFilter !== 'all') && (
             <button
               onClick={() => {
                 setSearchTerm('')
-                setStatusFilter('all')
                 setCategoryFilter('all')
               }}
               className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 hover:border-gray-300"
@@ -368,9 +599,17 @@ export default function ProgrammingPipelinePage() {
         </div>
       </div>
 
+      {/* Color Palette Toolbar */}
+      <div className="px-6 py-2 bg-gray-50 border-b border-gray-200">
+        <ColorPalette 
+          selectedColor={selectedColor}
+          onColorSelect={setSelectedColor}
+        />
+      </div>
+
       {/* Data Grid */}
       <div className="flex-1 overflow-hidden bg-white">
-        <div className="overflow-auto" style={{ height: 'calc(100vh - 220px)', overflowX: 'auto', overflowY: 'auto' }}>
+        <div className="overflow-auto" style={{ height: 'calc(100vh - 300px)', overflowX: 'auto', overflowY: 'auto' }} onMouseUp={handleMouseUp}>
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-lg text-gray-500">Loading programming films...</div>
@@ -380,28 +619,38 @@ export default function ProgrammingPipelinePage() {
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
                   {[
-                    { key: 'film_title', label: 'Film Title', width: 200, sortable: true },
-                    { key: 'director', label: 'Director', width: 150, sortable: true },
+                    { key: 'film', label: 'Film', width: 200, sortable: true, sticky: true },
+                    { key: 'original_title', label: 'Original Title', width: 180, sortable: true },
+                    { key: 'director', label: 'Director', width: 140, sortable: true },
                     { key: 'country', label: 'Country', width: 120, sortable: true },
                     { key: 'category', label: 'Category', width: 100, sortable: true },
-                    { key: 'travel_status', label: 'Travel', width: 100, sortable: true },
-                    { key: 'synopsis_writer', label: 'Synopsis Writer', width: 120, sortable: true },
-                    { key: 'synopsis_approved', label: 'Synopsis Approved', width: 120, sortable: true },
-                    { key: 'materials_received', label: 'Materials', width: 100, sortable: true },
-                    { key: 'contacts', label: 'Contacts', width: 250, sortable: false },
-                    { key: 'status', label: 'Status', width: 120, sortable: true }
+                    { key: 'runtime', label: 'Runtime', width: 80, sortable: true },
+                    { key: 'travel', label: 'Travel', width: 120, sortable: true, editable: true },
+                    { key: 'synopsis', label: 'Synopsis Written By', width: 150, sortable: true, editable: true },
+                    { key: 'written', label: 'Written', width: 80, sortable: true },
+                    { key: 'approved', label: 'Synopsis Approved', width: 120, sortable: true },
+                    { key: 'content_consideration', label: 'Content Consideration', width: 160, sortable: false, editable: true },
+                    { key: 'programs', label: 'Programs', width: 180, sortable: true },
+                    { key: 'contacted_for_materials', label: 'Contacted for Materials', width: 160, sortable: true },
+                    { key: 'form_submitted', label: 'Form Submitted', width: 120, sortable: true },
+                    { key: 'uploaded_materials', label: 'Uploaded Materials', width: 140, sortable: true },
+                    { key: 'materials_received', label: 'Materials Received', width: 140, sortable: true },
+                    { key: 'accessibility_screening', label: 'Accessibility Screening', width: 160, sortable: true },
+                    { key: 'premiere_status', label: 'Premiere Status', width: 140, sortable: true, editable: true },
+                    { key: 'cards_made', label: 'Cards Made', width: 100, sortable: true },
+                    { key: 'contacts', label: 'Contacts', width: 200, sortable: false }
                   ].map((column) => (
                     <th
                       key={column.key}
                       className={`px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative ${
                         column.sortable ? 'cursor-pointer hover:bg-gray-100' : ''
                       } ${
-                        column.key === 'film_title' ? 'sticky left-0 bg-gray-50 z-10' : ''
+                        column.sticky ? 'sticky left-0 bg-gray-50 z-10' : ''
                       }`}
                       style={{ 
                         width: columnWidths[column.key] || column.width,
-                        minWidth: column.key === 'film_title' ? `${column.width}px` : '100px',
-                        maxWidth: column.key === 'film_title' ? `${columnWidths[column.key] || column.width}px` : 'none'
+                        minWidth: column.sticky ? `${column.width}px` : '100px',
+                        maxWidth: column.sticky ? `${columnWidths[column.key] || column.width}px` : 'none'
                       }}
                       onClick={() => column.sortable && handleSort(column.key)}
                     >
@@ -415,32 +664,6 @@ export default function ProgrammingPipelinePage() {
                           </span>
                         )}
                       </div>
-                      {/* Resize handle */}
-                      <div
-                        className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-blue-300"
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          
-                          const startX = e.pageX
-                          const startWidth = columnWidths[column.key] || column.width || 150
-
-                          const handleMouseMove = (e: MouseEvent) => {
-                            e.preventDefault()
-                            const newWidth = Math.max(100, startWidth + (e.pageX - startX))
-                            handleResize(column.key, newWidth)
-                          }
-
-                          const handleMouseUp = (e: MouseEvent) => {
-                            e.preventDefault()
-                            document.removeEventListener('mousemove', handleMouseMove)
-                            document.removeEventListener('mouseup', handleMouseUp)
-                          }
-
-                          document.addEventListener('mousemove', handleMouseMove)
-                          document.addEventListener('mouseup', handleMouseUp)
-                        }}
-                      />
                     </th>
                   ))}
                   <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
@@ -452,77 +675,260 @@ export default function ProgrammingPipelinePage() {
                 {sortedFilms.map((film) => (
                   <tr 
                     key={film.id} 
-                    className="hover:bg-gray-50"
+                    className={`hover:bg-gray-50 ${selectedColor ? 'cursor-pointer' : ''}`}
                     style={{ 
                       backgroundColor: film.color_highlight || 'transparent'
                     }}
+                    onClick={(e) => {
+                      // Only handle row click if not clicking on a cell
+                      if (e.target === e.currentTarget && selectedColor) {
+                        // handleRowClick(film.id) - removed row highlighting
+                      }
+                    }}
                   >
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-0 bg-white z-10" style={{ minWidth: `${columnWidths['film_title'] || 200}px`, maxWidth: `${columnWidths['film_title'] || 200}px` }}>
-                      <div>
-                        <div className="font-medium">{film.film_title}</div>
-                        {film.original_title && film.original_title !== film.film_title && (
-                          <div className="text-xs text-gray-500 italic">{film.original_title}</div>
-                        )}
-                      </div>
+                    {/* Film Title (sticky) */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-0 bg-white z-10" style={{ minWidth: `${columnWidths['film'] || 200}px`, maxWidth: `${columnWidths['film'] || 200}px` }}>
+                      <div className="font-medium">{film.film}</div>
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['director'] || 150}px` }}>
-                      {film.director || '—'}
+                    
+                    {/* Original Title */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['original_title'] || 180}px` }}>
+                      {renderCell(film, 'original_title', film.original_title)}
                     </td>
+                    
+                    {/* Director */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['director'] || 140}px` }}>
+                      {renderCell(film, 'director', film.director)}
+                    </td>
+                    
+                    {/* Country */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['country'] || 120}px` }}>
-                      {film.country || '—'}
+                      {renderCell(film, 'country', film.country)}
                     </td>
+                    
+                    {/* Category */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['category'] || 100}px` }}>
-                      {film.category || '—'}
+                      {renderCell(film, 'category', film.category)}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['travel_status'] || 100}px` }}>
-                      {film.travel_status || '—'}
+                    
+                    {/* Runtime */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['runtime'] || 80}px` }}>
+                      {renderCell(film, 'runtime', film.runtime ? `${film.runtime}min` : null)}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['synopsis_writer'] || 120}px` }}>
-                      {film.synopsis_writer || '—'}
+                    
+                    {/* Travel (editable) */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['travel'] || 120}px` }}>
+                      {renderCell(film, 'travel', film.travel, true)}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center" style={{ minWidth: `${columnWidths['synopsis_approved'] || 120}px` }}>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        film.synopsis_approved 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {film.synopsis_approved ? 'Yes' : 'No'}
-                      </span>
+                    
+                    {/* Synopsis Written By (editable) */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['synopsis'] || 150}px` }}>
+                      {renderCell(film, 'synopsis', film.synopsis, true)}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center" style={{ minWidth: `${columnWidths['materials_received'] || 100}px` }}>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        film.materials_received 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {film.materials_received ? 'Yes' : 'No'}
-                      </span>
+                    
+                    {/* Written */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['written'] || 80}px` }}>
+                      {renderCheckboxCell(film, 'written', film.written, async (checked) => {
+                        try {
+                          await supabase
+                            .from('programming_films')
+                            .update({ written: checked })
+                            .eq('id', film.id)
+                          
+                          setProgrammingFilms(prev => prev.map(f => 
+                            f.id === film.id ? { ...f, written: checked } : f
+                          ))
+                        } catch (error) {
+                          console.error('Error updating written status:', error)
+                        }
+                      })}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contacts'] || 250}px` }}>
-                      {film.contacts.length > 0 ? (
-                        <div className="space-y-1">
-                          {film.contacts.slice(0, 2).map((contact, index) => (
-                            <div key={index} className="text-xs">
-                              <span className="font-medium">{contact.contact.company || contact.contact.contact_name}</span>
-                              {contact.role && <span className="text-gray-500"> ({contact.role})</span>}
-                            </div>
-                          ))}
-                          {film.contacts.length > 2 && (
-                            <div className="text-xs text-gray-500">
-                              +{film.contacts.length - 2} more
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        '—'
+                    
+                    {/* Synopsis Approved */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['approved'] || 120}px` }}>
+                      {renderCheckboxCell(film, 'approved', !!film.approved, async (checked) => {
+                        try {
+                          await supabase
+                            .from('programming_films')
+                            .update({ approved: checked ? 'X' : null })
+                            .eq('id', film.id)
+                          
+                          setProgrammingFilms(prev => prev.map(f => 
+                            f.id === film.id ? { ...f, approved: checked ? 'X' : null } : f
+                          ))
+                        } catch (error) {
+                          console.error('Error updating approved status:', error)
+                        }
+                      })}
+                    </td>
+                    
+                    {/* Content Consideration (editable) */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['content_consideration'] || 160}px` }}>
+                      {renderCell(film, 'content_consideration', film.content_consideration, true)}
+                    </td>
+                    
+                    {/* Programs */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['programs'] || 180}px` }}>
+                      {renderCell(film, 'programs', 
+                        film.programs && film.programs.length > 0 ? (
+                          <div>
+                            {film.programs.map((program, index) => (
+                              <div key={index} className="text-sm">
+                                {program}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null
                       )}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['status'] || 120}px` }}>
-                      {getStatusBadge(film.status)}
+                    
+                    {/* Contacted for Materials */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contacted_for_materials'] || 160}px` }}>
+                      {renderCheckboxCell(film, 'contacted_for_materials', film.contacted_for_materials, async (checked) => {
+                        try {
+                          await supabase
+                            .from('programming_films')
+                            .update({ contacted_for_materials: checked })
+                            .eq('id', film.id)
+                          
+                          setProgrammingFilms(prev => prev.map(f => 
+                            f.id === film.id ? { ...f, contacted_for_materials: checked } : f
+                          ))
+                        } catch (error) {
+                          console.error('Error updating contacted_for_materials:', error)
+                        }
+                      })}
                     </td>
+                    
+                    {/* Form Submitted */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['form_submitted'] || 120}px` }}>
+                      {renderCheckboxCell(film, 'form_submitted', film.form_submitted, async (checked) => {
+                        try {
+                          await supabase
+                            .from('programming_films')
+                            .update({ form_submitted: checked })
+                            .eq('id', film.id)
+                          
+                          setProgrammingFilms(prev => prev.map(f => 
+                            f.id === film.id ? { ...f, form_submitted: checked } : f
+                          ))
+                        } catch (error) {
+                          console.error('Error updating form_submitted:', error)
+                        }
+                      })}
+                    </td>
+                    
+                    {/* Uploaded Materials */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['uploaded_materials'] || 140}px` }}>
+                      {renderCheckboxCell(film, 'uploaded_materials', film.uploaded_materials, async (checked) => {
+                        try {
+                          await supabase
+                            .from('programming_films')
+                            .update({ uploaded_materials: checked })
+                            .eq('id', film.id)
+                          
+                          setProgrammingFilms(prev => prev.map(f => 
+                            f.id === film.id ? { ...f, uploaded_materials: checked } : f
+                          ))
+                        } catch (error) {
+                          console.error('Error updating uploaded_materials:', error)
+                        }
+                      })}
+                    </td>
+                    
+                    {/* Materials Received */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['materials_received'] || 140}px` }}>
+                      {renderCheckboxCell(film, 'materials_received', film.materials_received, async (checked) => {
+                        try {
+                          await supabase
+                            .from('programming_films')
+                            .update({ materials_received: checked })
+                            .eq('id', film.id)
+                          
+                          setProgrammingFilms(prev => prev.map(f => 
+                            f.id === film.id ? { ...f, materials_received: checked } : f
+                          ))
+                        } catch (error) {
+                          console.error('Error updating materials_received:', error)
+                        }
+                      })}
+                    </td>
+                    
+                    {/* Accessibility Screening */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['accessibility_screening'] || 160}px` }}>
+                      {renderCheckboxCell(film, 'accessibility_screening', film.accessibility_screening, async (checked) => {
+                        try {
+                          await supabase
+                            .from('programming_films')
+                            .update({ accessibility_screening: checked })
+                            .eq('id', film.id)
+                          
+                          setProgrammingFilms(prev => prev.map(f => 
+                            f.id === film.id ? { ...f, accessibility_screening: checked } : f
+                          ))
+                        } catch (error) {
+                          console.error('Error updating accessibility_screening:', error)
+                        }
+                      })}
+                    </td>
+                    
+                    {/* Premiere Status (editable) */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['premiere_status'] || 140}px` }}>
+                      {renderCell(film, 'premiere_status', film.premiere_status, true)}
+                    </td>
+                    
+                    {/* Cards Made */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['cards_made'] || 100}px` }}>
+                      {renderCheckboxCell(film, 'cards_made', film.cards_made, async (checked) => {
+                        try {
+                          await supabase
+                            .from('programming_films')
+                            .update({ cards_made: checked })
+                            .eq('id', film.id)
+                          
+                          setProgrammingFilms(prev => prev.map(f => 
+                            f.id === film.id ? { ...f, cards_made: checked } : f
+                          ))
+                        } catch (error) {
+                          console.error('Error updating cards_made:', error)
+                        }
+                      })}
+                    </td>
+                    
+                    {/* Contacts */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contacts'] || 200}px` }}>
+                      {renderCell(film, 'contacts', 
+                        film.contacts.length > 0 ? (
+                          <div className="space-y-1">
+                            {film.contacts.slice(0, 2).map((contact, index) => (
+                              <div key={index} className="text-xs">
+                                <div className="font-medium">{contact.contact.contact_name}</div>
+                                {contact.contact.contact_company && (
+                                  <div className="text-gray-500">{contact.contact.contact_company}</div>
+                                )}
+                                {contact.contact.contact_email && (
+                                  <div className="text-gray-500">{contact.contact.contact_email}</div>
+                                )}
+                                {contact.role && <div className="text-gray-400">({contact.role})</div>}
+                              </div>
+                            ))}
+                            {film.contacts.length > 2 && (
+                              <div className="text-xs text-gray-500">
+                                +{film.contacts.length - 2} more
+                              </div>
+                            )}
+                          </div>
+                        ) : null
+                      )}
+                    </td>
+                    
+                    {/* Actions */}
                     <td className="px-3 py-2 text-sm text-gray-900 text-center">
                       <button
-                        onClick={() => setSelectedFilm(film)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedFilm(film)
+                        }}
                         className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm font-medium"
                       >
                         Edit
@@ -532,8 +938,8 @@ export default function ProgrammingPipelinePage() {
                 ))}
                 {sortedFilms.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="px-6 py-12 text-center text-gray-500">
-                      {searchTerm || statusFilter !== 'all' || categoryFilter !== 'all'
+                    <td colSpan={21} className="px-6 py-12 text-center text-gray-500">
+                      {searchTerm || categoryFilter !== 'all'
                         ? 'No films match your filters.'
                         : 'No films found. Click "Add Film" to create your first programming entry.'
                       }
@@ -566,6 +972,72 @@ export default function ProgrammingPipelinePage() {
           }
         }}
       />
+
+      {/* Note Modal */}
+      {showNoteModal && (
+        <>
+          <div className="fixed inset-0 bg-transparent z-40" onClick={() => {
+            setShowNoteModal(false)
+            setCurrentNote({filmId: '', field: '', note: ''})
+          }} />
+          
+          <div 
+            className="fixed bg-white rounded-lg shadow-2xl border border-gray-300 z-50 w-96 overflow-hidden"
+            style={{ 
+              left: `${noteModalPosition.x}px`, 
+              top: `${noteModalPosition.y}px`,
+              cursor: isNoteDragging ? 'grabbing' : 'default'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Draggable Header */}
+            <div 
+              className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 cursor-grab active:cursor-grabbing"
+              onMouseDown={handleNoteModalMouseDown}
+            >
+              <h1 className="text-lg font-semibold text-gray-900">Add/Edit Note</h1>
+              <button
+                onClick={() => {
+                  setShowNoteModal(false)
+                  setCurrentNote({filmId: '', field: '', note: ''})
+                }}
+                className="text-gray-500 hover:text-gray-700 text-xl font-bold w-6 h-6 flex items-center justify-center hover:bg-gray-200 rounded"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6">
+              <textarea
+                value={currentNote.note}
+                onChange={(e) => setCurrentNote(prev => ({ ...prev, note: e.target.value }))}
+                className="w-full h-32 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                placeholder="Enter your note here..."
+                autoFocus
+              />
+              <div className="flex justify-end space-x-3 mt-4">
+                <button
+                  onClick={() => {
+                    setShowNoteModal(false)
+                    setCurrentNote({filmId: '', field: '', note: ''})
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveNote}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+                >
+                  Save Note
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

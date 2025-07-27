@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { RedCarpetFormModal } from '@/components/forms/red-carpet-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
+import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 
 interface RedCarpet {
   id: string
@@ -181,14 +182,15 @@ export default function RedCarpetsPage() {
   const filteredEvents = useMemo(() => {
     return groupedEvents.filter(event => {
       if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase()
-        const searchableText = [
-          ...event.films.map(f => f.title),
-          ...event.films.flatMap(f => f.subjects),
-          event.venue_name
-        ].filter(Boolean).join(' ').toLowerCase()
-        
-        if (!searchableText.includes(searchLower)) return false
+        const searchFilter = createAccentInsensitiveFilter<any>(
+          searchTerm,
+          (event) => [
+            ...event.films.map((f: any) => f.title),
+            ...event.films.flatMap((f: any) => f.subjects),
+            event.venue_name
+          ]
+        )
+        if (!searchFilter(event)) return false
       }
       return true
     })

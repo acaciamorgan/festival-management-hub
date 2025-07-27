@@ -1,0 +1,9 @@
+I need to clean up lines 783-905 in the scheduler file that contain leftover old code from the table-based approach. These lines should be completely removed since we've replaced them with the new floating timeline approach.
+
+Old code starts at line 783 with:
+// Find screening that starts at this time
+
+And ends at line 904 with:
+</div>
+
+Everything between these lines should be deleted.

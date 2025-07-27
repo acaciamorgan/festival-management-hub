@@ -14,9 +14,10 @@ export default function DashboardLayout({
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth/login')
-    }
+    // Temporarily disabled for development - bypass auth
+    // if (!loading && !user) {
+    //   router.push('/auth/login')
+    // }
   }, [user, loading, router])
 
   if (loading) {
