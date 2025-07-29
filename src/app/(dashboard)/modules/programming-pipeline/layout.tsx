@@ -21,6 +21,13 @@ export default function ProgrammingLayout({ children }: ProgrammingLayoutProps) 
       description: 'Main programming workflow'
     },
     {
+      id: 'ticketing',
+      name: 'Ticketing Grid',
+      icon: '🎫',
+      href: '/modules/programming-pipeline/ticketing-grid',
+      description: 'Screening schedule management'
+    },
+    {
       id: 'scheduler',
       name: 'Scheduling Planner',
       icon: '📅',

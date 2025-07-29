@@ -1,5 +1,5 @@
 // Core Card Types
-export type CardType = 'titles' | 'venues' | 'guests' | 'press' | 'programs' | 'contacts' | 'press-screenings'
+export type CardType = 'titles' | 'venues' | 'guests' | 'press' | 'programs' | 'contacts' | 'press-screenings' | 'interviews'
 
 // Module Configuration
 export interface ModuleConfig {
@@ -219,6 +219,7 @@ export interface TheaterHouse {
   venue_id?: string
   house_name: string
   seat_count: number
+  short_code?: string
   created_at?: string
 }
 
@@ -318,4 +319,55 @@ export interface PressScreeningCard {
   created_at: string
   updated_at: string
   created_by: string
+}
+
+// Interview Management Types
+export type InterviewStatus = 'TBD' | 'Pitching' | 'Subject Pending' | 'Scheduled' | 'Complete' | 'Declined'
+
+export interface InterviewCard {
+  id: string
+  
+  // Film/Program reference (required - at least one must be present)
+  film_id?: string | null
+  shorts_program_id?: string | null
+  program_id?: string | null
+  film_title: string // Cached for display
+  
+  // Journalist (can link to press card or be open text)
+  press_id?: string | null
+  journalist_name?: string | null
+  outlet?: string | null
+  email?: string | null
+  
+  // Subjects (can link to guest cards or be open text)
+  subject_names?: string | null
+  subject_guest_ids?: string[] | null
+  
+  // Interview details
+  status: InterviewStatus
+  interview_date?: string | null
+  interview_time?: string | null
+  location?: string | null
+  
+  // Metadata
+  notes?: string | null
+  created_at: string
+  updated_at: string
+  created_by: string
+}
+
+// Sticky Notes Types
+export interface StickyNote {
+  id: string
+  x_position: number
+  y_position: number
+  width: number
+  height: number
+  color: string
+  content: string
+  module_id: string
+  created_at: string
+  updated_at: string
+  created_by: string
+  related_film_id?: string | null
 }

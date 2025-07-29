@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { GuestCard, FilmCard } from '@/types'
+import { GuestCard, FilmCard, InterviewCard } from '@/types'
 import { FilmCardPopup } from './film-card-popup'
+import { getInterviewsForGuestCard } from '@/lib/interviews-client'
 
 interface GuestCardPopupProps {
   guest: GuestCard
@@ -50,6 +51,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
   const [showFilmCard, setShowFilmCard] = useState<FilmCard | null>(null)
   const [photoShoots, setPhotoShoots] = useState<any[]>([])
   const [redCarpets, setRedCarpets] = useState<any[]>([])
+  const [guestInterviews, setGuestInterviews] = useState<InterviewCard[]>([])
 
   const supabase = createClient()
 
@@ -107,13 +109,22 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           })
           setRedCarpets(relevantCarpets)
         }
+
+        // Load interviews for this guest
+        try {
+          const interviews = await getInterviewsForGuestCard(guest.id)
+          setGuestInterviews(interviews)
+        } catch (error) {
+          console.error('Error loading guest interviews:', error)
+          setGuestInterviews([])
+        }
       } catch (error) {
         console.error('Error loading events:', error)
       }
     }
 
     loadEvents()
-  }, [guest.name, supabase])
+  }, [guest.name, guest.id, supabase])
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true)
@@ -529,8 +540,43 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           </CollapsibleSection>
 
           {/* Future Integration Sections */}
-          <CollapsibleSection title="Interviews" isEmpty={true}>
-            <p className="text-sm text-gray-500">Interview data will be pulled from Interview Management Module when implemented.</p>
+          <CollapsibleSection title="Interviews" isEmpty={guestInterviews.length === 0}>
+            {guestInterviews.length > 0 ? (
+              <div className="space-y-3">
+                {guestInterviews.map((interview) => (
+                  <div key={interview.id} className="bg-gray-50 rounded-lg p-3">
+                    {/* Line 1: Status Badge */}
+                    <div className="mb-2">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        interview.status === 'Complete' ? 'bg-green-100 text-green-800' :
+                        interview.status === 'Scheduled' ? 'bg-blue-100 text-blue-800' :
+                        interview.status === 'Declined' ? 'bg-red-100 text-red-800' :
+                        interview.status === 'Pitching' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {interview.status}
+                      </span>
+                    </div>
+                    
+                    {/* Line 2: Main Info */}  
+                    <div className="text-sm text-gray-900 mb-1">
+                      <span className="font-medium">{interview.film_title}</span>
+                      {interview.journalist_name && <span> | Journalist: {interview.journalist_name}</span>}
+                      {interview.outlet && <span> | Outlet: {interview.outlet}</span>}
+                    </div>
+                    
+                    {/* Line 3: Scheduling Info (only when scheduled) */}
+                    {interview.status === 'Scheduled' && (
+                      <div className="text-sm text-gray-600">
+                        {interview.interview_date && <span>Date: {formatDate(interview.interview_date)}</span>}
+                        {interview.interview_time && <span> | Time: {formatTime(interview.interview_time)}</span>}
+                        {interview.location && <span> | Location: {interview.location}</span>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </CollapsibleSection>
 
           <CollapsibleSection title="Red Carpets & Photo Shoots" isEmpty={photoShoots.length === 0 && redCarpets.length === 0}>

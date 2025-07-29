@@ -70,7 +70,7 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
     icon: 'mic',
     hasGridView: true,
     hasRSVP: false,
-    cardTypes: ['guests', 'press', 'venues'],
+    cardTypes: ['interviews', 'titles', 'guests', 'press', 'programs'],
     route: '/modules/interview-management'
   },
   redCarpets: {
@@ -109,6 +109,16 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
     hasRSVP: false,
     cardTypes: ['contacts'],
     route: '/modules/contacts'
+  },
+  ticketing: {
+    id: 'ticketing',
+    name: 'Ticketing',
+    icon: 'ticket',
+    hasGridView: true,
+    hasCalendarView: true,
+    hasRSVP: false,
+    cardTypes: ['titles', 'venues'],
+    route: '/modules/ticketing'
   },
   reportsAnalytics: {
     id: 'reportsAnalytics',

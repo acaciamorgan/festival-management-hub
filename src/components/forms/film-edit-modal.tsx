@@ -965,8 +965,8 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 pointer-events-auto">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Film</h3>
             <p className="text-sm text-gray-600 mb-6">
               Are you sure you want to delete "{film?.title}"? This action cannot be undone and will also delete all associated contact information.

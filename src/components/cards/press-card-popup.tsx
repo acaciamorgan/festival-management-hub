@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PressCard, AccreditationLevel } from '@/types'
+import { PressCard, AccreditationLevel, InterviewCard } from '@/types'
+import { getInterviewsForPressCard } from '@/lib/interviews-client'
 
 interface PressCardProps {
   press: PressCard
@@ -72,6 +73,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
     critics_groups: press.critics_groups || '',
     accreditation_level: press.accreditation_level || 'Unassigned'
   })
+  const [pressInterviews, setPressInterviews] = useState<InterviewCard[]>([])
   
   const supabase = createClient()
 
@@ -241,6 +243,39 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
     }
   }
 
+  // Load interviews for this press card
+  useEffect(() => {
+    const loadInterviews = async () => {
+      try {
+        const interviews = await getInterviewsForPressCard(press.id)
+        setPressInterviews(interviews)
+      } catch (error) {
+        console.error('Error loading press interviews:', error)
+        setPressInterviews([])
+      }
+    }
+
+    loadInterviews()
+  }, [press.id])
+
+  // Date formatting helper
+  const formatDate = (dateString: string | null): string => {
+    if (!dateString) return '—'
+    const date = new Date(dateString)
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    return `${month}/${day}`
+  }
+
+  const formatTime = (timeString: string | null): string => {
+    if (!timeString) return '—'
+    const [hours, minutes] = timeString.split(':')
+    const hour24 = parseInt(hours, 10)
+    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+    return `${hour12}:${minutes} ${ampm}`
+  }
+
   return (
     <>
       <div 
@@ -393,11 +428,42 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
 
           {/* Collapsible sections */}
           <div className="divide-y divide-gray-200">
-            <CollapsibleSection title="Interviews" isEmpty={true}>
-              {/* Will be populated from Interview Management Module */}
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">Interview schedules and appointments will appear here.</p>
-              </div>
+            <CollapsibleSection title="Interviews" isEmpty={pressInterviews.length === 0}>
+              {pressInterviews.length > 0 ? (
+                <div className="space-y-3">
+                  {pressInterviews.map((interview) => (
+                    <div key={interview.id} className="bg-gray-50 rounded-lg p-3">
+                      {/* Line 1: Status Badge */}
+                      <div className="mb-2">
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                          interview.status === 'Complete' ? 'bg-green-100 text-green-800' :
+                          interview.status === 'Scheduled' ? 'bg-blue-100 text-blue-800' :
+                          interview.status === 'Declined' ? 'bg-red-100 text-red-800' :
+                          interview.status === 'Pitching' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {interview.status}
+                        </span>
+                      </div>
+                      
+                      {/* Line 2: Main Info */}
+                      <div className="text-sm text-gray-900 mb-1">
+                        <span className="font-medium">{interview.film_title}</span>
+                        {interview.subject_names && <span> | Subject(s): {interview.subject_names}</span>}
+                      </div>
+                      
+                      {/* Line 3: Scheduling Info (only when scheduled) */}
+                      {interview.status === 'Scheduled' && (
+                        <div className="text-sm text-gray-600">
+                          {interview.interview_date && <span>Date: {formatDate(interview.interview_date)}</span>}
+                          {interview.interview_time && <span> | Time: {formatTime(interview.interview_time)}</span>}
+                          {interview.location && <span> | Location: {interview.location}</span>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </CollapsibleSection>
 
             <CollapsibleSection title="Press Screenings" isEmpty={true}>

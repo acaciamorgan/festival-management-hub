@@ -16,19 +16,16 @@ interface ProgrammingFilm {
   color_highlight: string | null
 }
 
-interface Venue {
+interface ProgrammingVenueHouse {
   id: string
-  name: string
+  venue_name: string
+  house_name: string
+  display_order: number
+  capacity?: number
+  technical_notes?: string
 }
 
-interface VenueHouse {
-  id: string
-  venue_id: string
-  name: string
-  venue: Venue
-}
-
-interface FilmScreening {
+interface ProgrammingFilmScreening {
   id: string
   programming_film_id: string
   venue_house_id: string
@@ -38,7 +35,7 @@ interface FilmScreening {
   buffer_minutes: number
   press_industry: boolean
   programming_film: ProgrammingFilm
-  venue_house: VenueHouse
+  venue_house: ProgrammingVenueHouse
 }
 
 interface ConflictGap {
@@ -69,8 +66,8 @@ const PROGRAM_COLORS = {
 export default function SchedulingPlannerPage() {
   const { user } = useAuth()
   const [films, setFilms] = useState<ProgrammingFilm[]>([])
-  const [venueHouses, setVenueHouses] = useState<VenueHouse[]>([])
-  const [screenings, setScreenings] = useState<FilmScreening[]>([])
+  const [venueHouses, setVenueHouses] = useState<ProgrammingVenueHouse[]>([])
+  const [screenings, setScreenings] = useState<ProgrammingFilmScreening[]>([])
   const [viewMode, setViewMode] = useState<'day' | 'festival'>('day')
   const [selectedDate, setSelectedDate] = useState('')
   const [conflictWarningsEnabled, setConflictWarningsEnabled] = useState(false)
@@ -90,6 +87,7 @@ export default function SchedulingPlannerPage() {
   const [modalPosition, setModalPosition] = useState({x: 0, y: 0})
   const [isDraggingModal, setIsDraggingModal] = useState(false)
   const [dragOffset, setDragOffset] = useState({x: 0, y: 0})
+  const [dragPreview, setDragPreview] = useState<{show: boolean, x: number, y: number, venueId: string, time: string} | null>(null)
 
   const supabase = createClient()
 
@@ -97,7 +95,7 @@ export default function SchedulingPlannerPage() {
   const loadFestivalSettings = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('festival_settings')
+        .from('programming_festival_settings')
         .select('start_date, end_date')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -109,12 +107,10 @@ export default function SchedulingPlannerPage() {
       }
 
       if (data) {
-        console.log('🎯 Loading festival settings:', data)
         setFestivalStartDate(data.start_date)
         setFestivalEndDate(data.end_date)
         
         // Set selected date to festival start as default
-        console.log('🎯 Setting selectedDate to festival start:', data.start_date)
         setSelectedDate(data.start_date)
       }
     } catch (error) {
@@ -126,11 +122,11 @@ export default function SchedulingPlannerPage() {
   const saveFestivalSettings = useCallback(async (startDate: string, endDate: string) => {
     try {
       // Delete existing settings first (simple approach for single-row table)
-      await supabase.from('festival_settings').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+      await supabase.from('programming_festival_settings').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       
       // Insert new settings
       const { error } = await supabase
-        .from('festival_settings')
+        .from('programming_festival_settings')
         .insert({
           start_date: startDate,
           end_date: endDate
@@ -158,38 +154,218 @@ export default function SchedulingPlannerPage() {
     }
   }, [supabase])
 
-  // Load venue houses
+  // Load venue houses (programming-specific)
   const loadVenueHouses = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('venue_houses')
-        .select(`
-          *,
-          venue:venues(*)
-        `)
-        .order('venue_id, name')
+        .from('programming_venue_houses')
+        .select('*')
+        .order('display_order, venue_name, house_name')
 
       if (error) throw error
       setVenueHouses(data || [])
     } catch (error) {
-      console.error('Error loading venue houses:', error)
+      console.error('Error loading programming venue houses:', error)
     }
   }, [supabase])
 
-  // Load screenings
+  // Map Ticketing Grid venue codes to venue template structure
+  const mapTicketingVenueToTemplate = (ticketingVenue: string): {venue_name: string, house_name: string} | null => {
+    switch (ticketingVenue) {
+      case 'AMC 1':
+        return { venue_name: 'AMC', house_name: '1' }
+      case 'AMC 4':
+        return { venue_name: 'AMC', house_name: '4' }
+      case 'AMC 6':
+        return { venue_name: 'AMC', house_name: '6' }
+      case 'AMC 13':
+        return { venue_name: 'AMC', house_name: '13' }
+      case 'MBT':
+        return { venue_name: 'MBT', house_name: '' }
+      case 'GSFC 1':
+        return { venue_name: 'GSFC', house_name: '1' }
+      case 'GSFC 2':
+        return { venue_name: 'GSFC', house_name: '2' }
+      default:
+        return null // Venue not in template - will be filtered out
+    }
+  }
+
+  // Load ticketing grid data and convert to screenings
+  const loadTicketingScreenings = useCallback(async () => {
+    try {
+      // Get fresh venue houses data
+      const { data: currentVenueHouses, error: venueError } = await supabase
+        .from('programming_venue_houses')
+        .select('*')
+        .order('display_order, venue_name, house_name')
+
+      if (venueError) {
+        console.error('Error loading venue houses for ticketing integration:', venueError)
+        return []
+      }
+
+      const { data: ticketingData, error } = await supabase
+        .from('programming_film_public_screenings')
+        .select(`
+          *,
+          programming_film:programming_films(*)
+        `)
+        .order('date, start_time')
+
+      if (error) throw error
+
+      console.log('DEBUG: Raw ticketing data from DB:', ticketingData?.length || 0)
+      if (ticketingData?.length > 0) {
+        console.log('DEBUG: First ticketing entry:', ticketingData[0])
+      }
+
+      // Convert ticketing data to scheduler format
+      const convertedScreenings: ProgrammingFilmScreening[] = []
+      
+      for (const ticketing of ticketingData || []) {
+        // Map ticketing venue to template structure
+        const venueMapping = mapTicketingVenueToTemplate(ticketing.location)
+        if (!venueMapping) {
+          continue
+        }
+
+        // Find existing venue house in template
+        const venueHouse = currentVenueHouses?.find(vh => 
+          vh.venue_name === venueMapping.venue_name && 
+          vh.house_name === venueMapping.house_name
+        )
+
+        if (!venueHouse) {
+          continue
+        }
+
+        // Convert date format (Oct. 16 -> 2024-10-16)
+        const screeningDate = convertDateFormat(ticketing.date)
+        if (!screeningDate) {
+          continue
+        }
+
+        // Calculate end time using runtime (Ticketing Grid runtime takes precedence)
+        const runtime = ticketing.running_time || ticketing.programming_film?.runtime || 120
+        const endTime = calculateTicketingEndTime(ticketing.start_time, runtime)
+
+        // Debug Piano Lesson specifically
+        if (ticketing.programming_film?.film?.includes('Piano')) {
+          console.log('PIANO DEBUG - Time conversion:', {
+            original_start_time: ticketing.start_time,
+            calculated_end_time: endTime,
+            runtime: runtime,
+            screening_date: screeningDate,
+            venue_house: venueHouse
+          })
+        }
+
+        // Convert start time to 24-hour format for database consistency
+        const startTime24 = convertTo24Hour(ticketing.start_time)
+
+        const convertedScreening: ProgrammingFilmScreening = {
+          id: `ticketing-${ticketing.id}`,
+          programming_film_id: ticketing.programming_film_id,
+          venue_house_id: venueHouse.id,
+          screening_date: screeningDate,
+          start_time: startTime24,
+          end_time: endTime,
+          buffer_minutes: 15, // Default buffer
+          press_industry: false,
+          programming_film: ticketing.programming_film,
+          venue_house: venueHouse
+        }
+
+        convertedScreenings.push(convertedScreening)
+      }
+
+      return convertedScreenings
+    } catch (error) {
+      console.error('Error loading ticketing screenings:', error)
+      return []
+    }
+  }, [supabase])
+
+  // Helper function to convert date format
+  const convertDateFormat = (dateStr: string): string | null => {
+    try {
+      // Convert "Oct. 16" to "2024-10-16" (assuming current year)
+      const months = {
+        'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+        'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+        'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+      }
+      
+      const match = dateStr.match(/(\w{3})\.?\s*(\d+)/)
+      if (!match) return null
+      
+      const [, monthStr, day] = match
+      const month = months[monthStr as keyof typeof months]
+      if (!month) return null
+      
+      const year = 2024 // Use 2024 for the festival
+      return `${year}-${month}-${day.padStart(2, '0')}`
+    } catch (error) {
+      console.error('Error converting date:', error)
+      return null
+    }
+  }
+
+  // Helper function to calculate end time for ticketing integration
+  const calculateTicketingEndTime = (startTime: string, runtimeMinutes: number): string => {
+    try {
+      // Parse start time (e.g., "6:30 PM")
+      const [time, period] = startTime.split(' ')
+      const [hours, minutes] = time.split(':').map(Number)
+      
+      let hour24 = hours
+      if (period === 'PM' && hours !== 12) hour24 += 12
+      if (period === 'AM' && hours === 12) hour24 = 0
+      
+      // Add runtime
+      const startDate = new Date()
+      startDate.setHours(hour24, minutes, 0, 0)
+      startDate.setMinutes(startDate.getMinutes() + runtimeMinutes)
+      
+      // Format back to 12-hour time
+      const endHour = startDate.getHours()
+      const endMinute = startDate.getMinutes()
+      const endPeriod = endHour >= 12 ? 'PM' : 'AM'
+      const displayHour = endHour > 12 ? endHour - 12 : (endHour === 0 ? 12 : endHour)
+      
+      return `${displayHour}:${endMinute.toString().padStart(2, '0')} ${endPeriod}`
+    } catch (error) {
+      console.error('Error calculating end time:', error)
+      return startTime // Fallback to start time
+    }
+  }
+
+  // Load screenings (both manual and from ticketing grid)
   const loadScreenings = useCallback(async () => {
     try {
+      // Load manual screenings
       const { data, error } = await supabase
-        .from('film_screenings')
+        .from('programming_film_screenings')
         .select(`
           *,
           programming_film:programming_films(*),
-          venue_house:venue_houses(*, venue:venues(*))
+          venue_house:programming_venue_houses(*)
         `)
         .order('screening_date, start_time')
 
       if (error) throw error
-      setScreenings(data || [])
+      
+      // Load and convert ticketing screenings inline to avoid circular dependencies
+      const ticketingScreenings = await loadTicketingScreenings()
+      
+      console.log('DEBUG: Manual screenings:', data?.length || 0)
+      console.log('DEBUG: Ticketing screenings:', ticketingScreenings.length)
+      console.log('DEBUG: Sample ticketing screening:', ticketingScreenings[0])
+      
+      // Combine both types of screenings
+      const allScreenings = [...(data || []), ...ticketingScreenings]
+      setScreenings(allScreenings)
     } catch (error) {
       console.error('Error loading screenings:', error)
     }
@@ -199,7 +375,7 @@ export default function SchedulingPlannerPage() {
   const loadVenueTemplate = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('venue_template')
+        .from('programming_venue_template')
         .select('venue_order, program_colors')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -211,8 +387,6 @@ export default function SchedulingPlannerPage() {
       }
       
       if (data) {
-        console.log('🏠 Loaded venue template data:', data)
-        
         // Handle both old and new data formats
         let venueOrder = []
         if (Array.isArray(data.venue_order)) {
@@ -229,8 +403,6 @@ export default function SchedulingPlannerPage() {
         
         setVenueTemplate(venueOrder || [])
         setProgramColors(data.program_colors || {})
-        console.log('🏠 Set venue template:', venueOrder)
-        console.log('🎨 Set program colors:', data.program_colors)
       }
     } catch (error) {
       console.error('Error loading venue template:', error)
@@ -240,36 +412,51 @@ export default function SchedulingPlannerPage() {
   // Save venue template and program colors
   const saveVenueTemplate = async (template: Array<{venue: string, house: string}>, colors: Record<string, string>) => {
     try {
-      console.log('🏠 Saving venue template:', template)
-      console.log('🎨 Saving program colors:', colors)
-      console.log('🎨 Program colors object keys:', Object.keys(colors))
-      console.log('🎨 Program colors values:', Object.values(colors))
       
       // Delete existing template
-      const deleteResult = await supabase.from('venue_template').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-      console.log('🗑️ Delete result:', deleteResult)
+      await supabase.from('programming_venue_template').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+      
+      // Clear existing venue houses and recreate based on template
+      await supabase.from('programming_venue_houses').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+      
+      // Create venue houses from template
+      const venueHousesToInsert = template.map((templateVenue, index) => ({
+        venue_name: templateVenue.venue,
+        house_name: templateVenue.house,
+        display_order: index + 1,
+        capacity: null
+      }))
+      
+      if (venueHousesToInsert.length > 0) {
+        const { error: venueError } = await supabase
+          .from('programming_venue_houses')
+          .insert(venueHousesToInsert)
+        
+        if (venueError) {
+          console.error('❌ Error creating venue houses:', venueError)
+          throw venueError
+        }
+      }
       
       // Insert new template
-      const insertData = {
-        venue_order: template,
-        program_colors: colors,
-        created_by: user?.id
-      }
-      console.log('📝 Inserting data:', insertData)
-      
-      const { data, error } = await supabase
-        .from('venue_template')
-        .insert(insertData)
-        .select()
+      const { error } = await supabase
+        .from('programming_venue_template')
+        .insert({
+          venue_order: template,
+          program_colors: colors
+        })
 
       if (error) {
         console.error('❌ Insert error:', error)
         throw error
       }
       
-      console.log('✅ Insert successful:', data)
       setVenueTemplate(template)
       setProgramColors(colors)
+      
+      // Reload venue houses to get the new ones with proper IDs
+      await loadVenueHouses()
+      
       console.log('Venue template and program colors saved successfully')
     } catch (error) {
       console.error('Error saving venue template:', error)
@@ -281,7 +468,7 @@ export default function SchedulingPlannerPage() {
   const loadBlackouts = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('venue_blackouts')
+        .from('programming_venue_blackouts')
         .select('*')
 
       if (error) throw error
@@ -307,13 +494,12 @@ export default function SchedulingPlannerPage() {
   const saveBlackout = async (venueHouseId: string, date: string, startTime: string, endTime: string) => {
     try {
       const { error } = await supabase
-        .from('venue_blackouts')
+        .from('programming_venue_blackouts')
         .insert({
           venue_house_id: venueHouseId,
           blackout_date: date,
           start_time: startTime,
-          end_time: endTime,
-          created_by: user?.id
+          end_time: endTime
         })
 
       if (error) throw error
@@ -324,13 +510,72 @@ export default function SchedulingPlannerPage() {
   }
 
   useEffect(() => {
-    loadFilms()
-    loadVenueHouses()
-    loadScreenings()
-    loadFestivalSettings()
-    loadVenueTemplate()
-    loadBlackouts()
-  }, [loadFilms, loadVenueHouses, loadScreenings, loadFestivalSettings, loadVenueTemplate, loadBlackouts])
+    const loadAllData = async () => {
+      // Load basic data first
+      await Promise.all([
+        loadFilms(),
+        loadFestivalSettings(),
+        loadVenueTemplate(),
+        loadBlackouts()
+      ])
+      
+      // Load venue houses first (required for screening integration)
+      await loadVenueHouses()
+      
+      // Then load screenings (which depends on venue houses)
+      await loadScreenings()
+    }
+    
+    loadAllData()
+  }, [])
+
+  // Removed problematic real-time subscription that was causing over-querying
+
+  // Clean up fake venues I accidentally created
+  const cleanupFakeVenues = useCallback(async () => {
+    try {
+      console.log('🧹 Cleaning up fake venues created by integration...')
+      
+      // List of fake venue names I created that need to be removed
+      const fakeVenueNames = [
+        'AMC River East',
+        'Music Box Theatre', 
+        'Gene Siskel Film Center',
+        'Logan Center',
+        'Chicago History Museum',
+        'University of Chicago',
+        'Hyde Park Community Center',
+        'National Museum of Mexican Art'
+      ]
+      
+      for (const fakeName of fakeVenueNames) {
+        const { error } = await supabase
+          .from('programming_venue_houses')
+          .delete()
+          .eq('venue_name', fakeName)
+        
+        if (error) {
+          console.error(`Error deleting fake venue ${fakeName}:`, error)
+        } else {
+          console.log(`✅ Deleted fake venue: ${fakeName}`)
+        }
+      }
+      
+      // Reload venue houses after cleanup
+      await loadVenueHouses()
+      
+    } catch (error) {
+      console.error('Error during fake venue cleanup:', error)
+    }
+  }, [supabase, loadVenueHouses])
+
+  // Run cleanup on component mount (only once)
+  useEffect(() => {
+    const cleanup = async () => {
+      await cleanupFakeVenues()
+    }
+    cleanup()
+  }, []) // Empty dependency array - run only once
 
   // Generate festival dates based on festival start/end dates, fallback to 14 days from selected date
   const festivalDates = useMemo(() => {
@@ -399,17 +644,47 @@ export default function SchedulingPlannerPage() {
 
   // Convert 12-hour AM/PM format to 24-hour format for database storage (with seconds)
   const convertTo24Hour = (time12: string): string => {
-    const [time, ampm] = time12.split(' ')
-    const [hours, minutes] = time.split(':')
-    let hour24 = parseInt(hours, 10)
-    
-    if (ampm === 'AM' && hour24 === 12) {
-      hour24 = 0
-    } else if (ampm === 'PM' && hour24 !== 12) {
-      hour24 += 12
+    try {
+      const trimmed = time12.trim()
+      
+      // Handle various formats: "1:40 PM", "1:40PM", "13:40", etc.
+      let time, ampm
+      if (trimmed.includes(' ')) {
+        [time, ampm] = trimmed.split(' ')
+      } else if (trimmed.toUpperCase().includes('AM') || trimmed.toUpperCase().includes('PM')) {
+        ampm = trimmed.slice(-2).toUpperCase()
+        time = trimmed.slice(0, -2)
+      } else {
+        // Assume 24-hour format if no AM/PM
+        const [hours, minutes] = trimmed.split(':')
+        const hour24 = parseInt(hours, 10)
+        if (hour24 >= 0 && hour24 <= 23) {
+          return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00`
+        }
+        throw new Error('Invalid format')
+      }
+      
+      if (!time || !ampm) throw new Error('Invalid format')
+      
+      const [hours, minutes] = time.split(':')
+      if (!hours || minutes === undefined) throw new Error('Invalid time format')
+      
+      let hour24 = parseInt(hours, 10)
+      if (isNaN(hour24) || hour24 < 1 || hour24 > 12) throw new Error('Invalid hour')
+      
+      const mins = parseInt(minutes || '0', 10)
+      if (isNaN(mins) || mins < 0 || mins > 59) throw new Error('Invalid minutes')
+      
+      if (ampm.toUpperCase() === 'AM' && hour24 === 12) {
+        hour24 = 0
+      } else if (ampm.toUpperCase() === 'PM' && hour24 !== 12) {
+        hour24 += 12
+      }
+      
+      return `${hour24.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`
+    } catch (error) {
+      throw new Error('Please use format like "2:30 PM"')
     }
-    
-    return `${hour24.toString().padStart(2, '0')}:${minutes}:00`
   }
 
   // Convert 24-hour format to 12-hour AM/PM format for display
@@ -426,15 +701,11 @@ export default function SchedulingPlannerPage() {
 
   // Get program color for a film
   const getFilmColor = (film: ProgrammingFilm): string => {
-    console.log('🎨 Getting color for film:', film.film, 'Programs:', film.programs, 'Available colors:', programColors)
-    
     // Use the first program that has a custom color (but not 'none'), otherwise fallback to first program
     if (film.programs && film.programs.length > 0) {
       for (const program of film.programs) {
         const customColor = programColors[program]
-        console.log(`🎨 Checking program "${program}": customColor="${customColor}"`)
         if (customColor && customColor !== 'none') {
-          console.log(`🎨 Using custom color for ${program}: ${customColor}`)
           return customColor
         }
       }
@@ -442,13 +713,11 @@ export default function SchedulingPlannerPage() {
       for (const program of film.programs) {
         const customColor = programColors[program]
         if (customColor === 'none') {
-          console.log(`🎨 Skipping program "${program}" - marked as 'none'`)
           continue // Skip programs explicitly set to 'none'
         }
         
         const defaultColor = PROGRAM_COLORS[program as keyof typeof PROGRAM_COLORS]
         if (defaultColor) {
-          console.log(`🎨 Using default color for ${program}: ${defaultColor}`)
           return defaultColor
         }
       }
@@ -456,13 +725,10 @@ export default function SchedulingPlannerPage() {
     // Check category as fallback
     const categoryColor = programColors[film.category || 'default']
     if (categoryColor && categoryColor !== 'none') {
-      console.log(`🎨 Using category color: ${categoryColor}`)
       return categoryColor
     }
     
-    const fallbackColor = PROGRAM_COLORS[film.category as keyof typeof PROGRAM_COLORS] || '#6B7280'
-    console.log(`🎨 Using fallback color: ${fallbackColor}`)
-    return fallbackColor
+    return PROGRAM_COLORS[film.category as keyof typeof PROGRAM_COLORS] || '#6B7280'
   }
 
   // Calculate end time based on runtime and buffer (returns 24-hour format for database)
@@ -502,25 +768,28 @@ export default function SchedulingPlannerPage() {
         
         // Only check conflicts on the same date
         if (currentScreening.screening_date === nextScreening.screening_date) {
-          const currentEndMinutes = timeStringToMinutes(currentScreening.end_time.substring(0, 5))
+          // Calculate actual film end time (start + runtime) WITHOUT buffer for conflict detection
+          const currentStartMinutes = timeStringToMinutes(currentScreening.start_time.substring(0, 5))
+          const currentFilmEndMinutes = currentStartMinutes + (currentScreening.programming_film.runtime || 60)
           const nextStartMinutes = timeStringToMinutes(nextScreening.start_time.substring(0, 5))
-          const gapMinutes = nextStartMinutes - currentEndMinutes
+          const gapMinutes = nextStartMinutes - currentFilmEndMinutes
           
-          console.log(`🔍 Conflict check: ${currentScreening.programming_film.film} (ends ${currentScreening.end_time}) -> ${nextScreening.programming_film.film} (starts ${nextScreening.start_time})`)
-          console.log(`🔍 Gap calculation: ${nextStartMinutes} - ${currentEndMinutes} = ${gapMinutes} minutes`)
+          const currentFilmEndTime = minutesToTimeString(currentFilmEndMinutes)
+          console.log(`🔍 Conflict check: ${currentScreening.programming_film.film} (film ends ${currentFilmEndTime}, buffer ends ${currentScreening.end_time}) -> ${nextScreening.programming_film.film} (starts ${nextScreening.start_time})`)
+          console.log(`🔍 Gap calculation: ${nextStartMinutes} - ${currentFilmEndMinutes} = ${gapMinutes} minutes`)
           
-          // Only flag gaps less than 30 minutes as conflicts
-          if (gapMinutes >= 0 && gapMinutes < 30) {
-            console.log(`❌ CONFLICT: Gap of ${gapMinutes} minutes is less than 30`)
+          // Flag gaps: 0-20min=danger(red), 21-30min=warning(yellow), 31min+=safe(no indicator)
+          if (gapMinutes >= 0 && gapMinutes < 31) {
+            console.log(`❌ CONFLICT: Gap of ${gapMinutes} minutes - ${gapMinutes <= 20 ? 'DANGER (red)' : 'WARNING (yellow)'}`)
             conflicts.push({
               venue_house_id: venueId,
               gap_minutes: gapMinutes,
-              start_time: currentScreening.end_time.substring(0, 5),
+              start_time: currentFilmEndTime,
               end_time: nextScreening.start_time.substring(0, 5),
-              severity: gapMinutes < 20 ? 'danger' : 'warning'
+              severity: gapMinutes <= 20 ? 'danger' : 'warning'
             })
           } else {
-            console.log(`✅ NO CONFLICT: Gap of ${gapMinutes} minutes is adequate (>=30)`)
+            console.log(`✅ NO CONFLICT: Gap of ${gapMinutes} minutes is safe (31min+)`)
           }
         }
       }
@@ -567,7 +836,7 @@ export default function SchedulingPlannerPage() {
   }
 
   // Handle drag start from scheduled film in calendar
-  const handleScheduledFilmDragStart = (e: React.DragEvent, screening: FilmScreening) => {
+  const handleScheduledFilmDragStart = (e: React.DragEvent, screening: ProgrammingFilmScreening) => {
     console.log('🎬 Dragging scheduled film:', screening.programming_film.film, 'ID:', screening.id)
     setDraggedFilm(screening.programming_film)
     setIsDraggingScheduled(true)
@@ -585,9 +854,11 @@ export default function SchedulingPlannerPage() {
       return
     }
 
-    // Calculate precise time from mouse position
+    // Calculate precise time from mouse position, accounting for drag preview offset
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const time12 = pixelToTime(e.clientX, rect.left, rect.width)
+    // Adjust for the 40px offset we show in the preview so they match
+    const adjustedMouseX = e.clientX - 40
+    const time12 = pixelToTime(adjustedMouseX, rect.left, rect.width)
 
     // Convert display time (12-hour) to database time (24-hour)
     const time24 = convertTo24Hour(time12)
@@ -627,7 +898,7 @@ export default function SchedulingPlannerPage() {
         // Update existing screening
         console.log('📝 Updating screening:', screeningId)
         const { error } = await supabase
-          .from('film_screenings')
+          .from('programming_film_screenings')
           .update({
             venue_house_id: venueHouseId,
             screening_date: date,
@@ -641,7 +912,7 @@ export default function SchedulingPlannerPage() {
       } else {
         // Create new screening
         const { error } = await supabase
-          .from('film_screenings')
+          .from('programming_film_screenings')
           .insert({
             programming_film_id: draggedFilm.id,
             venue_house_id: venueHouseId,
@@ -650,7 +921,6 @@ export default function SchedulingPlannerPage() {
             end_time: endTime24,
             buffer_minutes: 30,
             press_industry: false,
-            created_by: user?.id
           })
 
         if (error) throw error
@@ -658,9 +928,10 @@ export default function SchedulingPlannerPage() {
       
       await loadScreenings()
       setDraggedFilm(null)
+      setDragPreview(null)
     } catch (error) {
       console.error('Error scheduling film:', error)
-      alert('Error scheduling film. Check for conflicts.')
+      alert(`Error scheduling film: ${error.message}`)
     }
   }
 
@@ -681,7 +952,7 @@ export default function SchedulingPlannerPage() {
   const togglePressIndustry = async (screeningId: string, currentStatus: boolean) => {
     try {
       const { error } = await supabase
-        .from('film_screenings')
+        .from('programming_film_screenings')
         .update({ press_industry: !currentStatus })
         .eq('id', screeningId)
 
@@ -693,7 +964,7 @@ export default function SchedulingPlannerPage() {
   }
 
   // Start editing a screening time
-  const startEditingTime = (screening: FilmScreening) => {
+  const startEditingTime = (screening: ProgrammingFilmScreening) => {
     setEditingScreening(screening.id)
     setEditingTime(convertTo12Hour(screening.start_time))
   }
@@ -710,7 +981,7 @@ export default function SchedulingPlannerPage() {
       const endTime24 = calculateEndTime(editingTime, screening.programming_film.runtime || 60)
 
       const { error } = await supabase
-        .from('film_screenings')
+        .from('programming_film_screenings')
         .update({
           start_time: time24,
           end_time: endTime24,
@@ -740,7 +1011,7 @@ export default function SchedulingPlannerPage() {
 
     try {
       const { error } = await supabase
-        .from('film_screenings')
+        .from('programming_film_screenings')
         .delete()
         .eq('id', screeningId)
 
@@ -802,38 +1073,14 @@ export default function SchedulingPlannerPage() {
 
   // Get ordered venues based on template
   const getOrderedVenues = () => {
-    // If template exists and has venues, display those in the specified order
-    if (venueTemplate.length > 0) {
-      console.log('🏠 Using venue template:', venueTemplate)
-      
-      // Create display venues based on template but use real venue IDs for functionality
-      return venueTemplate.map((templateVenue, index) => {
-        // For drag/drop functionality, we need a real venue ID
-        // Use the first available real venue house or create a mapping
-        const fallbackVenue = venueHouses[index % venueHouses.length] || venueHouses[0]
-        
-        return {
-          id: fallbackVenue?.id || `template-${index}`,
-          venue_id: fallbackVenue?.venue_id || `template-venue-${index}`,
-          name: templateVenue.house,
-          venue: {
-            id: fallbackVenue?.venue?.id || `template-venue-${index}`,
-            name: templateVenue.venue
-          }
-        }
-      })
-    }
-    
-    // If no template, use actual venue houses
-    console.log('🏠 No template, using real venues:', venueHouses)
+    // Always use the actual venue houses from the database
+    // They are created based on the template when it's saved
     return venueHouses
   }
 
   // Right-click context menu handlers
   const handleRightClick = (e: React.MouseEvent, venueHouseId: string) => {
     e.preventDefault()
-    // Only show context menu for real venue houses, not template venues
-    if (venueHouseId.startsWith('template-')) return
     
     setContextMenu({
       show: true,
@@ -1140,7 +1387,7 @@ export default function SchedulingPlannerPage() {
                   ⚠️ {conflicts.length} scheduling conflicts detected
                 </span>
                 <span className="ml-4 text-sm text-gray-600">
-                  Red: &lt;20min gap | Yellow: 20-30min gap
+                  Red: 0-20min gap | Yellow: 20-30min gap | 31min+ is safe
                 </span>
               </div>
             </div>
@@ -1182,24 +1429,46 @@ export default function SchedulingPlannerPage() {
                   <div key={house.id} className="flex border-b border-gray-200 h-20 relative">
                     {/* Venue name */}
                     <div className="w-48 p-2 text-sm text-gray-600 border-r bg-gray-50 font-medium sticky left-0 z-10 flex items-center">
-                      {house.venue.name} - {house.name}
+                      {house.venue_name} - {house.house_name}
                     </div>
                     
                     {/* Timeline area */}
                     <div 
                       className="flex-1 relative bg-white hover:bg-gray-50 cursor-crosshair"
                       onDrop={(e) => {
-                        console.log('🎯 Drop event fired!', house.venue.name, house.name)
+                        console.log('🎯 Drop event fired!', house.venue_name, house.house_name)
                         e.preventDefault()
                         e.stopPropagation()
                         handleDrop(e, house.id, selectedDate)
                       }}
                       onDragOver={(e) => {
                         const dropEffect = draggedFilm ? (isDraggingScheduled ? 'move' : 'copy') : 'none'
-                        console.log('🎯 Drag over venue:', house.venue.name, 'draggedFilm:', draggedFilm?.film, 'isDraggingScheduled:', isDraggingScheduled, 'dropEffect:', dropEffect)
                         e.preventDefault()
                         e.stopPropagation()
                         e.dataTransfer.dropEffect = dropEffect
+                        
+                        // Show drag preview
+                        if (draggedFilm) {
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                          const adjustedMouseX = e.clientX - 40
+                          const time12 = pixelToTime(adjustedMouseX, rect.left, rect.width)
+                          setDragPreview({
+                            show: true,
+                            x: e.clientX - rect.left,
+                            y: e.clientY - rect.top,
+                            venueId: house.id,
+                            time: time12
+                          })
+                        }
+                      }}
+                      onDragLeave={(e) => {
+                        // Only hide preview if we're leaving the timeline area completely
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                        const x = e.clientX
+                        const y = e.clientY
+                        if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+                          setDragPreview(null)
+                        }
                       }}
                       onContextMenu={(e) => handleRightClick(e, house.id)}
                     >
@@ -1401,6 +1670,27 @@ export default function SchedulingPlannerPage() {
                             </div>
                           )
                         })}
+
+                      {/* Drag Preview */}
+                      {dragPreview?.show && dragPreview.venueId === house.id && draggedFilm && (
+                        <div
+                          className="absolute top-2 rounded p-2 text-xs z-40 pointer-events-none opacity-75 border-2 border-dashed border-blue-500"
+                          style={{
+                            left: `${dragPreview.x - 40}px`, // Offset to position at left edge of box, not mouse cursor
+                            width: `${Math.max(getRuntimeWidth(draggedFilm.runtime || 60), 120)}px`,
+                            height: '60px',
+                            backgroundColor: getFilmColor(draggedFilm),
+                            color: 'white'
+                          }}
+                        >
+                          <div className="font-medium truncate text-xs">
+                            {draggedFilm.film}
+                          </div>
+                          <div className="text-xs opacity-75">
+                            {dragPreview.time} • {draggedFilm.runtime}m
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1434,7 +1724,7 @@ export default function SchedulingPlannerPage() {
                               {screening.programming_film.film}
                             </div>
                             <div className="opacity-75">
-                              {convertTo12Hour(screening.start_time)} • {screening.venue_house.venue.name}
+                              {convertTo12Hour(screening.start_time)} • {screening.venue_house.venue_name}
                             </div>
                           </div>
                         ))}

@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { FilmContact } from '@/types'
+import { FilmContact, InterviewCard } from '@/types'
 import { GuestCardPopup } from './guest-card-popup'
+import { getInterviewsForFilmCard } from '@/lib/interviews-client'
 
 interface FilmCardProps {
   film: {
@@ -72,8 +73,34 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
   const [filmDetails, setFilmDetails] = useState<any>(null)
   const [showGuestCard, setShowGuestCard] = useState<any>(null)
   const [filmGuests, setFilmGuests] = useState<any[]>([])
+  const [screenerData, setScreenerData] = useState<any>(null)
+  const [filmInterviews, setFilmInterviews] = useState<InterviewCard[]>([])
 
   const supabase = createClient()
+
+  const renderScreenerBadge = () => {
+    if (!screenerData || screenerData.access_type === 'tbd') {
+      return null
+    }
+
+    const badgeConfig = {
+      cinesend: { text: 'Cinesend', className: 'bg-blue-100 text-blue-800' },
+      link_available: { text: 'Link Available', className: 'bg-green-100 text-green-800' },
+      request_link: { text: 'Request Link', className: 'bg-yellow-100 text-yellow-800' },
+      no_links: { text: 'No Links', className: 'bg-red-100 text-red-800' }
+    }
+
+    const config = badgeConfig[screenerData.access_type as keyof typeof badgeConfig]
+    if (!config) return null
+
+    return (
+      <div className="mb-4">
+        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${config.className}`}>
+          {config.text}
+        </span>
+      </div>
+    )
+  }
 
   const openGuestCard = async (guestName: string) => {
     try {
@@ -357,13 +384,33 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
         }
 
         await loadGuests()
+
+        // Load screener access data
+        const { data: screenerAccessData, error: screenerError } = await supabase
+          .from('screener_access')
+          .select('*')
+          .eq('film_id', film.id)
+          .single()
+
+        if (!screenerError && screenerAccessData) {
+          setScreenerData(screenerAccessData)
+        }
+
+        // Load interviews for this film
+        try {
+          const interviews = await getInterviewsForFilmCard(film.id)
+          setFilmInterviews(interviews)
+        } catch (error) {
+          console.error('Error loading film interviews:', error)
+          setFilmInterviews([])
+        }
       } catch (error) {
         console.error('Error loading events:', error)
       }
     }
 
     loadEvents()
-  }, [film.title, supabase])
+  }, [film.title, film.id, supabase])
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
@@ -446,6 +493,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
           {/* Collapsible sections */}
           <div className="divide-y divide-gray-200">
             <CollapsibleSection title="Press Screenings & Links" isEmpty={filmPressScreenings.length === 0}>
+              {renderScreenerBadge()}
               {filmPressScreenings.length > 0 ? (
                 <div className="space-y-2">
                   {filmPressScreenings.map((screening) => {
@@ -567,11 +615,43 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               )}
             </CollapsibleSection>
 
-            <CollapsibleSection title="Interviews" isEmpty={true}>
-              {/* Will be populated from Interview Management Module */}
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">Interview schedules and media appointments will appear here.</p>
-              </div>
+            <CollapsibleSection title="Interviews" isEmpty={filmInterviews.length === 0}>
+              {filmInterviews.length > 0 ? (
+                <div className="space-y-3">
+                  {filmInterviews.map((interview) => (
+                    <div key={interview.id} className="bg-gray-50 rounded-lg p-3">
+                      {/* Line 1: Status Badge */}
+                      <div className="mb-2">
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                          interview.status === 'Complete' ? 'bg-green-100 text-green-800' :
+                          interview.status === 'Scheduled' ? 'bg-blue-100 text-blue-800' :
+                          interview.status === 'Declined' ? 'bg-red-100 text-red-800' :
+                          interview.status === 'Pitching' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {interview.status}
+                        </span>
+                      </div>
+                      
+                      {/* Line 2: Main Info */}
+                      <div className="text-sm text-gray-900 mb-1">
+                        <span className="font-medium">{interview.journalist_name || 'Journalist TBD'}</span>
+                        {interview.outlet && <span> | Outlet: {interview.outlet}</span>}
+                        {interview.subject_names && <span> | Subject(s): {interview.subject_names}</span>}
+                      </div>
+                      
+                      {/* Line 3: Scheduling Info (only when scheduled) */}
+                      {interview.status === 'Scheduled' && (
+                        <div className="text-sm text-gray-600">
+                          {interview.interview_date && <span>Date: {formatDateForDisplay(interview.interview_date)}</span>}
+                          {interview.interview_time && <span> | Time: {formatTimeForDisplay(interview.interview_time)}</span>}
+                          {interview.location && <span> | Location: {interview.location}</span>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </CollapsibleSection>
 
             <CollapsibleSection title="In Attendance" isEmpty={filmGuests.length === 0}>

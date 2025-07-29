@@ -6,6 +6,10 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { ColorPalette } from '@/components/ColorPalette'
 import { ProgrammingFilmFormModal } from '@/components/forms/programming-film-form-modal'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import { StickyNote } from '@/components/StickyNote'
+import { getStickyNotesForModule, createStickyNote, updateStickyNote, deleteStickyNote } from '@/lib/sticky-notes-client'
+import { StickyNote as StickyNoteType } from '@/types'
+import * as XLSX from 'xlsx'
 
 interface Contact {
   id: string
@@ -16,6 +20,7 @@ interface Contact {
   notes: string | null
   contact_type: string | null
 }
+
 
 interface ProgrammingFilm {
   id: string
@@ -81,6 +86,38 @@ export default function ProgrammingPipelinePage() {
   const [noteModalPosition, setNoteModalPosition] = useState({ x: 100, y: 100 })
   const [isNoteDragging, setIsNoteDragging] = useState(false)
   const [noteDragStart, setNoteDragStart] = useState({ x: 0, y: 0 })
+  
+  // Sticky notes state
+  const [stickyNotes, setStickyNotes] = useState<StickyNoteType[]>([])
+  const [draggingStickyNote, setDraggingStickyNote] = useState<string | null>(null)
+  const [showStickyNoteCreator, setShowStickyNoteCreator] = useState(false)
+  const [stickyNoteCreatorPosition, setStickyNoteCreatorPosition] = useState({ x: 0, y: 0 })
+  
+  // Cell navigation state
+  const [selectedCell, setSelectedCell] = useState<{filmId: string, field: string} | null>(null)
+  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
+  const [isSelecting, setIsSelecting] = useState(false)
+  const [selectionStart, setSelectionStart] = useState<{filmId: string, field: string} | null>(null)
+  const [clipboard, setClipboard] = useState<{value: any, type: string} | null>(null)
+  
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{x: number, y: number, filmId: string, field: string} | null>(null)
+  
+  // Column resizing state
+  const [isResizing, setIsResizing] = useState(false)
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null)
+  const [resizeStartX, setResizeStartX] = useState(0)
+  const [resizeStartWidth, setResizeStartWidth] = useState(0)
+  
+  // CSV upload state
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploadStep, setUploadStep] = useState<'films' | 'schedule'>('films')
+  const [uploading, setUploading] = useState(false)
+  
+  // Download dropdown state
+  const [showDownloadDropdown, setShowDownloadDropdown] = useState(false)
+  
+  
 
   const supabase = createClient()
 
@@ -116,7 +153,229 @@ export default function ProgrammingPipelinePage() {
 
   useEffect(() => {
     loadProgrammingFilms()
+    loadStickyNotes()
   }, [loadProgrammingFilms])
+  
+  // Load sticky notes for this module
+  // CSV Upload Functions
+  const normalizeTitle = (title: string): string => {
+    // Remove anything in parentheses and trim
+    return title.replace(/\([^)]*\)/g, '').trim()
+  }
+
+  const parseCSV = (csvText: string): Record<string, string>[] => {
+    const lines = csvText.split('\n').filter(line => line.trim())
+    if (lines.length < 2) return []
+    
+    // Parse headers - handle quoted headers properly
+    const headerLine = lines[0]
+    const headers = []
+    let current = ''
+    let inQuotes = false
+    
+    for (let i = 0; i < headerLine.length; i++) {
+      const char = headerLine[i]
+      if (char === '"' && (i === 0 || headerLine[i-1] === ',')) {
+        inQuotes = true
+      } else if (char === '"' && inQuotes && (i === headerLine.length - 1 || headerLine[i+1] === ',')) {
+        inQuotes = false
+      } else if (char === ',' && !inQuotes) {
+        headers.push(current.trim().replace(/^"|"$/g, ''))
+        current = ''
+      } else if (char !== '"' || inQuotes) {
+        current += char
+      }
+    }
+    headers.push(current.trim().replace(/^"|"$/g, ''))
+    
+    console.log('CSV Headers found:', headers)
+    
+    // Parse rows with proper quote handling
+    const rows = lines.slice(1).map((line, lineIndex) => {
+      const values = []
+      let current = ''
+      let inQuotes = false
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i]
+        if (char === '"' && (i === 0 || line[i-1] === ',')) {
+          inQuotes = true
+        } else if (char === '"' && inQuotes && (i === line.length - 1 || line[i+1] === ',')) {
+          inQuotes = false
+        } else if (char === ',' && !inQuotes) {
+          values.push(current.trim().replace(/^"|"$/g, ''))
+          current = ''
+        } else {
+          current += char
+        }
+      }
+      values.push(current.trim().replace(/^"|"$/g, ''))
+      
+      // Map values to headers by name, not position
+      const row: Record<string, string> = {}
+      headers.forEach((header, index) => {
+        row[header] = values[index] || ''
+      })
+      
+      return row
+    }).filter(row => Object.values(row).some(value => value.trim())) // Remove empty rows
+    
+    console.log('Parsed', rows.length, 'data rows')
+    return rows
+  }
+
+  const handleFilmsCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    
+    setUploading(true)
+    try {
+      const csvText = await file.text()
+      const rows = parseCSV(csvText)
+      
+      console.log('Processing Films CSV:', rows.length, 'rows')
+      
+      for (const row of rows) {
+        if (!row.Film) continue
+        
+        const filmData = {
+          film: row.Film,
+          original_title: row['Original Title'] || null,
+          director: row.Director || null,
+          country: row.Country || null,
+          category: row.Category || null,
+          travel: row.Travel || null,
+          synopsis: row.Synopsis || null,
+          written: row.Written === 'X',
+          approved: row.Approved || null,
+          content_consideration: row['Content Consideration'] || null,
+          programs: [row.Program, row['Program 2'], row['Program 3']].filter(Boolean),
+          contacted_for_materials: row['Contacted for materials'] === 'Yes',
+          form_submitted: row['Form Submitted'] === 'Yes',
+          uploaded_materials: row['Uploaded Materials'] === 'Yes',
+          materials_received: row['Materials Received'] === 'Yes',
+          accessibility_screening: row['Accessibility Screening?'] === 'Yes',
+          premiere_status: row['Premiere Status'] || null,
+          cards_made: row['Cards made'] === 'x' || row['Cards made'] === 'X',
+          status: 'draft'
+        }
+        
+        // Check if film already exists
+        const { data: existingFilm } = await supabase
+          .from('programming_films')
+          .select('id')
+          .eq('film', row.Film)
+          .single()
+        
+        let error
+        if (existingFilm) {
+          // Update existing film
+          const { error: updateError } = await supabase
+            .from('programming_films')
+            .update(filmData)
+            .eq('id', existingFilm.id)
+          error = updateError
+        } else {
+          // Insert new film
+          const { error: insertError } = await supabase
+            .from('programming_films')
+            .insert(filmData)
+          error = insertError
+        }
+        
+        if (error) {
+          console.error('Error upserting film:', row.Film, error)
+        }
+      }
+      
+      await loadProgrammingFilms()
+      setUploadStep('schedule')
+      alert(`Successfully imported ${rows.length} films! Now upload the Schedule CSV.`)
+      
+    } catch (error) {
+      console.error('Error processing Films CSV:', error)
+      alert('Error processing Films CSV. Please check the format.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleScheduleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    
+    setUploading(true)
+    try {
+      const csvText = await file.text()
+      const rows = parseCSV(csvText)
+      
+      console.log('Processing Schedule CSV:', rows.length, 'rows')
+      
+      for (const row of rows) {
+        if (!row.Title) continue
+        
+        const normalizedTitle = normalizeTitle(row.Title)
+        
+        // Find matching film by normalized title
+        const matchingFilm = programmingFilms.find(film => 
+          normalizeTitle(film.film) === normalizedTitle
+        )
+        
+        if (!matchingFilm) {
+          console.warn('No matching film found for:', row.Title)
+          continue
+        }
+        
+        // Update film's runtime if available
+        if (row['Running Time']) {
+          await supabase
+            .from('programming_films')
+            .update({ runtime: parseInt(row['Running Time']) })
+            .eq('id', matchingFilm.id)
+        }
+        
+        // Insert screening
+        const screeningData = {
+          programming_film_id: matchingFilm.id,
+          day: row.Day,
+          date: row.Date,
+          location: row.Location,
+          start_time: row['Start Time'],
+          running_time: parseInt(row['Running Time']) || null,
+          capacity: parseInt(row.Capacity) || null,
+          notes: row.Notes || null
+        }
+        
+        const { error } = await supabase
+          .from('programming_film_public_screenings')
+          .insert(screeningData)
+        
+        if (error) {
+          console.error('Error inserting screening:', row.Title, error)
+        }
+      }
+      
+      await loadProgrammingFilms()
+      setShowUploadModal(false)
+      setUploadStep('films')
+      alert(`Successfully imported ${rows.length} screenings!`)
+      
+    } catch (error) {
+      console.error('Error processing Schedule CSV:', error)
+      alert('Error processing Schedule CSV. Please check the format.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const loadStickyNotes = useCallback(async () => {
+    try {
+      const notes = await getStickyNotesForModule('programming-pipeline')
+      setStickyNotes(notes)
+    } catch (error) {
+      console.error('Error loading sticky notes:', error)
+    }
+  }, [])
 
   // Simplified cell highlighting
   const [isDragging, setIsDragging] = useState(false)
@@ -160,6 +419,518 @@ export default function ProgrammingPipelinePage() {
     setCurrentNote({filmId, field: fieldName, note: existingNote})
     setShowNoteModal(true)
   }
+  
+  // Sticky notes handlers
+  const handleCreateStickyNote = async (x: number, y: number) => {
+    if (!user) return
+    
+    try {
+      const newNote = await createStickyNote({
+        x_position: x,
+        y_position: y,
+        width: 200,
+        height: 150,
+        color: 'yellow',
+        content: '',
+        module_id: 'programming-pipeline',
+        created_by: user.id
+      })
+      setStickyNotes(prev => [...prev, newNote])
+    } catch (error) {
+      console.error('Error creating sticky note:', error)
+    }
+  }
+  
+  const handleUpdateStickyNote = async (note: StickyNoteType) => {
+    try {
+      const updatedNote = await updateStickyNote(note.id, {
+        x_position: note.x_position,
+        y_position: note.y_position,
+        width: note.width,
+        height: note.height,
+        content: note.content,
+        color: note.color
+      })
+      setStickyNotes(prev => prev.map(n => n.id === note.id ? updatedNote : n))
+    } catch (error) {
+      console.error('Error updating sticky note:', error)
+    }
+  }
+  
+  const handleDeleteStickyNote = async (noteId: string) => {
+    try {
+      await deleteStickyNote(noteId)
+      setStickyNotes(prev => prev.filter(n => n.id !== noteId))
+    } catch (error) {
+      console.error('Error deleting sticky note:', error)
+    }
+  }
+  
+  const handleStickyNoteDragStart = (noteId: string) => {
+    setDraggingStickyNote(noteId)
+  }
+  
+  const handleStickyNoteDragEnd = () => {
+    setDraggingStickyNote(null)
+  }
+  
+  // Handle sticky note creation tool
+  const handleGridDoubleClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      const rect = e.currentTarget.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      handleCreateStickyNote(x, y)
+    }
+  }
+  
+  // Excel-like navigation
+  const editableFields = ['travel', 'synopsis', 'content_consideration', 'premiere_status']
+  const allFields = ['film', 'original_title', 'director', 'country', 'category', 'runtime', 'travel', 'synopsis', 'written', 'approved', 'content_consideration', 'programs', 'contacted_for_materials', 'form_submitted', 'uploaded_materials', 'materials_received', 'accessibility_screening', 'premiere_status', 'cards_made', 'contacts']
+  
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!selectedCell || editingCell) return
+    
+    // Use filteredFilms instead of sortedFilms to avoid initialization order issues
+    const films = programmingFilms.filter(film => {
+      // Search filter with accent-insensitive search
+      if (searchTerm) {
+        const searchFilter = createAccentInsensitiveFilter<ProgrammingFilm>(
+          searchTerm,
+          (film) => [
+            film.film,
+            film.original_title,
+            film.director,
+            film.country,
+            film.synopsis,
+            ...film.contacts.map(c => c.contact.contact_company),
+            ...film.contacts.map(c => c.contact.contact_name)
+          ]
+        )
+        if (!searchFilter(film)) return false
+      }
+
+      // Category filter  
+      if (categoryFilter !== 'all' && film.category !== categoryFilter) return false
+
+      return true
+    })
+    
+    const currentFilmIndex = films.findIndex(f => f.id === selectedCell.filmId)
+    const currentFieldIndex = allFields.findIndex(f => f === selectedCell.field)
+    
+    switch (e.key) {
+      case 'ArrowUp':
+        e.preventDefault()
+        if (currentFilmIndex > 0) {
+          setSelectedCell({
+            filmId: films[currentFilmIndex - 1].id,
+            field: selectedCell.field
+          })
+        }
+        break
+      case 'ArrowDown':
+        e.preventDefault()
+        if (currentFilmIndex < films.length - 1) {
+          setSelectedCell({
+            filmId: films[currentFilmIndex + 1].id,
+            field: selectedCell.field
+          })
+        }
+        break
+      case 'ArrowLeft':
+        e.preventDefault()
+        if (currentFieldIndex > 0) {
+          setSelectedCell({
+            filmId: selectedCell.filmId,
+            field: allFields[currentFieldIndex - 1]
+          })
+        }
+        break
+      case 'ArrowRight':
+      case 'Tab':
+        e.preventDefault()
+        if (currentFieldIndex < allFields.length - 1) {
+          setSelectedCell({
+            filmId: selectedCell.filmId,
+            field: allFields[currentFieldIndex + 1]
+          })
+        } else if (currentFilmIndex < films.length - 1) {
+          // Move to first field of next row
+          setSelectedCell({
+            filmId: films[currentFilmIndex + 1].id,
+            field: allFields[0]
+          })
+        }
+        break
+      case 'F2':
+        e.preventDefault()
+        if (editableFields.includes(selectedCell.field)) {
+          const film = films.find(f => f.id === selectedCell.filmId)
+          if (film) {
+            handleCellEdit(selectedCell.filmId, selectedCell.field, film[selectedCell.field as keyof ProgrammingFilm])
+          }
+        }
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (editableFields.includes(selectedCell.field)) {
+          const film = films.find(f => f.id === selectedCell.filmId)
+          if (film) {
+            handleCellEdit(selectedCell.filmId, selectedCell.field, film[selectedCell.field as keyof ProgrammingFilm])
+          }
+        }
+        break
+      case 'Escape':
+        e.preventDefault()
+        setSelectedCell(null)
+        break
+      case 'c':
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault()
+          handleCopy()
+        }
+        break
+      case 'v':
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault()
+          handlePaste()
+        }
+        break
+      case 'Delete':
+      case 'Backspace':
+        e.preventDefault()
+        handleDelete()
+        break
+    }
+  }, [selectedCell, editingCell, programmingFilms, searchTerm, categoryFilter, editableFields, allFields])
+  
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
+  
+  const handleCellClick = (filmId: string, field: string, e?: React.MouseEvent) => {
+    if (e?.ctrlKey || e?.metaKey) {
+      // Ctrl+Click for multi-select
+      const cellKey = `${filmId}-${field}`
+      setSelectedCells(prev => {
+        const newSet = new Set(prev)
+        if (newSet.has(cellKey)) {
+          newSet.delete(cellKey)
+        } else {
+          newSet.add(cellKey)
+        }
+        return newSet
+      })
+    } else if (e?.shiftKey && selectedCell) {
+      // Shift+Click for range selection
+      const startFilmIndex = programmingFilms.findIndex(f => f.id === selectedCell.filmId)
+      const endFilmIndex = programmingFilms.findIndex(f => f.id === filmId)
+      const startFieldIndex = allFields.findIndex(f => f === selectedCell.field)
+      const endFieldIndex = allFields.findIndex(f => f === field)
+      
+      const minFilmIndex = Math.min(startFilmIndex, endFilmIndex)
+      const maxFilmIndex = Math.max(startFilmIndex, endFilmIndex)
+      const minFieldIndex = Math.min(startFieldIndex, endFieldIndex)
+      const maxFieldIndex = Math.max(startFieldIndex, endFieldIndex)
+      
+      const newSelection = new Set<string>()
+      for (let filmIdx = minFilmIndex; filmIdx <= maxFilmIndex; filmIdx++) {
+        for (let fieldIdx = minFieldIndex; fieldIdx <= maxFieldIndex; fieldIdx++) {
+          newSelection.add(`${programmingFilms[filmIdx].id}-${allFields[fieldIdx]}`)
+        }
+      }
+      setSelectedCells(newSelection)
+    } else {
+      // Regular click - clear multi-selection and set single selection
+      setSelectedCells(new Set())
+      setSelectedCell({ filmId, field })
+    }
+  }
+  
+  const handleCellMouseDown = (filmId: string, field: string, e: React.MouseEvent) => {
+    if (e.button !== 0) return // Only left mouse button
+    if (selectedColor) return // Don't interfere with color highlighting
+    
+    setIsSelecting(true)
+    setSelectionStart({ filmId, field })
+    setSelectedCells(new Set([`${filmId}-${field}`]))
+    setSelectedCell({ filmId, field })
+  }
+  
+  const handleCellMouseEnter = (filmId: string, field: string) => {
+    if (!isSelecting || !selectionStart) return
+    
+    // Calculate selection rectangle
+    const startFilmIndex = programmingFilms.findIndex(f => f.id === selectionStart.filmId)
+    const endFilmIndex = programmingFilms.findIndex(f => f.id === filmId)
+    const startFieldIndex = allFields.findIndex(f => f === selectionStart.field)
+    const endFieldIndex = allFields.findIndex(f => f === field)
+    
+    const minFilmIndex = Math.min(startFilmIndex, endFilmIndex)
+    const maxFilmIndex = Math.max(startFilmIndex, endFilmIndex)
+    const minFieldIndex = Math.min(startFieldIndex, endFieldIndex)
+    const maxFieldIndex = Math.max(startFieldIndex, endFieldIndex)
+    
+    const newSelection = new Set<string>()
+    for (let filmIdx = minFilmIndex; filmIdx <= maxFilmIndex; filmIdx++) {
+      for (let fieldIdx = minFieldIndex; fieldIdx <= maxFieldIndex; fieldIdx++) {
+        newSelection.add(`${programmingFilms[filmIdx].id}-${allFields[fieldIdx]}`)
+      }
+    }
+    setSelectedCells(newSelection)
+  }
+  
+  const handleMouseUpGlobal = useCallback(() => {
+    if (isSelecting) {
+      setIsSelecting(false)
+      setSelectionStart(null)
+    }
+  }, [isSelecting])
+  
+  useEffect(() => {
+    if (isSelecting) {
+      document.addEventListener('mouseup', handleMouseUpGlobal)
+      return () => document.removeEventListener('mouseup', handleMouseUpGlobal)
+    }
+  }, [isSelecting, handleMouseUpGlobal])
+  
+  // Copy/Paste functionality
+  const handleCopy = () => {
+    if (selectedCell) {
+      const film = programmingFilms.find(f => f.id === selectedCell.filmId)
+      if (film) {
+        const value = film[selectedCell.field as keyof ProgrammingFilm]
+        setClipboard({ value, type: selectedCell.field })
+        
+        // Also copy to system clipboard if it's a string
+        if (typeof value === 'string') {
+          navigator.clipboard?.writeText(value).catch(() => {
+            // Fallback for browsers without clipboard API
+            console.log('Copied to internal clipboard:', value)
+          })
+        }
+      }
+    } else if (selectedCells.size > 0) {
+      // Multi-cell copy - copy as tab-separated values
+      const values: string[] = []
+      selectedCells.forEach(cellKey => {
+        const [filmId, field] = cellKey.split('-')
+        const film = programmingFilms.find(f => f.id === filmId)
+        if (film) {
+          const value = film[field as keyof ProgrammingFilm]
+          values.push(String(value || ''))
+        }
+      })
+      const copyText = values.join('\t')
+      setClipboard({ value: copyText, type: 'multi' })
+      navigator.clipboard?.writeText(copyText).catch(() => {
+        console.log('Copied multiple cells to internal clipboard')
+      })
+    }
+  }
+  
+  const handlePaste = async () => {
+    if (!selectedCell || !editableFields.includes(selectedCell.field)) return
+    
+    let valueToApply: string = ''
+    
+    // Try to get from system clipboard first
+    try {
+      const clipboardText = await navigator.clipboard.readText()
+      valueToApply = clipboardText
+    } catch {
+      // Fall back to internal clipboard
+      if (clipboard && typeof clipboard.value === 'string') {
+        valueToApply = clipboard.value
+      } else {
+        return
+      }
+    }
+    
+    // Apply the value
+    try {
+      const { error } = await supabase
+        .from('programming_films')
+        .update({ [selectedCell.field]: valueToApply })
+        .eq('id', selectedCell.filmId)
+
+      if (error) throw error
+
+      // Update local state
+      setProgrammingFilms(prev => prev.map(film => 
+        film.id === selectedCell.filmId 
+          ? { ...film, [selectedCell.field]: valueToApply } 
+          : film
+      ))
+      
+    } catch (error) {
+      console.error('Error pasting value:', error)
+    }
+  }
+  
+  const handleDelete = async () => {
+    const cellsToDelete: Array<{filmId: string, field: string}> = []
+    
+    if (selectedCell && editableFields.includes(selectedCell.field)) {
+      cellsToDelete.push(selectedCell)
+    }
+    
+    selectedCells.forEach(cellKey => {
+      const [filmId, field] = cellKey.split('-')
+      if (editableFields.includes(field)) {
+        cellsToDelete.push({ filmId, field })
+      }
+    })
+    
+    // Group by film ID to minimize database calls
+    const updatesByFilm: Record<string, Record<string, any>> = {}
+    
+    cellsToDelete.forEach(({ filmId, field }) => {
+      if (!updatesByFilm[filmId]) {
+        updatesByFilm[filmId] = {}
+      }
+      updatesByFilm[filmId][field] = null
+    })
+    
+    // Apply updates
+    try {
+      const updatePromises = Object.entries(updatesByFilm).map(([filmId, updates]) => 
+        supabase
+          .from('programming_films')
+          .update(updates)
+          .eq('id', filmId)
+      )
+      
+      await Promise.all(updatePromises)
+      
+      // Update local state
+      setProgrammingFilms(prev => prev.map(film => {
+        const updates = updatesByFilm[film.id]
+        if (updates) {
+          return { ...film, ...updates }
+        }
+        return film
+      }))
+      
+    } catch (error) {
+      console.error('Error deleting cell values:', error)
+    }
+  }
+  
+  // Context menu handlers
+  const handleRightClick = (e: React.MouseEvent, filmId: string, field: string) => {
+    e.preventDefault()
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      filmId,
+      field
+    })
+    // Also select the cell
+    setSelectedCell({ filmId, field })
+  }
+  
+  const closeContextMenu = () => {
+    setContextMenu(null)
+  }
+  
+  const handleContextMenuAction = (action: string) => {
+    if (!contextMenu) return
+    
+    switch (action) {
+      case 'copy':
+        handleCopy()
+        break
+      case 'paste':
+        handlePaste()
+        break
+      case 'delete':
+        handleDelete()
+        break
+      case 'edit':
+        if (editableFields.includes(contextMenu.field)) {
+          const film = programmingFilms.find(f => f.id === contextMenu.filmId)
+          if (film) {
+            handleCellEdit(contextMenu.filmId, contextMenu.field, film[contextMenu.field as keyof ProgrammingFilm])
+          }
+        }
+        break
+    }
+    closeContextMenu()
+  }
+  
+  // Close context menu on outside click
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenu) {
+        closeContextMenu()
+      }
+    }
+    
+    if (contextMenu) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [contextMenu])
+  
+  // Close download dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showDownloadDropdown) {
+        const target = event.target as Element
+        if (!target.closest('.relative')) {
+          setShowDownloadDropdown(false)
+        }
+      }
+    }
+    
+    if (showDownloadDropdown) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [showDownloadDropdown])
+  
+  // Column resizing handlers
+  const handleResizeStart = (e: React.MouseEvent, columnKey: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsResizing(true)
+    setResizingColumn(columnKey)
+    setResizeStartX(e.clientX)
+    setResizeStartWidth(columnWidths[columnKey] || 0)
+  }
+  
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (!isResizing || !resizingColumn) return
+    
+    const deltaX = e.clientX - resizeStartX
+    const newWidth = Math.max(100, resizeStartWidth + deltaX) // Minimum 100px width
+    
+    setColumnWidths(prev => ({
+      ...prev,
+      [resizingColumn]: newWidth
+    }))
+  }, [isResizing, resizingColumn, resizeStartX, resizeStartWidth])
+  
+  const handleResizeEnd = useCallback(() => {
+    setIsResizing(false)
+    setResizingColumn(null)
+    setResizeStartX(0)
+    setResizeStartWidth(0)
+  }, [])
+  
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleResizeMove)
+      document.addEventListener('mouseup', handleResizeEnd)
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove)
+        document.removeEventListener('mouseup', handleResizeEnd)
+      }
+    }
+  }, [isResizing, handleResizeMove, handleResizeEnd])
 
   const saveNote = async () => {
     try {
@@ -388,9 +1159,9 @@ export default function ProgrammingPipelinePage() {
         contactNames,
         contactEmails,
         film.category || '',
-        film.program || '',
-        film.program_2 || '',
-        film.program_3 || '',
+        film.programs && film.programs[0] || '',
+        film.programs && film.programs[1] || '',
+        film.programs && film.programs[2] || '',
         film.contacted_for_materials ? 'Yes' : 'No',
         film.form_submitted ? 'Yes' : 'No', 
         film.uploaded_materials ? 'Yes' : 'No',
@@ -426,6 +1197,56 @@ export default function ProgrammingPipelinePage() {
     document.body.removeChild(link)
   }
 
+  const exportToExcel = () => {
+    // Prepare data for Excel export
+    const headers = [
+      'Travel', 'Synopsis', 'Written', 'Approved', 'Content Consideration', 'Film',
+      'Original Title', 'Director', 'Country', 'Contact Company', 'Contact Name', 
+      'Contact email', 'Category', 'Program', 'Program 2', 'Program 3',
+      'Contacted for materials', 'Form Submitted', 'Uploaded Materials',
+      'Accessibility Screening?', 'Premiere Status', 'Cards made'
+    ]
+
+    const excelData = sortedFilms.map(film => {
+      const contactCompanies = film.contacts.map(c => c.contact.contact_company || '').join('; ')
+      const contactNames = film.contacts.map(c => c.contact.contact_name).join('; ')
+      const contactEmails = film.contacts.map(c => c.contact.contact_email || '').join('; ')
+      
+      return {
+        'Travel': film.travel || '',
+        'Synopsis': film.synopsis || '',
+        'Written': film.written ? 'X' : '',
+        'Approved': film.approved || '',
+        'Content Consideration': film.content_consideration || '',
+        'Film': film.film,
+        'Original Title': film.original_title || '',
+        'Director': film.director || '',
+        'Country': film.country || '',
+        'Contact Company': contactCompanies,
+        'Contact Name': contactNames,
+        'Contact email': contactEmails,
+        'Category': film.category || '',
+        'Program': film.programs && film.programs[0] || '',
+        'Program 2': film.programs && film.programs[1] || '',
+        'Program 3': film.programs && film.programs[2] || '',
+        'Contacted for materials': film.contacted_for_materials ? 'Yes' : 'No',
+        'Form Submitted': film.form_submitted ? 'Yes' : 'No',
+        'Uploaded Materials': film.uploaded_materials ? 'Yes' : 'No',
+        'Accessibility Screening?': film.accessibility_screening ? 'Yes' : 'No',
+        'Premiere Status': film.premiere_status || '',
+        'Cards made': film.cards_made ? 'Yes' : 'No'
+      }
+    })
+
+    // Create workbook and worksheet
+    const ws = XLSX.utils.json_to_sheet(excelData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Films Grid')
+
+    // Generate Excel file and trigger download
+    XLSX.writeFile(wb, `programming-pipeline-${new Date().toISOString().split('T')[0]}.xlsx`)
+  }
+
   // Render cell with highlighting and notes support
   const renderCell = (film: ProgrammingFilm, field: string, value: any, isEditable: boolean = false) => {
     const cellHighlight = film.cell_highlights?.[field]
@@ -458,30 +1279,45 @@ export default function ProgrammingPipelinePage() {
       <div
         className={`relative px-1 py-1 rounded ${
           isEditable ? 'cursor-text hover:bg-blue-50' : 'cursor-default'
-        } ${selectedColor ? 'cursor-crosshair' : ''}`}
-        style={{ backgroundColor: cellHighlight || 'transparent' }}
+        } ${selectedColor ? 'cursor-crosshair' : ''} ${
+          selectedCell?.filmId === film.id && selectedCell?.field === field ? 'ring-2 ring-blue-500 bg-blue-50' : 
+          selectedCells.has(`${film.id}-${field}`) ? 'bg-blue-100 ring-1 ring-blue-300' : ''
+        }`}
+        style={{ 
+          backgroundColor: selectedCell?.filmId === film.id && selectedCell?.field === field ? undefined :
+                          selectedCells.has(`${film.id}-${field}`) ? undefined :
+                          (cellHighlight || 'transparent')
+        }}
         onClick={(e) => {
           if (selectedColor) {
             e.preventDefault()
             handleCellHighlight(film.id, field)
-          } else if (isEditable) {
-            handleCellEdit(film.id, field, value)
+          } else {
+            handleCellClick(film.id, field, e)
+            if (isEditable && selectedCell?.filmId === film.id && selectedCell?.field === field && !e.ctrlKey && !e.shiftKey) {
+              // Double-click behavior - start editing if already selected
+              handleCellEdit(film.id, field, value)
+            }
           }
         }}
-        onMouseDown={(e) => selectedColor ? handleMouseDown(e, film.id, field) : undefined}
-        onMouseEnter={() => selectedColor ? handleMouseEnter(film.id, field) : undefined}
+        onMouseDown={(e) => {
+          if (selectedColor) {
+            handleMouseDown(e, film.id, field)
+          } else {
+            handleCellMouseDown(film.id, field, e)
+          }
+        }}
+        onMouseEnter={() => {
+          if (selectedColor) {
+            handleMouseEnter(film.id, field)
+          } else {
+            handleCellMouseEnter(film.id, field)
+          }
+        }}
+        onContextMenu={(e) => handleRightClick(e, film.id, field)}
         title={isEditable ? "Click to edit" : undefined}
       >
         {value || '—'}
-        
-        {/* Note indicator */}
-        <div
-          className="absolute top-0 right-0 w-3 h-3 bg-yellow-400 rounded-full cursor-pointer hover:bg-yellow-500 flex items-center justify-center text-xs font-bold text-yellow-800"
-          onClick={(e) => handleNoteClick(e, film.id, field)}
-          title="Add/Edit Note"
-        >
-          {hasNote ? '!' : '+'}
-        </div>
       </div>
     )
   }
@@ -493,16 +1329,38 @@ export default function ProgrammingPipelinePage() {
     
     return (
       <div 
-        className={`relative px-1 py-1 rounded text-center ${selectedColor ? 'cursor-crosshair' : ''}`}
-        style={{ backgroundColor: cellHighlight || 'transparent' }}
+        className={`relative px-1 py-1 rounded text-center ${selectedColor ? 'cursor-crosshair' : ''} ${
+          selectedCell?.filmId === film.id && selectedCell?.field === field ? 'ring-2 ring-blue-500 bg-blue-50' : 
+          selectedCells.has(`${film.id}-${field}`) ? 'bg-blue-100 ring-1 ring-blue-300' : ''
+        }`}
+        style={{ 
+          backgroundColor: selectedCell?.filmId === film.id && selectedCell?.field === field ? undefined :
+                          selectedCells.has(`${film.id}-${field}`) ? undefined :
+                          (cellHighlight || 'transparent')
+        }}
         onClick={(e) => {
           if (selectedColor) {
             e.preventDefault()
             handleCellHighlight(film.id, field)
+          } else {
+            handleCellClick(film.id, field, e)
           }
         }}
-        onMouseDown={(e) => selectedColor ? handleMouseDown(e, film.id, field) : undefined}
-        onMouseEnter={() => selectedColor ? handleMouseEnter(film.id, field) : undefined}
+        onMouseDown={(e) => {
+          if (selectedColor) {
+            handleMouseDown(e, film.id, field)
+          } else {
+            handleCellMouseDown(film.id, field, e)
+          }
+        }}
+        onMouseEnter={() => {
+          if (selectedColor) {
+            handleMouseEnter(film.id, field)
+          } else {
+            handleCellMouseEnter(film.id, field)
+          }
+        }}
+        onContextMenu={(e) => handleRightClick(e, film.id, field)}
       >
         <input
           type="checkbox"
@@ -513,15 +1371,6 @@ export default function ProgrammingPipelinePage() {
           }}
           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
         />
-        
-        {/* Note indicator */}
-        <div
-          className="absolute top-0 right-0 w-3 h-3 bg-yellow-400 rounded-full cursor-pointer hover:bg-yellow-500 flex items-center justify-center text-xs font-bold text-yellow-800"
-          onClick={(e) => handleNoteClick(e, film.id, field)}
-          title="Add/Edit Note"
-        >
-          {hasNote ? '!' : '+'}
-        </div>
       </div>
     )
   }
@@ -539,17 +1388,60 @@ export default function ProgrammingPipelinePage() {
           </div>
           <div className="flex items-center space-x-4">
             <button
+              onClick={() => setShowUploadModal(true)}
+              className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 font-medium"
+            >
+              Upload CSV
+            </button>
+            <button
               onClick={() => setShowAddModal(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
             >
               Add Film
             </button>
-            <button
-              onClick={exportToCSV}
-              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-medium"
-            >
-              Download CSV
-            </button>
+            
+            {/* Download Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
+                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-medium flex items-center space-x-2"
+              >
+                <span>Download</span>
+                <svg
+                  className={`w-4 h-4 transition-transform ${showDownloadDropdown ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {showDownloadDropdown && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                  <button
+                    onClick={() => {
+                      exportToCSV()
+                      setShowDownloadDropdown(false)
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md flex items-center space-x-2"
+                  >
+                    <span>📄</span>
+                    <span>Download CSV</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      exportToExcel()
+                      setShowDownloadDropdown(false)
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-b-md flex items-center space-x-2"
+                  >
+                    <span>📊</span>
+                    <span>Download Excel</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -600,16 +1492,38 @@ export default function ProgrammingPipelinePage() {
       </div>
 
       {/* Color Palette Toolbar */}
-      <div className="px-6 py-2 bg-gray-50 border-b border-gray-200">
+      <div className="px-6 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
         <ColorPalette 
           selectedColor={selectedColor}
           onColorSelect={setSelectedColor}
         />
+        
+        {/* Sticky Note Creator Tool */}
+        <button
+          onClick={() => {
+            const gridContainer = document.querySelector('.overflow-auto')
+            if (gridContainer) {
+              handleCreateStickyNote(100, 100)
+            }
+          }}
+          className="bg-yellow-400 hover:bg-yellow-500 text-yellow-800 px-3 py-2 rounded-lg shadow-sm font-medium flex items-center space-x-2 border border-yellow-600"
+          title="Add Sticky Note"
+        >
+          <span className="text-lg">📝</span>
+          <span className="text-sm">Add Note</span>
+        </button>
       </div>
 
       {/* Data Grid */}
-      <div className="flex-1 overflow-hidden bg-white">
-        <div className="overflow-auto" style={{ height: 'calc(100vh - 300px)', overflowX: 'auto', overflowY: 'auto' }} onMouseUp={handleMouseUp}>
+      <div className="flex-1 overflow-hidden bg-white relative">
+        <div 
+          className="overflow-auto relative focus:outline-none" 
+          style={{ height: 'calc(100vh - 300px)', overflowX: 'auto', overflowY: 'auto' }} 
+          onMouseUp={handleMouseUp}
+          onDoubleClick={handleGridDoubleClick}
+          onContextMenu={(e) => e.preventDefault()}
+          tabIndex={0}
+        >
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-lg text-gray-500">Loading programming films...</div>
@@ -664,6 +1578,13 @@ export default function ProgrammingPipelinePage() {
                           </span>
                         )}
                       </div>
+                      
+                      {/* Resize handle */}
+                      <div
+                        className="absolute right-0 top-0 w-1 h-full cursor-col-resize bg-transparent hover:bg-blue-300 opacity-0 hover:opacity-100 transition-opacity"
+                        onMouseDown={(e) => handleResizeStart(e, column.key)}
+                        title="Drag to resize column"
+                      />
                     </th>
                   ))}
                   <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
@@ -687,7 +1608,17 @@ export default function ProgrammingPipelinePage() {
                     }}
                   >
                     {/* Film Title (sticky) */}
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-0 bg-white z-10" style={{ minWidth: `${columnWidths['film'] || 200}px`, maxWidth: `${columnWidths['film'] || 200}px` }}>
+                    <td 
+                      className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-0 bg-white z-10 cursor-pointer ${
+                        selectedCell?.filmId === film.id && selectedCell?.field === 'film' ? 'ring-2 ring-blue-500 bg-blue-50' : 
+                        selectedCells.has(`${film.id}-film`) ? 'bg-blue-100 ring-1 ring-blue-300' : ''
+                      }`} 
+                      style={{ minWidth: `${columnWidths['film'] || 200}px`, maxWidth: `${columnWidths['film'] || 200}px` }}
+                      onClick={(e) => handleCellClick(film.id, 'film', e)}
+                      onMouseDown={(e) => handleCellMouseDown(film.id, 'film', e)}
+                      onMouseEnter={() => handleCellMouseEnter(film.id, 'film')}
+                      onContextMenu={(e) => handleRightClick(e, film.id, 'film')}
+                    >
                       <div className="font-medium">{film.film}</div>
                     </td>
                     
@@ -949,8 +1880,90 @@ export default function ProgrammingPipelinePage() {
               </tbody>
             </table>
           )}
+          
+          {/* Sticky Notes */}
+          {stickyNotes.map((note) => (
+            <StickyNote
+              key={note.id}
+              note={note}
+              onUpdate={handleUpdateStickyNote}
+              onDelete={handleDeleteStickyNote}
+              isDragging={draggingStickyNote === note.id}
+              onDragStart={handleStickyNoteDragStart}
+              onDragEnd={handleStickyNoteDragEnd}
+            />
+          ))}
         </div>
       </div>
+
+      {/* CSV Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-md">
+            <h3 className="text-lg font-semibold mb-4">
+              Upload CSV Files - Step {uploadStep === 'films' ? '1' : '2'} of 2
+            </h3>
+            
+            {uploadStep === 'films' ? (
+              <div>
+                <p className="text-sm text-gray-600 mb-4">
+                  First, upload the <strong>Films CSV</strong> containing film information (title, director, category, etc.)
+                </p>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Films CSV File
+                  </label>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFilmsCSVUpload}
+                    disabled={uploading}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Now upload the <strong>Schedule CSV</strong> containing screening times and locations.
+                </p>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Schedule CSV File
+                  </label>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleScheduleCSVUpload}
+                    disabled={uploading}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                  />
+                </div>
+              </div>
+            )}
+            
+            {uploading && (
+              <div className="text-center py-4">
+                <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <p className="text-sm text-gray-600 mt-2">Processing...</p>
+              </div>
+            )}
+            
+            <div className="flex justify-end space-x-3 mt-4">
+              <button
+                onClick={() => {
+                  setShowUploadModal(false)
+                  setUploadStep('films')
+                }}
+                disabled={uploading}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Programming Film Form Modal */}
       <ProgrammingFilmFormModal
@@ -1037,6 +2050,57 @@ export default function ProgrammingPipelinePage() {
             </div>
           </div>
         </>
+      )}
+      
+      {/* Context Menu */}
+      {contextMenu && (
+        <div 
+          className="fixed bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 min-w-[120px]"
+          style={{ 
+            left: contextMenu.x, 
+            top: contextMenu.y 
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => handleContextMenuAction('copy')}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+          >
+            <span>📋</span>
+            <span>Copy</span>
+          </button>
+          
+          {editableFields.includes(contextMenu.field) && (
+            <>
+              <button
+                onClick={() => handleContextMenuAction('paste')}
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!clipboard}
+              >
+                <span>📄</span>
+                <span>Paste</span>
+              </button>
+              
+              <button
+                onClick={() => handleContextMenuAction('delete')}
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+              >
+                <span>🗑️</span>
+                <span>Clear</span>
+              </button>
+              
+              <hr className="my-1 border-gray-200" />
+              
+              <button
+                onClick={() => handleContextMenuAction('edit')}
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+              >
+                <span>✏️</span>
+                <span>Edit</span>
+              </button>
+            </>
+          )}
+        </div>
       )}
     </div>
   )

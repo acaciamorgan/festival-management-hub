@@ -243,6 +243,11 @@ export function VenueCardPopup({ venue, onClose, onUpdate, onDelete }: VenueCard
                     <div key={house.id || index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                       <div>
                         <span className="font-medium text-gray-900">{house.house_name}</span>
+                        {house.short_code && (
+                          <span className="ml-2 text-sm text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                            {house.short_code}
+                          </span>
+                        )}
                       </div>
                       <div className="text-sm text-gray-600">
                         {house.seat_count} seats

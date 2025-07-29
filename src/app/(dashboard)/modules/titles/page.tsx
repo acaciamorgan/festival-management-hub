@@ -230,6 +230,15 @@ export default function TitlesPage() {
       if (error) {
         console.error('Error loading title cards:', error)
       } else {
+        // Debug: Check for Mistress Dispeller specifically
+        const mistressFilm = (data || []).find(film => film.title === 'Mistress Dispeller')
+        if (mistressFilm) {
+          console.log('DEBUG: Mistress Dispeller found in database:', mistressFilm)
+        } else {
+          console.log('DEBUG: Mistress Dispeller NOT found in database')
+          console.log('DEBUG: Total films in database:', (data || []).length)
+          console.log('DEBUG: Films starting with M:', (data || []).filter(f => f.title?.startsWith('M')).map(f => f.title))
+        }
         // Combine program and genre fields for display
         const filmsWithCombined = (data || []).map(film => ({
           ...film,
@@ -607,12 +616,15 @@ export default function TitlesPage() {
       
       for (let i = 0; i < Math.min(5, rows.length); i++) {
         const row = rows[i]
-        // Look for key header fields that indicate this is the complete header row
-        if (row.some(cell => cell.includes('Screenwriter')) && 
-            row.some(cell => cell.includes('Cinematographer')) &&
-            row.some(cell => cell.includes('Principal Cast'))) {
+        // Look for essential header fields that indicate this is the header row
+        // Check for basic required fields that should be in any film CSV
+        if ((row.some(cell => cell && cell.toLowerCase().includes('title')) || 
+             row.some(cell => cell && cell.toLowerCase().includes('film'))) && 
+            (row.some(cell => cell && cell.toLowerCase().includes('director')) ||
+             row.some(cell => cell && cell.toLowerCase().includes('source')))) {
           headerRowIndex = i
           headers = row
+          console.log(`Found headers at row ${i}:`, headers)
           break
         }
       }
@@ -621,15 +633,22 @@ export default function TitlesPage() {
       if (headers.length === 0) {
         headers = rows[0]
         headerRowIndex = 0
+        console.log('Using first row as headers:', headers)
       }
       
       console.log('Using header row index:', headerRowIndex)
-      console.log('Headers:', headers)
+      console.log('Headers found:', headers)
+      console.log('Headers length:', headers.length)
       
-      // Detect if this is a shorts CSV
+      // Debug: show first few data rows
+      if (rows.length > headerRowIndex + 1) {
+        console.log('Sample data row:', rows[headerRowIndex + 1])
+      }
+      
+      // Detect if this is a shorts CSV by looking for specific shorts-only headers
       const isShortsCsv = headers.some(header => 
         header.trim().toLowerCase().includes('order coding') ||
-        headers.length > 20 // Shorts CSV has many more columns
+        header.trim() === 'Film Title' // Shorts use "Film Title", features use "Title"
       )
 
       if (isShortsCsv) {
@@ -647,70 +666,201 @@ export default function TitlesPage() {
     }
   }
 
+  // Fixed header mapping for the exact CSV format
+  const getColumnIndex = (headers: string[], targetHeader: string): number => {
+    return headers.findIndex(header => 
+      header && header.trim() === targetHeader
+    )
+  }
+
   const processFeatureFilmsCSV = async (rows: string[][], headers: string[]) => {
-    // Create field mapping with exact header matching
-    const fieldMap: Record<string, string> = {
-      'Title': 'title',
-      'Source': 'source',
-      'Original Language Title': 'original_language_title',
-      'Director': 'director',
-      'Country/ies (Please list United Kingdom or United States for UK and US.\nExample for multiple countries: Argentina | Brazil | Mexico)\nList Main country and then co-production countries following.': 'countries',
-      'Program 1': 'program_1',
-      'Program 2': 'program_2', 
-      'Program 3': 'program_3',
-      'Program 4': 'program_4',
-      'Genre 1': 'genre_1',
-      'Genre 2': 'genre_2',
-      'Genre 3': 'genre_3', 
-      'Genre 4': 'genre_4',
-      'Run time': 'run_time',
-      'Language': 'language',
-      'Subtitles? (Yes or No)': 'subtitles',
-      'Captions (open or closed or no)': 'captions',
-      'Original Release Year': 'original_release_year',
-      'Screenwriter': 'screenwriter',
-      'Cinematographer': 'cinematographer',
-      'Art Director': 'art_director',
-      'Editor': 'editor',
-      'Principal Cast': 'principal_cast',
-      'Sound Designer': 'sound_designer',
-      'Music/Score': 'music_score',
-      'Producer': 'producer',
-      'Executive Producer': 'executive_producer',
-      'Production Companies': 'production_companies',
-      'Film website': 'film_website',
-      'Trailer (YouTube or Vimeo only)': 'trailer_url',
-      'Premiere Status': 'premiere_status',
-      'Content Warnings': 'content_warnings'
+    setUploadStatus('Processing feature films CSV...')
+    console.log('Headers found:', headers)
+    
+    // Exact header mapping for the fixed CSV format
+    const indices = {
+      title: getColumnIndex(headers, 'Title'),
+      source: getColumnIndex(headers, 'Source'),
+      original_language_title: getColumnIndex(headers, 'Original Language Title'),
+      director: getColumnIndex(headers, 'Director'),
+      countries: getColumnIndex(headers, 'Country/ies (Please list United Kingdom or United States for UK and US.\nExample for multiple countries: Argentina | Brazil | Mexico)\nList Main country and then co-production countries following.'),
+      program_1: getColumnIndex(headers, 'Program 1'),
+      program_2: getColumnIndex(headers, 'Program 2'),
+      program_3: getColumnIndex(headers, 'Program 3'),
+      program_4: getColumnIndex(headers, 'Program 4'),
+      genre_1: getColumnIndex(headers, 'Genre 1'),
+      genre_2: getColumnIndex(headers, 'Genre 2'),
+      genre_3: getColumnIndex(headers, 'Genre 3'),
+      genre_4: getColumnIndex(headers, 'Genre 4'),
+      run_time: getColumnIndex(headers, 'Run time'),
+      language: getColumnIndex(headers, 'Language'),
+      subtitles: getColumnIndex(headers, 'Subtitles? (Yes or No)'),
+      captions: getColumnIndex(headers, 'Captions (open or closed or no)'),
+      original_release_year: getColumnIndex(headers, 'Original Release Year'),
+      screenwriter: getColumnIndex(headers, 'Screenwriter'),
+      cinematographer: getColumnIndex(headers, 'Cinematographer'),
+      art_director: getColumnIndex(headers, 'Art Director'),
+      editor: getColumnIndex(headers, 'Editor'),
+      principal_cast: getColumnIndex(headers, 'Principal Cast'),
+      sound_designer: getColumnIndex(headers, 'Sound Designer'),
+      music_score: getColumnIndex(headers, 'Music/Score'),
+      producer: getColumnIndex(headers, 'Producer'),
+      executive_producer: getColumnIndex(headers, 'Executive Producer'),
+      production_companies: getColumnIndex(headers, 'Production Companies'),
+      film_website: getColumnIndex(headers, 'Film website'),
+      trailer_url: getColumnIndex(headers, 'Trailer (YouTube or Vimeo only)'),
+      premiere_status: getColumnIndex(headers, 'Premiere Status'),
+      content_warnings: getColumnIndex(headers, 'Content Warnings')
     }
 
+    console.log('Column indices found:', indices)
+    console.log('First few headers:', headers.slice(0, 10))
+    console.log('Looking for Title at indices:', indices.title)
+    if (rows.length > 1) console.log('Sample data row:', rows[1])
+    
+    // Check if we found required indices
+    if (indices.title === -1) {
+      setUploadStatus('Error: Could not find Title column in CSV headers')
+      return
+    }
+    
     const filmsToInsert = []
     
+    // Process each data row using the column indices
     for (let i = 1; i < rows.length; i++) {
-      const values = rows[i]
-      const filmData: Partial<FilmCard> = {}
+      const row = rows[i]
+      if (!row || row.length === 0) continue
       
-      headers.forEach((header, index) => {
-        const cleanHeader = header.trim()
-        const dbField = fieldMap[cleanHeader]
-        if (dbField && values[index]) {
-          const value = values[index].trim()
-          
-          // Convert numeric fields
-          if (dbField === 'run_time' || dbField === 'original_release_year') {
-            const numValue = parseInt(value)
-            if (!isNaN(numValue)) {
-              (filmData as Record<string, number | string>)[dbField] = numValue
-            }
-          } else if (value) {
-            (filmData as Record<string, number | string>)[dbField] = value
-          }
-        }
-      })
+      // Debug specific film
+      const titleValue = row[indices.title]?.trim()
+      if (titleValue === 'Mistress Dispeller') {
+        console.log(`DEBUG: Found Mistress Dispeller at row ${i + 1}`)
+        console.log('Raw row data:', row)
+        console.log('Title value:', titleValue)
+      }
       
+      const filmData: any = {}
+      
+      // Extract data using column indices - only include fields that have valid indices
+      // Clean function to remove null characters and other problematic Unicode
+      const cleanText = (text: string) => text.replace(/\u0000/g, '').trim()
+      
+      if (indices.title !== -1 && row[indices.title]?.trim()) {
+        filmData.title = cleanText(row[indices.title])
+      }
+      if (indices.source !== -1 && row[indices.source]?.trim()) {
+        filmData.source = cleanText(row[indices.source])
+      }
+      if (indices.original_language_title !== -1 && row[indices.original_language_title]?.trim()) {
+        filmData.original_language_title = cleanText(row[indices.original_language_title])
+      }
+      if (indices.director !== -1 && row[indices.director]?.trim()) {
+        filmData.director = cleanText(row[indices.director])
+      }
+      if (indices.countries !== -1 && row[indices.countries]?.trim()) {
+        filmData.countries = cleanText(row[indices.countries])
+      }
+      if (indices.program_1 !== -1 && row[indices.program_1]?.trim()) {
+        filmData.program_1 = cleanText(row[indices.program_1])
+      }
+      if (indices.program_2 !== -1 && row[indices.program_2]?.trim()) {
+        filmData.program_2 = cleanText(row[indices.program_2])
+      }
+      if (indices.program_3 !== -1 && row[indices.program_3]?.trim()) {
+        filmData.program_3 = cleanText(row[indices.program_3])
+      }
+      if (indices.program_4 !== -1 && row[indices.program_4]?.trim()) {
+        filmData.program_4 = cleanText(row[indices.program_4])
+      }
+      if (indices.genre_1 !== -1 && row[indices.genre_1]?.trim()) {
+        filmData.genre_1 = cleanText(row[indices.genre_1])
+      }
+      if (indices.genre_2 !== -1 && row[indices.genre_2]?.trim()) {
+        filmData.genre_2 = cleanText(row[indices.genre_2])
+      }
+      if (indices.genre_3 !== -1 && row[indices.genre_3]?.trim()) {
+        filmData.genre_3 = cleanText(row[indices.genre_3])
+      }
+      if (indices.genre_4 !== -1 && row[indices.genre_4]?.trim()) {
+        filmData.genre_4 = cleanText(row[indices.genre_4])
+      }
+      if (indices.run_time !== -1 && row[indices.run_time]?.trim()) {
+        const runtime = parseInt(row[indices.run_time].trim())
+        if (!isNaN(runtime)) filmData.run_time = runtime
+      }
+      if (indices.language !== -1 && row[indices.language]?.trim()) {
+        filmData.language = cleanText(row[indices.language])
+      }
+      if (indices.subtitles !== -1 && row[indices.subtitles]?.trim()) {
+        filmData.subtitles = cleanText(row[indices.subtitles])
+      }
+      if (indices.captions !== -1 && row[indices.captions]?.trim()) {
+        filmData.captions = cleanText(row[indices.captions])
+      }
+      if (indices.original_release_year !== -1 && row[indices.original_release_year]?.trim()) {
+        const year = parseInt(row[indices.original_release_year].trim())
+        if (!isNaN(year)) filmData.original_release_year = year
+      }
+      if (indices.screenwriter !== -1 && row[indices.screenwriter]?.trim()) {
+        filmData.screenwriter = cleanText(row[indices.screenwriter])
+      }
+      if (indices.cinematographer !== -1 && row[indices.cinematographer]?.trim()) {
+        filmData.cinematographer = cleanText(row[indices.cinematographer])
+      }
+      if (indices.art_director !== -1 && row[indices.art_director]?.trim()) {
+        filmData.art_director = cleanText(row[indices.art_director])
+      }
+      if (indices.editor !== -1 && row[indices.editor]?.trim()) {
+        filmData.editor = cleanText(row[indices.editor])
+      }
+      if (indices.principal_cast !== -1 && row[indices.principal_cast]?.trim()) {
+        filmData.principal_cast = cleanText(row[indices.principal_cast])
+      }
+      if (indices.sound_designer !== -1 && row[indices.sound_designer]?.trim()) {
+        filmData.sound_designer = cleanText(row[indices.sound_designer])
+      }
+      if (indices.music_score !== -1 && row[indices.music_score]?.trim()) {
+        filmData.music_score = cleanText(row[indices.music_score])
+      }
+      if (indices.producer !== -1 && row[indices.producer]?.trim()) {
+        filmData.producer = cleanText(row[indices.producer])
+      }
+      if (indices.executive_producer !== -1 && row[indices.executive_producer]?.trim()) {
+        filmData.executive_producer = cleanText(row[indices.executive_producer])
+      }
+      if (indices.production_companies !== -1 && row[indices.production_companies]?.trim()) {
+        filmData.production_companies = cleanText(row[indices.production_companies])
+      }
+      if (indices.film_website !== -1 && row[indices.film_website]?.trim()) {
+        filmData.film_website = cleanText(row[indices.film_website])
+      }
+      if (indices.trailer_url !== -1 && row[indices.trailer_url]?.trim()) {
+        filmData.trailer_url = cleanText(row[indices.trailer_url])
+      }
+      if (indices.premiere_status !== -1 && row[indices.premiere_status]?.trim()) {
+        filmData.premiere_status = cleanText(row[indices.premiere_status])
+      }
+      if (indices.content_warnings !== -1 && row[indices.content_warnings]?.trim()) {
+        filmData.content_warnings = cleanText(row[indices.content_warnings])
+      }
+      
+      // Only add if we have at least a title
       if (filmData.title) {
         filmsToInsert.push(filmData)
+        // Debug specific film
+        if (filmData.title === 'Mistress Dispeller') {
+          console.log('DEBUG: Mistress Dispeller added to filmsToInsert:', filmData)
+        }
+      } else if (titleValue === 'Mistress Dispeller') {
+        console.log('DEBUG: Mistress Dispeller EXCLUDED - no title in filmData')
       }
+    }
+    
+    console.log(`Parsed ${filmsToInsert.length} films from CSV`)
+    
+    if (filmsToInsert.length === 0) {
+      setUploadStatus('Error: No valid films found in CSV. Check that your CSV has a Title column and data rows.')
+      return
     }
 
     setUploadStatus(`Processing ${filmsToInsert.length} films...`)
@@ -731,6 +881,11 @@ export default function TitlesPage() {
     for (const filmData of filmsToInsert) {
       if (!filmData.title) continue
       
+      // Debug specific film
+      if (filmData.title === 'Mistress Dispeller') {
+        console.log('DEBUG: Processing Mistress Dispeller for database insert')
+      }
+      
       // Check if Card with this exact title already exists
       const existingCard = (existingCards || []).find(card => card.title === filmData.title)
       
@@ -741,18 +896,39 @@ export default function TitlesPage() {
           .update({ ...filmData, updated_at: new Date().toISOString() })
           .eq('id', existingCard.id)
         
-        if (!error) updated++
+        if (error) {
+          console.error(`Error updating card "${filmData.title}":`, error)
+          if (filmData.title === 'Mistress Dispeller') {
+            console.log('DEBUG: Mistress Dispeller update error details:', error)
+          }
+        } else {
+          updated++
+          if (filmData.title === 'Mistress Dispeller') {
+            console.log('DEBUG: Mistress Dispeller updated successfully')
+          }
+        }
       } else {
         // CREATE new Card
         const { error } = await supabase
           .from('feature_films')
           .insert([filmData])
         
-        if (!error) created++
+        if (error) {
+          console.error(`Error creating card "${filmData.title}":`, error)
+          if (filmData.title === 'Mistress Dispeller') {
+            console.log('DEBUG: Mistress Dispeller insert error details:', error)
+          }
+        } else {
+          created++
+          if (filmData.title === 'Mistress Dispeller') {
+            console.log('DEBUG: Mistress Dispeller created successfully')
+          }
+        }
       }
     }
 
     setUploadStatus(`Successfully processed ${filmsToInsert.length} films! Created: ${created}, Updated: ${updated}`)
+    console.log(`CSV Upload Complete - Created: ${created}, Updated: ${updated}`)
     await loadFilms() // Reload the Cards
   }
 
@@ -1296,8 +1472,8 @@ export default function TitlesPage() {
                     ].map((column) => (
                       <th
                         key={column.key}
-                        className={`relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 ${
-                          column.key === 'title' ? 'sticky left-0 z-10' : ''
+                        className={`px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 ${
+                          column.key === 'title' ? 'sticky left-0 z-20' : ''
                         }`}
                         style={{ minWidth: `${columnWidths[column.key] || column.width}px` }}
                       >
@@ -1343,7 +1519,7 @@ export default function TitlesPage() {
                   {(showIndustryDaysOnly ? filteredPrograms.filter(p => p.is_industry_days) : filteredPrograms).map((program) => (
                     <tr key={program.id} className="hover:bg-gray-50">
                       <td 
-                        className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50 sticky left-0 bg-white z-10" 
+                        className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50 sticky left-0 bg-white z-20 shadow-sm" 
                         style={{ minWidth: `${columnWidths['title'] || 250}px` }}
                         onClick={() => setEditingEvent(program)}
                       >
@@ -1424,8 +1600,8 @@ export default function TitlesPage() {
         ) : viewMode === 'features' ? (
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
             <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50 sticky top-0">
+                <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
                     {[
                       { key: 'title', label: 'Title', width: 200 },
@@ -1458,8 +1634,8 @@ export default function TitlesPage() {
                     ].map((column) => (
                       <th
                         key={column.key}
-                        className={`relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 ${
-                          column.key === 'title' ? 'sticky left-0 z-10' : ''
+                        className={`px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 ${
+                          column.key === 'title' ? 'sticky left-0 z-20' : ''
                         }`}
                         style={{ minWidth: `${columnWidths[column.key] || column.width}px` }}
                       >
@@ -1506,7 +1682,7 @@ export default function TitlesPage() {
                   {filteredFilms.map((film) => (
                     <tr key={film.id} className="hover:bg-gray-50">
                       <td 
-                        className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50 sticky left-0 bg-white z-10" 
+                        className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50 sticky left-0 bg-white z-20 shadow-sm" 
                         style={{ minWidth: `${columnWidths['title'] || 200}px` }}
                         onClick={() => setSelectedFilm(film)}
                       >
@@ -1584,7 +1760,20 @@ export default function TitlesPage() {
                 return groups
               }, {} as Record<string, ShortFilm[]>)
 
-              return Object.entries(groupedShorts).map(([programName, programShorts]) => (
+              // Sort programs by program number (extract number from program name)
+              const sortedPrograms = Object.entries(groupedShorts).sort(([nameA], [nameB]) => {
+                // Put 'Unassigned Shorts' at the end
+                if (nameA === 'Unassigned Shorts') return 1
+                if (nameB === 'Unassigned Shorts') return -1
+                
+                // Extract program numbers for sorting
+                const numberA = parseInt(nameA.match(/\d+/)?.[0] || '999')
+                const numberB = parseInt(nameB.match(/\d+/)?.[0] || '999')
+                
+                return numberA - numberB
+              })
+
+              return sortedPrograms.map(([programName, programShorts]) => (
                 <div key={programName} className="bg-white rounded-lg shadow-sm overflow-hidden">
                   {/* Program Header */}
                   <div className="bg-gray-800 text-white px-6 py-4 flex items-center justify-between">
@@ -1702,7 +1891,7 @@ export default function TitlesPage() {
                               {short.program_order}
                             </td>
                             <td 
-                              className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50 sticky left-0 bg-white z-10" 
+                              className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50 sticky left-0 bg-white z-20 shadow-sm" 
                               style={{ minWidth: `${columnWidths['title'] || 200}px` }}
                               onClick={() => setSelectedFilm(short)}
                             >
@@ -1876,6 +2065,12 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
+  // Simple renderPersonName function for the modal
+  const renderPersonName = (name: string | undefined) => {
+    if (!name) return '—'
+    return name
+  }
+
   // Populate form when editing
   useEffect(() => {
     if (editingProgram) {
@@ -1919,11 +2114,22 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
           })
           .eq('shorts_program_id', editingProgram.id)
       } else {
+        // Get the next program number
+        const { data: existingPrograms } = await supabase
+          .from('shorts_programs')
+          .select('program_number')
+          .order('program_number', { ascending: false })
+          .limit(1)
+
+        const nextProgramNumber = existingPrograms && existingPrograms.length > 0 
+          ? (existingPrograms[0].program_number || 0) + 1 
+          : 1
+
         // Create new program
         const { data: newProgram, error: programError } = await supabase
           .from('shorts_programs')
           .insert([{
-            program_number: Math.floor(Math.random() * 1000000), // Simple unique number
+            program_number: nextProgramNumber,
             program_name: programName.trim()
           }])
           .select()
@@ -2002,7 +2208,7 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
+      className="fixed inset-0 flex items-center justify-center z-50"
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
@@ -2269,7 +2475,7 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase }: Cr
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
+      className="fixed inset-0 flex items-center justify-center z-50"
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >

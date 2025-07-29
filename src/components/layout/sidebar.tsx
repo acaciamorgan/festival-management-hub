@@ -13,7 +13,7 @@ export function Sidebar() {
   const canAccessModule = (moduleId: string) => {
     // For development, allow access to core modules when no permissions
     if (!permissions) {
-      return ['titles', 'pressManagement', 'pressScreenings', 'venueManagement', 'contactsManagement'].includes(moduleId)
+      return ['titles', 'programmingPipeline', 'pressManagement', 'pressScreenings', 'screenerAccess', 'venueManagement', 'contactsManagement', 'photoShoots', 'inAttendance', 'interviewManagement', 'redCarpets', 'specialEvents', 'ticketing', 'reportsAnalytics'].includes(moduleId)
     }
     if (permissions.isAdmin) return true
     return permissions.modulePermissions[moduleId]?.canRead || false

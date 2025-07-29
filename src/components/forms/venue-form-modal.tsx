@@ -205,6 +205,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
             venue_id: savedVenue.id,
             house_name: house.house_name.trim(),
             seat_count: house.seat_count,
+            short_code: house.short_code?.trim() || null,
             created_at: new Date().toISOString()
           }))
 
@@ -223,7 +224,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
           // Add houses to saved venue
           savedVenue.houses = housesData
           savedVenue.houses_display = housesData
-            .map(house => `${house.house_name} (${house.seat_count})`)
+            .map(house => `${house.house_name}${house.short_code ? ` - ${house.short_code}` : ''} (${house.seat_count})`)
             .join(', ')
         } else {
           savedVenue.houses = []
@@ -282,7 +283,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
   const addHouse = () => {
     setFormData(prev => ({
       ...prev,
-      houses: [...prev.houses, { house_name: '', seat_count: 0 }]
+      houses: [...prev.houses, { house_name: '', seat_count: 0, short_code: '' }]
     }))
   }
 
@@ -457,7 +458,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
                   )}
 
                   {formData.houses.map((house, index) => (
-                    <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
                       <div>
                         <input
                           type="text"
@@ -486,6 +487,15 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
                         {errors[`house_seats_${index}`] && (
                           <p className="text-sm text-red-600 mt-1">{errors[`house_seats_${index}`]}</p>
                         )}
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          value={house.short_code || ''}
+                          onChange={(e) => updateHouse(index, 'short_code', e.target.value)}
+                          placeholder="Short code (e.g., AMC 1)"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
                       </div>
                       <button
                         type="button"
