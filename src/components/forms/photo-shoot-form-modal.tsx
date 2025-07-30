@@ -23,6 +23,7 @@ interface PhotoShootFormData {
   photographer: string
   videographer: string
   intro_qa: string
+  // special_event: string  // Removed - to be implemented later
   selects_received: boolean
   sent_to_pr: boolean
 }
@@ -41,6 +42,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     photographer: '',
     videographer: '',
     intro_qa: '',
+    // special_event: '',  // Removed - to be implemented later
     selects_received: false,
     sent_to_pr: false
   })
@@ -66,6 +68,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
   const [availableVenues, setAvailableVenues] = useState<{id: string, name: string, theater_houses?: {house_name: string, seat_count: number}[]}[]>([])
   const [selectedVenueHouses, setSelectedVenueHouses] = useState<string[]>([])
   const [showHouseField, setShowHouseField] = useState(false)
+
+  // Special Events - removed, to be implemented later
 
   const supabase = createClient()
 
@@ -180,6 +184,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         photographer: photoShoot.photographer || '',
         videographer: photoShoot.videographer || '',
         intro_qa: photoShoot.intro_qa || '',
+        // special_event: photoShoot.special_event || '',  // Removed - to be implemented later
         selects_received: photoShoot.selects_received || false,
         sent_to_pr: photoShoot.sent_to_pr || false
       })
@@ -206,6 +211,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         photographer: '',
         videographer: '',
         intro_qa: '',
+        // special_event: '',  // Removed - to be implemented later
         selects_received: false,
         sent_to_pr: false
       })
@@ -301,6 +307,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     }
   }
 
+  // Special Event functions removed - to be implemented later
+
   // Handle 2-digit year conversion for date fields
   const normalizeDateValue = (dateValue: string): string => {
     if (!dateValue) return dateValue
@@ -352,6 +360,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         photographer: formData.photographer.trim() || null,
         videographer: formData.videographer.trim() || null,
         intro_qa: formData.intro_qa || null,
+        // special_event: formData.special_event.trim() || null,  // Removed - to be implemented later
         selects_received: formData.selects_received,
         sent_to_pr: formData.sent_to_pr,
         updated_at: new Date().toISOString()
@@ -404,6 +413,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
 
       // THE KEY FIX: Handle associations properly
       await handleAssociations(savedPhotoShoot.id, formData.film_program_titles, formData.subjects)
+
+      // Special Event linking removed - to be implemented later
 
       // Add venue name for display
       if (savedPhotoShoot.venue_id) {
@@ -500,6 +511,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
       }
     }
   }
+
+  // Special Event linking function removed - to be implemented later
 
   if (!isOpen) return null
 
@@ -750,6 +763,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
                 </select>
               </div>
             </div>
+
+            {/* Special Event Field removed - to be implemented later */}
 
             {/* Checkboxes */}
             <div className="flex items-center space-x-6">

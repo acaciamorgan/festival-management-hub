@@ -1,5 +1,5 @@
 // Core Card Types
-export type CardType = 'titles' | 'venues' | 'guests' | 'press' | 'programs' | 'contacts' | 'press-screenings' | 'interviews'
+export type CardType = 'titles' | 'venues' | 'guests' | 'press' | 'programs' | 'contacts' | 'press-screenings' | 'interviews' | 'special-events'
 
 // Module Configuration
 export interface ModuleConfig {
@@ -371,4 +371,56 @@ export interface StickyNote {
   updated_at: string
   created_by: string
   related_film_id?: string | null
+}
+
+// Special Events Types
+export type EventType = 'Reception' | 'Mixer' | 'Party' | 'Awards'
+export type OpenPressType = 'Yes' | 'No' | 'Limited'
+
+export interface SpecialEventCard {
+  id: string
+  title: string
+  event_type?: EventType | null
+  event_date?: string | null
+  access_time?: string | null // Staff setup time
+  start_time?: string | null // Guest arrival time
+  end_time?: string | null
+  
+  // Location
+  venue_id?: string | null
+  venue_name?: string | null
+  venue_address?: string | null
+  location_details?: string | null
+  
+  // Associations (display strings)
+  films_programs_display?: string | null
+  guests_display?: string | null
+  
+  // Staff and logistics
+  lead_staff?: string | null
+  invited_tags?: string | null // Smart tags like "Filmmakers, Sponsors, VIPs"
+  number_expected?: string | null
+  
+  // F&B
+  beverages?: string | null
+  bartender?: string | null
+  food?: string | null
+  caterer?: string | null
+  
+  // Media
+  photography?: string | null
+  open_press: OpenPressType
+  
+  // RSVPs
+  rsvp_responder_link?: string | null
+  rsvp_response_link?: string | null
+  
+  // Post-event
+  actual_attendance?: string | null
+  notes?: string | null
+  
+  // System fields
+  created_at: string
+  updated_at: string
+  created_by: string
 }
