@@ -75,6 +75,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
   const [filmGuests, setFilmGuests] = useState<any[]>([])
   const [screenerData, setScreenerData] = useState<any>(null)
   const [filmInterviews, setFilmInterviews] = useState<InterviewCard[]>([])
+  const [filmScreenings, setFilmScreenings] = useState<any[]>([])
 
   const supabase = createClient()
 
@@ -404,6 +405,72 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
           console.error('Error loading film interviews:', error)
           setFilmInterviews([])
         }
+
+        // Load ticketing screenings for this film
+        const loadScreenings = async () => {
+          try {
+            // First try to find programming_film_id for this film
+            const { data: programmingFilm } = await supabase
+              .from('programming_films')
+              .select('id')
+              .eq('film_title', film.title)
+              .single()
+
+            // Query published screenings (not ticketing screenings)
+            const screeningsQuery = supabase
+              .from('published_screenings')
+              .select(`
+                id,
+                film_title,
+                screening_date,
+                day_of_week,
+                start_time,
+                venue_short_code,
+                is_cancelled,
+                notes
+              `)
+              .eq('film_card_id', film.id)
+              .order('screening_date', { ascending: true })
+              .order('start_time', { ascending: true })
+
+            const { data: screeningsData, error: screeningsError } = await screeningsQuery
+
+            if (screeningsError) {
+              console.error('Error loading ticketing screenings:', screeningsError)
+              setFilmScreenings([])
+            } else {
+              // Attempt to resolve venue names from short codes
+              const screeningsWithVenues = await Promise.all(
+                (screeningsData || []).map(async (screening) => {
+                  if (screening.venue_short_code) {
+                    // Try to find the venue by short code in theater_houses
+                    const { data: houseData } = await supabase
+                      .from('theater_houses')
+                      .select(`
+                        venue_id,
+                        venues!inner(name)
+                      `)
+                      .eq('short_code', screening.venue_short_code)
+                      .single()
+
+                    if (houseData?.venues?.name) {
+                      return { ...screening, venue_name: houseData.venues.name }
+                    }
+                  }
+                  // If no venue found, use the short code as venue name
+                  return { ...screening, venue_name: screening.venue_short_code }
+                })
+              )
+              
+              setFilmScreenings(screeningsWithVenues)
+            }
+          } catch (error) {
+            console.error('Error loading ticketing screenings:', error)
+            setFilmScreenings([])
+          }
+        }
+
+        await loadScreenings()
       } catch (error) {
         console.error('Error loading events:', error)
       }
@@ -492,6 +559,60 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
           {/* Collapsible sections */}
           <div className="divide-y divide-gray-200">
+            {/* Screenings Section - At the top */}
+            <CollapsibleSection title="Screenings" isEmpty={filmScreenings.length === 0}>
+              {filmScreenings.length > 0 ? (
+                <div className="space-y-2">
+                  {filmScreenings.map((screening) => {
+                    // Format date as "Mon, Oct 23"
+                    const date = screening.screening_date ? (() => {
+                      const d = new Date(screening.screening_date)
+                      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                      const dayName = dayNames[d.getDay()]
+                      const month = monthNames[d.getMonth()]
+                      const day = d.getDate()
+                      return `${dayName}, ${month} ${day}`
+                    })() : 'TBD'
+                    
+                    // Format time as "7:00 PM"
+                    const time = screening.start_time ? (() => {
+                      const [hours, minutes] = screening.start_time.split(':')
+                      const hour24 = parseInt(hours, 10)
+                      const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+                      const ampm = hour24 >= 12 ? 'PM' : 'AM'
+                      return `${hour12}:${minutes} ${ampm}`
+                    })() : 'TBD'
+                    
+                    const venue = screening.venue_name || 'TBD'
+                    
+                    return (
+                      <div 
+                        key={`ticketing-screening-${screening.id}`} 
+                        className={`text-sm ${screening.is_cancelled ? 'text-red-600' : 'text-gray-900'}`}
+                      >
+                        <div className="flex items-center">
+                          <span className={screening.is_cancelled ? 'line-through' : ''}>
+                            {screening.film_title && screening.film_title !== film.title 
+                              ? `${screening.film_title} • ${date} • ${time} • ${venue}`
+                              : `${date} • ${time} • ${venue}`
+                            }
+                          </span>
+                          {screening.is_cancelled && (
+                            <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                              Cancelled
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No public screenings scheduled.</p>
+              )}
+            </CollapsibleSection>
+
             <CollapsibleSection title="Press Screenings & Links" isEmpty={filmPressScreenings.length === 0}>
               {renderScreenerBadge()}
               {filmPressScreenings.length > 0 ? (

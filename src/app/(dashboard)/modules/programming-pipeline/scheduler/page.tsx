@@ -288,6 +288,112 @@ export default function SchedulingPlannerPage() {
     }
   }, [supabase])
 
+  // Load P&I/Jury screenings and convert to scheduler format
+  const loadPIJuryScreenings = useCallback(async (): Promise<ProgrammingFilmScreening[]> => {
+    try {
+      const currentVenueHouses = venueHouses
+
+      const { data: piJuryData, error } = await supabase
+        .from('pi_jury_screenings')
+        .select('*')
+        .order('screening_date, start_time')
+
+      if (error) throw error
+
+      console.log('DEBUG: Raw P&I/Jury data from DB:', piJuryData?.length || 0)
+
+      // Convert P&I/Jury data to scheduler format
+      const convertedScreenings: ProgrammingFilmScreening[] = []
+      
+      for (const piJury of piJuryData || []) {
+        // Map venue short code to template structure
+        const venueMapping = mapShortCodeToTemplate(piJury.venue_short_code)
+        if (!venueMapping) {
+          console.warn(`Could not map venue short code: ${piJury.venue_short_code}`)
+          continue
+        }
+
+        // Find existing venue house in template
+        const venueHouse = currentVenueHouses?.find(vh => 
+          vh.venue_name === venueMapping.venue_name && 
+          vh.house_name === venueMapping.house_name
+        )
+
+        if (!venueHouse) {
+          console.warn(`Venue house not found for: ${venueMapping.venue_name} - ${venueMapping.house_name}`)
+          continue
+        }
+
+        // Calculate end time using runtime
+        const runtime = piJury.run_time || 120
+        const endTime = calculateEndTime(piJury.start_time, runtime)
+
+        // Create a programming film entry for this P&I/Jury screening
+        const programmingFilm: ProgrammingFilm = {
+          id: `pi-jury-film-${piJury.id}`,
+          film: piJury.film_title,
+          director: null,
+          runtime: piJury.run_time,
+          category: piJury.screening_type,
+          programs: [piJury.screening_type === 'P&I' ? 'Press & Industry' : 'Jury'],
+          status: 'scheduled',
+          color_highlight: piJury.screening_type === 'P&I' ? '#8B5CF6' : '#EF4444'
+        }
+
+        const convertedScreening: ProgrammingFilmScreening = {
+          id: `pi-jury-${piJury.id}`,
+          programming_film_id: `pi-jury-film-${piJury.id}`,
+          venue_house_id: venueHouse.id,
+          screening_date: piJury.screening_date,
+          start_time: piJury.start_time,
+          end_time: endTime,
+          buffer_minutes: 15,
+          press_industry: piJury.screening_type === 'P&I',
+          programming_film: programmingFilm,
+          venue_house: venueHouse
+        }
+
+        convertedScreenings.push(convertedScreening)
+      }
+
+      return convertedScreenings
+    } catch (error) {
+      console.error('Error loading P&I/Jury screenings:', error)
+      return []
+    }
+  }, [supabase, venueHouses])
+
+  // Helper function to map venue short codes to template structure
+  const mapShortCodeToTemplate = (shortCode: string): {venue_name: string, house_name: string} | null => {
+    // Common short code patterns
+    const mappings: Record<string, {venue_name: string, house_name: string}> = {
+      'AMC1': { venue_name: 'AMC River East 21', house_name: 'Theater 1' },
+      'AMC2': { venue_name: 'AMC River East 21', house_name: 'Theater 2' },
+      'AMC3': { venue_name: 'AMC River East 21', house_name: 'Theater 3' },
+      'AMC4': { venue_name: 'AMC River East 21', house_name: 'Theater 4' },
+      'AMC5': { venue_name: 'AMC River East 21', house_name: 'Theater 5' },
+      'AMC6': { venue_name: 'AMC River East 21', house_name: 'Theater 6' },
+      'Music Box A': { venue_name: 'Music Box Theatre', house_name: 'Theater A' },
+      'Music Box B': { venue_name: 'Music Box Theatre', house_name: 'Theater B' },
+      'SISKEL': { venue_name: 'Gene Siskel Film Center', house_name: 'Main Theater' },
+      'BLOCK': { venue_name: 'Block Cinema', house_name: 'Main Theater' },
+    }
+
+    return mappings[shortCode] || null
+  }
+
+  // Helper function to calculate end time
+  const calculateEndTime = (startTime: string, runtime: number): string => {
+    const [hours, minutes] = startTime.split(':').map(Number)
+    const startMinutes = hours * 60 + minutes
+    const endMinutes = startMinutes + runtime
+    const endHours = Math.floor(endMinutes / 60)
+    const endMins = endMinutes % 60
+    return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
+  }
+
+  }, [supabase])
+
   // Helper function to convert date format
   const convertDateFormat = (dateStr: string): string | null => {
     try {
@@ -360,17 +466,20 @@ export default function SchedulingPlannerPage() {
       // Load and convert ticketing screenings inline to avoid circular dependencies
       const ticketingScreenings = await loadTicketingScreenings()
       
+      // Load and convert P&I/Jury screenings
+      const piJuryScreenings = await loadPIJuryScreenings()
+      
       console.log('DEBUG: Manual screenings:', data?.length || 0)
       console.log('DEBUG: Ticketing screenings:', ticketingScreenings.length)
-      console.log('DEBUG: Sample ticketing screening:', ticketingScreenings[0])
+      console.log('DEBUG: P&I/Jury screenings:', piJuryScreenings.length)
       
-      // Combine both types of screenings
-      const allScreenings = [...(data || []), ...ticketingScreenings]
+      // Combine all types of screenings
+      const allScreenings = [...(data || []), ...ticketingScreenings, ...piJuryScreenings]
       setScreenings(allScreenings)
     } catch (error) {
       console.error('Error loading screenings:', error)
     }
-  }, [supabase])
+  }, [supabase, loadPIJuryScreenings])
 
   // Load venue template and program colors
   const loadVenueTemplate = useCallback(async () => {

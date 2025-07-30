@@ -52,6 +52,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
   const [photoShoots, setPhotoShoots] = useState<any[]>([])
   const [redCarpets, setRedCarpets] = useState<any[]>([])
   const [guestInterviews, setGuestInterviews] = useState<InterviewCard[]>([])
+  const [filmScreenings, setFilmScreenings] = useState<any[]>([])
 
   const supabase = createClient()
 
@@ -118,6 +119,120 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           console.error('Error loading guest interviews:', error)
           setGuestInterviews([])
         }
+
+        // Load film screenings for all films this guest is associated with
+        const loadFilmScreenings = async () => {
+          try {
+            // Get all film titles for this guest
+            const filmTitles: string[] = []
+            
+            // Get films from guest_films
+            const { data: guestFilms } = await supabase
+              .from('guest_films')
+              .select('film_title')
+              .eq('guest_id', guest.id)
+            
+            if (guestFilms) {
+              filmTitles.push(...guestFilms.map(gf => gf.film_title))
+            }
+            
+            // Get programs from guest_programs
+            const { data: guestPrograms } = await supabase
+              .from('guest_programs')
+              .select('program_title')
+              .eq('guest_id', guest.id)
+            
+            if (guestPrograms) {
+              filmTitles.push(...guestPrograms.map(gp => gp.program_title))
+            }
+            
+            // Remove duplicates
+            const uniqueFilmTitles = [...new Set(filmTitles)]
+            
+            if (uniqueFilmTitles.length === 0) {
+              setFilmScreenings([])
+              return
+            }
+            
+            // Get all screenings for these films
+            const allScreenings: any[] = []
+            
+            for (const filmTitle of uniqueFilmTitles) {
+              // First try to find programming_film_id
+              const { data: programmingFilm } = await supabase
+                .from('programming_films')
+                .select('id')
+                .eq('film_title', filmTitle)
+                .single()
+              
+              // Query ticketing screenings
+              let screeningsQuery = supabase
+                .from('ticketing_screenings')
+                .select(`
+                  id,
+                  film_title,
+                  screening_date,
+                  day_of_week,
+                  start_time,
+                  venue_short_code,
+                  is_cancelled,
+                  notes
+                `)
+                .order('screening_date', { ascending: true })
+                .order('start_time', { ascending: true })
+              
+              // Use programming_film_id if available, otherwise match by title
+              if (programmingFilm?.id) {
+                screeningsQuery = screeningsQuery.eq('programming_film_id', programmingFilm.id)
+              } else {
+                screeningsQuery = screeningsQuery.eq('film_title', filmTitle)
+              }
+              
+              const { data: screeningsData } = await screeningsQuery
+              
+              if (screeningsData) {
+                // Attempt to resolve venue names
+                const screeningsWithVenues = await Promise.all(
+                  screeningsData.map(async (screening) => {
+                    if (screening.venue_short_code) {
+                      const { data: houseData } = await supabase
+                        .from('theater_houses')
+                        .select(`
+                          venue_id,
+                          venues!inner(name)
+                        `)
+                        .eq('short_code', screening.venue_short_code)
+                        .single()
+                      
+                      if (houseData?.venues?.name) {
+                        return { ...screening, venue_name: houseData.venues.name }
+                      }
+                    }
+                    return { ...screening, venue_name: screening.venue_short_code }
+                  })
+                )
+                
+                allScreenings.push(...screeningsWithVenues)
+              }
+            }
+            
+            // Sort all screenings by date and time
+            allScreenings.sort((a, b) => {
+              const dateCompare = new Date(a.screening_date).getTime() - new Date(b.screening_date).getTime()
+              if (dateCompare !== 0) return dateCompare
+              
+              // If dates are equal, compare times
+              return a.start_time.localeCompare(b.start_time)
+            })
+            
+            setFilmScreenings(allScreenings)
+          } catch (error) {
+            console.error('Error loading film screenings:', error)
+            setFilmScreenings([])
+          }
+        }
+        
+        await loadFilmScreenings()
       } catch (error) {
         console.error('Error loading events:', error)
       }
@@ -640,8 +755,55 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
             <p className="text-sm text-gray-500">Event data will be pulled from Special Events Module when implemented.</p>
           </CollapsibleSection>
 
-          <CollapsibleSection title="Intros & Q&As" isEmpty={true}>
-            <p className="text-sm text-gray-500">Public screening and Q&A data will be pulled from respective modules when implemented.</p>
+          <CollapsibleSection title="Intros & Q&As" isEmpty={filmScreenings.length === 0}>
+            {filmScreenings.length > 0 ? (
+              <div className="space-y-2">
+                {filmScreenings.map((screening) => {
+                  // Format date as "Mon, Oct 23"
+                  const date = screening.screening_date ? (() => {
+                    const d = new Date(screening.screening_date)
+                    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                    const dayName = dayNames[d.getDay()]
+                    const month = monthNames[d.getMonth()]
+                    const day = d.getDate()
+                    return `${dayName}, ${month} ${day}`
+                  })() : 'TBD'
+                  
+                  // Format time as "7:00 PM"
+                  const time = screening.start_time ? (() => {
+                    const [hours, minutes] = screening.start_time.split(':')
+                    const hour24 = parseInt(hours, 10)
+                    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+                    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+                    return `${hour12}:${minutes} ${ampm}`
+                  })() : 'TBD'
+                  
+                  const venue = screening.venue_name || 'TBD'
+                  const title = screening.film_title || 'Unknown Film'
+                  
+                  return (
+                    <div 
+                      key={`screening-${screening.id}`} 
+                      className={`text-sm ${screening.is_cancelled ? 'text-red-600' : 'text-gray-900'}`}
+                    >
+                      <div className="flex items-center">
+                        <span className={screening.is_cancelled ? 'line-through' : ''}>
+                          {title} / {date} / {time} / {venue}
+                        </span>
+                        {screening.is_cancelled && (
+                          <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                            Cancelled
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No public screenings scheduled for this guest's films.</p>
+            )}
           </CollapsibleSection>
 
           {/* Notes */}

@@ -29,8 +29,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
     runtime: '',
     screening_date: '',
     screening_time: '',
-    venue_id: '',
-    house: '',
+    short_code: '',
     film_approved: false,
     locked: false,
     invites_out: false,
@@ -45,16 +44,18 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [films, setFilms] = useState<FilmOption[]>([])
-  const [venues, setVenues] = useState<VenueCard[]>([])
+  const [venueShortCodes, setVenueShortCodes] = useState<string[]>([])
   const [size, setSize] = useState({ width: 600, height: 700 })
   const [isResizing, setIsResizing] = useState(false)
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 })
   const [filmSearch, setFilmSearch] = useState('')
   const [showFilmDropdown, setShowFilmDropdown] = useState(false)
+  const [shortCodeSearch, setShortCodeSearch] = useState('')
+  const [showShortCodeDropdown, setShowShortCodeDropdown] = useState(false)
 
   const supabase = createClient()
 
-  // Load films and venues
+  // Load films and venue short codes
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -79,39 +80,20 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         console.log('Feature films:', featureFilms?.length || 0)
         setFilms(allFilms)
 
-        // Load venues first, then theater houses separately if the join fails
-        const { data: venuesData, error: venuesError } = await supabase
-          .from('venues')
-          .select('*')
-          .order('name')
+        // Load venue short codes
+        const { data: shortCodesData, error: shortCodesError } = await supabase
+          .from('theater_houses')
+          .select('short_code')
+          .not('short_code', 'is', null)
+          .order('short_code')
 
-        if (venuesError) {
-          console.error('Error loading venues:', venuesError)
-          setVenues([])
+        if (shortCodesError) {
+          console.error('Error loading venue short codes:', shortCodesError)
+          setVenueShortCodes([])
         } else {
-          console.log('Loaded venues:', venuesData?.length || 0, venuesData)
-          
-          // Try to load theater houses for each venue
-          if (venuesData && venuesData.length > 0) {
-            const venuesWithHouses = await Promise.all(
-              venuesData.map(async (venue) => {
-                const { data: houses, error: housesError } = await supabase
-                  .from('theater_houses')
-                  .select('house_name, seat_count')
-                  .eq('venue_id', venue.id)
-                
-                if (housesError) {
-                  console.error(`Error loading houses for venue ${venue.name}:`, housesError)
-                  return { ...venue, theater_houses: [] }
-                }
-                
-                return { ...venue, theater_houses: houses || [] }
-              })
-            )
-            setVenues(venuesWithHouses)
-          } else {
-            setVenues(venuesData || [])
-          }
+          const shortCodes = [...new Set((shortCodesData || []).map(item => item.short_code).filter(Boolean))]
+          console.log('Loaded venue short codes:', shortCodes.length, shortCodes)
+          setVenueShortCodes(shortCodes)
         }
       } catch (error) {
         console.error('Error loading data:', error)
@@ -159,8 +141,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         runtime: screening.runtime?.toString() || '',
         screening_date: screening.screening_date || '',
         screening_time: screening.screening_time || '',
-        venue_id: screening.venue_id || '',
-        house: screening.house || '',
+        short_code: screening.short_code || '',
         film_approved: screening.film_approved,
         locked: screening.locked,
         invites_out: screening.invites_out,
@@ -171,6 +152,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         rsvp_responses_url: screening.rsvp_responses_url || ''
       })
       setFilmSearch(screening.title)
+      setShortCodeSearch(screening.short_code || '')
     } else {
       setFormData({
         film_id: '',
@@ -179,8 +161,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         runtime: '',
         screening_date: '',
         screening_time: '',
-        venue_id: '',
-        house: '',
+        short_code: '',
         film_approved: false,
         locked: false,
         invites_out: false,
@@ -190,6 +171,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         rsvp_responses_url: ''
       })
       setFilmSearch('')
+      setShortCodeSearch('')
     }
   }, [screening])
 
@@ -209,22 +191,21 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
     }
   }
 
-  // Get houses for selected venue
-  const selectedVenue = venues.find(v => v.id === formData.venue_id)
-  const availableHouses = selectedVenue?.theater_houses || []
-  
-  // Debug logging for house dropdown
-  console.log('Selected venue ID:', formData.venue_id)
-  console.log('Selected venue object:', selectedVenue)
-  console.log('Available houses:', availableHouses)
+  // Filter short codes based on search
+  const filteredShortCodes = shortCodeSearch
+    ? venueShortCodes.filter(code => 
+        code.toLowerCase().includes(shortCodeSearch.toLowerCase())
+      )
+    : venueShortCodes.slice(0, 10) // Show first 10 if no search term
 
-  // Handle venue change
-  const handleVenueChange = (venueId: string) => {
+  // Handle short code selection
+  const handleShortCodeChange = (shortCode: string) => {
     setFormData(prev => ({
       ...prev,
-      venue_id: venueId,
-      house: '' // Reset house when venue changes
+      short_code: shortCode
     }))
+    setShortCodeSearch(shortCode)
+    setShowShortCodeDropdown(false)
   }
 
   // Drag handlers
@@ -279,23 +260,26 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
     }
   }, [isDragging, isResizing, handleMouseMove])
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element
       if (!target.closest('.film-search-container')) {
         setShowFilmDropdown(false)
       }
+      if (!target.closest('.short-code-container')) {
+        setShowShortCodeDropdown(false)
+      }
     }
 
-    if (showFilmDropdown) {
+    if (showFilmDropdown || showShortCodeDropdown) {
       document.addEventListener('mousedown', handleClickOutside)
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showFilmDropdown])
+  }, [showFilmDropdown, showShortCodeDropdown])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -314,8 +298,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         runtime: formData.runtime ? parseInt(formData.runtime) : null,
         screening_date: normalizeDateValue(formData.screening_date) || null,
         screening_time: formData.screening_time || null,
-        venue_id: formData.venue_id || null,
-        house: formData.house || null,
+        short_code: formData.short_code || null,
         film_approved: formData.film_approved,
         locked: formData.locked,
         invites_out: formData.invites_out,
@@ -337,7 +320,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
           .single()
 
         if (error) throw error
-        onSave({ ...data, venue_name: venues.find(v => v.id === data.venue_id)?.name || null })
+        onSave(data)
       } else {
         // Create new screening
         const { data, error } = await supabase
@@ -347,7 +330,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
           .single()
 
         if (error) throw error
-        onSave({ ...data, venue_name: venues.find(v => v.id === data.venue_id)?.name || null })
+        onSave(data)
       }
     } catch (error) {
       console.error('Error saving screening:', error)
@@ -499,46 +482,37 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
               </div>
             </div>
 
-            {/* Venue and House */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Venue
-                </label>
-                <select
-                  value={formData.venue_id}
-                  onChange={(e) => handleVenueChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select venue...</option>
-                  {venues.map(venue => (
-                    <option key={venue.id} value={venue.id}>
-                      {venue.name}
-                    </option>
+            {/* Venue Short Code */}
+            <div className="relative short-code-container">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Venue Short Code
+              </label>
+              <input
+                type="text"
+                value={shortCodeSearch}
+                onChange={(e) => {
+                  setShortCodeSearch(e.target.value)
+                  setShowShortCodeDropdown(true)
+                  setFormData(prev => ({ ...prev, short_code: e.target.value }))
+                }}
+                onFocus={() => setShowShortCodeDropdown(true)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Type venue short code (e.g., AMC 1, Music Box A)..."
+              />
+              {showShortCodeDropdown && filteredShortCodes.length > 0 && (
+                <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto mt-1">
+                  {filteredShortCodes.map(code => (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => handleShortCodeChange(code)}
+                      className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                    >
+                      {code}
+                    </button>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  House
-                </label>
-                <select
-                  value={formData.house}
-                  onChange={(e) => setFormData(prev => ({ ...prev, house: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={!formData.venue_id || availableHouses.length === 0}
-                >
-                  <option value="">Select house...</option>
-                  {availableHouses.map((house, index) => (
-                    <option key={index} value={house.house_name}>
-                      {house.house_name} ({house.seat_count} seats)
-                    </option>
-                  ))}
-                </select>
-                {formData.venue_id && availableHouses.length === 0 && (
-                  <p className="text-sm text-gray-500 mt-1">No houses configured for this venue</p>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Status Checkboxes */}

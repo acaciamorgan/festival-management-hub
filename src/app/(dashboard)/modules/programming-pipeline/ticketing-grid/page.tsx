@@ -297,8 +297,12 @@ export default function TicketingGridPage() {
     for (const screening of screeningsToPublish) {
       try {
         console.log(`Processing screening: ${screening.film_title}`)
+        const cleanedTitle = stripParentheticals(screening.film_title)
+        if (cleanedTitle !== screening.film_title) {
+          console.log(`  ↳ Stripped parentheticals: "${screening.film_title}" → "${cleanedTitle}"`)
+        }
         console.log('Available film cards for matching:', filmCards.map(f => f.title).slice(0, 10))
-        const matches = findFilmCardMatches(screening.film_title, 0.85)
+        const matches = findFilmCardMatches(screening.film_title, 0.7)
         console.log(`Found ${matches.length} matches for "${screening.film_title}":`, matches)
         
         if (matches.length === 0) {
@@ -402,19 +406,27 @@ export default function TicketingGridPage() {
     }
   }
 
+  // Strip parenthetical notations for matching (e.g., "The Piano Lesson (Accessible Screening)" → "The Piano Lesson")
+  const stripParentheticals = (title: string): string => {
+    return title.replace(/\s*\([^)]*\)\s*/g, '').trim()
+  }
+
   // Fuzzy match function to find film cards
   const findFilmCardMatches = (title: string, threshold: number = 0.8): FilmCardMatch[] => {
     const matches: FilmCardMatch[] = []
-    const searchTitle = normalizeTitle(title)
     
-    // Try multiple variations of the title
+    // Strip parenthetical notations for matching but keep original for display
+    const cleanTitle = stripParentheticals(title)
+    const searchTitle = normalizeTitle(cleanTitle)
+    
+    // Try multiple variations of the CLEAN title (without parentheticals)
     const titleVariations = [
-      title, // Original
-      normalizeTitle(title), // Normalized
-      moveArticleToEnd(title), // "The Piano" → "Piano, The"
-      moveArticleToFront(title), // "Piano, The" → "The Piano"
-      moveArticleToEnd(normalizeTitle(title)), // Normalized + article moved
-      moveArticleToFront(normalizeTitle(title)) // Normalized + article moved
+      cleanTitle, // Clean original
+      normalizeTitle(cleanTitle), // Clean normalized
+      moveArticleToEnd(cleanTitle), // "The Piano" → "Piano, The"
+      moveArticleToFront(cleanTitle), // "Piano, The" → "The Piano"
+      moveArticleToEnd(normalizeTitle(cleanTitle)), // Clean normalized + article moved
+      moveArticleToFront(normalizeTitle(cleanTitle)) // Clean normalized + article moved
     ]
     
     filmCards.forEach(filmCard => {
@@ -438,12 +450,17 @@ export default function TicketingGridPage() {
           matches.push({ ...filmCard, matchScore: similarity })
         }
         
-        // Substring match
+        // Substring match - more generous for partial matches
         if (cardTitle.includes(normalizedVariation) || normalizedVariation.includes(cardTitle)) {
           const substringSimilarity = Math.min(normalizedVariation.length, cardTitle.length) / Math.max(normalizedVariation.length, cardTitle.length)
-          if (substringSimilarity >= threshold) {
+          if (substringSimilarity >= Math.min(threshold, 0.6)) { // Lower threshold for substring matches
             matches.push({ ...filmCard, matchScore: substringSimilarity })
           }
+        }
+        
+        // Additional check: if the screening title is contained in the film card title (for cases like "Slice of Life" in "Slice of Life: The American Dream. In Former Pizza Huts.")
+        if (normalizedVariation.length > 5 && cardTitle.startsWith(normalizedVariation)) {
+          matches.push({ ...filmCard, matchScore: 0.9 }) // High score for prefix matches
         }
       })
     })
@@ -1192,7 +1209,7 @@ export default function TicketingGridPage() {
 
       {/* Data Grid */}
       <div className="flex-1 bg-white overflow-hidden">
-        <div className="overflow-auto h-full">
+        <div className="overflow-auto max-h-[calc(100vh-350px)]">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-lg text-gray-500">Loading screenings...</div>
@@ -1339,7 +1356,7 @@ export default function TicketingGridPage() {
                         {!screening.is_published && (
                           <button
                             onClick={async () => {
-                              const matches = findFilmCardMatches(screening.film_title, 0.85)
+                              const matches = findFilmCardMatches(screening.film_title, 0.7)
                               if (matches.length === 1 || (matches[0]?.matchScore === 1.0)) {
                                 try {
                                   await publishScreening(screening, matches[0])
@@ -1619,7 +1636,7 @@ export default function TicketingGridPage() {
       {/* Unmatched Titles Modal */}
       {showPublishModal && unmatchedTitles.length > 0 && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-4xl overflow-hidden flex flex-col" style={{ width: '80%', maxHeight: '83.333333%' }}>
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-4/5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Title Matching Required</h3>
               <button
@@ -1638,7 +1655,7 @@ export default function TicketingGridPage() {
               Please select the correct match for each title, or skip screenings that shouldn't be published.
             </p>
             
-            <div className="flex-1 overflow-y-auto space-y-6">
+            <div className="space-y-6">
               {unmatchedTitles.map((item, index) => (
                 <div key={item.screening.id} className="border rounded-lg p-4">
                   <div className="flex items-start justify-between mb-4">

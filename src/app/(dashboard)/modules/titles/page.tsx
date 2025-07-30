@@ -336,21 +336,50 @@ export default function TitlesPage() {
   // Sync shorts programs to feature_films table for ticketing
   const syncShortsToFeatureFilms = useCallback(async () => {
     try {
-      // Get all shorts programs with their films
+      console.log('Starting shorts sync to feature_films...')
+      
+      // Get all shorts programs first
       const { data: programsData, error: programsError } = await supabase
         .from('shorts_programs')
-        .select(`
-          id,
-          program_name,
-          shorts_films(id, title, run_time)
-        `)
+        .select('id, program_name')
       
-      if (programsError) throw programsError
+      if (programsError) {
+        console.error('Error fetching shorts programs:', programsError)
+        throw programsError
+      }
       
-      for (const program of programsData || []) {
-        const totalRuntime = program.shorts_films?.reduce((total: number, film: any) => {
+      console.log('Raw programs data:', programsData)
+      
+      // Then get films for each program separately
+      const programsWithFilms = await Promise.all(
+        (programsData || []).map(async (program) => {
+          const { data: filmsData, error: filmsError } = await supabase
+            .from('short_films') 
+            .select('id, title, run_time')
+            .eq('shorts_program_id', program.id)
+          
+          if (filmsError) {
+            console.error(`Error fetching films for program ${program.program_name}:`, filmsError)
+          }
+          
+          console.log(`Films for ${program.program_name}:`, filmsData?.length || 0)
+          
+          return {
+            ...program,
+            short_films: filmsData || []
+          }
+        })
+      )
+      
+      console.log('Found shorts programs:', programsWithFilms?.length || 0)
+      programsWithFilms?.forEach(p => console.log('Program:', p.program_name))
+      
+      for (const program of programsWithFilms || []) {
+        const totalRuntime = program.short_films?.reduce((total: number, film: any) => {
           return total + (film.run_time || 0)
         }, 0) || 0
+        
+        console.log(`Processing program: ${program.program_name}, runtime: ${totalRuntime}min`)
         
         // Check if program already exists in feature_films
         const { data: existingFilm, error: checkError } = await supabase
@@ -388,19 +417,27 @@ export default function TitlesPage() {
         
         if (existingFilm) {
           // Update existing entry
+          console.log(`Updating existing program: ${program.program_name}`)
           const { error: updateError } = await supabase
             .from('feature_films')
             .update(filmData)
             .eq('id', existingFilm.id)
           
-          if (updateError) throw updateError
+          if (updateError) {
+            console.error(`Error updating ${program.program_name}:`, updateError)
+            throw updateError
+          }
         } else {
-          // Insert new entry
+          // Insert new entry  
+          console.log(`Inserting new program: ${program.program_name}`)
           const { error: insertError } = await supabase
             .from('feature_films')
             .insert([filmData])
           
-          if (insertError) throw insertError
+          if (insertError) {
+            console.error(`Error inserting ${program.program_name}:`, insertError)
+            throw insertError
+          }
         }
       }
       

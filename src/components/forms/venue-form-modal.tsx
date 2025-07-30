@@ -134,8 +134,10 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('Venue form submitted', formData)
     
     if (!validateForm()) {
+      console.log('Validation failed', errors)
       return
     }
 
@@ -306,7 +308,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-transparent pointer-events-none">
       <div 
         className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto pointer-events-auto relative"
         style={{ 

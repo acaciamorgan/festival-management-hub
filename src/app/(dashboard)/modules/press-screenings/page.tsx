@@ -21,8 +21,27 @@ export default function PressScreeningsPage() {
   const [showFilmCard, setShowFilmCard] = useState(false)
   const [editingCell, setEditingCell] = useState<{screeningId: string, field: string} | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [venueShortCodes, setVenueShortCodes] = useState<string[]>([])
+  const [showShortCodeSuggestions, setShowShortCodeSuggestions] = useState(false)
 
   const supabase = createClient()
+
+  const loadVenueShortCodes = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('theater_houses')
+        .select('short_code')
+        .not('short_code', 'is', null)
+        .order('short_code')
+
+      if (error) throw error
+      
+      const shortCodes = [...new Set((data || []).map(item => item.short_code).filter(Boolean))]
+      setVenueShortCodes(shortCodes)
+    } catch (error) {
+      console.error('Error loading venue short codes:', error)
+    }
+  }, [supabase])
 
   const loadPressScreenings = useCallback(async () => {
     setLoading(true)
@@ -52,7 +71,8 @@ export default function PressScreeningsPage() {
 
   useEffect(() => {
     loadPressScreenings()
-  }, [loadPressScreenings])
+    loadVenueShortCodes()
+  }, [loadPressScreenings, loadVenueShortCodes])
 
   // Filter and search logic
   const filteredScreenings = useMemo(() => {
@@ -302,6 +322,66 @@ export default function PressScreeningsPage() {
     const isEditing = editingCell?.screeningId === screening.id && editingCell?.field === field
 
     if (isEditing) {
+      // Special handling for short_code field with autocomplete
+      if (field === 'short_code') {
+        const filteredSuggestions = venueShortCodes.filter(code => 
+          code.toLowerCase().includes(editValue.toLowerCase())
+        )
+
+        return (
+          <div className="relative">
+            <input
+              type="text"
+              value={editValue}
+              onChange={(e) => {
+                setEditValue(e.target.value)
+                setShowShortCodeSuggestions(e.target.value.length > 0)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleCellSave()
+                  setShowShortCodeSuggestions(false)
+                }
+                if (e.key === 'Escape') {
+                  handleCellCancel()
+                  setShowShortCodeSuggestions(false)
+                }
+              }}
+              onBlur={() => {
+                // Delay to allow click on suggestion
+                setTimeout(() => {
+                  handleCellSave()
+                  setShowShortCodeSuggestions(false)
+                }, 150)
+              }}
+              onFocus={() => setShowShortCodeSuggestions(editValue.length > 0)}
+              className="w-full px-1 py-0 text-sm border border-blue-500 rounded focus:outline-none"
+              autoFocus
+              placeholder="Type venue short code..."
+            />
+            {showShortCodeSuggestions && filteredSuggestions.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                {filteredSuggestions.slice(0, 10).map((code) => (
+                  <div
+                    key={code}
+                    className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                    onClick={() => {
+                      setEditValue(code)
+                      setShowShortCodeSuggestions(false)
+                      // Trigger save
+                      setTimeout(() => handleCellSave(), 50)
+                    }}
+                  >
+                    {code}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      }
+
+      // Default input for other fields
       return (
         <input
           type="text"
@@ -398,9 +478,7 @@ export default function PressScreeningsPage() {
                     { key: 'title', label: 'Title', width: 200 },
                     { key: 'screening_date', label: 'Date', width: 180 },
                     { key: 'screening_time', label: 'Time', width: 100 },
-                    { key: 'venue_name', label: 'Venue', width: 150 },
-                    { key: 'house', label: 'House', width: 120 },
-                    { key: 'short_code', label: 'Short Code', width: 100 },
+                    { key: 'short_code', label: 'Venue Short Code', width: 150 },
                     { key: 'runtime', label: 'Runtime', width: 100 },
                     { key: 'rsvps', label: 'RSVPs', width: 120 },
                     { key: 'film_approved', label: 'Film Approved', width: 120 },
@@ -457,43 +535,9 @@ export default function PressScreeningsPage() {
                       {formatTime(screening.screening_time)}
                     </td>
                     
-                    {/* Venue */}
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['venue_name'] || 150}px` }}>
-                      {screening.venue_name || '—'}
-                    </td>
-                    
-                    {/* House */}
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['house'] || 120}px` }}>
-                      {screening.house || '—'}
-                    </td>
-                    
-                    {/* Short Code */}
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['short_code'] || 100}px` }}>
-                      {editingCell?.screeningId === screening.id && editingCell?.field === 'short_code' ? (
-                        <input
-                          type="text"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onBlur={() => handleCellEdit(screening, 'short_code', editValue)}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
-                              handleCellEdit(screening, 'short_code', editValue)
-                            }
-                          }}
-                          className="w-full px-2 py-1 border border-gray-300 rounded"
-                          autoFocus
-                        />
-                      ) : (
-                        <div 
-                          onClick={() => {
-                            setEditingCell({ screeningId: screening.id, field: 'short_code' })
-                            setEditValue(screening.short_code || '')
-                          }}
-                          className="cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
-                        >
-                          {screening.short_code || '—'}
-                        </div>
-                      )}
+                    {/* Venue Short Code */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['short_code'] || 150}px` }}>
+                      {renderEditableCell(screening, 'short_code', screening.short_code)}
                     </td>
                     
                     {/* Runtime */}
