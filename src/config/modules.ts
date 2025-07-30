@@ -1,6 +1,15 @@
 import { ModuleConfig } from '@/types'
 
 export const moduleConfigs: Record<string, ModuleConfig> = {
+  festivalOverview: {
+    id: 'festivalOverview',
+    name: 'Festival At a Glance',
+    icon: 'home',
+    hasGridView: false,
+    hasRSVP: false,
+    cardTypes: [],
+    route: '/modules/festival-overview'
+  },
   programmingPipeline: {
     id: 'programmingPipeline',
     name: 'Programming Pipeline',

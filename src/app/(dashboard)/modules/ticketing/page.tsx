@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { DraggableModal } from '@/components/ui/draggable-modal'
+import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
 
 // Interface for published screenings
 interface PublishedScreening {
@@ -82,6 +84,14 @@ export default function TicketingPage() {
   const [piJuryScreenings, setPiJuryScreenings] = useState<PIJuryScreening[]>([])
   const [techCheckScreenings, setTechCheckScreenings] = useState<TechCheckScreening[]>([])
   
+  // Auto-suggest data
+  const [filmCards, setFilmCards] = useState<any[]>([])
+  const [venueCards, setVenueCards] = useState<any[]>([])
+  const [showFilmSuggestions, setShowFilmSuggestions] = useState(false)
+  const [showVenueSuggestions, setShowVenueSuggestions] = useState(false)
+  const [filmSearchTerm, setFilmSearchTerm] = useState('')
+  const [venueSearchTerm, setVenueSearchTerm] = useState('')
+  
   // UI states
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -108,24 +118,27 @@ export default function TicketingPage() {
 
   // Helper functions
   const formatDate = (dateString: string): string => {
-    const date = new Date(dateString)
-    const month = date.toLocaleDateString('en-US', { month: 'short' })
-    const day = date.getDate()
-    return `${month}. ${day}`
+    try {
+      const parts = dateString.split('-')  // [YYYY, MM, DD]
+      if (parts.length !== 3) return dateString
+      
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      const month = parseInt(parts[1]) - 1
+      const day = parseInt(parts[2])
+      
+      return `${monthNames[month]}. ${day}`
+    } catch {
+      return dateString
+    }
   }
 
   const getDayOfWeek = (dateString: string): string => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { weekday: 'long' })
+    return getStringDayOfWeek(dateString)
   }
 
   const formatTime = (timeString: string): string => {
-    const time = new Date(`2000-01-01 ${timeString}`)
-    return time.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit', 
-      hour12: true 
-    })
+    return formatStringTime(timeString)
   }
 
   // Load data functions
@@ -178,6 +191,136 @@ export default function TicketingPage() {
     }
   }, [supabase])
 
+  // Sync press screenings to P&I screenings
+  const syncPressScreenings = useCallback(async () => {
+    try {
+      // Get all press screenings with venue info
+      const { data: pressScreenings, error: pressError } = await supabase
+        .from('press_screenings')
+        .select(`
+          *,
+          venues(name)
+        `)
+        .eq('canceled', false)
+
+      if (pressError) throw pressError
+
+      // Process each press screening
+      let successCount = 0
+      let skippedCount = 0
+      
+      for (const screening of pressScreenings || []) {
+        if (!screening.screening_date || !screening.screening_time) continue
+
+        // Use short code if available, otherwise create from venue + house
+        const shortCode = screening.short_code || 
+                         (screening.venues?.name && screening.house ? 
+                          `${screening.venues.name} ${screening.house}` : 
+                          'TBD')
+        
+        if (!screening.short_code) {
+          console.warn(`No short code for ${screening.title} - using fallback: ${shortCode}`)
+        }
+
+        // Check if this screening already exists
+        const { data: existing } = await supabase
+          .from('pi_jury_screenings')
+          .select('id')
+          .eq('film_title', screening.title)
+          .eq('screening_date', screening.screening_date)
+          .eq('start_time', screening.screening_time)
+          .single()
+
+        if (existing) {
+          skippedCount++
+        } else {
+          // Create new P&I screening
+          const { error: insertError } = await supabase
+            .from('pi_jury_screenings')
+            .insert({
+              film_title: screening.title,
+              screening_type: 'P&I',
+              screening_date: screening.screening_date,
+              day_of_week: getDayOfWeek(screening.screening_date),
+              start_time: screening.screening_time,
+              run_time: screening.runtime,
+              venue_short_code: shortCode,
+              notes: screening.notes,
+              is_cancelled: false
+            })
+
+          if (!insertError) {
+            successCount++
+          } else {
+            console.error(`Error inserting ${screening.title}:`, insertError)
+          }
+        }
+      }
+
+      const message = skippedCount > 0 
+        ? `Successfully synced ${successCount} press screenings to P&I (${skippedCount} already existed)`
+        : `Successfully synced ${successCount} press screenings to P&I`
+      
+      alert(message)
+      await loadPIJuryScreenings()
+    } catch (error) {
+      console.error('Error syncing press screenings:', error)
+      alert('Error syncing press screenings. Please try again.')
+    }
+  }, [supabase, user, getDayOfWeek, loadPIJuryScreenings])
+
+  // Load film cards for auto-suggest
+  const loadFilmCards = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('feature_films')
+        .select('id, title, run_time')
+        .order('title')
+      
+      if (error) throw error
+      setFilmCards(data || [])
+    } catch (error) {
+      console.error('Error loading film cards:', error)
+    }
+  }, [supabase])
+
+  // Load venue cards for auto-suggest
+  const loadVenueCards = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('venues')
+        .select(`
+          id,
+          venue_name: name,
+          venue_houses(
+            id,
+            house_name,
+            seat_count,
+            short_code
+          )
+        `)
+        .order('venue_name')
+      
+      if (error) throw error
+      
+      // Flatten the venue/house structure for easier searching
+      const flattenedVenues = (data || []).flatMap(venue => 
+        venue.venue_houses?.map((house: any) => ({
+          id: house.id,
+          venue_name: venue.venue_name,
+          house_name: house.house_name,
+          short_code: house.short_code,
+          capacity: house.seat_count,
+          display_name: `${venue.venue_name} - ${house.house_name} (${house.short_code})`
+        })) || []
+      )
+      
+      setVenueCards(flattenedVenues)
+    } catch (error) {
+      console.error('Error loading venue cards:', error)
+    }
+  }, [supabase])
+
   // Load all data
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -185,16 +328,32 @@ export default function TicketingPage() {
       await Promise.all([
         loadPublishedScreenings(),
         loadPIJuryScreenings(),
-        loadTechCheckScreenings()
+        loadTechCheckScreenings(),
+        loadFilmCards(),
+        loadVenueCards()
       ])
     } finally {
       setLoading(false)
     }
-  }, [loadPublishedScreenings, loadPIJuryScreenings, loadTechCheckScreenings])
+  }, [loadPublishedScreenings, loadPIJuryScreenings, loadTechCheckScreenings, loadFilmCards, loadVenueCards])
 
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // Click away handler for suggestions
+  useEffect(() => {
+    const handleClickAway = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('.film-suggest') && !target.closest('.venue-suggest')) {
+        setShowFilmSuggestions(false)
+        setShowVenueSuggestions(false)
+      }
+    }
+
+    document.addEventListener('click', handleClickAway)
+    return () => document.removeEventListener('click', handleClickAway)
+  }, [])
 
   // Form handlers
   const resetForm = () => {
@@ -208,6 +367,10 @@ export default function TicketingPage() {
       notes: ''
     })
     setEditingScreening(null)
+    setFilmSearchTerm('')
+    setVenueSearchTerm('')
+    setShowFilmSuggestions(false)
+    setShowVenueSuggestions(false)
   }
 
   const handleAddScreening = () => {
@@ -227,6 +390,12 @@ export default function TicketingPage() {
       screening_type: screening.screening_type,
       tech_contact: screening.tech_contact
     })
+    setFilmSearchTerm(screening.film_title)
+    
+    // Find matching venue for display
+    const matchingVenue = venueCards.find(v => v.short_code === screening.venue_short_code)
+    setVenueSearchTerm(matchingVenue ? matchingVenue.display_name : screening.venue_short_code)
+    
     setEditingScreening(screening)
     setShowEditModal(true)
   }
@@ -269,7 +438,6 @@ export default function TicketingPage() {
         venue_short_code: formData.venue_short_code,
         capacity: formData.capacity,
         notes: formData.notes || null,
-        created_by: user.id,
         ...(viewMode === 'pi-jury' && { screening_type: formData.screening_type }),
         ...(viewMode === 'tech-checks' && { tech_contact: formData.tech_contact })
       }
@@ -330,6 +498,23 @@ export default function TicketingPage() {
     )
   }, [searchTerm, publishedScreenings, piJuryScreenings, techCheckScreenings, viewMode])
 
+  // Filter film suggestions
+  const filteredFilms = useMemo(() => {
+    if (!filmSearchTerm) return []
+    return filmCards.filter(film => 
+      film.title.toLowerCase().includes(filmSearchTerm.toLowerCase())
+    ).slice(0, 5)
+  }, [filmSearchTerm, filmCards])
+
+  // Filter venue suggestions  
+  const filteredVenues = useMemo(() => {
+    if (!venueSearchTerm) return []
+    return venueCards.filter(venue => 
+      venue.display_name.toLowerCase().includes(venueSearchTerm.toLowerCase()) ||
+      venue.short_code.toLowerCase().includes(venueSearchTerm.toLowerCase())
+    ).slice(0, 5)
+  }, [venueSearchTerm, venueCards])
+
   // Table column configurations
   const getTableColumns = () => {
     const baseColumns = [
@@ -384,12 +569,22 @@ export default function TicketingPage() {
               {filteredData.length} of {getCurrentData().length} screenings
             </p>
           </div>
-          <button
-            onClick={handleAddScreening}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
-          >
-            Add Screening
-          </button>
+          <div className="flex space-x-2">
+            {viewMode === 'pi-jury' && (
+              <button
+                onClick={syncPressScreenings}
+                className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 font-medium"
+              >
+                🔄 Sync Press Screenings
+              </button>
+            )}
+            <button
+              onClick={handleAddScreening}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+            >
+              Add Screening
+            </button>
+          </div>
         </div>
 
         {/* View Mode Toggle */}
@@ -441,13 +636,14 @@ export default function TicketingPage() {
       </div>
 
       {/* Data Grid */}
-      <div className="flex-1 overflow-auto bg-white">
+      <div className="flex-1 overflow-hidden bg-white">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-lg text-gray-500">Loading screenings...</div>
           </div>
         ) : (
-          <table className="min-w-full divide-y divide-gray-200">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
+            <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50 sticky top-0">
               <tr>
                 {getTableColumns().map((column) => (
@@ -561,28 +757,57 @@ export default function TicketingPage() {
                 </tr>
               )}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
 
       {/* Add Screening Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg border border-gray-300 shadow-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-4">Add New Screening</h3>
+        <div className="fixed inset-0 bg-transparent z-50">
+          <DraggableModal>
+            <div className="p-6 w-[600px] max-h-[90vh] overflow-y-auto">
+              <h3 className="text-lg font-semibold mb-4 modal-header cursor-grab">Add New Screening</h3>
             
             <div className="space-y-4">
               {/* Film Title */}
-              <div>
+              <div className="relative film-suggest">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Film Title <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  value={formData.film_title}
-                  onChange={(e) => setFormData(prev => ({...prev, film_title: e.target.value}))}
+                  value={filmSearchTerm || formData.film_title}
+                  onChange={(e) => {
+                    setFilmSearchTerm(e.target.value)
+                    setFormData(prev => ({...prev, film_title: e.target.value}))
+                    setShowFilmSuggestions(true)
+                  }}
+                  onFocus={() => setShowFilmSuggestions(true)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+                {showFilmSuggestions && filteredFilms.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                    {filteredFilms.map((film) => (
+                      <div
+                        key={film.id}
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev, 
+                            film_title: film.title,
+                            run_time: viewMode === 'tech-checks' ? prev.run_time : film.run_time
+                          }))
+                          setFilmSearchTerm(film.title)
+                          setShowFilmSuggestions(false)
+                        }}
+                      >
+                        <div className="font-medium">{film.title}</div>
+                        <div className="text-sm text-gray-600">{film.run_time} min</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Screening Type for P&I/Jury */}
@@ -645,17 +870,44 @@ export default function TicketingPage() {
               </div>
 
               {/* Venue */}
-              <div>
+              <div className="relative venue-suggest">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Venue <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  value={formData.venue_short_code}
-                  onChange={(e) => setFormData(prev => ({...prev, venue_short_code: e.target.value}))}
-                  placeholder="Venue short code..."
+                  value={venueSearchTerm || formData.venue_short_code}
+                  onChange={(e) => {
+                    setVenueSearchTerm(e.target.value)
+                    setFormData(prev => ({...prev, venue_short_code: e.target.value}))
+                    setShowVenueSuggestions(true)
+                  }}
+                  onFocus={() => setShowVenueSuggestions(true)}
+                  placeholder="Search venue or enter short code..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+                {showVenueSuggestions && filteredVenues.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                    {filteredVenues.map((venue) => (
+                      <div
+                        key={venue.id}
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev, 
+                            venue_short_code: venue.short_code,
+                            capacity: venue.capacity
+                          }))
+                          setVenueSearchTerm(venue.display_name)
+                          setShowVenueSuggestions(false)
+                        }}
+                      >
+                        <div className="font-medium">{venue.display_name}</div>
+                        <div className="text-sm text-gray-600">Capacity: {venue.capacity}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Run Time and Capacity */}
@@ -725,28 +977,57 @@ export default function TicketingPage() {
                 Add Screening
               </button>
             </div>
-          </div>
+            </div>
+          </DraggableModal>
         </div>
       )}
 
       {/* Edit Screening Modal */}
       {showEditModal && editingScreening && (
-        <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg border border-gray-300 shadow-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-4">Edit Screening</h3>
+        <div className="fixed inset-0 bg-transparent z-50">
+          <DraggableModal>
+            <div className="p-6 w-[600px] max-h-[90vh] overflow-y-auto">
+              <h3 className="text-lg font-semibold mb-4 modal-header cursor-grab">Edit Screening</h3>
             
             <div className="space-y-4">
               {/* Film Title */}
-              <div>
+              <div className="relative film-suggest">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Film Title <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  value={formData.film_title}
-                  onChange={(e) => setFormData(prev => ({...prev, film_title: e.target.value}))}
+                  value={filmSearchTerm || formData.film_title}
+                  onChange={(e) => {
+                    setFilmSearchTerm(e.target.value)
+                    setFormData(prev => ({...prev, film_title: e.target.value}))
+                    setShowFilmSuggestions(true)
+                  }}
+                  onFocus={() => setShowFilmSuggestions(true)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+                {showFilmSuggestions && filteredFilms.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                    {filteredFilms.map((film) => (
+                      <div
+                        key={film.id}
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev, 
+                            film_title: film.title,
+                            run_time: viewMode === 'tech-checks' ? prev.run_time : film.run_time
+                          }))
+                          setFilmSearchTerm(film.title)
+                          setShowFilmSuggestions(false)
+                        }}
+                      >
+                        <div className="font-medium">{film.title}</div>
+                        <div className="text-sm text-gray-600">{film.run_time} min</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Screening Type for P&I/Jury */}
@@ -809,17 +1090,44 @@ export default function TicketingPage() {
               </div>
 
               {/* Venue */}
-              <div>
+              <div className="relative venue-suggest">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Venue <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  value={formData.venue_short_code}
-                  onChange={(e) => setFormData(prev => ({...prev, venue_short_code: e.target.value}))}
-                  placeholder="Venue short code..."
+                  value={venueSearchTerm || formData.venue_short_code}
+                  onChange={(e) => {
+                    setVenueSearchTerm(e.target.value)
+                    setFormData(prev => ({...prev, venue_short_code: e.target.value}))
+                    setShowVenueSuggestions(true)
+                  }}
+                  onFocus={() => setShowVenueSuggestions(true)}
+                  placeholder="Search venue or enter short code..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+                {showVenueSuggestions && filteredVenues.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                    {filteredVenues.map((venue) => (
+                      <div
+                        key={venue.id}
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev, 
+                            venue_short_code: venue.short_code,
+                            capacity: venue.capacity
+                          }))
+                          setVenueSearchTerm(venue.display_name)
+                          setShowVenueSuggestions(false)
+                        }}
+                      >
+                        <div className="font-medium">{venue.display_name}</div>
+                        <div className="text-sm text-gray-600">Capacity: {venue.capacity}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Run Time and Capacity */}
@@ -902,7 +1210,8 @@ export default function TicketingPage() {
                 </button>
               </div>
             </div>
-          </div>
+            </div>
+          </DraggableModal>
         </div>
       )}
     </div>

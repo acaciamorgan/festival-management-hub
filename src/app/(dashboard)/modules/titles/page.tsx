@@ -333,6 +333,83 @@ export default function TitlesPage() {
     }
   }, [supabase])
 
+  // Sync shorts programs to feature_films table for ticketing
+  const syncShortsToFeatureFilms = useCallback(async () => {
+    try {
+      // Get all shorts programs with their films
+      const { data: programsData, error: programsError } = await supabase
+        .from('shorts_programs')
+        .select(`
+          id,
+          program_name,
+          shorts_films(id, title, run_time)
+        `)
+      
+      if (programsError) throw programsError
+      
+      for (const program of programsData || []) {
+        const totalRuntime = program.shorts_films?.reduce((total: number, film: any) => {
+          return total + (film.run_time || 0)
+        }, 0) || 0
+        
+        // Check if program already exists in feature_films
+        const { data: existingFilm, error: checkError } = await supabase
+          .from('feature_films')
+          .select('id')
+          .eq('title', program.program_name)
+          .single()
+        
+        const filmData = {
+          title: program.program_name,
+          source: 'Shorts Program',
+          original_language_title: program.program_name,
+          director: 'Multiple Directors',
+          countries: '',
+          run_time: totalRuntime,
+          language: 'Multiple Languages',
+          subtitles: '',
+          captions: '',
+          original_release_year: 2024,
+          screenwriter: '',
+          cinematographer: '',
+          art_director: '',
+          editor: '',
+          principal_cast: '',
+          sound_designer: '',
+          music_score: '',
+          producer: '',
+          executive_producer: '',
+          production_companies: '',
+          film_website: '',
+          trailer_url: '',
+          premiere_status: '',
+          content_warnings: ''
+        }
+        
+        if (existingFilm) {
+          // Update existing entry
+          const { error: updateError } = await supabase
+            .from('feature_films')
+            .update(filmData)
+            .eq('id', existingFilm.id)
+          
+          if (updateError) throw updateError
+        } else {
+          // Insert new entry
+          const { error: insertError } = await supabase
+            .from('feature_films')
+            .insert([filmData])
+          
+          if (insertError) throw insertError
+        }
+      }
+      
+      console.log('Shorts programs synced to feature_films successfully')
+    } catch (error) {
+      console.error('Error syncing shorts programs:', error)
+    }
+  }, [supabase])
+
   // Get unique values for filters
   const uniquePrograms = useMemo(() => {
     const programs = new Set<string>()
@@ -1267,12 +1344,23 @@ export default function TitlesPage() {
               👥 {showGuestMode ? 'Hide Guests' : 'Show Guests'}
             </button>
             {viewMode === 'shorts' && (
-              <button
-                onClick={() => setShowCreateProgramModal(true)}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
-              >
-                ➕ Create Shorts Program
-              </button>
+              <>
+                <button
+                  onClick={() => setShowCreateProgramModal(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
+                >
+                  ➕ Create Shorts Program
+                </button>
+                <button
+                  onClick={() => {
+                    syncShortsToFeatureFilms()
+                    alert('Shorts programs synced to feature films for ticketing!')
+                  }}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md transition-colors"
+                >
+                  🔄 Sync Shorts to Ticketing
+                </button>
+              </>
             )}
             {viewMode === 'programs' && (
               <>
@@ -1779,7 +1867,9 @@ export default function TitlesPage() {
                   <div className="bg-gray-800 text-white px-6 py-4 flex items-center justify-between">
                     <div>
                       <h3 className="text-lg font-semibold">{programName}</h3>
-                      <p className="text-sm text-gray-300">{programShorts.length} shorts</p>
+                      <p className="text-sm text-gray-300">
+                        {programShorts.length} shorts, {programShorts.reduce((total, short) => total + (short.run_time || 0), 0)} mins
+                      </p>
                     </div>
                     {programName !== 'Unassigned Shorts' && (
                       <button

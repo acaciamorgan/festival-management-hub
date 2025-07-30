@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { normalizeDateValue } from '@/lib/date-utils'
+import { parseDateSafe, getDayOfWeekSafe } from '@/lib/date-utils-safe'
 
 interface ProgrammingFilm {
   id: string
@@ -1046,16 +1047,14 @@ export default function SchedulingPlannerPage() {
   }
 
   const formatSelectedDate = () => {
-    // Parse date string manually to avoid timezone issues
-    const [year, month, day] = selectedDate.split('-').map(Number)
-    const date = new Date(year, month - 1, day) // month is 0-indexed
-    console.log('🗓️ Date formatting:', { selectedDate, year, month, day, formattedDate: date })
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    })
+    try {
+      const components = parseDateSafe(selectedDate)
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      const dayOfWeek = getDayOfWeekSafe(selectedDate)
+      return `${dayOfWeek}, ${monthNames[components.month - 1]} ${components.day}, ${components.year}`
+    } catch {
+      return selectedDate
+    }
   }
 
   // Filter films based on search term
@@ -1704,11 +1703,16 @@ export default function SchedulingPlannerPage() {
                   <div key={date} className="border border-gray-200 rounded-lg overflow-hidden">
                     <div className="bg-gray-50 p-2 text-center">
                       <div className="font-medium text-sm">
-                        {new Date(date).toLocaleDateString('en-US', { 
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
+                        {(() => {
+                          try {
+                            const components = parseDateSafe(date)
+                            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                            const dayOfWeek = getDayOfWeekSafe(date).substring(0, 3) // Short day
+                            return `${dayOfWeek}, ${monthNames[components.month - 1]} ${components.day}`
+                          } catch {
+                            return date
+                          }
+                        })()}
                       </div>
                     </div>
                     <div className="p-2 space-y-1 min-h-32">

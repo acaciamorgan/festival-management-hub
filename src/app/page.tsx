@@ -7,8 +7,8 @@ export default function HomePage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Redirect to the programming pipeline scheduler
-    router.push('/modules/programming-pipeline/scheduler')
+    // Redirect to the festival overview (landing page)
+    router.push('/modules/festival-overview')
   }, [router])
 
   return (

@@ -400,6 +400,7 @@ export default function PressScreeningsPage() {
                     { key: 'screening_time', label: 'Time', width: 100 },
                     { key: 'venue_name', label: 'Venue', width: 150 },
                     { key: 'house', label: 'House', width: 120 },
+                    { key: 'short_code', label: 'Short Code', width: 100 },
                     { key: 'runtime', label: 'Runtime', width: 100 },
                     { key: 'rsvps', label: 'RSVPs', width: 120 },
                     { key: 'film_approved', label: 'Film Approved', width: 120 },
@@ -464,6 +465,35 @@ export default function PressScreeningsPage() {
                     {/* House */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['house'] || 120}px` }}>
                       {screening.house || '—'}
+                    </td>
+                    
+                    {/* Short Code */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['short_code'] || 100}px` }}>
+                      {editingCell?.screeningId === screening.id && editingCell?.field === 'short_code' ? (
+                        <input
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onBlur={() => handleCellEdit(screening, 'short_code', editValue)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              handleCellEdit(screening, 'short_code', editValue)
+                            }
+                          }}
+                          className="w-full px-2 py-1 border border-gray-300 rounded"
+                          autoFocus
+                        />
+                      ) : (
+                        <div 
+                          onClick={() => {
+                            setEditingCell({ screeningId: screening.id, field: 'short_code' })
+                            setEditValue(screening.short_code || '')
+                          }}
+                          className="cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
+                        >
+                          {screening.short_code || '—'}
+                        </div>
+                      )}
                     </td>
                     
                     {/* Runtime */}

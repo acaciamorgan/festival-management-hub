@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { parseStringDateWithContext, formatStringDate, formatStringDateDisplay, getStringDayOfWeek, formatStringTime, convertExcelToStringDate } from '@/lib/string-date-utils'
 import * as XLSX from 'xlsx'
 
 // Interface for theater house with short codes
@@ -166,6 +167,60 @@ export default function TicketingGridPage() {
   const [publishing, setPublishing] = useState(false)
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [unmatchedTitles, setUnmatchedTitles] = useState<Array<{screening: TicketingScreening, matches: FilmCardMatch[]}>>([])
+  const [overwriteExisting, setOverwriteExisting] = useState(false)
+  
+  // Fix dates that were shifted by timezone conversion
+  const fixStoredDates = async () => {
+    try {
+      const { data: screenings, error } = await supabase
+        .from('ticketing_screenings')
+        .select('id, screening_date, film_title')
+      
+      if (error) throw error
+      
+      let fixedCount = 0
+      for (const screening of screenings || []) {
+        // Fix timezone shift by adding one day using safe date operations
+        try {
+          const components = parseDateSafe(screening.screening_date)
+          components.day += 1
+          
+          // Handle month/year rollover
+          const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+          if (components.year % 4 === 0 && components.month === 2) daysInMonth[1] = 29 // Leap year
+          
+          if (components.day > daysInMonth[components.month - 1]) {
+            components.day = 1
+            components.month += 1
+            if (components.month > 12) {
+              components.month = 1
+              components.year += 1
+            }
+          }
+          
+          const fixedDate = formatDateSafe(components)
+          
+          const { error: updateError } = await supabase
+            .from('ticketing_screenings')
+            .update({ screening_date: fixedDate })
+            .eq('id', screening.id)
+          
+          if (!updateError) {
+            console.log(`Fixed date for ${screening.film_title}: ${screening.screening_date} → ${fixedDate}`)
+            fixedCount++
+          }
+        } catch (error) {
+          console.warn(`Could not fix date for ${screening.film_title}:`, error)
+        }
+      }
+      
+      alert(`Fixed ${fixedCount} screening dates (+1 day each)`)
+      await loadData()
+    } catch (error) {
+      console.error('Error fixing dates:', error)
+      alert('Error fixing dates')
+    }
+  }
   
   // Column resizing and sorting state
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
@@ -215,8 +270,9 @@ export default function TicketingGridPage() {
 
   const handleSelectAllForPublish = (selected: boolean) => {
     if (selected) {
-      const unpublishedIds = screenings.filter(s => !s.is_published).map(s => s.id)
-      setSelectedForPublish(new Set(unpublishedIds))
+      // Include published screenings if overwrite is enabled
+      const selectableIds = screenings.filter(s => !s.is_published || overwriteExisting).map(s => s.id)
+      setSelectedForPublish(new Set(selectableIds))
     } else {
       setSelectedForPublish(new Set())
     }
@@ -326,7 +382,7 @@ export default function TicketingGridPage() {
           venue_short_code: screening.venue_short_code,
           capacity: screening.capacity,
           notes: screening.notes,
-          published_by: user?.id || '00000000-0000-0000-0000-000000000000'
+          // No published_by tracking needed
         }])
 
       if (publishError) throw publishError
@@ -421,19 +477,13 @@ export default function TicketingGridPage() {
         (screeningsData || []).slice(0, 3).map(s => ({ 
           title: s.film_title, 
           raw_date: s.screening_date, 
-          parsed: new Date(s.screening_date) 
+          parsed: s.screening_date // Keep as string - no parsing needed
         }))
       )
       setScreenings(screeningsData || [])
 
-      // Load films from Films Grid
-      const { data: filmsGridData, error: filmsError } = await supabase
-        .from('programming_films')
-        .select('id, film, runtime')
-        .order('film', { ascending: true })
-
-      if (filmsError) throw filmsError
-      setFilmsData(filmsGridData || [])
+      // Films Grid is not used by ticketing - removed
+      setFilmsData([])
 
       // Load film cards from both feature and short films tables
       const [featureFilmsResult, shortFilmsResult] = await Promise.all([
@@ -491,19 +541,11 @@ export default function TicketingGridPage() {
     loadData()
   }, [loadData])
 
-  // Film search functionality
+  // Film search functionality - Films Grid not used
   useEffect(() => {
-    if (filmSearchTerm.length > 0) {
-      const filtered = filmsData.filter(film =>
-        film.film.toLowerCase().includes(filmSearchTerm.toLowerCase())
-      ).slice(0, 10) // Limit to 10 suggestions
-      setFilmSearchResults(filtered)
-      setShowFilmSuggestions(true)
-    } else {
-      setFilmSearchResults([])
-      setShowFilmSuggestions(false)
-    }
-  }, [filmSearchTerm, filmsData])
+    setFilmSearchResults([])
+    setShowFilmSuggestions(false)
+  }, [filmSearchTerm])
 
   // Venue search functionality
   useEffect(() => {
@@ -521,40 +563,23 @@ export default function TicketingGridPage() {
     }
   }, [venueSearchTerm, theaterHouses])
 
-  // Helper functions
+  // Helper functions - using string-only utilities
   const formatDate = (dateString: string): string => {
-    const date = new Date(dateString)
-    console.log('DEBUG formatDate - input:', dateString, 'parsed date:', date)
-    const month = date.toLocaleDateString('en-US', { month: 'short' })
-    const day = date.getDate()
-    const year = date.getFullYear()
-    return `${month}. ${day}, ${year}`
+    return formatStringDateDisplay(dateString) + `, ${dateString.split('-')[0]}`
   }
 
   const getDayOfWeek = (dateString: string): string => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { weekday: 'long' })
+    return getStringDayOfWeek(dateString)
   }
 
   const formatTime = (timeString: string): string => {
-    const time = new Date(`2000-01-01 ${timeString}`)
-    return time.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit', 
-      hour12: true 
-    })
+    return formatStringTime(timeString)
   }
 
   // Form handlers
+  // Films Grid not used - film selection disabled
   const handleFilmSelect = (film: FilmGridEntry) => {
-    setFormData(prev => ({
-      ...prev,
-      film_title: film.film,
-      programming_film_id: film.id,
-      run_time: prev.run_time || film.runtime // Use existing runtime or film's runtime
-    }))
-    setFilmSearchTerm(film.film)
-    setShowFilmSuggestions(false)
+    // No longer used
   }
 
   const handleVenueSelect = (house: TheaterHouse) => {
@@ -577,24 +602,34 @@ export default function TicketingGridPage() {
     }
 
     // HTML date input should give us YYYY-MM-DD format
-    // But let's validate it's actually reasonable
-    const inputDate = new Date(dateValue + 'T00:00:00') // Force local timezone
-    const year = inputDate.getFullYear()
-    const currentYear = new Date().getFullYear()
-    
-    // Reject dates that are clearly wrong
-    if (year < 2020 || year > currentYear + 5) {
-      console.error('Invalid date detected:', dateValue, 'parsed as:', inputDate)
-      console.error(`BLOCKING BAD DATE: "${dateValue}" parsed as year ${year}`)
-      // alert(`Invalid date: "${dateValue}" parsed as year ${year}. Please check your date format.`)
+    // Use string-only parsing and validation
+    let safeDate: string
+    try {
+      const parts = dateValue.split('-')
+      if (parts.length !== 3) {
+        throw new Error('Invalid date format')
+      }
+      
+      const year = parseInt(parts[0])
+      const month = parseInt(parts[1])
+      const day = parseInt(parts[2])
+      
+      // Get current year using string operations
+      const currentYear = 2024  // Could fetch from festival settings instead
+      
+      // Reject dates that are clearly wrong
+      if (year < 2020 || year > currentYear + 5) {
+        console.error('Invalid date detected:', dateValue, 'parsed as year:', year)
+        console.error(`BLOCKING BAD DATE: "${dateValue}" parsed as year ${year}`)
+        return
+      }
+
+      // Use the input date as-is (already in YYYY-MM-DD format)
+      safeDate = dateValue
+    } catch (error) {
+      console.error('Date parsing error:', error, 'input:', dateValue)
       return
     }
-
-    // Ensure we store the exact YYYY-MM-DD format
-    const yyyy = inputDate.getFullYear()
-    const mm = String(inputDate.getMonth() + 1).padStart(2, '0')
-    const dd = String(inputDate.getDate()).padStart(2, '0')
-    const safeDate = `${yyyy}-${mm}-${dd}`
     
     console.log('DEBUG: Storing safe date:', safeDate)
     setFormData(prev => ({
@@ -679,10 +714,7 @@ export default function TicketingGridPage() {
 
       if (error) throw error
 
-      // Update Films Grid runtime if needed
-      if (formData.programming_film_id && formData.run_time) {
-        await syncRuntimeToFilmsGrid(formData.programming_film_id, formData.run_time)
-      }
+      // No sync to Films Grid - ticketing is independent
 
       await loadData()
       setShowAddModal(false)
@@ -738,35 +770,97 @@ export default function TicketingGridPage() {
     }
   }
 
-  // CSV Upload functionality
+  // CSV/Excel Upload functionality
   const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
     
-    console.log('DEBUG: Starting CSV upload, file:', file.name)
+    console.log('DEBUG: Starting file upload, file:', file.name, 'type:', file.type)
 
     setUploading(true)
     try {
-      const text = await file.text()
-      const lines = text.split('\n').filter(line => line.trim())
-      
-      if (lines.length < 2) {
-        alert('CSV file must have at least a header row and one data row')
-        return
-      }
+      let headers: string[]
+      let dataRows: any[][]
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
-      const dataRows = lines.slice(1)
+      console.log('DEBUG file detection:', file.name, file.type)
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.type.includes('spreadsheet')) {
+        // Handle Excel file
+        const buffer = await file.arrayBuffer()
+        const workbook = XLSX.read(buffer, { type: 'array' })
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]]
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+        
+        if (jsonData.length < 2) {
+          alert('Excel file must have at least a header row and one data row')
+          return
+        }
+        
+        headers = (jsonData[0] as string[]).map(h => String(h || '').trim())
+        
+        // Process rows with async Excel date conversion
+        const processedRows: any[][] = []
+        for (const row of jsonData.slice(1)) {
+          const processedRow: any[] = []
+          for (let index = 0; index < row.length; index++) {
+            const cell = row[index]
+            const header = headers[index]
+            
+            // Convert Excel date numbers to MM/DD/YYYY format using string operations
+            if (header === 'Date' && typeof cell === 'number') {
+              try {
+                const convertedDate = await convertExcelToStringDate(cell)
+                processedRow.push(convertedDate)
+              } catch (error) {
+                console.warn('Excel date conversion failed:', cell, error)
+                processedRow.push(`EXCEL_DATE_ERROR_${cell}`)
+              }
+            }
+            // Convert Excel time decimals to HH:MM AM/PM format
+            else if (header === 'Start Time' && typeof cell === 'number') {
+              const totalMinutes = Math.round(cell * 24 * 60)
+              const hours = Math.floor(totalMinutes / 60)
+              const minutes = totalMinutes % 60
+              const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours
+              const ampm = hours >= 12 ? 'PM' : 'AM'
+              processedRow.push(`${hour12}:${minutes.toString().padStart(2, '0')} ${ampm}`)
+            }
+            else {
+              processedRow.push(String(cell || '').trim())
+            }
+          }
+          processedRows.push(processedRow)
+        }
+        
+        dataRows = processedRows
+        console.log('DEBUG Excel headers:', headers)
+        console.log('DEBUG Excel first row after conversion:', dataRows[0])
+      } else {
+        // Handle CSV file
+        const text = await file.text()
+        const lines = text.split('\n').filter(line => line.trim())
+        
+        if (lines.length < 2) {
+          alert('CSV file must have at least a header row and one data row')
+          return
+        }
+
+        headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+        dataRows = lines.slice(1).map(line => 
+          line.split(',').map(v => v.trim().replace(/"/g, ''))
+        )
+      }
       
       console.log('=== CSV Upload Debug ===')
       console.log('Headers found:', headers)
-      console.log('Available films in Films Grid:', filmsData.map(f => f.film))
+      console.log('Films Grid not used by ticketing system')
       
       let processedCount = 0
       let skippedCount = 0
+      let errorCount = 0
+      let successCount = 0
 
       for (const row of dataRows) {
-        const values = row.split(',').map(v => v.trim().replace(/"/g, ''))
+        const values = row // row is already an array from our processing above
         const rowData: any = {}
         
         headers.forEach((header, index) => {
@@ -791,27 +885,17 @@ export default function TicketingGridPage() {
           continue
         }
 
-        // Try to find matching film for runtime sync, but don't require it
-        let matchingFilm = filmsData.find(film => film.film === title)
-        if (!matchingFilm) {
-          matchingFilm = filmsData.find(film => 
-            film.film.toLowerCase() === title.toLowerCase()
-          )
-        }
+        // Films Grid not used - create screenings directly
+        console.log(`⚠️ Creating screening for: "${title}" - Films Grid not used by ticketing`)
 
-        if (matchingFilm) {
-          console.log(`✅ Found matching film: "${matchingFilm.film}"`)
-        } else {
-          console.log(`⚠️ No matching film in Films Grid for: "${title}" - will create screening anyway`)
-        }
-
-        // Parse date
+        // Parse date with festival year context using string operations
         let screeningDate: string
         try {
-          const parsedDate = new Date(date)
-          screeningDate = parsedDate.toISOString().split('T')[0]
-        } catch {
-          console.warn(`Invalid date format: ${date}`)
+          const components = await parseStringDateWithContext(date.trim())
+          screeningDate = formatStringDate(components)
+          console.log(`Date parsing with context: "${date}" → "${screeningDate}"`)
+        } catch (error) {
+          console.warn(`Invalid date format: ${date}`, error)
           skippedCount++
           continue
         }
@@ -825,21 +909,21 @@ export default function TicketingGridPage() {
         }
         
         const screeningData = {
-          film_title: matchingFilm.film,
-          programming_film_id: matchingFilm.id,
+          film_title: title,
+          programming_film_id: null, // No longer tied to Films Grid
           screening_date: screeningDate,
           day_of_week: getDayOfWeek(screeningDate),
           start_time: startTime || '00:00',
-          run_time: parsedRuntime || matchingFilm.runtime || null,
+          run_time: parsedRuntime || null,
           venue_short_code: venue || '',
           capacity: capacity ? parseInt(capacity) : null,
           notes: notes || null,
-          created_by: 'system'
+          created_by: user?.id || null
         }
         
         console.log('Inserting screening data:', screeningData)
 
-        // Check for existing screening to prevent duplicates
+        // Check for existing screening to prevent duplicates (unless overwriting)
         const { data: existingScreening } = await supabase
           .from('ticketing_screenings')
           .select('id')
@@ -849,9 +933,24 @@ export default function TicketingGridPage() {
           .eq('venue_short_code', screeningData.venue_short_code)
           .single()
 
-        if (existingScreening) {
+        if (existingScreening && !overwriteExisting) {
           console.log(`⚠️ Duplicate screening found for ${title} on ${screeningData.screening_date} at ${screeningData.start_time} - skipping`)
           skippedCount++
+          continue
+        } else if (existingScreening && overwriteExisting) {
+          // Update existing screening instead of creating new one
+          const { error: updateError } = await supabase
+            .from('ticketing_screenings')
+            .update(screeningData)
+            .eq('id', existingScreening.id)
+
+          if (updateError) {
+            console.error(`❌ Error updating screening for ${title}:`, updateError)
+            errorCount++
+          } else {
+            console.log(`✅ Updated existing screening for ${title}`)
+            successCount++
+          }
           continue
         }
 
@@ -867,10 +966,7 @@ export default function TicketingGridPage() {
           console.log(`✅ Successfully inserted screening for ${title}`)
           processedCount++
           
-          // Sync runtime to Films Grid if needed
-          if (screeningData.run_time && matchingFilm.id) {
-            await syncRuntimeToFilmsGrid(matchingFilm.id, screeningData.run_time)
-          }
+          // No sync to Films Grid - ticketing is independent
         }
       }
 
@@ -899,7 +995,9 @@ export default function TicketingGridPage() {
       'Status': screening.is_cancelled ? 'CANCELLED' : 'ACTIVE'
     }))
 
-    const timestamp = new Date().toISOString().split('T')[0]
+    // Generate timestamp for filename using string operations
+    const today = new Date().toISOString().split('T')[0] // Only use for current date
+    const timestamp = today
     const filename = `Ticketing Grid ${timestamp}`
 
     if (format === 'csv') {
@@ -960,9 +1058,12 @@ export default function TicketingGridPage() {
         
         // Special handling for different data types
         if (sortConfig.key === 'screening_date') {
-          const aDate = new Date(aVal as string).getTime()
-          const bDate = new Date(bVal as string).getTime()
-          return sortConfig.direction === 'asc' ? aDate - bDate : bDate - aDate
+          // Sort YYYY-MM-DD strings directly (lexicographic sort works for this format)
+          const aStr = (aVal as string) || ''
+          const bStr = (bVal as string) || ''
+          return sortConfig.direction === 'asc' 
+            ? aStr.localeCompare(bStr)
+            : bStr.localeCompare(aStr)
         }
         
         if (sortConfig.key === 'run_time' || sortConfig.key === 'capacity') {
@@ -1020,6 +1121,18 @@ export default function TicketingGridPage() {
             >
               Add Screening
             </button>
+            
+            {/* Overwrite checkbox */}
+            <label className="flex items-center space-x-2 text-sm">
+              <input
+                type="checkbox"
+                checked={overwriteExisting}
+                onChange={(e) => setOverwriteExisting(e.target.checked)}
+                className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+              />
+              <span>Overwrite Existing</span>
+            </label>
+            
             <button
               onClick={validateAndPublishScreenings}
               disabled={selectedForPublish.size === 0 || publishing}
@@ -1078,8 +1191,8 @@ export default function TicketingGridPage() {
       </div>
 
       {/* Data Grid */}
-      <div className="flex-1 overflow-hidden bg-white">
-        <div className="overflow-auto" style={{ height: 'calc(100vh - 300px)' }}>
+      <div className="flex-1 bg-white overflow-hidden">
+        <div className="overflow-auto h-full">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-lg text-gray-500">Loading screenings...</div>
@@ -1146,7 +1259,7 @@ export default function TicketingGridPage() {
                       <span className="text-xs font-bold">Publishing</span>
                       <input
                         type="checkbox"
-                        checked={selectedForPublish.size > 0 && selectedForPublish.size === screenings.filter(s => !s.is_published).length}
+                        checked={selectedForPublish.size > 0 && selectedForPublish.size === screenings.filter(s => !s.is_published || overwriteExisting).length}
                         onChange={(e) => handleSelectAllForPublish(e.target.checked)}
                         className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded mt-1"
                         title="Select all unpublished screenings for bulk publishing"
@@ -1259,7 +1372,7 @@ export default function TicketingGridPage() {
                         type="checkbox"
                         checked={selectedForPublish.has(screening.id)}
                         onChange={(e) => handleSelectForPublish(screening.id, e.target.checked)}
-                        disabled={screening.is_published}
+                        disabled={screening.is_published && !overwriteExisting}
                         className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded disabled:opacity-50"
                       />
                     </td>
@@ -1297,30 +1410,11 @@ export default function TicketingGridPage() {
                 </label>
                 <input
                   type="text"
-                  value={filmSearchTerm}
-                  onChange={(e) => setFilmSearchTerm(e.target.value)}
-                  onFocus={() => setShowFilmSuggestions(filmSearchTerm.length > 0)}
-                  placeholder="Start typing film title..."
+                  value={formData.film_title}
+                  onChange={(e) => setFormData(prev => ({...prev, film_title: e.target.value}))}
+                  placeholder="Enter film title..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-                
-                {showFilmSuggestions && filmSearchResults.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    {filmSearchResults.map((film) => (
-                      <button
-                        key={film.id}
-                        type="button"
-                        onClick={() => handleFilmSelect(film)}
-                        className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                      >
-                        <div className="font-medium">{film.film}</div>
-                        {film.runtime && (
-                          <div className="text-sm text-gray-500">{film.runtime}min</div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Date */}
@@ -1463,13 +1557,13 @@ export default function TicketingGridPage() {
             <h3 className="text-lg font-semibold mb-4">Upload Ticketing CSV</h3>
             
             <p className="text-sm text-gray-600 mb-4">
-              Upload a CSV file with columns: Title, Date, Start Time, Venue, Run Time, Capacity, Notes
+              Upload a CSV or Excel file with columns: Title, Date, Start Time, Venue, Run Time, Capacity, Notes
             </p>
             
             <div className="mb-4">
               <input
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx"
                 id="csv-upload"
                 disabled={uploading}
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"

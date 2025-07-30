@@ -308,6 +308,7 @@ export interface PressScreeningCard {
   venue_id?: string | null
   venue_name?: string | null
   house?: string | null
+  short_code?: string | null
   film_approved: boolean
   locked: boolean
   invites_out: boolean
