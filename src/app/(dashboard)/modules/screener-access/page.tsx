@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/components/providers/auth-provider'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import * as XLSX from 'xlsx-js-style'
 
 interface FeatureFilm {
   id: string
@@ -51,6 +53,7 @@ interface ShortFilmWithScreenerData extends ShortFilm {
 type ViewMode = 'features' | 'shorts'
 
 export default function ScreenerAccessPage() {
+  const { user, permissions } = useAuth()
   const [viewMode, setViewMode] = useState<ViewMode>('features')
   const [films, setFilms] = useState<FilmWithScreenerData[]>([])
   const [shorts, setShorts] = useState<ShortFilmWithScreenerData[]>([])
@@ -66,6 +69,113 @@ export default function ScreenerAccessPage() {
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
 
   const supabase = createClient()
+
+  // Check if user has edit permissions for screener access
+  const canEditScreenerAccess = permissions?.modulePermissions?.['screenerAccess']?.canEdit || permissions?.isAdmin
+
+  // Export template function for Features
+  const exportFeaturesTemplate = () => {
+    // Define headers with proper display names
+    const headerMapping = [
+      { field: 'title', display: 'Film Title' },
+      { field: 'contacts', display: 'Contacts' },
+      { field: 'all_emails', display: 'All Emails' },
+      { field: 'access_type', display: 'Access Type' },
+      { field: 'link', display: 'Link' },
+      { field: 'password', display: 'Password' },
+      { field: 'instructions_sent', display: 'Instructions Sent' },
+      { field: 'uploaded', display: 'Uploaded' }
+    ]
+    
+    const headers = headerMapping.map(h => h.display)
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+    
+    // Style headers - bold with light grey background
+    const headerStyle = { 
+      font: { bold: true, sz: 12, name: 'Arial' }, 
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+    
+    // Apply styles and set column widths based on header length
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      
+      // Calculate column width based on header length (min 15, max 30)
+      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
+    })
+    
+    ws['!cols'] = cols
+    
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Features Screener Template')
+    XLSX.writeFile(wb, 'features_screener_access_template.xlsx')
+  }
+
+  // Export template function for Shorts
+  const exportShortsTemplate = () => {
+    // Define headers with proper display names
+    const headerMapping = [
+      { field: 'title', display: 'Short Film (Program)' },
+      { field: 'contacts', display: 'Contacts' },
+      { field: 'all_emails', display: 'All Emails' },
+      { field: 'access_type', display: 'Access Type' },
+      { field: 'link', display: 'Link' },
+      { field: 'password', display: 'Password' }
+    ]
+    
+    const headers = headerMapping.map(h => h.display)
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+    
+    // Style headers - bold with light grey background
+    const headerStyle = { 
+      font: { bold: true, sz: 12, name: 'Arial' }, 
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+    
+    // Apply styles and set column widths based on header length
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      
+      // Calculate column width based on header length (min 15, max 30)
+      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
+    })
+    
+    ws['!cols'] = cols
+    
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Shorts Screener Template')
+    XLSX.writeFile(wb, 'shorts_screener_access_template.xlsx')
+  }
 
   const loadFeatures = useCallback(async () => {
     setLoading(true)
@@ -588,6 +698,14 @@ export default function ScreenerAccessPage() {
           </div>
           
           <div className="flex items-center space-x-4">
+            {canEditScreenerAccess && (
+              <button
+                onClick={viewMode === 'features' ? exportFeaturesTemplate : exportShortsTemplate}
+                className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+              >
+                📄 Create {viewMode === 'features' ? 'Features' : 'Shorts'} Template
+              </button>
+            )}
             <button
               onClick={() => setShowFilmCardsMode(!showFilmCardsMode)}
               className={`px-4 py-2 rounded-md transition-colors font-medium ${

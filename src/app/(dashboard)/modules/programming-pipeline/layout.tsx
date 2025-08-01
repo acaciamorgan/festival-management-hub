@@ -35,20 +35,6 @@ export default function ProgrammingLayout({ children }: ProgrammingLayoutProps) 
       description: 'Drag & drop calendar planning'
     },
     {
-      id: 'contacts',
-      name: 'Contacts Database',
-      icon: '👥',
-      href: '/modules/programming-pipeline/contacts',
-      description: 'Contact management'
-    },
-    {
-      id: 'mailing',
-      name: 'Mailing Lists',
-      icon: '📧',
-      href: '/modules/programming-pipeline/mailing',
-      description: 'Export mailing labels'
-    },
-    {
       id: 'tributes',
       name: 'Tributes & Special Events',
       icon: '🏆',

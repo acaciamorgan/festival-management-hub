@@ -21,17 +21,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
 
   useEffect(() => {
+    const fetchUserPermissions = async (userId: string) => {
+      try {
+        console.log('Fetching permissions for user:', userId)
+        
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Permission fetch timeout')), 3000)
+        })
+        
+        const queryPromise = supabase
+          .from('user_permissions')
+          .select('*')
+          .eq('user_id', userId)
+          .single()
+
+        const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any
+
+        if (error) {
+          console.error('Error fetching permissions:', error)
+          // Fallback to admin permissions
+          return {
+            userId: userId,
+            modulePermissions: {},
+            isAdmin: true
+          }
+        }
+
+        console.log('Retrieved permissions:', data)
+        
+        // Parse module_permissions if it's stored as a string
+        const modulePerms = typeof data.module_permissions === 'string' 
+          ? JSON.parse(data.module_permissions)
+          : data.module_permissions || {}
+        
+        return {
+          userId: data.user_id,
+          modulePermissions: modulePerms,
+          isAdmin: data.is_admin || false
+        }
+      } catch (err) {
+        console.error('Error in fetchUserPermissions (probably timeout):', err)
+        // Return minimal permissions on error instead of admin
+        return {
+          userId: userId,
+          modulePermissions: {
+            festivalOverview: { canRead: true, canEdit: false }
+          },
+          isAdmin: false
+        }
+      }
+    }
+
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user ?? null)
       
       if (session?.user) {
-        // Temporarily set admin permissions for testing
-        setPermissions({
-          userId: session.user.id,
-          modulePermissions: {},
-          isAdmin: true
-        })
+        // Fetch real permissions from database
+        const perms = await fetchUserPermissions(session.user.id)
+        setPermissions(perms)
       }
       
       setLoading(false)
@@ -44,12 +93,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null)
         
         if (session?.user) {
-          // Temporarily set admin permissions for testing
-          setPermissions({
-            userId: session.user.id,
-            modulePermissions: {},
-            isAdmin: true
-          })
+          // Fetch real permissions from database
+          const perms = await fetchUserPermissions(session.user.id)
+          setPermissions(perms)
         } else {
           setPermissions(null)
         }

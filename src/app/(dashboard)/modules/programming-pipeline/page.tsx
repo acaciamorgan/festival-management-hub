@@ -9,18 +9,7 @@ import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { StickyNote } from '@/components/StickyNote'
 import { getStickyNotesForModule, createStickyNote, updateStickyNote, deleteStickyNote } from '@/lib/sticky-notes-client'
 import { StickyNote as StickyNoteType } from '@/types'
-import * as XLSX from 'xlsx'
-
-interface Contact {
-  id: string
-  contact_company: string | null
-  contact_name: string
-  contact_email: string | null
-  phone: string | null
-  notes: string | null
-  contact_type: string | null
-}
-
+import * as XLSX from 'xlsx-js-style'
 
 interface ProgrammingFilm {
   id: string
@@ -55,17 +44,13 @@ interface ProgrammingFilm {
   cell_highlights: Record<string, string> | null // Individual cell highlighting
   programming_notes: string | null
   status: string // only draft status - no publishing
-  contacts: Array<{
-    contact: Contact
-    role: string | null
-  }>
   created_at: string
   updated_at: string
   created_by: string
 }
 
 export default function ProgrammingPipelinePage() {
-  const { user } = useAuth()
+  const { user, permissions } = useAuth()
   const [programmingFilms, setProgrammingFilms] = useState<ProgrammingFilm[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -121,29 +106,84 @@ export default function ProgrammingPipelinePage() {
 
   const supabase = createClient()
 
+  // Check if user has edit permissions for programming pipeline
+  const canEditProgrammingPipeline = permissions?.modulePermissions?.['programmingPipeline']?.canEdit || permissions?.isAdmin
+
+  // Export template function for Films Grid
+  const exportFilmsGridTemplate = () => {
+    // Define headers with proper display names (20 columns total)
+    const headerMapping = [
+      { field: 'film', display: 'Film' },
+      { field: 'original_title', display: 'Original Title' },
+      { field: 'director', display: 'Director' },
+      { field: 'country', display: 'Country' },
+      { field: 'category', display: 'Category' },
+      { field: 'runtime', display: 'Runtime' },
+      { field: 'travel', display: 'Travel' },
+      { field: 'synopsis', display: 'Synopsis Written By' },
+      { field: 'written', display: 'Written' },
+      { field: 'approved', display: 'Synopsis Approved' },
+      { field: 'content_consideration', display: 'Content Consideration' },
+      { field: 'programs', display: 'Programs' },
+      { field: 'contacted_for_materials', display: 'Contacted for Materials' },
+      { field: 'form_submitted', display: 'Form Submitted' },
+      { field: 'uploaded_materials', display: 'Uploaded Materials' },
+      { field: 'materials_received', display: 'Materials Received' },
+      { field: 'accessibility_screening', display: 'Accessibility Screening' },
+      { field: 'premiere_status', display: 'Premiere Status' },
+      { field: 'cards_made', display: 'Cards Made' }
+    ]
+    
+    const headers = headerMapping.map(h => h.display)
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+    
+    // Style headers - bold with light grey background
+    const headerStyle = { 
+      font: { bold: true, sz: 12, name: 'Arial' }, 
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+    
+    // Apply styles and set column widths based on header length
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      
+      // Calculate column width based on header length (min 15, max 30)
+      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
+    })
+    
+    ws['!cols'] = cols
+    
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Films Grid Template')
+    XLSX.writeFile(wb, 'films_grid_import_template.xlsx')
+  }
+
   const loadProgrammingFilms = useCallback(async () => {
     setLoading(true)
     try {
       const { data: filmsData, error } = await supabase
         .from('programming_films')
-        .select(`
-          *,
-          programming_film_contacts(
-            role,
-            notes,
-            contact:contacts(*)
-          )
-        `)
+        .select('*')
         .order('updated_at', { ascending: false })
 
       if (error) throw error
 
-      const filmsWithContacts = (filmsData || []).map(film => ({
-        ...film,
-        contacts: film.programming_film_contacts || []
-      }))
-
-      setProgrammingFilms(filmsWithContacts)
+      setProgrammingFilms(filmsData || [])
     } catch (error) {
       console.error('Error loading programming films:', error)
     } finally {
@@ -486,7 +526,7 @@ export default function ProgrammingPipelinePage() {
   
   // Excel-like navigation
   const editableFields = ['travel', 'synopsis', 'content_consideration', 'premiere_status']
-  const allFields = ['film', 'original_title', 'director', 'country', 'category', 'runtime', 'travel', 'synopsis', 'written', 'approved', 'content_consideration', 'programs', 'contacted_for_materials', 'form_submitted', 'uploaded_materials', 'materials_received', 'accessibility_screening', 'premiere_status', 'cards_made', 'contacts']
+  const allFields = ['film', 'original_title', 'director', 'country', 'category', 'runtime', 'travel', 'synopsis', 'written', 'approved', 'content_consideration', 'programs', 'contacted_for_materials', 'form_submitted', 'uploaded_materials', 'materials_received', 'accessibility_screening', 'premiere_status', 'cards_made']
   
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!selectedCell || editingCell) return
@@ -502,9 +542,7 @@ export default function ProgrammingPipelinePage() {
             film.original_title,
             film.director,
             film.country,
-            film.synopsis,
-            ...film.contacts.map(c => c.contact.contact_company),
-            ...film.contacts.map(c => c.contact.contact_name)
+            film.synopsis
           ]
         )
         if (!searchFilter(film)) return false
@@ -1068,9 +1106,7 @@ export default function ProgrammingPipelinePage() {
             film.original_title,
             film.director,
             film.country,
-            film.synopsis,
-            ...film.contacts.map(c => c.contact.contact_company),
-            ...film.contacts.map(c => c.contact.contact_name)
+            film.synopsis
           ]
         )
         if (!searchFilter(film)) return false
@@ -1134,17 +1170,12 @@ export default function ProgrammingPipelinePage() {
     // CSV export functionality (same as before)
     const headers = [
       'Travel', 'Synopsis', 'Written', 'Approved', 'Content Consideration', 'Film',
-      'Original Title', 'Director', 'Country', 'Contact Company', 'Contact Name', 
-      'Contact email', 'Category', 'Program', 'Program 2', 'Program 3',
+      'Original Title', 'Director', 'Country', 'Category', 'Program', 'Program 2', 'Program 3',
       'Contacted for materials', 'Form Submitted', 'Uploaded Materials',
       'Accessibility Screening?', 'Premiere Status', 'Cards made'
     ]
 
     const csvData = sortedFilms.map(film => {
-      const contactCompanies = film.contacts.map(c => c.contact.contact_company || '').join('; ')
-      const contactNames = film.contacts.map(c => c.contact.contact_name).join('; ')
-      const contactEmails = film.contacts.map(c => c.contact.contact_email || '').join('; ')
-      
       return [
         film.travel || '',
         film.synopsis || '',
@@ -1155,9 +1186,6 @@ export default function ProgrammingPipelinePage() {
         film.original_title || '',
         film.director || '',
         film.country || '',
-        contactCompanies,
-        contactNames,
-        contactEmails,
         film.category || '',
         film.programs && film.programs[0] || '',
         film.programs && film.programs[1] || '',
@@ -1201,17 +1229,12 @@ export default function ProgrammingPipelinePage() {
     // Prepare data for Excel export
     const headers = [
       'Travel', 'Synopsis', 'Written', 'Approved', 'Content Consideration', 'Film',
-      'Original Title', 'Director', 'Country', 'Contact Company', 'Contact Name', 
-      'Contact email', 'Category', 'Program', 'Program 2', 'Program 3',
+      'Original Title', 'Director', 'Country', 'Category', 'Program', 'Program 2', 'Program 3',
       'Contacted for materials', 'Form Submitted', 'Uploaded Materials',
       'Accessibility Screening?', 'Premiere Status', 'Cards made'
     ]
 
     const excelData = sortedFilms.map(film => {
-      const contactCompanies = film.contacts.map(c => c.contact.contact_company || '').join('; ')
-      const contactNames = film.contacts.map(c => c.contact.contact_name).join('; ')
-      const contactEmails = film.contacts.map(c => c.contact.contact_email || '').join('; ')
-      
       return {
         'Travel': film.travel || '',
         'Synopsis': film.synopsis || '',
@@ -1222,9 +1245,6 @@ export default function ProgrammingPipelinePage() {
         'Original Title': film.original_title || '',
         'Director': film.director || '',
         'Country': film.country || '',
-        'Contact Company': contactCompanies,
-        'Contact Name': contactNames,
-        'Contact email': contactEmails,
         'Category': film.category || '',
         'Program': film.programs && film.programs[0] || '',
         'Program 2': film.programs && film.programs[1] || '',
@@ -1387,6 +1407,14 @@ export default function ProgrammingPipelinePage() {
             </p>
           </div>
           <div className="flex items-center space-x-4">
+            {canEditProgrammingPipeline && (
+              <button
+                onClick={exportFilmsGridTemplate}
+                className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+              >
+                📄 Create Films Grid Template
+              </button>
+            )}
             <button
               onClick={() => setShowUploadModal(true)}
               className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 font-medium"
@@ -1452,7 +1480,7 @@ export default function ProgrammingPipelinePage() {
         <div className="mb-4">
           <input
             type="text"
-            placeholder="Search films, directors, contacts, companies..."
+            placeholder="Search films, directors, countries..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -1551,8 +1579,7 @@ export default function ProgrammingPipelinePage() {
                     { key: 'materials_received', label: 'Materials Received', width: 140, sortable: true },
                     { key: 'accessibility_screening', label: 'Accessibility Screening', width: 160, sortable: true },
                     { key: 'premiere_status', label: 'Premiere Status', width: 140, sortable: true, editable: true },
-                    { key: 'cards_made', label: 'Cards Made', width: 100, sortable: true },
-                    { key: 'contacts', label: 'Contacts', width: 200, sortable: false }
+                    { key: 'cards_made', label: 'Cards Made', width: 100, sortable: true }
                   ].map((column) => (
                     <th
                       key={column.key}
@@ -1824,33 +1851,6 @@ export default function ProgrammingPipelinePage() {
                           console.error('Error updating cards_made:', error)
                         }
                       })}
-                    </td>
-                    
-                    {/* Contacts */}
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contacts'] || 200}px` }}>
-                      {renderCell(film, 'contacts', 
-                        film.contacts.length > 0 ? (
-                          <div className="space-y-1">
-                            {film.contacts.slice(0, 2).map((contact, index) => (
-                              <div key={index} className="text-xs">
-                                <div className="font-medium">{contact.contact.contact_name}</div>
-                                {contact.contact.contact_company && (
-                                  <div className="text-gray-500">{contact.contact.contact_company}</div>
-                                )}
-                                {contact.contact.contact_email && (
-                                  <div className="text-gray-500">{contact.contact.contact_email}</div>
-                                )}
-                                {contact.role && <div className="text-gray-400">({contact.role})</div>}
-                              </div>
-                            ))}
-                            {film.contacts.length > 2 && (
-                              <div className="text-xs text-gray-500">
-                                +{film.contacts.length - 2} more
-                              </div>
-                            )}
-                          </div>
-                        ) : null
-                      )}
                     </td>
                     
                     {/* Actions */}

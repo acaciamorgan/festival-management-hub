@@ -2,15 +2,20 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/components/providers/auth-provider'
 import { ContactCard } from '@/types'
 import { ContactFormModal } from '@/components/forms/contact-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import * as XLSX from 'xlsx-js-style'
 
 export default function ContactsPage() {
+  const { user, permissions } = useAuth()
   const [contacts, setContacts] = useState<ContactCard[]>([])
   const [filteredContacts, setFilteredContacts] = useState<ContactCard[]>([])
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedContactType, setSelectedContactType] = useState('')
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'contact_name', direction: 'asc' })
@@ -23,6 +28,61 @@ export default function ContactsPage() {
   const [existingFilms, setExistingFilms] = useState<Set<string>>(new Set())
 
   const supabase = createClient()
+
+  // Check if user has edit permissions for contacts
+  const canEditContacts = permissions?.modulePermissions?.['contacts']?.canEdit || permissions?.isAdmin
+
+  // Export template function for Contacts
+  const exportContactsTemplate = () => {
+    // Define headers with proper display names
+    const headerMapping = [
+      { field: 'contact_name', display: 'Contact Name' },
+      { field: 'contact_company', display: 'Company' },
+      { field: 'contact_email', display: 'Email' },
+      { field: 'phone', display: 'Phone' },
+      { field: 'contact_type', display: 'Contact Type' },
+      { field: 'mailing_address', display: 'Mailing Address' },
+      { field: 'notes', display: 'Notes' }
+    ]
+    
+    const headers = headerMapping.map(h => h.display)
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+    
+    // Style headers - bold with light grey background
+    const headerStyle = { 
+      font: { bold: true, sz: 12, name: 'Arial' }, 
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+    
+    // Apply styles and set column widths based on header length
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      
+      // Calculate column width based on header length (min 15, max 30)
+      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
+    })
+    
+    ws['!cols'] = cols
+    
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Contacts Template')
+    XLSX.writeFile(wb, 'contacts_import_template.xlsx')
+  }
 
   // Load existing films and programs only when Show Films toggle is activated
   useEffect(() => {
@@ -87,8 +147,6 @@ export default function ContactsPage() {
             .select('film_id, film_type, name')
             .eq('name', contact.contact_name)
           
-          console.log(`Looking for film contacts for "${contact.contact_name}":`, filmContacts)
-
           if (!filmContacts || filmContacts.length === 0) {
             return {
               ...contact,
@@ -177,6 +235,151 @@ export default function ContactsPage() {
   useEffect(() => {
     loadContacts()
   }, [loadContacts])
+
+  // CSV parsing function
+  const parseCSV = (text: string): string[][] => {
+    const rows: string[][] = []
+    let currentRow: string[] = []
+    let currentField = ''
+    let inQuotes = false
+    let i = 0
+
+    while (i < text.length) {
+      const char = text[i]
+      const nextChar = text[i + 1]
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          // Escaped quote
+          currentField += '"'
+          i += 2
+          continue
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes
+        }
+      } else if (char === ',' && !inQuotes) {
+        // Field separator
+        currentRow.push(currentField.trim())
+        currentField = ''
+      } else if ((char === '\n' || char === '\r') && !inQuotes) {
+        // Row separator
+        if (currentField || currentRow.length > 0) {
+          currentRow.push(currentField.trim())
+          if (currentRow.some(field => field.length > 0)) {
+            rows.push(currentRow)
+          }
+          currentRow = []
+          currentField = ''
+        }
+      } else {
+        currentField += char
+      }
+      i++
+    }
+
+    // Handle last row
+    if (currentField || currentRow.length > 0) {
+      currentRow.push(currentField.trim())
+      if (currentRow.some(field => field.length > 0)) {
+        rows.push(currentRow)
+      }
+    }
+
+    return rows
+  }
+
+  // CSV upload handler
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setUploadStatus('Processing CSV...')
+
+    try {
+      const text = await file.text()
+      const rows = parseCSV(text)
+      
+      if (rows.length === 0) {
+        setUploadStatus('Error: CSV file is empty')
+        return
+      }
+
+      const headers = rows[0]
+      
+      // Field mapping for Contacts CSV
+      const fieldMap: Record<string, string> = {
+        'Contact Name': 'contact_name',
+        'Company': 'contact_company',
+        'Email': 'contact_email',
+        'Phone': 'phone',
+        'Contact Type': 'contact_type',
+        'Mailing Address': 'mailing_address',
+        'Notes': 'notes'
+      }
+
+      // Process data rows
+      const contactData = []
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i]
+        const contactRecord: any = {}
+        
+        headers.forEach((header, index) => {
+          const fieldName = fieldMap[header]
+          if (fieldName && row[index]) {
+            let value = row[index].trim()
+            contactRecord[fieldName] = value
+          }
+        })
+        
+        // Only add if we have required fields
+        if (contactRecord.contact_name) {
+          // Add user ID for created_by
+          contactRecord.created_by = user?.id
+          contactData.push(contactRecord)
+        }
+      }
+
+      if (contactData.length === 0) {
+        setUploadStatus('Error: No valid contact data found in CSV')
+        return
+      }
+
+      setUploadStatus(`Uploading ${contactData.length} contacts...`)
+
+      // Insert contacts into database
+      const { error } = await supabase
+        .from('contacts')
+        .insert(contactData)
+
+      if (error) {
+        console.error('Upload error:', error)
+        setUploadStatus(`Error: ${error.message}`)
+        return
+      }
+
+      setUploadStatus(`Successfully uploaded ${contactData.length} contacts!`)
+      
+      // Reload the contacts
+      loadContacts()
+
+    } catch (error) {
+      console.error('CSV processing error:', error)
+      setUploadStatus('Error: Failed to process CSV file')
+    } finally {
+      setUploading(false)
+      // Clear the file input
+      if (event.target) {
+        event.target.value = ''
+      }
+    }
+  }
+
+  const handleFilmClick = (filmData: any) => {
+    setSelectedFilm(filmData)
+    setShowFilmCard(true)
+  }
 
   // Filter and search
   useEffect(() => {
@@ -278,10 +481,6 @@ export default function ContactsPage() {
     contacts.map(c => c.contact_type).filter(Boolean)
   )).sort()
 
-  const handleFilmClick = (filmData: any) => {
-    setSelectedFilm(filmData)
-    setShowFilmCard(true)
-  }
 
   if (loading) {
     return (
@@ -305,6 +504,26 @@ export default function ContactsPage() {
           </div>
           
           <div className="flex items-center space-x-4">
+            {canEditContacts && (
+              <>
+                <button
+                  onClick={exportContactsTemplate}
+                  className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+                >
+                  📄 Create Contacts Template
+                </button>
+                <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors font-medium">
+                  {uploading ? 'Uploading...' : '📂 Upload CSV'}
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCSVUpload}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                </label>
+              </>
+            )}
             <button
               onClick={() => setShowFilmsMode(!showFilmsMode)}
               className={`px-4 py-2 rounded-md transition-colors font-medium ${
@@ -324,6 +543,21 @@ export default function ContactsPage() {
           </div>
         </div>
       </div>
+
+      {/* Upload Status */}
+      {uploadStatus && (
+        <div className="px-6">
+          <div className={`mt-3 p-3 rounded-md ${
+            uploadStatus.includes('Error') 
+              ? 'bg-red-100 text-red-700 border border-red-200'
+              : uploadStatus.includes('Successfully')
+              ? 'bg-green-100 text-green-700 border border-green-200'
+              : 'bg-blue-100 text-blue-700 border border-blue-200'
+          }`}>
+            {uploadStatus}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
@@ -516,6 +750,7 @@ export default function ContactsPage() {
           }}
         />
       )}
+
     </div>
   )
 }

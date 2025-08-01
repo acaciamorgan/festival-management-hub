@@ -22,7 +22,7 @@ interface CollapsibleSectionProps {
 }
 
 function CollapsibleSection({ title, children, isEmpty = false, defaultExpanded = false }: CollapsibleSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded || !isEmpty)
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
 
   return (
     <div className="border border-gray-200 rounded-lg mb-4">

@@ -7,11 +7,14 @@ import { SpecialEventCard } from '@/types'
 import { SpecialEventFormModal } from '@/components/forms/special-event-form-modal'
 import { SpecialEventsCalendar } from '@/components/calendar/special-events-calendar'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import * as XLSX from 'xlsx-js-style'
 
 export default function SpecialEventsPage() {
-  const { user } = useAuth()
+  const { user, permissions } = useAuth()
   const [specialEvents, setSpecialEvents] = useState<SpecialEventCard[]>([])
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'event_date', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
@@ -30,6 +33,248 @@ export default function SpecialEventsPage() {
   const [availableVenues, setAvailableVenues] = useState<{id: string, name: string}[]>([])
 
   const supabase = createClient()
+
+  // Check if user has edit permissions for special events
+  const canEditSpecialEvents = permissions?.modulePermissions?.['specialEvents']?.canEdit || permissions?.isAdmin
+
+  // Export template function for Special Events
+  const exportSpecialEventsTemplate = () => {
+    // Define headers with proper display names (21 columns total)
+    const headerMapping = [
+      { field: 'event_date', display: 'Date' },
+      { field: 'title', display: 'Event' },
+      { field: 'event_type', display: 'Event Type' },
+      { field: 'films_programs_display', display: 'Films/Programs Associated' },
+      { field: 'guests_display', display: 'Guests Associated' },
+      { field: 'access_time', display: 'Access Time' },
+      { field: 'start_time', display: 'Start Time' },
+      { field: 'end_time', display: 'End Time' },
+      { field: 'venue_name', display: 'Location' },
+      { field: 'lead_staff', display: 'Lead Staff' },
+      { field: 'invited_tags', display: 'Invited' },
+      { field: 'number_expected', display: 'Number Expected' },
+      { field: 'beverages', display: 'Beverages' },
+      { field: 'bartender', display: 'Bartender' },
+      { field: 'food', display: 'Food' },
+      { field: 'caterer', display: 'Caterer' },
+      { field: 'photography', display: 'Photography' },
+      { field: 'notes', display: 'Notes' },
+      { field: 'open_press', display: 'Open Press' },
+      { field: 'actual_attendance', display: 'Actual Attendance' },
+      { field: 'rsvps', display: 'RSVPs' }
+    ]
+    
+    const headers = headerMapping.map(h => h.display)
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+    
+    // Style headers - bold with light grey background
+    const headerStyle = { 
+      font: { bold: true, sz: 12, name: 'Arial' }, 
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+    
+    // Apply styles and set column widths based on header length
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      
+      // Calculate column width based on header length (min 15, max 30)
+      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
+    })
+    
+    ws['!cols'] = cols
+    
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Special Events Template')
+    XLSX.writeFile(wb, 'special_events_import_template.xlsx')
+  }
+
+  // CSV parsing function
+  const parseCSV = (text: string): string[][] => {
+    const rows: string[][] = []
+    let currentRow: string[] = []
+    let currentField = ''
+    let inQuotes = false
+    let i = 0
+
+    while (i < text.length) {
+      const char = text[i]
+      const nextChar = text[i + 1]
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          // Escaped quote
+          currentField += '"'
+          i += 2
+          continue
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes
+        }
+      } else if (char === ',' && !inQuotes) {
+        // Field separator
+        currentRow.push(currentField.trim())
+        currentField = ''
+      } else if ((char === '\n' || char === '\r') && !inQuotes) {
+        // Row separator
+        if (currentField || currentRow.length > 0) {
+          currentRow.push(currentField.trim())
+          if (currentRow.some(field => field.length > 0)) {
+            rows.push(currentRow)
+          }
+          currentRow = []
+          currentField = ''
+        }
+      } else {
+        currentField += char
+      }
+      i++
+    }
+
+    // Handle last row
+    if (currentField || currentRow.length > 0) {
+      currentRow.push(currentField.trim())
+      if (currentRow.some(field => field.length > 0)) {
+        rows.push(currentRow)
+      }
+    }
+
+    return rows
+  }
+
+  // CSV upload handler
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setUploadStatus('Processing CSV...')
+
+    try {
+      const text = await file.text()
+      const rows = parseCSV(text)
+      
+      if (rows.length === 0) {
+        setUploadStatus('Error: CSV file is empty')
+        return
+      }
+
+      const headers = rows[0]
+      
+      // Field mapping for Special Events CSV
+      const fieldMap: Record<string, string> = {
+        'Date': 'event_date',
+        'Event': 'title',
+        'Event Type': 'event_type',
+        'Films/Programs Associated': 'films_programs_display',
+        'Guests Associated': 'guests_display',
+        'Access Time': 'access_time',
+        'Start Time': 'start_time',
+        'End Time': 'end_time',
+        'Location': 'venue_name',
+        'Lead Staff': 'lead_staff',
+        'Invited': 'invited_tags',
+        'Number Expected': 'number_expected',
+        'Beverages': 'beverages',
+        'Bartender': 'bartender',
+        'Food': 'food',
+        'Caterer': 'caterer',
+        'Photography': 'photography',
+        'Notes': 'notes',
+        'Open Press': 'open_press',
+        'Actual Attendance': 'actual_attendance',
+        'RSVPs': 'rsvps'
+      }
+
+      // Process data rows
+      const eventData = []
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i]
+        const eventRecord: any = {}
+        
+        headers.forEach((header, index) => {
+          const fieldName = fieldMap[header]
+          if (fieldName && row[index]) {
+            let value = row[index].trim()
+            
+            // Handle boolean fields
+            if (['open_press', 'photography'].includes(fieldName)) {
+              value = value.toLowerCase() === 'true' || value.toLowerCase() === 'yes' || value === '1'
+            }
+            // Handle numeric fields
+            else if (['number_expected', 'actual_attendance', 'rsvps'].includes(fieldName)) {
+              const numValue = parseInt(value)
+              if (!isNaN(numValue)) {
+                value = numValue
+              }
+            }
+            // Handle date field
+            else if (fieldName === 'event_date') {
+              // Try to parse date in various formats
+              const date = new Date(value)
+              if (!isNaN(date.getTime())) {
+                value = date.toISOString().split('T')[0]
+              }
+            }
+            
+            eventRecord[fieldName] = value
+          }
+        })
+        
+        // Only add if we have required fields
+        if (eventRecord.title) {
+          eventData.push(eventRecord)
+        }
+      }
+
+      if (eventData.length === 0) {
+        setUploadStatus('Error: No valid event data found in CSV')
+        return
+      }
+
+      setUploadStatus(`Uploading ${eventData.length} events...`)
+
+      // Insert events into database
+      const { error } = await supabase
+        .from('special_events')
+        .insert(eventData)
+
+      if (error) {
+        console.error('Upload error:', error)
+        setUploadStatus(`Error: ${error.message}`)
+        return
+      }
+
+      setUploadStatus(`Successfully uploaded ${eventData.length} special events!`)
+      
+      // Reload the events
+      loadSpecialEvents()
+
+    } catch (error) {
+      console.error('CSV processing error:', error)
+      setUploadStatus('Error: Failed to process CSV file')
+    } finally {
+      setUploading(false)
+      // Clear the file input
+      if (event.target) {
+        event.target.value = ''
+      }
+    }
+  }
 
   const loadSpecialEvents = useCallback(async () => {
     setLoading(true)
@@ -319,6 +564,26 @@ export default function SpecialEventsPage() {
           </div>
           
           <div className="flex items-center space-x-4">
+            {canEditSpecialEvents && (
+              <>
+                <button
+                  onClick={exportSpecialEventsTemplate}
+                  className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+                >
+                  📄 Create Special Events Template
+                </button>
+                <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors font-medium">
+                  {uploading ? 'Uploading...' : '📂 Upload CSV'}
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCSVUpload}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                </label>
+              </>
+            )}
             <button
               onClick={handleAddEvent}
               className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
@@ -328,6 +593,21 @@ export default function SpecialEventsPage() {
           </div>
         </div>
       </div>
+
+      {/* Upload Status */}
+      {uploadStatus && (
+        <div className="px-6">
+          <div className={`mt-3 p-3 rounded-md ${
+            uploadStatus.includes('Error') 
+              ? 'bg-red-100 text-red-700 border border-red-200'
+              : uploadStatus.includes('Successfully')
+              ? 'bg-green-100 text-green-700 border border-green-200'
+              : 'bg-blue-100 text-blue-700 border border-blue-200'
+          }`}>
+            {uploadStatus}
+          </div>
+        </div>
+      )}
 
       {/* Filters and View Toggle */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 space-y-4">

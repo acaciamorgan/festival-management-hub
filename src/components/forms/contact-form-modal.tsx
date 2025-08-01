@@ -38,6 +38,32 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
 
   const supabase = createClient()
 
+  // Phone formatting function
+  const formatPhoneNumber = (value: string): string => {
+    // Remove all non-digit characters
+    const cleaned = value.replace(/\D/g, '')
+    
+    // If it's an international number (starts with + or has more than 10 digits after cleaning)
+    if (value.startsWith('+') || cleaned.length > 10) {
+      // For international numbers, preserve the + and allow any format
+      return value.replace(/[^\d+\-\s\(\)]/g, '')
+    }
+    
+    // For US numbers, apply 123-456-7890 format
+    if (cleaned.length <= 10) {
+      if (cleaned.length <= 3) {
+        return cleaned
+      } else if (cleaned.length <= 6) {
+        return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`
+      } else {
+        return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`
+      }
+    }
+    
+    // If more than 10 digits but no +, treat as international
+    return value.replace(/[^\d+\-\s\(\)]/g, '')
+  }
+
   useEffect(() => {
     if (contact && isOpen) {
       setFormData({
@@ -244,7 +270,8 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
               <input
                 type="tel"
                 value={formData.phone}
-                onChange={(e) => handleFieldChange('phone', e.target.value)}
+                onChange={(e) => handleFieldChange('phone', formatPhoneNumber(e.target.value))}
+                placeholder="123-456-7890 or +1-234-567-8900"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>

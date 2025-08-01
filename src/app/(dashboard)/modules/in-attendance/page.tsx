@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/components/providers/auth-provider'
 import { GuestCard, GuestType, GuestFilm } from '@/types'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { GuestFormModal } from '@/components/forms/guest-form-modal'
@@ -9,8 +10,10 @@ import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { parseCSVContent, importGuestsFromCSV } from '@/lib/csv-import'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { normalizeDateValue } from '@/lib/date-utils'
+import * as XLSX from 'xlsx-js-style'
 
 export default function InAttendancePage() {
+  const { user, permissions } = useAuth()
   const [guests, setGuests] = useState<GuestCard[]>([])
   const [filteredGuests, setFilteredGuests] = useState<GuestCard[]>([])
   const [loading, setLoading] = useState(false)
@@ -31,6 +34,78 @@ export default function InAttendancePage() {
   const [existingFilms, setExistingFilms] = useState<Set<string>>(new Set())
 
   const supabase = createClient()
+
+  // Check if user has edit permissions for in attendance
+  const canEditInAttendance = permissions?.modulePermissions?.['inAttendance']?.canEdit || permissions?.isAdmin
+
+  // Export template function for In Attendance
+  const exportInAttendanceTemplate = () => {
+    // Define headers with proper display names
+    const headerMapping = [
+      { field: 'name', display: 'Name' },
+      { field: 'role', display: 'Role' },
+      { field: 'films_display', display: 'Film/Program Titles' },
+      { field: 'checked_in', display: 'Checked In' },
+      { field: 'guest_type', display: 'Type' },
+      { field: 'arranging_travel', display: 'Travel' },
+      { field: 'country', display: 'Country' },
+      { field: 'arrival_date', display: 'Arrival Date' },
+      { field: 'arrival_airline', display: 'Arrival Airline' },
+      { field: 'arrival_flight_number', display: 'Flight #' },
+      { field: 'arrival_takeoff_time', display: 'Depart Time' },
+      { field: 'arrival_origin', display: 'Origin' },
+      { field: 'arrival_destination', display: 'Arrival Airport' },
+      { field: 'arrival_landing_time', display: 'Arrive Time' },
+      { field: 'departure_date', display: 'Departure Date' },
+      { field: 'departure_takeoff_time', display: 'Depart Time' },
+      { field: 'departure_airline', display: 'Departure Airline' },
+      { field: 'departure_flight_number', display: 'Flight #' },
+      { field: 'departure_origin', display: 'Departure Airport' },
+      { field: 'departure_destination', display: 'Destination' },
+      { field: 'departure_landing_time', display: 'Arrive Time' },
+      { field: 'hotel_name', display: 'Hotel' },
+      { field: 'notes', display: 'Notes' },
+      { field: 'confirmed', display: 'Confirmed' }
+    ]
+    
+    const headers = headerMapping.map(h => h.display)
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+    
+    // Style headers - bold with light grey background
+    const headerStyle = { 
+      font: { bold: true, sz: 12, name: 'Arial' }, 
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+    
+    // Apply styles and set column widths based on header length
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      
+      // Calculate column width based on header length (min 15, max 30)
+      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
+    })
+    
+    ws['!cols'] = cols
+    
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'In Attendance Template')
+    XLSX.writeFile(wb, 'in_attendance_import_template.xlsx')
+  }
 
   // Load existing films and programs only when Show Films toggle is activated
   useEffect(() => {
@@ -519,6 +594,14 @@ export default function InAttendancePage() {
           </div>
           
           <div className="flex items-center space-x-3">
+            {canEditInAttendance && (
+              <button
+                onClick={exportInAttendanceTemplate}
+                className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+              >
+                📄 Create In Attendance Template
+              </button>
+            )}
             <button
               onClick={() => setShowFilmsMode(!showFilmsMode)}
               className={`px-4 py-2 rounded-md transition-colors font-medium ${

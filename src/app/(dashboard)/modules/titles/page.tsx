@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/components/providers/auth-provider'
 import { FilmCard, ProgramCard, VenueCard, GuestCard } from '@/types'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { FilmEditModal } from '@/components/forms/film-edit-modal'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { normalizeDateValue } from '@/lib/date-utils'
+import * as XLSX from 'xlsx-js-style'
 
 interface FeatureFilm {
   id: string
@@ -93,6 +95,7 @@ interface ShortFilm {
 type ViewMode = 'features' | 'shorts' | 'programs'
 
 export default function TitlesPage() {
+  const { permissions } = useAuth()
   const [viewMode, setViewMode] = useState<ViewMode>('features')
   const [films, setFilms] = useState<FeatureFilm[]>([])
   const [shorts, setShorts] = useState<ShortFilm[]>([])
@@ -123,8 +126,214 @@ export default function TitlesPage() {
   const [showGuestCard, setShowGuestCard] = useState<GuestCard | null>(null)
   const [showGuestMode, setShowGuestMode] = useState(false)
   const [confirmedGuests, setConfirmedGuests] = useState<Set<string>>(new Set())
+  const [showAddFilmModal, setShowAddFilmModal] = useState(false)
   
   const supabase = createClient()
+
+  // Check if user has edit permissions for titles module
+  const canEditTitles = permissions?.modulePermissions?.['titles']?.canEdit || permissions?.isAdmin
+
+  // Export template function for Features
+  const exportFeaturesTemplate = () => {
+    // Define headers with proper display names
+    const headerMapping = [
+      { field: 'title', display: 'Title' },
+      { field: 'source', display: 'Source' },
+      { field: 'original_language_title', display: 'Original Language Title' },
+      { field: 'director', display: 'Director' },
+      { field: 'countries', display: 'Countries' },
+      { field: 'original_release_year', display: 'Original Release Year' },
+      { field: 'run_time', display: 'Run Time' },
+      { field: 'language', display: 'Language' },
+      { field: 'subtitles', display: 'Subtitles' },
+      { field: 'captions', display: 'Captions' },
+      { field: 'program_1', display: 'Program 1' },
+      { field: 'program_2', display: 'Program 2' },
+      { field: 'program_3', display: 'Program 3' },
+      { field: 'program_4', display: 'Program 4' },
+      { field: 'genre_1', display: 'Genre 1' },
+      { field: 'genre_2', display: 'Genre 2' },
+      { field: 'genre_3', display: 'Genre 3' },
+      { field: 'genre_4', display: 'Genre 4' },
+      { field: 'premiere_status', display: 'Premiere Status' },
+      { field: 'screenwriter', display: 'Screenwriter' },
+      { field: 'cinematographer', display: 'Cinematographer' },
+      { field: 'art_director', display: 'Art Director' },
+      { field: 'editor', display: 'Editor' },
+      { field: 'principal_cast', display: 'Principal Cast' },
+      { field: 'sound_designer', display: 'Sound Designer' },
+      { field: 'music_score', display: 'Music Score' },
+      { field: 'producer', display: 'Producer' },
+      { field: 'executive_producer', display: 'Executive Producer' },
+      { field: 'production_companies', display: 'Production Companies' },
+      { field: 'film_website', display: 'Film Website' },
+      { field: 'trailer_url', display: 'Trailer URL' },
+      { field: 'content_warnings', display: 'Content Warnings' }
+    ]
+    
+    const headers = headerMapping.map(h => h.display)
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+    
+    // Style headers - bold with light grey background
+    const headerStyle = { 
+      font: { bold: true, sz: 12, name: 'Arial' }, 
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+    
+    // Apply styles and set column widths based on header length
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      
+      // Calculate column width based on header length (min 15, max 30)
+      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
+    })
+    
+    ws['!cols'] = cols
+    
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Features Template')
+    XLSX.writeFile(wb, 'features_import_template.xlsx')
+  }
+
+  // Export template function for Shorts
+  const exportShortsTemplate = () => {
+    // Define headers with proper display names
+    const headerMapping = [
+      { field: 'title', display: 'Title' },
+      { field: 'source', display: 'Source' },
+      { field: 'original_language_title', display: 'Original Language Title' },
+      { field: 'director', display: 'Director' },
+      { field: 'countries', display: 'Countries' },
+      { field: 'original_release_year', display: 'Original Release Year' },
+      { field: 'run_time', display: 'Run Time' },
+      { field: 'language', display: 'Language' },
+      { field: 'subtitles', display: 'Subtitles' },
+      { field: 'captions', display: 'Captions' },
+      { field: 'shorts_program_id', display: 'Shorts Program ID' },
+      { field: 'program_order', display: 'Program Order' },
+      { field: 'program_1', display: 'Program 1' },
+      { field: 'program_2', display: 'Program 2' },
+      { field: 'program_3', display: 'Program 3' },
+      { field: 'genre_1', display: 'Genre 1' },
+      { field: 'genre_2', display: 'Genre 2' },
+      { field: 'genre_3', display: 'Genre 3' },
+      { field: 'screenwriter', display: 'Screenwriter' },
+      { field: 'cinematographer', display: 'Cinematographer' },
+      { field: 'art_director', display: 'Art Director' },
+      { field: 'editor', display: 'Editor' },
+      { field: 'principal_cast', display: 'Principal Cast' },
+      { field: 'sound_designer', display: 'Sound Designer' },
+      { field: 'music_score', display: 'Music Score' },
+      { field: 'producer', display: 'Producer' },
+      { field: 'executive_producer', display: 'Executive Producer' },
+      { field: 'production_companies', display: 'Production Companies' },
+      { field: 'film_website', display: 'Film Website' },
+      { field: 'trailer_url', display: 'Trailer URL' },
+      { field: 'content_warnings', display: 'Content Warnings' }
+    ]
+    
+    const headers = headerMapping.map(h => h.display)
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+    
+    // Style headers - bold with light grey background
+    const headerStyle = { 
+      font: { bold: true, sz: 12, name: 'Arial' }, 
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+    
+    // Apply styles and set column widths based on header length
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      
+      // Calculate column width based on header length (min 15, max 30)
+      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
+    })
+    
+    ws['!cols'] = cols
+    
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Shorts Template')
+    XLSX.writeFile(wb, 'shorts_import_template.xlsx')
+  }
+
+  // Export template function for Programs
+  const exportProgramsTemplate = () => {
+    // Define headers with proper display names
+    const headerMapping = [
+      { field: 'program_number', display: 'Program Number' },
+      { field: 'program_name', display: 'Program Name' },
+      { field: 'description', display: 'Description' },
+      { field: 'total_runtime', display: 'Total Runtime' }
+    ]
+    
+    const headers = headerMapping.map(h => h.display)
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+    
+    // Style headers - bold with light grey background
+    const headerStyle = { 
+      font: { bold: true, sz: 12, name: 'Arial' }, 
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+    
+    // Apply styles and set column widths based on header length
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      
+      // Calculate column width based on header length (min 15, max 30)
+      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
+    })
+    
+    ws['!cols'] = cols
+    
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Programs Template')
+    XLSX.writeFile(wb, 'programs_import_template.xlsx')
+  }
 
   // Load confirmed guests only when Show Guests toggle is activated
   useEffect(() => {
@@ -1370,6 +1579,42 @@ export default function TitlesPage() {
             </p>
           </div>
           <div className="flex items-center space-x-4">
+            {canEditTitles && (
+              <>
+                {viewMode === 'features' && (
+                  <>
+                    <button
+                      onClick={exportFeaturesTemplate}
+                      className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      📄 Create Features Template
+                    </button>
+                    <button
+                      onClick={() => setShowAddFilmModal(true)}
+                      className="px-4 py-2 rounded-md transition-colors font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      ➕ Add Film
+                    </button>
+                  </>
+                )}
+                {viewMode === 'shorts' && (
+                  <button
+                    onClick={exportShortsTemplate}
+                    className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    📄 Create Shorts Template
+                  </button>
+                )}
+                {viewMode === 'programs' && (
+                  <button
+                    onClick={exportProgramsTemplate}
+                    className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    📄 Create Programs Template
+                  </button>
+                )}
+              </>
+            )}
             <button
               onClick={() => setShowGuestMode(!showGuestMode)}
               className={`px-4 py-2 rounded-md transition-colors font-medium ${
@@ -2170,6 +2415,822 @@ export default function TitlesPage() {
           }
         }}
       />
+
+      {/* Add Film Modal */}
+      {showAddFilmModal && (
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 pointer-events-none">
+          <div className="pointer-events-auto">
+            <AddFilmModal
+              isOpen={showAddFilmModal}
+              onClose={() => setShowAddFilmModal(false)}
+              onSave={() => {
+                setShowAddFilmModal(false)
+                loadFilms()
+              }}
+              availablePrograms={uniquePrograms}
+              availableGenres={uniqueGenres}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Add Film Modal Component
+interface AddFilmModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSave: () => void
+  availablePrograms: string[]
+  availableGenres: string[]
+}
+
+function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGenres }: AddFilmModalProps) {
+  const [formData, setFormData] = useState({
+    title: '',
+    source: '',
+    original_language_title: '',
+    director: '',
+    countries: '',
+    program_1: '',
+    program_2: '',
+    program_3: '',
+    program_4: '',
+    genre_1: '',
+    genre_2: '',
+    genre_3: '',
+    genre_4: '',
+    run_time: '',
+    language: '',
+    subtitles: '',
+    captions: '',
+    original_release_year: '',
+    screenwriter: '',
+    cinematographer: '',
+    art_director: '',
+    editor: '',
+    principal_cast: '',
+    sound_designer: '',
+    music_score: '',
+    producer: '',
+    executive_producer: '',
+    production_companies: '',
+    film_website: '',
+    trailer_url: '',
+    premiere_status: '',
+    content_warnings: ''
+  })
+  
+  const [saving, setSaving] = useState(false)
+  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  
+  // Autocomplete states
+  const [programDropdowns, setProgramDropdowns] = useState({
+    program_1: false,
+    program_2: false,
+    program_3: false,
+    program_4: false
+  })
+  const [genreDropdowns, setGenreDropdowns] = useState({
+    genre_1: false,
+    genre_2: false,
+    genre_3: false,
+    genre_4: false
+  })
+  
+  const supabase = createClient()
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const toggleProgramDropdown = (field: string) => {
+    setProgramDropdowns(prev => ({
+      ...prev,
+      [field]: !prev[field as keyof typeof prev]
+    }))
+    // Close other dropdowns
+    Object.keys(programDropdowns).forEach(key => {
+      if (key !== field) {
+        setProgramDropdowns(prev => ({ ...prev, [key]: false }))
+      }
+    })
+  }
+
+  const toggleGenreDropdown = (field: string) => {
+    setGenreDropdowns(prev => ({
+      ...prev,
+      [field]: !prev[field as keyof typeof prev]
+    }))
+    // Close other dropdowns
+    Object.keys(genreDropdowns).forEach(key => {
+      if (key !== field) {
+        setGenreDropdowns(prev => ({ ...prev, [key]: false }))
+      }
+    })
+  }
+
+  const selectProgram = (field: string, value: string) => {
+    handleInputChange(field, value)
+    setProgramDropdowns(prev => ({ ...prev, [field]: false }))
+  }
+
+  const selectGenre = (field: string, value: string) => {
+    handleInputChange(field, value)
+    setGenreDropdowns(prev => ({ ...prev, [field]: false }))
+  }
+
+  // Filter options based on current input
+  const getFilteredPrograms = (currentValue: string) => {
+    if (!currentValue) return availablePrograms
+    return availablePrograms.filter(program => 
+      program.toLowerCase().includes(currentValue.toLowerCase())
+    )
+  }
+
+  const getFilteredGenres = (currentValue: string) => {
+    if (!currentValue) return availableGenres
+    return availableGenres.filter(genre => 
+      genre.toLowerCase().includes(currentValue.toLowerCase())
+    )
+  }
+
+  const handleSave = async () => {
+    if (!formData.title.trim()) {
+      alert('Title is required')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const filmData = {
+        ...formData,
+        run_time: formData.run_time ? parseInt(formData.run_time) : null,
+        original_release_year: formData.original_release_year ? parseInt(formData.original_release_year) : null
+      }
+
+      const { error } = await supabase
+        .from('feature_films')
+        .insert([filmData])
+
+      if (error) throw error
+
+      alert('Film added successfully!')
+      onSave()
+    } catch (error) {
+      console.error('Error adding film:', error)
+      alert('Error adding film. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    setDragStart({
+      x: e.clientX - dragPosition.x,
+      y: e.clientY - dragPosition.y
+    })
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      setDragPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      })
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [isDragging, dragStart])
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setProgramDropdowns({ program_1: false, program_2: false, program_3: false, program_4: false })
+      setGenreDropdowns({ genre_1: false, genre_2: false, genre_3: false, genre_4: false })
+    }
+
+    if (Object.values(programDropdowns).some(Boolean) || Object.values(genreDropdowns).some(Boolean)) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [programDropdowns, genreDropdowns])
+
+  if (!isOpen) return null
+
+  return (
+    <div 
+      className="fixed bg-white rounded-lg shadow-2xl w-[800px] max-h-[90vh] overflow-hidden"
+      style={{ 
+        left: `calc(50% + ${dragPosition.x}px)`, 
+        top: `calc(50% + ${dragPosition.y}px)`,
+        transform: 'translate(-50%, -50%)',
+        cursor: isDragging ? 'grabbing' : 'default'
+      }}
+    >
+      {/* Draggable Header */}
+      <div 
+        className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 cursor-grab active:cursor-grabbing"
+        onMouseDown={handleMouseDown}
+      >
+        <h2 className="text-lg font-semibold text-gray-900">Add New Film</h2>
+        <button
+          onClick={onClose}
+          className="text-gray-500 hover:text-gray-700 text-xl font-bold w-6 h-6 flex items-center justify-center hover:bg-gray-200 rounded"
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Form Content */}
+      <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="grid grid-cols-2 gap-4">
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Title *
+            </label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => handleInputChange('title', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+
+          {/* Source */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Source
+            </label>
+            <input
+              type="text"
+              value={formData.source}
+              onChange={(e) => handleInputChange('source', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Original Language Title */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Original Language Title
+            </label>
+            <input
+              type="text"
+              value={formData.original_language_title}
+              onChange={(e) => handleInputChange('original_language_title', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Director */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Director
+            </label>
+            <input
+              type="text"
+              value={formData.director}
+              onChange={(e) => handleInputChange('director', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Countries */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Countries
+            </label>
+            <input
+              type="text"
+              value={formData.countries}
+              onChange={(e) => handleInputChange('countries', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Runtime */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Runtime (minutes)
+            </label>
+            <input
+              type="number"
+              value={formData.run_time}
+              onChange={(e) => handleInputChange('run_time', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Language */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Language
+            </label>
+            <input
+              type="text"
+              value={formData.language}
+              onChange={(e) => handleInputChange('language', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Subtitles */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Subtitles
+            </label>
+            <input
+              type="text"
+              value={formData.subtitles}
+              onChange={(e) => handleInputChange('subtitles', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Captions */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Captions
+            </label>
+            <input
+              type="text"
+              value={formData.captions}
+              onChange={(e) => handleInputChange('captions', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Original Release Year */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Original Release Year
+            </label>
+            <input
+              type="number"
+              value={formData.original_release_year}
+              onChange={(e) => handleInputChange('original_release_year', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Programs */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Program 1
+            </label>
+            <input
+              type="text"
+              value={formData.program_1}
+              onChange={(e) => handleInputChange('program_1', e.target.value)}
+              onFocus={() => toggleProgramDropdown('program_1')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Select or type program..."
+            />
+            {programDropdowns.program_1 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                {getFilteredPrograms(formData.program_1).map((program, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => selectProgram('program_1', program)}
+                    className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm"
+                  >
+                    {program}
+                  </button>
+                ))}
+                {getFilteredPrograms(formData.program_1).length === 0 && (
+                  <div className="px-3 py-2 text-sm text-gray-500">No programs found</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Program 2
+            </label>
+            <input
+              type="text"
+              value={formData.program_2}
+              onChange={(e) => handleInputChange('program_2', e.target.value)}
+              onFocus={() => toggleProgramDropdown('program_2')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Select or type program..."
+            />
+            {programDropdowns.program_2 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                {getFilteredPrograms(formData.program_2).map((program, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => selectProgram('program_2', program)}
+                    className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm"
+                  >
+                    {program}
+                  </button>
+                ))}
+                {getFilteredPrograms(formData.program_2).length === 0 && (
+                  <div className="px-3 py-2 text-sm text-gray-500">No programs found</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Program 3
+            </label>
+            <input
+              type="text"
+              value={formData.program_3}
+              onChange={(e) => handleInputChange('program_3', e.target.value)}
+              onFocus={() => toggleProgramDropdown('program_3')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Select or type program..."
+            />
+            {programDropdowns.program_3 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                {getFilteredPrograms(formData.program_3).map((program, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => selectProgram('program_3', program)}
+                    className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm"
+                  >
+                    {program}
+                  </button>
+                ))}
+                {getFilteredPrograms(formData.program_3).length === 0 && (
+                  <div className="px-3 py-2 text-sm text-gray-500">No programs found</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Program 4
+            </label>
+            <input
+              type="text"
+              value={formData.program_4}
+              onChange={(e) => handleInputChange('program_4', e.target.value)}
+              onFocus={() => toggleProgramDropdown('program_4')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Select or type program..."
+            />
+            {programDropdowns.program_4 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                {getFilteredPrograms(formData.program_4).map((program, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => selectProgram('program_4', program)}
+                    className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm"
+                  >
+                    {program}
+                  </button>
+                ))}
+                {getFilteredPrograms(formData.program_4).length === 0 && (
+                  <div className="px-3 py-2 text-sm text-gray-500">No programs found</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Genres */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Genre 1
+            </label>
+            <input
+              type="text"
+              value={formData.genre_1}
+              onChange={(e) => handleInputChange('genre_1', e.target.value)}
+              onFocus={() => toggleGenreDropdown('genre_1')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Select or type genre..."
+            />
+            {genreDropdowns.genre_1 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                {getFilteredGenres(formData.genre_1).map((genre, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => selectGenre('genre_1', genre)}
+                    className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm"
+                  >
+                    {genre}
+                  </button>
+                ))}
+                {getFilteredGenres(formData.genre_1).length === 0 && (
+                  <div className="px-3 py-2 text-sm text-gray-500">No genres found</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Genre 2
+            </label>
+            <input
+              type="text"
+              value={formData.genre_2}
+              onChange={(e) => handleInputChange('genre_2', e.target.value)}
+              onFocus={() => toggleGenreDropdown('genre_2')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Select or type genre..."
+            />
+            {genreDropdowns.genre_2 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                {getFilteredGenres(formData.genre_2).map((genre, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => selectGenre('genre_2', genre)}
+                    className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm"
+                  >
+                    {genre}
+                  </button>
+                ))}
+                {getFilteredGenres(formData.genre_2).length === 0 && (
+                  <div className="px-3 py-2 text-sm text-gray-500">No genres found</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Genre 3
+            </label>
+            <input
+              type="text"
+              value={formData.genre_3}
+              onChange={(e) => handleInputChange('genre_3', e.target.value)}
+              onFocus={() => toggleGenreDropdown('genre_3')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Select or type genre..."
+            />
+            {genreDropdowns.genre_3 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                {getFilteredGenres(formData.genre_3).map((genre, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => selectGenre('genre_3', genre)}
+                    className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm"
+                  >
+                    {genre}
+                  </button>
+                ))}
+                {getFilteredGenres(formData.genre_3).length === 0 && (
+                  <div className="px-3 py-2 text-sm text-gray-500">No genres found</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Genre 4
+            </label>
+            <input
+              type="text"
+              value={formData.genre_4}
+              onChange={(e) => handleInputChange('genre_4', e.target.value)}
+              onFocus={() => toggleGenreDropdown('genre_4')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Select or type genre..."
+            />
+            {genreDropdowns.genre_4 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                {getFilteredGenres(formData.genre_4).map((genre, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => selectGenre('genre_4', genre)}
+                    className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm"
+                  >
+                    {genre}
+                  </button>
+                ))}
+                {getFilteredGenres(formData.genre_4).length === 0 && (
+                  <div className="px-3 py-2 text-sm text-gray-500">No genres found</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Crew Fields */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Screenwriter
+            </label>
+            <input
+              type="text"
+              value={formData.screenwriter}
+              onChange={(e) => handleInputChange('screenwriter', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Cinematographer
+            </label>
+            <input
+              type="text"
+              value={formData.cinematographer}
+              onChange={(e) => handleInputChange('cinematographer', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Art Director
+            </label>
+            <input
+              type="text"
+              value={formData.art_director}
+              onChange={(e) => handleInputChange('art_director', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Editor
+            </label>
+            <input
+              type="text"
+              value={formData.editor}
+              onChange={(e) => handleInputChange('editor', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Sound Designer
+            </label>
+            <input
+              type="text"
+              value={formData.sound_designer}
+              onChange={(e) => handleInputChange('sound_designer', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Music/Score
+            </label>
+            <input
+              type="text"
+              value={formData.music_score}
+              onChange={(e) => handleInputChange('music_score', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Producer
+            </label>
+            <input
+              type="text"
+              value={formData.producer}
+              onChange={(e) => handleInputChange('producer', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Executive Producer
+            </label>
+            <input
+              type="text"
+              value={formData.executive_producer}
+              onChange={(e) => handleInputChange('executive_producer', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Premiere Status
+            </label>
+            <input
+              type="text"
+              value={formData.premiere_status}
+              onChange={(e) => handleInputChange('premiere_status', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Full width fields */}
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Principal Cast
+            </label>
+            <input
+              type="text"
+              value={formData.principal_cast}
+              onChange={(e) => handleInputChange('principal_cast', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Production Companies
+            </label>
+            <input
+              type="text"
+              value={formData.production_companies}
+              onChange={(e) => handleInputChange('production_companies', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Film Website
+            </label>
+            <input
+              type="url"
+              value={formData.film_website}
+              onChange={(e) => handleInputChange('film_website', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Trailer URL
+            </label>
+            <input
+              type="url"
+              value={formData.trailer_url}
+              onChange={(e) => handleInputChange('trailer_url', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Content Warnings
+            </label>
+            <textarea
+              value={formData.content_warnings}
+              onChange={(e) => handleInputChange('content_warnings', e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={!formData.title.trim() || saving}
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Adding Film...' : 'Add Film'}
+        </button>
+      </div>
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { PhotoShootFormModal } from '@/components/forms/photo-shoot-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import * as XLSX from 'xlsx-js-style'
 
 interface PhotoShoot {
   id: string
@@ -45,7 +46,7 @@ interface PhotoShootFormData {
 }
 
 export default function PhotoShootsPage() {
-  const { user } = useAuth()
+  const { user, permissions } = useAuth()
   const [photoShoots, setPhotoShoots] = useState<PhotoShoot[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -61,6 +62,67 @@ export default function PhotoShootsPage() {
   const [existingGuests, setExistingGuests] = useState<Set<string>>(new Set())
 
   const supabase = createClient()
+
+  // Check if user has edit permissions for photo shoots
+  const canEditPhotoShoots = permissions?.modulePermissions?.['photoShoots']?.canEdit || permissions?.isAdmin
+
+  // Export template function for Photo Shoots
+  const exportPhotoShootsTemplate = () => {
+    // Define headers with proper display names
+    const headerMapping = [
+      { field: 'film_program_display', display: 'Film/Program' },
+      { field: 'subjects_display', display: 'Subjects' },
+      { field: 'venue_name', display: 'Venue' },
+      { field: 'house', display: 'House' },
+      { field: 'shoot_date', display: 'Shoot Date' },
+      { field: 'call_time', display: 'Call Time' },
+      { field: 'shoot_time', display: 'Shoot Time' },
+      { field: 'film_program_start_time', display: 'Film/Program Start Time' },
+      { field: 'photographer', display: 'Photographer' },
+      { field: 'videographer', display: 'Videographer' },
+      { field: 'intro_qa', display: 'Intro Q&A' },
+      { field: 'selects_received', display: 'Selects Received' },
+      { field: 'sent_to_pr', display: 'Sent to PR' }
+    ]
+    
+    const headers = headerMapping.map(h => h.display)
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+    
+    // Style headers - bold with light grey background
+    const headerStyle = { 
+      font: { bold: true, sz: 12, name: 'Arial' }, 
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+    
+    // Apply styles and set column widths based on header length
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      
+      // Calculate column width based on header length (min 15, max 30)
+      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
+    })
+    
+    ws['!cols'] = cols
+    
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Photo Shoots Template')
+    XLSX.writeFile(wb, 'photo_shoots_import_template.xlsx')
+  }
 
   const loadPhotoShoots = useCallback(async () => {
     setLoading(true)
@@ -361,6 +423,14 @@ export default function PhotoShootsPage() {
             </p>
           </div>
           <div className="flex items-center space-x-4">
+            {canEditPhotoShoots && (
+              <button
+                onClick={exportPhotoShootsTemplate}
+                className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+              >
+                📄 Create Photo Shoots Template
+              </button>
+            )}
             <button
               onClick={() => setShowAddModal(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"

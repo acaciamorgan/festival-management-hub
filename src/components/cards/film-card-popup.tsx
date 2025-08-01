@@ -302,10 +302,21 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               filmType = 'short'
             }
 
-            // Load contacts for this film
+            // Load contacts for this film with full contact details
             const { data: contactsData, error: contactsError } = await supabase
               .from('film_contacts')
-              .select('*')
+              .select(`
+                *,
+                contacts!inner(
+                  contact_name,
+                  contact_company,
+                  contact_email,
+                  phone,
+                  contact_type,
+                  mailing_address,
+                  notes
+                )
+              `)
               .eq('film_id', film.id)
               .eq('film_type', filmType)
               .order('contact_type, name')
@@ -842,28 +853,52 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             <CollapsibleSection title="Contact Information" isEmpty={filmContacts.length === 0}>
               {filmContacts.length > 0 ? (
                 <div className="space-y-4">
-                  {filmContacts.map((contact) => (
-                    <div key={contact.id} className="border-l-4 border-blue-400 pl-4 py-2">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">{contact.name}</h4>
-                          {contact.company && (
-                            <p className="text-sm text-gray-600 mt-1">{contact.company}</p>
-                          )}
-                          {contact.email && (
-                            <p className="text-sm text-blue-600 mt-1">
-                              <a href={`mailto:${contact.email}`} className="hover:underline">
-                                {contact.email}
-                              </a>
-                            </p>
-                          )}
+                  {filmContacts.map((contact) => {
+                    const fullContact = contact.contacts || contact;
+                    return (
+                      <div key={contact.id} className="border-l-4 border-blue-400 pl-4 py-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">
+                              {fullContact.contact_name || contact.name}
+                            </h4>
+                            {(fullContact.contact_company || contact.company) && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                {fullContact.contact_company || contact.company}
+                              </p>
+                            )}
+                            {(fullContact.contact_email || contact.email) && (
+                              <p className="text-sm text-blue-600 mt-1">
+                                <a href={`mailto:${fullContact.contact_email || contact.email}`} className="hover:underline">
+                                  {fullContact.contact_email || contact.email}
+                                </a>
+                              </p>
+                            )}
+                            {fullContact.phone && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                <a href={`tel:${fullContact.phone}`} className="hover:underline">
+                                  📞 {fullContact.phone}
+                                </a>
+                              </p>
+                            )}
+                            {fullContact.mailing_address && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                📍 {fullContact.mailing_address}
+                              </p>
+                            )}
+                            {fullContact.notes && (
+                              <p className="text-sm text-gray-500 mt-2 italic">
+                                {fullContact.notes}
+                              </p>
+                            )}
+                          </div>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 ml-4">
+                            {fullContact.contact_type || contact.contact_type}
+                          </span>
                         </div>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 ml-4">
-                          {contact.contact_type}
-                        </span>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-gray-500 text-sm">

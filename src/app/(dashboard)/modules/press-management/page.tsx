@@ -2,12 +2,15 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/components/providers/auth-provider'
 import { PressCardPopup } from '@/components/cards/press-card-popup'
 import { PressCard, SocialMedia } from '@/types'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import * as XLSX from 'xlsx-js-style'
 
 
 export default function PressManagementPage() {
+  const { permissions } = useAuth()
   const [press, setPress] = useState<PressCard[]>([])
   const [filteredPress, setFilteredPress] = useState<PressCard[]>([])
   const [loading, setLoading] = useState(false)
@@ -37,6 +40,74 @@ export default function PressManagementPage() {
   })
   
   const supabase = createClient()
+
+  // Check if user has edit permissions for press management
+  const canEditPress = permissions?.modulePermissions?.['pressManagement']?.canEdit || permissions?.isAdmin
+
+  // Export template function for Press
+  const exportPressTemplate = () => {
+    // Define headers with proper display names
+    const headerMapping = [
+      { field: 'name', display: 'Name' },
+      { field: 'email', display: 'Email' },
+      { field: 'phone', display: 'Phone' },
+      { field: 'media_outlet', display: 'Media Outlet' },
+      { field: 'secondary_outlets', display: 'Secondary Outlets' },
+      { field: 'website_url', display: 'Website URL' },
+      { field: 'secondary_outlet_urls', display: 'Secondary Outlet URLs' },
+      { field: 'industry', display: 'Industry' },
+      { field: 'twitter', display: 'Twitter' },
+      { field: 'instagram', display: 'Instagram' },
+      { field: 'bluesky', display: 'Bluesky' },
+      { field: 'youtube', display: 'YouTube' },
+      { field: 'rotten_tomatoes_accredited', display: 'Rotten Tomatoes Accredited' },
+      { field: 'critics_groups', display: 'Critics Groups' },
+      { field: 'credential_status', display: 'Credential Status' },
+      { field: 'accreditation_level', display: 'Accreditation Level' },
+      { field: 'picked_up_credentials', display: 'Picked Up Credentials' },
+      { field: 'preferred_contact_method', display: 'Preferred Contact Method' },
+      { field: 'special_requirements', display: 'Special Requirements' },
+      { field: 'internal_notes', display: 'Internal Notes' }
+    ]
+    
+    const headers = headerMapping.map(h => h.display)
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+    
+    // Style headers - bold with light grey background
+    const headerStyle = { 
+      font: { bold: true, sz: 12, name: 'Arial' }, 
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+    
+    // Apply styles and set column widths based on header length
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      
+      // Calculate column width based on header length (min 15, max 30)
+      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
+    })
+    
+    ws['!cols'] = cols
+    
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Press Template')
+    XLSX.writeFile(wb, 'press_import_template.xlsx')
+  }
 
   const loadPress = useCallback(async () => {
     setLoading(true)
@@ -629,6 +700,14 @@ export default function PressManagementPage() {
             <p className="text-sm text-gray-600 mt-1">{filteredPress.length} of {press.length} press cards</p>
           </div>
           <div className="flex items-center space-x-4">
+            {canEditPress && (
+              <button
+                onClick={exportPressTemplate}
+                className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+              >
+                📄 Create Press Template
+              </button>
+            )}
             <button
               onClick={() => setShowAddModal(true)}
               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
