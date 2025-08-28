@@ -55,6 +55,15 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
     cardTypes: ['titles', 'press'],
     route: '/modules/screener-access'
   },
+  pressRequests: {
+    id: 'pressRequests',
+    name: 'Press Requests',
+    icon: 'envelope',
+    hasGridView: true,
+    hasRSVP: false,
+    cardTypes: ['titles', 'press'],
+    route: '/modules/press-requests'
+  },
   photoShoots: {
     id: 'photoShoots',
     name: 'Photo Shoots',
@@ -137,6 +146,15 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
     hasRSVP: false,
     cardTypes: ['titles', 'guests', 'press', 'venues', 'programs'],
     route: '/modules/reports-analytics'
+  },
+  archives: {
+    id: 'archives',
+    name: 'Archives',
+    icon: 'archive',
+    hasGridView: false,
+    hasRSVP: false,
+    cardTypes: [],
+    route: '/modules/archives'
   },
   admin: {
     id: 'admin',

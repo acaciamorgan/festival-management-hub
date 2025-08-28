@@ -11,6 +11,7 @@ import { parseCSVContent, importGuestsFromCSV } from '@/lib/csv-import'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { normalizeDateValue } from '@/lib/date-utils'
 import * as XLSX from 'xlsx-js-style'
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableCell, TableRow, WidthType } from 'docx'
 
 export default function InAttendancePage() {
   const { user, permissions } = useAuth()
@@ -32,11 +33,170 @@ export default function InAttendancePage() {
   const [uploadStatus, setUploadStatus] = useState<string>('')
   const [showFilmsMode, setShowFilmsMode] = useState(false)
   const [existingFilms, setExistingFilms] = useState<Set<string>>(new Set())
+  const [showDailyReportDropdown, setShowDailyReportDropdown] = useState(false)
+  const [customReportDate, setCustomReportDate] = useState('')
 
   const supabase = createClient()
 
   // Check if user has edit permissions for in attendance
   const canEditInAttendance = permissions?.modulePermissions?.['inAttendance']?.canEdit || permissions?.isAdmin
+
+  // Daily Report generation function
+  const generateDailyReport = async (reportDate: string) => {
+    const formatFlightInfo = (guest: GuestCard, type: 'arrival' | 'departure'): string => {
+      if (type === 'arrival') {
+        const parts = []
+        if (guest.arrival_airline && guest.arrival_flight_number) {
+          parts.push(`${guest.arrival_airline} ${guest.arrival_flight_number}`)
+        }
+        if (guest.arrival_landing_time) {
+          parts.push(`arrives ${formatTime(guest.arrival_landing_time)}`)
+        }
+        if (guest.arrival_origin) {
+          parts.push(`from ${guest.arrival_origin}`)
+        }
+        return parts.length > 0 ? parts.join(' ') : '—'
+      } else {
+        const parts = []
+        if (guest.departure_airline && guest.departure_flight_number) {
+          parts.push(`${guest.departure_airline} ${guest.departure_flight_number}`)
+        }
+        if (guest.departure_takeoff_time) {
+          parts.push(`departs ${formatTime(guest.departure_takeoff_time)}`)
+        }
+        if (guest.departure_destination) {
+          parts.push(`to ${guest.departure_destination}`)
+        }
+        return parts.length > 0 ? parts.join(' ') : '—'
+      }
+    }
+
+    // Categorize guests
+    const arrivals = guests.filter(guest => guest.arrival_date === reportDate)
+    const departures = guests.filter(guest => guest.departure_date === reportDate)
+    const inAttendance = guests.filter(guest => {
+      const hasArrivedBefore = !guest.arrival_date || guest.arrival_date < reportDate
+      const hasntDepartedYet = !guest.departure_date || guest.departure_date > reportDate
+      return hasArrivedBefore && hasntDepartedYet && guest.arrival_date !== reportDate && guest.departure_date !== reportDate
+    })
+
+    // Create document
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({
+            text: `Daily Guest Report - ${formatDate(reportDate)}`,
+            heading: HeadingLevel.HEADING_1,
+            spacing: { after: 400 }
+          }),
+
+          // Arrivals Section
+          new Paragraph({
+            text: `ARRIVALS (${arrivals.length})`,
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 400, after: 200 }
+          }),
+          
+          ...arrivals.length === 0 ? [
+            new Paragraph({
+              text: "No arrivals scheduled for this date.",
+              spacing: { after: 200 }
+            })
+          ] : arrivals.map(guest => 
+            new Paragraph({
+              children: [
+                new TextRun({ text: guest.name, bold: true }),
+                new TextRun({ text: ` | ${guest.films_display || '—'}` }),
+                new TextRun({ text: ` | ${guest.role || '—'}` }),
+                new TextRun({ text: ` | ${guest.hotel_name || '—'}` }),
+                new TextRun({ text: ` | ${formatFlightInfo(guest, 'arrival')}` })
+              ],
+              spacing: { after: 100 }
+            })
+          ),
+
+          // In Attendance Section
+          new Paragraph({
+            text: `IN ATTENDANCE (${inAttendance.length})`,
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 400, after: 200 }
+          }),
+          
+          ...inAttendance.length === 0 ? [
+            new Paragraph({
+              text: "No guests currently in attendance.",
+              spacing: { after: 200 }
+            })
+          ] : inAttendance.map(guest => 
+            new Paragraph({
+              children: [
+                new TextRun({ text: guest.name, bold: true }),
+                new TextRun({ text: ` | ${guest.films_display || '—'}` }),
+                new TextRun({ text: ` | ${guest.role || '—'}` }),
+                new TextRun({ text: ` | ${guest.hotel_name || '—'}` })
+              ],
+              spacing: { after: 100 }
+            })
+          ),
+
+          // Departures Section
+          new Paragraph({
+            text: `DEPARTURES (${departures.length})`,
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 400, after: 200 }
+          }),
+          
+          ...departures.length === 0 ? [
+            new Paragraph({
+              text: "No departures scheduled for this date.",
+              spacing: { after: 200 }
+            })
+          ] : departures.map(guest => 
+            new Paragraph({
+              children: [
+                new TextRun({ text: guest.name, bold: true }),
+                new TextRun({ text: ` | ${guest.films_display || '—'}` }),
+                new TextRun({ text: ` | ${guest.role || '—'}` }),
+                new TextRun({ text: ` | ${guest.hotel_name || '—'}` }),
+                new TextRun({ text: ` | ${formatFlightInfo(guest, 'departure')}` })
+              ],
+              spacing: { after: 100 }
+            })
+          )
+        ]
+      }]
+    })
+
+    // Generate and download
+    const buffer = await Packer.toBuffer(doc)
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `daily_guest_report_${reportDate.replace(/-/g, '_')}.docx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    
+    setShowDailyReportDropdown(false)
+  }
+
+  const handleDailyReportClick = (days: number) => {
+    const today = new Date()
+    const targetDate = new Date(today)
+    targetDate.setDate(today.getDate() + days)
+    const dateString = targetDate.toISOString().split('T')[0]
+    generateDailyReport(dateString)
+  }
+
+  const handleCustomDateReport = () => {
+    if (customReportDate) {
+      generateDailyReport(customReportDate)
+      setCustomReportDate('')
+    }
+  }
 
   // Export template function for In Attendance
   const exportInAttendanceTemplate = () => {
@@ -583,6 +743,21 @@ export default function InAttendancePage() {
     loadGuests()
   }, [loadGuests])
 
+  // Click away handler for Daily Report dropdown
+  useEffect(() => {
+    const handleClickAway = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('.daily-report-dropdown')) {
+        setShowDailyReportDropdown(false)
+      }
+    }
+
+    if (showDailyReportDropdown) {
+      document.addEventListener('mousedown', handleClickAway)
+      return () => document.removeEventListener('mousedown', handleClickAway)
+    }
+  }, [showDailyReportDropdown])
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
@@ -748,6 +923,65 @@ export default function InAttendancePage() {
               </button>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Daily Report Section */}
+      <div className="bg-white border-b border-gray-200 px-6 py-3">
+        <div className="relative daily-report-dropdown">
+          <button
+            onClick={() => setShowDailyReportDropdown(!showDailyReportDropdown)}
+            className="bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700 flex items-center space-x-1"
+          >
+            <span>📊</span>
+            <span>Daily Report</span>
+            <span>{showDailyReportDropdown ? '▲' : '▼'}</span>
+          </button>
+          
+          {showDailyReportDropdown && (
+            <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 min-w-[200px]">
+              <div className="py-1">
+                <button
+                  onClick={() => handleDailyReportClick(-1)}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Yesterday
+                </button>
+                <button
+                  onClick={() => handleDailyReportClick(0)}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => handleDailyReportClick(1)}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Tomorrow
+                </button>
+                <div className="border-t border-gray-100 mt-1 pt-1">
+                  <div className="px-4 py-2">
+                    <label className="block text-xs text-gray-500 mb-1">Custom Date:</label>
+                    <div className="flex space-x-2">
+                      <input
+                        type="date"
+                        value={customReportDate}
+                        onChange={(e) => setCustomReportDate(e.target.value)}
+                        className="border border-gray-300 rounded px-2 py-1 text-xs flex-1"
+                      />
+                      <button
+                        onClick={handleCustomDateReport}
+                        disabled={!customReportDate}
+                        className="bg-orange-600 text-white px-2 py-1 rounded text-xs hover:bg-orange-700 disabled:bg-gray-400"
+                      >
+                        Go
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

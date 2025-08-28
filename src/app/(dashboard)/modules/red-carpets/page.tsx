@@ -7,6 +7,7 @@ import { RedCarpetFormModal } from '@/components/forms/red-carpet-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import * as XLSX from 'xlsx-js-style'
 
 interface RedCarpet {
   id: string
@@ -54,7 +55,7 @@ interface GroupedRedCarpetEvent {
 }
 
 export default function RedCarpetsPage() {
-  const { user } = useAuth()
+  const { user, permissions } = useAuth()
   const [redCarpets, setRedCarpets] = useState<RedCarpet[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -68,6 +69,64 @@ export default function RedCarpetsPage() {
   const [existingGuests, setExistingGuests] = useState<Set<string>>(new Set())
 
   const supabase = createClient()
+
+  // Check if user has edit permissions for red carpets
+  const canEditRedCarpets = permissions?.modulePermissions?.['redCarpets']?.canEdit || permissions?.isAdmin
+
+  // Export template function for Red Carpets
+  const exportRedCarpetsTemplate = () => {
+    // Define headers with proper display names
+    const headerMapping = [
+      { field: 'film_program_display', display: 'Film/Program' },
+      { field: 'subjects_display', display: 'Subjects' },
+      { field: 'venue_name', display: 'Venue' },
+      { field: 'house', display: 'House' },
+      { field: 'carpet_date', display: 'Carpet Date' },
+      { field: 'call_time', display: 'Call Time' },
+      { field: 'carpet_start_time', display: 'Carpet Start Time' },
+      { field: 'film_program_start_time', display: 'Film/Program Start Time' },
+      { field: 'rsvp_form_url', display: 'RSVP Form URL' },
+      { field: 'rsvp_responses_url', display: 'RSVP Responses URL' }
+    ]
+    
+    const headers = headerMapping.map(h => h.display)
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+    
+    // Style headers - bold with light grey background
+    const headerStyle = { 
+      font: { bold: true, sz: 12, name: 'Arial' }, 
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+    
+    // Apply styles and set column widths based on header length
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      
+      // Calculate column width based on header length (min 15, max 30)
+      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
+    })
+    
+    ws['!cols'] = cols
+    
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Red Carpets Template')
+    XLSX.writeFile(wb, 'red_carpets_import_template.xlsx')
+  }
 
   const loadRedCarpets = useCallback(async () => {
     setLoading(true)
@@ -405,6 +464,14 @@ export default function RedCarpetsPage() {
             </p>
           </div>
           <div className="flex items-center space-x-4">
+            {canEditRedCarpets && (
+              <button
+                onClick={exportRedCarpetsTemplate}
+                className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+              >
+                📄 Create Red Carpets Template
+              </button>
+            )}
             <button
               onClick={() => setShowAddModal(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"

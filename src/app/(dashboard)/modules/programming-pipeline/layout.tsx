@@ -28,13 +28,6 @@ export default function ProgrammingLayout({ children }: ProgrammingLayoutProps) 
       description: 'Screening schedule management'
     },
     {
-      id: 'scheduler',
-      name: 'Scheduling Planner',
-      icon: '📅',
-      href: '/modules/programming-pipeline/scheduler',
-      description: 'Drag & drop calendar planning'
-    },
-    {
       id: 'tributes',
       name: 'Tributes & Special Events',
       icon: '🏆',

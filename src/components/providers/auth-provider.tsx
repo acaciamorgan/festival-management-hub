@@ -18,16 +18,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [permissions, setPermissions] = useState<UserPermissions | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Permission cache utilities
+  const getCachedPermissions = (userId: string): UserPermissions | null => {
+    try {
+      const cached = localStorage.getItem(`permissions_${userId}`)
+      if (!cached) return null
+      
+      const { data, timestamp } = JSON.parse(cached)
+      const now = Date.now()
+      const maxAge = 10 * 60 * 1000 // 10 minutes
+      
+      if (now - timestamp > maxAge) {
+        localStorage.removeItem(`permissions_${userId}`)
+        return null
+      }
+      
+      return data
+    } catch (error) {
+      console.error('Error reading cached permissions:', error)
+      return null
+    }
+  }
+
+  const setCachedPermissions = (userId: string, permissions: UserPermissions) => {
+    try {
+      const cacheData = {
+        data: permissions,
+        timestamp: Date.now()
+      }
+      localStorage.setItem(`permissions_${userId}`, JSON.stringify(cacheData))
+    } catch (error) {
+      console.error('Error caching permissions:', error)
+    }
+  }
+
+  const clearPermissionCache = (userId?: string) => {
+    try {
+      if (userId) {
+        localStorage.removeItem(`permissions_${userId}`)
+      } else {
+        // Clear all permission caches
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('permissions_')) {
+            localStorage.removeItem(key)
+          }
+        })
+      }
+    } catch (error) {
+      console.error('Error clearing permission cache:', error)
+    }
+  }
   const supabase = createClient()
 
   useEffect(() => {
     const fetchUserPermissions = async (userId: string) => {
       try {
+        // Try cache first
+        const cachedPermissions = getCachedPermissions(userId)
+        if (cachedPermissions) {
+          console.log('Using cached permissions for user:', userId)
+          return cachedPermissions
+        }
+
         console.log('Fetching permissions for user:', userId)
         
         // Add timeout to prevent hanging
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Permission fetch timeout')), 3000)
+          setTimeout(() => reject(new Error('Permission fetch timeout')), 10000)
         })
         
         const queryPromise = supabase
@@ -55,11 +113,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ? JSON.parse(data.module_permissions)
           : data.module_permissions || {}
         
-        return {
+        const userPermissions = {
           userId: data.user_id,
           modulePermissions: modulePerms,
           isAdmin: data.is_admin || false
         }
+
+        // Cache the permissions
+        setCachedPermissions(userId, userPermissions)
+        
+        return userPermissions
       } catch (err) {
         console.error('Error in fetchUserPermissions (probably timeout):', err)
         // Return minimal permissions on error instead of admin

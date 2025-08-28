@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
+import * as XLSX from 'xlsx-js-style'
 
 // Screening Board Component
 interface ScreeningBoardProps {
@@ -621,6 +622,23 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
   
   // Get screening box color based on type and program colors
   const getScreeningColor = (screening: any) => {
+    // Tech checks: Always black with white text
+    if (screening.type === 'tech-check') {
+      return { 
+        className: 'border-gray-800', 
+        backgroundColor: '#000000' 
+      }
+    }
+    
+    // P&I/Press screenings: Always white with dark text
+    if (screening.type === 'pi-jury') {
+      return { 
+        className: 'border-gray-300', 
+        backgroundColor: '#ffffff' 
+      }
+    }
+    
+    // Other screenings: Use program-based coloring
     const programs = getFilmPrograms(screening)
     
     // Find the first enabled program in the list
@@ -863,6 +881,7 @@ export default function TicketingPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingScreening, setEditingScreening] = useState<any>(null)
+  const [showExportDropdown, setShowExportDropdown] = useState(false)
   
   // Form state
   const [formData, setFormData] = useState<ScreeningFormData>({
@@ -1186,47 +1205,25 @@ export default function TicketingPage() {
     return Array.from(programs).sort()
   }, [featureFilms, shortFilms, shortsPrograms])
 
-  // Load venue cards for auto-suggest
-  const loadVenueCards = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('venues')
-        .select(`
-          id,
-          venue_name: name,
-          venue_houses(
-            id,
-            house_name,
-            seat_count,
-            short_code
-          )
-        `)
-        .order('venue_name')
-      
-      if (error) {
-        console.warn('Venues table not available, skipping venue cards:', error.message)
-        setVenueCards([])
-        return
-      }
-      
-      // Flatten the venue/house structure for easier searching
-      const flattenedVenues = (data || []).flatMap(venue => 
-        venue.venue_houses?.map((house: any) => ({
-          id: house.id,
-          venue_name: venue.venue_name,
-          house_name: house.house_name,
-          short_code: house.short_code,
-          capacity: house.seat_count,
-          display_name: `${venue.venue_name} - ${house.house_name} (${house.short_code})`
-        })) || []
-      )
-      
-      setVenueCards(flattenedVenues)
-    } catch (error) {
-      console.warn('Error loading venue cards:', error)
-      setVenueCards([]) // Set empty array so the app doesn't crash
-    }
-  }, [supabase])
+  // Load venue cards for auto-suggest from existing screenings
+  const loadVenueCards = useCallback(() => {
+    // Get unique venue short codes from all existing screenings
+    const uniqueVenues = Array.from(new Set([
+      ...publishedScreenings.map(s => s.venue_short_code),
+      ...piJuryScreenings.map(s => s.venue_short_code),
+      ...techCheckScreenings.map(s => s.venue_short_code)
+    ])).filter(Boolean).sort()
+    
+    // Convert to the format expected by the auto-suggest
+    const venueCards = uniqueVenues.map(shortCode => ({
+      id: shortCode,
+      short_code: shortCode,
+      display_name: shortCode
+    }))
+    
+    setVenueCards(venueCards)
+    console.log('🏢 Loaded venue cards:', venueCards.length, venueCards)
+  }, [publishedScreenings, piJuryScreenings, techCheckScreenings])
 
   // Load all data
   const loadData = useCallback(async () => {
@@ -1237,16 +1234,18 @@ export default function TicketingPage() {
         loadPIJuryScreenings(),
         loadTechCheckScreenings(),
         loadFilmCards(),
-        loadVenueCards(),
         loadFestivalSettings(),
         loadFeatureFilms(),
         loadShortFilms(),
         loadShortsPrograms()
       ])
+      
+      // Load venue cards after screenings are loaded
+      loadVenueCards()
     } finally {
       setLoading(false)
     }
-  }, [loadPublishedScreenings, loadPIJuryScreenings, loadTechCheckScreenings, loadFilmCards, loadVenueCards, loadFestivalSettings, loadFeatureFilms, loadShortFilms, loadShortsPrograms])
+  }, [loadPublishedScreenings, loadPIJuryScreenings, loadTechCheckScreenings, loadFilmCards, loadFestivalSettings, loadFeatureFilms, loadShortFilms, loadShortsPrograms])
 
   useEffect(() => {
     loadData()
@@ -1260,13 +1259,16 @@ export default function TicketingPage() {
     }
   }, [currentBoardDate])
 
-  // Click away handler for suggestions
+  // Click away handler for suggestions and export dropdown
   useEffect(() => {
     const handleClickAway = (e: MouseEvent) => {
       const target = e.target as HTMLElement
       if (!target.closest('.film-suggest') && !target.closest('.venue-suggest')) {
         setShowFilmSuggestions(false)
         setShowVenueSuggestions(false)
+      }
+      if (!target.closest('.export-dropdown')) {
+        setShowExportDropdown(false)
       }
     }
 
@@ -1317,6 +1319,123 @@ export default function TicketingPage() {
     
     setEditingScreening(screening)
     setShowEditModal(true)
+  }
+
+  // Export function for all three views
+  const exportData = (format: 'csv' | 'excel') => {
+    let data: any[]
+    let viewName: string
+    
+    switch (viewMode) {
+      case 'pi-jury':
+        data = piJuryScreenings
+        viewName = 'PI Jury'
+        break
+      case 'tech-checks':
+        data = techCheckScreenings
+        viewName = 'Tech Checks'
+        break
+      default:
+        data = publishedScreenings
+        viewName = 'Ticketing'
+    }
+
+    const exportData = data.map(screening => {
+      const baseData = {
+        'Title': screening.film_title,
+        'Day': screening.day_of_week,
+        'Date': screening.screening_date,
+        'Venue': screening.venue_short_code,
+        'Start Time': screening.start_time,
+        'Run Time': screening.run_time ? `${screening.run_time}min` : '',
+        'Notes': screening.notes || '',
+        'Status': screening.is_cancelled ? 'CANCELLED' : 'ACTIVE'
+      }
+
+      // Add view-specific columns
+      if (viewMode === 'ticketing') {
+        return {
+          ...baseData,
+          'Capacity': screening.capacity || ''
+        }
+      } else if (viewMode === 'pi-jury') {
+        return {
+          ...baseData,
+          'Screening Type': (screening as any).screening_type || '',
+          'Capacity': screening.capacity || ''
+        }
+      } else if (viewMode === 'tech-checks') {
+        return {
+          ...baseData,
+          'Tech Contact': (screening as any).tech_contact || ''
+        }
+      }
+
+      return baseData
+    })
+
+    // Generate filename with view name and timestamp
+    const today = new Date().toISOString().split('T')[0]
+    const filename = `${viewName} Export ${today}`
+
+    if (format === 'csv') {
+      // CSV Export
+      const headers = Object.keys(exportData[0] || {})
+      const csvContent = [
+        headers.join(','),
+        ...exportData.map(row => 
+          headers.map(header => {
+            const value = row[header as keyof typeof row] || ''
+            const valueStr = String(value)
+            return valueStr.includes(',') || valueStr.includes('"') || valueStr.includes('\n')
+              ? `"${valueStr.replace(/"/g, '""')}"`
+              : valueStr
+          }).join(',')
+        )
+      ].join('\n')
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `${filename}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } else {
+      // Excel Export with header formatting
+      const worksheet = XLSX.utils.json_to_sheet(exportData)
+      
+      // Get the range of the worksheet
+      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1')
+      
+      // Style the header row (row 1)
+      for (let col = range.s.c; col <= range.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col })
+        const cell = worksheet[cellAddress]
+        
+        if (cell) {
+          cell.s = {
+            fill: {
+              fgColor: { rgb: "D3D3D3" } // Light grey background
+            },
+            font: {
+              bold: true
+            },
+            alignment: {
+              horizontal: "center"
+            }
+          }
+        }
+      }
+      
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, viewName)
+      XLSX.writeFile(workbook, `${filename}.xlsx`)
+    }
+
+    setShowExportDropdown(false)
   }
 
   const handleCancelScreening = async (screening: any) => {
@@ -1528,11 +1647,13 @@ export default function TicketingPage() {
 
   // Filter venue suggestions  
   const filteredVenues = useMemo(() => {
-    if (!venueSearchTerm) return []
-    return venueCards.filter(venue => 
-      venue.display_name.toLowerCase().includes(venueSearchTerm.toLowerCase()) ||
+    console.log('🔍 Filtering venues:', { venueSearchTerm, venueCardsCount: venueCards.length, showVenueSuggestions })
+    if (!venueSearchTerm) return venueCards.slice(0, 5) // Show all venues when field is focused but empty
+    const filtered = venueCards.filter(venue => 
       venue.short_code.toLowerCase().includes(venueSearchTerm.toLowerCase())
     ).slice(0, 5)
+    console.log('🔍 Filtered venues result:', filtered)
+    return filtered
   }, [venueSearchTerm, venueCards])
 
   // Table column configurations
@@ -1611,8 +1732,40 @@ export default function TicketingPage() {
               onClick={handleAddScreening}
               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
             >
-              Add Screening
+              {viewMode === 'tech-checks' ? 'Add Tech Check' : 'Add Screening'}
             </button>
+            
+            {/* Export Dropdown */}
+            <div className="relative export-dropdown">
+              <button
+                onClick={() => setShowExportDropdown(!showExportDropdown)}
+                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-medium flex items-center space-x-2"
+              >
+                <span>Export</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {showExportDropdown && (
+                <div className="absolute right-0 mt-2 w-32 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                  <div className="py-1">
+                    <button
+                      onClick={() => exportData('csv')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      CSV
+                    </button>
+                    <button
+                      onClick={() => exportData('excel')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Excel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1872,7 +2025,9 @@ export default function TicketingPage() {
         <div className="fixed inset-0 bg-transparent z-50">
           <DraggableModal>
             <div className="p-6 w-[600px] max-h-[90vh] overflow-y-auto">
-              <h3 className="text-lg font-semibold mb-4 modal-header cursor-grab">Add New Screening</h3>
+              <h3 className="text-lg font-semibold mb-4 modal-header cursor-grab">
+                {viewMode === 'tech-checks' ? 'Add New Tech Check' : 'Add New Screening'}
+              </h3>
             
             <div className="space-y-4">
               {/* Film Title */}
@@ -2000,15 +2155,13 @@ export default function TicketingPage() {
                         onClick={() => {
                           setFormData(prev => ({
                             ...prev, 
-                            venue_short_code: venue.short_code,
-                            capacity: venue.capacity
+                            venue_short_code: venue.short_code
                           }))
-                          setVenueSearchTerm(venue.display_name)
+                          setVenueSearchTerm(venue.short_code)
                           setShowVenueSuggestions(false)
                         }}
                       >
-                        <div className="font-medium">{venue.display_name}</div>
-                        <div className="text-sm text-gray-600">Capacity: {venue.capacity}</div>
+                        <div className="font-medium">{venue.short_code}</div>
                       </div>
                     ))}
                   </div>
@@ -2079,7 +2232,7 @@ export default function TicketingPage() {
                 onClick={handleSaveScreening}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
               >
-                Add Screening
+                {viewMode === 'tech-checks' ? 'Add Tech Check' : 'Add Screening'}
               </button>
             </div>
             </div>
@@ -2220,15 +2373,13 @@ export default function TicketingPage() {
                         onClick={() => {
                           setFormData(prev => ({
                             ...prev, 
-                            venue_short_code: venue.short_code,
-                            capacity: venue.capacity
+                            venue_short_code: venue.short_code
                           }))
-                          setVenueSearchTerm(venue.display_name)
+                          setVenueSearchTerm(venue.short_code)
                           setShowVenueSuggestions(false)
                         }}
                       >
-                        <div className="font-medium">{venue.display_name}</div>
-                        <div className="text-sm text-gray-600">Capacity: {venue.capacity}</div>
+                        <div className="font-medium">{venue.short_code}</div>
                       </div>
                     ))}
                   </div>

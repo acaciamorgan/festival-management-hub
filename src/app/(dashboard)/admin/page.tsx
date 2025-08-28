@@ -34,6 +34,17 @@ export default function AdminPage() {
   const [invitationResult, setInvitationResult] = useState<{email: string, tempPassword: string} | null>(null)
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'user_name', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
+  
+  // Close Festival state
+  const [activeTab, setActiveTab] = useState<'users' | 'close-festival'>('users')
+  const [archiveStatus, setArchiveStatus] = useState<any>(null)
+  const [loadingArchiveStatus, setLoadingArchiveStatus] = useState(false)
+  const [showCloseConfirmation, setShowCloseConfirmation] = useState(false)
+  const [confirmationStep, setConfirmationStep] = useState(0)
+  const [editionConfirmation, setEditionConfirmation] = useState('')
+  const [closingFestival, setClosingFestival] = useState(false)
+  const [closeResult, setCloseResult] = useState<any>(null)
+  
   const supabase = createClient()
   const modules = getAllModules()
 
@@ -54,7 +65,10 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadUsers()
-  }, [])
+    if (activeTab === 'close-festival') {
+      loadArchiveStatus()
+    }
+  }, [activeTab])
 
   const loadUsers = async () => {
     setLoadingUsers(true)
@@ -322,6 +336,64 @@ export default function AdminPage() {
     }
   }
 
+  // Close Festival functions
+  const loadArchiveStatus = async () => {
+    setLoadingArchiveStatus(true)
+    setError('')
+    
+    try {
+      const { data, error } = await supabase.rpc('check_archive_status')
+      if (error) throw error
+      setArchiveStatus(data)
+    } catch (err: any) {
+      console.error('Error checking archive status:', err)
+      setError(err.message || 'Failed to check archive status')
+    } finally {
+      setLoadingArchiveStatus(false)
+    }
+  }
+
+  const handleCloseFestival = async () => {
+    if (!archiveStatus || !archiveStatus.is_archived) {
+      setError('Festival must be archived before closing')
+      return
+    }
+
+    if (parseInt(editionConfirmation) !== archiveStatus.festival_year) {
+      setError(`Please enter the correct festival year: ${archiveStatus.festival_year}`)
+      return
+    }
+
+    setClosingFestival(true)
+    setError('')
+
+    try {
+      const { data, error } = await supabase.rpc('close_festival', {
+        confirmation_edition: archiveStatus.festival_edition.replace(/\D/g, '') // Extract number from "60th"
+      })
+      
+      if (error) throw error
+      
+      setCloseResult(data)
+      setShowCloseConfirmation(false)
+      setConfirmationStep(0)
+      setEditionConfirmation('')
+    } catch (err: any) {
+      console.error('Error closing festival:', err)
+      setError(err.message || 'Failed to close festival')
+    } finally {
+      setClosingFestival(false)
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  }
+
   if (loading) {
     return (
       <div className="p-8">
@@ -346,26 +418,65 @@ export default function AdminPage() {
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <span className="text-2xl mr-3">👥</span>
-            <h1 className="text-2xl font-semibold text-gray-900">User Management</h1>
+            <span className="text-2xl mr-3">⚙️</span>
+            <h1 className="text-2xl font-semibold text-gray-900">System Administration</h1>
           </div>
           
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setShowAddUser(true)}
-              className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
-            >
-              Pre-Approve User
-            </button>
-            <button
-              onClick={loadUsers}
-              disabled={loadingUsers}
-              className="px-4 py-2 rounded-md transition-colors font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
-            >
-              {loadingUsers ? 'Loading...' : 'Refresh Users'}
-            </button>
-          </div>
+          {activeTab === 'users' && (
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowAddUser(true)}
+                className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+              >
+                Pre-Approve User
+              </button>
+              <button
+                onClick={loadUsers}
+                disabled={loadingUsers}
+                className="px-4 py-2 rounded-md transition-colors font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+              >
+                {loadingUsers ? 'Loading...' : 'Refresh Users'}
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'close-festival' && (
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={loadArchiveStatus}
+                disabled={loadingArchiveStatus}
+                className="px-4 py-2 rounded-md transition-colors font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+              >
+                {loadingArchiveStatus ? 'Checking...' : 'Refresh Status'}
+              </button>
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-200">
+        <nav className="px-6">
+          <div className="flex space-x-8">
+            {[
+              { id: 'users', label: 'User Management', icon: '👥' },
+              { id: 'close-festival', label: 'Close Festival', icon: '🔒' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                  activeTab === tab.id
+                    ? 'border-red-500 text-red-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <span>{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </nav>
       </div>
 
       {error && (
@@ -376,8 +487,10 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Users Table */}
-      <div className="flex-1 p-6">
+      {/* Content */}
+      <div className="flex-1 overflow-auto">
+        {activeTab === 'users' && (
+          <div className="p-6">
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-250px)]">
             <table className="min-w-full">
@@ -536,6 +649,8 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+      </div>
+        )}
       </div>
 
       {/* Edit User Modal */}
