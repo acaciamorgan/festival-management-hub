@@ -25,20 +25,21 @@ interface FeatureFilm {
   subtitles: string
   captions: string
   original_release_year: number
+  principal_cast: string
   screenwriter: string
   cinematographer: string
-  art_director: string
   editor: string
-  principal_cast: string
+  animator: string
   sound_designer: string
   music_score: string
   producer: string
   executive_producer: string
+  archivist: string
   production_companies: string
   film_website: string
   trailer_url: string
   premiere_status: string
-  content_warnings: string
+  content_considerations: string
   // Original separate fields for database operations
   program_1?: string
   program_2?: string
@@ -62,19 +63,20 @@ interface ShortFilm {
   subtitles: string
   captions: string
   original_release_year: number
+  principal_cast: string
   screenwriter: string
   cinematographer: string
-  art_director: string
   editor: string
-  principal_cast: string
+  animator: string
   sound_designer: string
   music_score: string
   producer: string
   executive_producer: string
+  archivist: string
   production_companies: string
   film_website: string
   trailer_url: string
-  content_warnings: string
+  content_considerations: string
   shorts_program_id: string
   program_order: number
   // Festival Programs (separate from Shorts Programs)
@@ -156,19 +158,20 @@ export default function TitlesPage() {
       { field: 'genre_3', display: 'Genre 3' },
       { field: 'genre_4', display: 'Genre 4' },
       { field: 'premiere_status', display: 'Premiere Status' },
+      { field: 'principal_cast', display: 'Principal Cast' },
       { field: 'screenwriter', display: 'Screenwriter' },
       { field: 'cinematographer', display: 'Cinematographer' },
-      { field: 'art_director', display: 'Art Director' },
       { field: 'editor', display: 'Editor' },
-      { field: 'principal_cast', display: 'Principal Cast' },
+      { field: 'animator', display: 'Animator' },
       { field: 'sound_designer', display: 'Sound Designer' },
       { field: 'music_score', display: 'Music Score' },
       { field: 'producer', display: 'Producer' },
       { field: 'executive_producer', display: 'Executive Producer' },
+      { field: 'archivist', display: 'Archivist' },
       { field: 'production_companies', display: 'Production Companies' },
       { field: 'film_website', display: 'Film Website' },
       { field: 'trailer_url', display: 'Trailer URL' },
-      { field: 'content_warnings', display: 'Content Warnings' }
+      { field: 'content_considerations', display: 'Content Considerations' }
     ]
     
     const headers = headerMapping.map(h => h.display)
@@ -225,6 +228,7 @@ export default function TitlesPage() {
       { field: 'subtitles', display: 'Subtitles' },
       { field: 'captions', display: 'Captions' },
       { field: 'shorts_program_id', display: 'Shorts Program ID' },
+      { field: 'shorts_program_name', display: 'Shorts Program Name' },
       { field: 'program_order', display: 'Program Order' },
       { field: 'program_1', display: 'Program 1' },
       { field: 'program_2', display: 'Program 2' },
@@ -232,19 +236,20 @@ export default function TitlesPage() {
       { field: 'genre_1', display: 'Genre 1' },
       { field: 'genre_2', display: 'Genre 2' },
       { field: 'genre_3', display: 'Genre 3' },
+      { field: 'principal_cast', display: 'Principal Cast' },
       { field: 'screenwriter', display: 'Screenwriter' },
       { field: 'cinematographer', display: 'Cinematographer' },
-      { field: 'art_director', display: 'Art Director' },
       { field: 'editor', display: 'Editor' },
-      { field: 'principal_cast', display: 'Principal Cast' },
+      { field: 'animator', display: 'Animator' },
       { field: 'sound_designer', display: 'Sound Designer' },
       { field: 'music_score', display: 'Music Score' },
       { field: 'producer', display: 'Producer' },
       { field: 'executive_producer', display: 'Executive Producer' },
+      { field: 'archivist', display: 'Archivist' },
       { field: 'production_companies', display: 'Production Companies' },
       { field: 'film_website', display: 'Film Website' },
       { field: 'trailer_url', display: 'Trailer URL' },
-      { field: 'content_warnings', display: 'Content Warnings' }
+      { field: 'content_considerations', display: 'Content Considerations' }
     ]
     
     const headers = headerMapping.map(h => h.display)
@@ -610,18 +615,19 @@ export default function TitlesPage() {
           original_release_year: 2024,
           screenwriter: '',
           cinematographer: '',
-          art_director: '',
+          animator: '',
           editor: '',
           principal_cast: '',
           sound_designer: '',
           music_score: '',
           producer: '',
           executive_producer: '',
-          production_companies: '',
+          archivist: '',
+          production_companies: ''
           film_website: '',
           trailer_url: '',
           premiere_status: '',
-          content_warnings: ''
+          content_considerations: ''
         }
         
         if (existingFilm) {
@@ -736,7 +742,7 @@ export default function TitlesPage() {
       // Search in names (director, cast, crew)
       const nameFields = [
         film.director, film.screenwriter, film.cinematographer, 
-        film.art_director, film.editor, film.principal_cast,
+        film.animator, film.editor, film.principal_cast,
         film.sound_designer, film.music_score, film.producer, 
         film.executive_producer
       ]
@@ -784,7 +790,7 @@ export default function TitlesPage() {
         const searchableFields = [
           item.title, item.original_language_title, item.director,
           item.countries, item.screenwriter, item.cinematographer,
-          item.art_director, item.editor, item.principal_cast,
+          item.animator, item.editor, item.principal_cast,
           item.sound_designer, item.music_score, item.producer,
           item.executive_producer, item.production_companies
         ]
@@ -1022,7 +1028,7 @@ export default function TitlesPage() {
       original_release_year: getColumnIndex(headers, 'Original Release Year'),
       screenwriter: getColumnIndex(headers, 'Screenwriter'),
       cinematographer: getColumnIndex(headers, 'Cinematographer'),
-      art_director: getColumnIndex(headers, 'Art Director'),
+      animator: getColumnIndex(headers, 'Animator'),
       editor: getColumnIndex(headers, 'Editor'),
       principal_cast: getColumnIndex(headers, 'Principal Cast'),
       sound_designer: getColumnIndex(headers, 'Sound Designer'),
@@ -1033,7 +1039,7 @@ export default function TitlesPage() {
       film_website: getColumnIndex(headers, 'Film website'),
       trailer_url: getColumnIndex(headers, 'Trailer (YouTube or Vimeo only)'),
       premiere_status: getColumnIndex(headers, 'Premiere Status'),
-      content_warnings: getColumnIndex(headers, 'Content Warnings')
+      content_considerations: getColumnIndex(headers, 'Content Considerations')
     }
 
     console.log('Column indices found:', indices)
@@ -1130,8 +1136,8 @@ export default function TitlesPage() {
       if (indices.cinematographer !== -1 && row[indices.cinematographer]?.trim()) {
         filmData.cinematographer = cleanText(row[indices.cinematographer])
       }
-      if (indices.art_director !== -1 && row[indices.art_director]?.trim()) {
-        filmData.art_director = cleanText(row[indices.art_director])
+      if (indices.animator !== -1 && row[indices.animator]?.trim()) {
+        filmData.animator = cleanText(row[indices.animator])
       }
       if (indices.editor !== -1 && row[indices.editor]?.trim()) {
         filmData.editor = cleanText(row[indices.editor])
@@ -1163,8 +1169,8 @@ export default function TitlesPage() {
       if (indices.premiere_status !== -1 && row[indices.premiere_status]?.trim()) {
         filmData.premiere_status = cleanText(row[indices.premiere_status])
       }
-      if (indices.content_warnings !== -1 && row[indices.content_warnings]?.trim()) {
-        filmData.content_warnings = cleanText(row[indices.content_warnings])
+      if (indices.content_considerations !== -1 && row[indices.content_considerations]?.trim()) {
+        filmData.content_considerations = cleanText(row[indices.content_considerations])
       }
       
       // Only add if we have at least a title
@@ -1276,7 +1282,7 @@ export default function TitlesPage() {
       'Captions (open or closed or no)': 'captions',
       'Screenwriter': 'screenwriter',
       'Cinematographer': 'cinematographer',
-      'Art Director': 'art_director',
+      'Animator': 'animator',
       'Editor': 'editor',
       'Principal Cast': 'principal_cast',
       'Music/Score': 'music_score',
@@ -1286,7 +1292,7 @@ export default function TitlesPage() {
       'Film website': 'film_website',
       'Trailer (YouTube or Vimeo only)': 'trailer_url',
       'Premiere Status': 'premiere_status',
-      'Content Warnings': 'content_warnings'
+      'Content Considerations': 'content_considerations'
     }
 
     const shortsToInsert: Array<any> = []
@@ -1345,7 +1351,7 @@ export default function TitlesPage() {
         captions: rowData.captions,
         screenwriter: rowData.screenwriter,
         cinematographer: rowData.cinematographer,
-        art_director: rowData.art_director,
+        animator: rowData.animator,
         editor: rowData.editor,
         principal_cast: rowData.principal_cast,
         music_score: rowData.music_score,
@@ -1354,7 +1360,7 @@ export default function TitlesPage() {
         production_companies: rowData.production_companies,
         film_website: rowData.film_website,
         trailer_url: rowData.trailer_url,
-        content_warnings: rowData.content_warnings,
+        content_considerations: rowData.content_considerations,
         shorts_program_id: null // Will be assigned through the UI
       }
       
@@ -1443,7 +1449,7 @@ export default function TitlesPage() {
       captions: headers.findIndex(h => h && h.includes('Captions')),
       screenwriter: headers.indexOf('Screenwriter'),
       cinematographer: headers.indexOf('Cinematographer'),
-      art_director: headers.indexOf('Art Director'),
+      animator: headers.indexOf('Animator'),
       editor: headers.indexOf('Editor'),
       principal_cast: headers.indexOf('Principal Cast'),
       music_score: headers.indexOf('Music/Score'),
@@ -1453,7 +1459,7 @@ export default function TitlesPage() {
       film_website: headers.indexOf('Film website'),
       trailer_url: headers.findIndex(h => h && h.includes('Trailer')),
       premiere_status: headers.indexOf('Premiere Status'),
-      content_warnings: headers.indexOf('Content Warnings')
+      content_considerations: headers.indexOf('Content Considerations')
     }
 
     console.log('Column indices found:', indices)
@@ -1494,7 +1500,7 @@ export default function TitlesPage() {
         captions: row[indices.captions]?.trim() || null,
         screenwriter: row[indices.screenwriter]?.replace(/^\s+|\s+$/g, '') || null,
         cinematographer: row[indices.cinematographer]?.replace(/^\s+|\s+$/g, '') || null,
-        art_director: row[indices.art_director]?.replace(/^\s+|\s+$/g, '') || null,
+        animator: row[indices.animator]?.replace(/^\s+|\s+$/g, '') || null,
         editor: row[indices.editor]?.replace(/^\s+|\s+$/g, '') || null,
         principal_cast: row[indices.principal_cast]?.replace(/^\s+|\s+$/g, '') || null,
         music_score: row[indices.music_score]?.replace(/^\s+|\s+$/g, '') || null,
@@ -1504,7 +1510,7 @@ export default function TitlesPage() {
         film_website: row[indices.film_website]?.trim() || null,
         trailer_url: row[indices.trailer_url]?.trim() || null,
         premiere_status: row[indices.premiere_status]?.trim() || null,
-        content_warnings: row[indices.content_warnings]?.trim() || null
+        content_considerations: row[indices.content_considerations]?.trim() || null
       }
 
       // Handle numeric fields
@@ -1985,21 +1991,21 @@ export default function TitlesPage() {
                       { key: 'language', label: 'Language', width: 100 },
                       { key: 'subtitles', label: 'Subtitles', width: 80 },
                       { key: 'captions', label: 'Captions', width: 80 },
-                      { key: 'original_release_year', label: 'Year', width: 70 },
+                      { key: 'principal_cast', label: 'Principal Cast', width: 200 },
                       { key: 'screenwriter', label: 'Screenwriter', width: 150 },
                       { key: 'cinematographer', label: 'Cinematographer', width: 150 },
-                      { key: 'art_director', label: 'Art Director', width: 120 },
                       { key: 'editor', label: 'Editor', width: 100 },
-                      { key: 'principal_cast', label: 'Principal Cast', width: 200 },
+                      { key: 'animator', label: 'Animator', width: 120 },
                       { key: 'sound_designer', label: 'Sound Designer', width: 120 },
                       { key: 'music_score', label: 'Music/Score', width: 120 },
                       { key: 'producer', label: 'Producer', width: 150 },
                       { key: 'executive_producer', label: 'Executive Producer', width: 150 },
+                      { key: 'archivist', label: 'Archivist', width: 120 },
                       { key: 'production_companies', label: 'Production Companies', width: 180 },
                       { key: 'film_website', label: 'Film Website', width: 150 },
                       { key: 'trailer_url', label: 'Trailer URL', width: 150 },
                       { key: 'premiere_status', label: 'Premiere Status', width: 120 },
-                      { key: 'content_warnings', label: 'Content Warnings', width: 150 },
+                      { key: 'content_considerations', label: 'Content Considerations', width: 150 },
                       { key: 'actions', label: 'Actions', width: 80 }
                     ].map((column) => (
                       <th
@@ -2070,16 +2076,16 @@ export default function TitlesPage() {
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['language'] || 100}px` }}>{film.language}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['subtitles'] || 80}px` }}>{film.subtitles}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['captions'] || 80}px` }}>{film.captions}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['original_release_year'] || 70}px` }}>{film.original_release_year}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{renderPersonName(film.principal_cast)}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['screenwriter'] || 150}px` }}>{renderPersonName(film.screenwriter)}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['cinematographer'] || 150}px` }}>{renderPersonName(film.cinematographer)}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['art_director'] || 120}px` }}>{renderPersonName(film.art_director)}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['editor'] || 100}px` }}>{renderPersonName(film.editor)}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{renderPersonName(film.principal_cast)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['animator'] || 120}px` }}>{renderPersonName(film.animator)}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['sound_designer'] || 120}px` }}>{renderPersonName(film.sound_designer)}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['music_score'] || 120}px` }}>{renderPersonName(film.music_score)}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['producer'] || 150}px` }}>{renderPersonName(film.producer)}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['executive_producer'] || 150}px` }}>{renderPersonName(film.executive_producer)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['archivist'] || 120}px` }}>{renderPersonName(film.archivist)}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['production_companies'] || 180}px` }}>{film.production_companies}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['film_website'] || 150}px` }}>
                         {film.film_website && (
@@ -2096,7 +2102,7 @@ export default function TitlesPage() {
                         )}
                       </td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['premiere_status'] || 120}px` }}>{film.premiere_status}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['content_warnings'] || 150}px` }}>{film.content_warnings}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['content_considerations'] || 150}px` }}>{film.content_considerations}</td>
                       <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 80}px` }}>
                         <button
                           onClick={(e) => {
@@ -2194,7 +2200,7 @@ export default function TitlesPage() {
                             { key: 'original_release_year', label: 'Year', width: 70 },
                             { key: 'screenwriter', label: 'Screenwriter', width: 150 },
                             { key: 'cinematographer', label: 'Cinematographer', width: 150 },
-                            { key: 'art_director', label: 'Art Director', width: 120 },
+                            { key: 'animator', label: 'Animator', width: 120 },
                             { key: 'editor', label: 'Editor', width: 100 },
                             { key: 'principal_cast', label: 'Principal Cast', width: 200 },
                             { key: 'sound_designer', label: 'Sound Designer', width: 120 },
@@ -2205,7 +2211,7 @@ export default function TitlesPage() {
                             { key: 'film_website', label: 'Film Website', width: 150 },
                             { key: 'trailer_url', label: 'Trailer URL', width: 150 },
                             { key: 'premiere_status', label: 'Premiere Status', width: 120 },
-                            { key: 'content_warnings', label: 'Content Warnings', width: 150 },
+                            { key: 'content_considerations', label: 'Content Considerations', width: 150 },
                             { key: 'actions', label: 'Actions', width: 80 }
                           ].map((column) => (
                             <th
@@ -2281,16 +2287,16 @@ export default function TitlesPage() {
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['language'] || 100}px` }}>{short.language}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['subtitles'] || 80}px` }}>{short.subtitles}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['captions'] || 80}px` }}>{short.captions}</td>
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['original_release_year'] || 70}px` }}>{short.original_release_year}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{renderPersonName(short.principal_cast)}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['screenwriter'] || 150}px` }}>{short.screenwriter}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['cinematographer'] || 150}px` }}>{short.cinematographer}</td>
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['art_director'] || 120}px` }}>{renderPersonName(short.art_director)}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['editor'] || 100}px` }}>{short.editor}</td>
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{renderPersonName(short.principal_cast)}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['animator'] || 120}px` }}>{renderPersonName(short.animator)}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['sound_designer'] || 120}px` }}>{short.sound_designer}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['music_score'] || 120}px` }}>{short.music_score}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['producer'] || 150}px` }}>{renderPersonName(short.producer)}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['executive_producer'] || 150}px` }}>{renderPersonName(short.executive_producer)}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['archivist'] || 120}px` }}>{renderPersonName(short.archivist)}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['production_companies'] || 180}px` }}>{short.production_companies}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['film_website'] || 150}px` }}>
                               {short.film_website && (
@@ -2307,7 +2313,7 @@ export default function TitlesPage() {
                               )}
                             </td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['premiere_status'] || 120}px` }}>{short.premiere_status}</td>
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['content_warnings'] || 150}px` }}>{short.content_warnings}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['content_considerations'] || 150}px` }}>{short.content_considerations}</td>
                             <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 80}px` }}>
                               <button
                                 onClick={(e) => {
@@ -2468,18 +2474,19 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
     original_release_year: '',
     screenwriter: '',
     cinematographer: '',
-    art_director: '',
+    animator: '',
     editor: '',
     principal_cast: '',
     sound_designer: '',
     music_score: '',
     producer: '',
     executive_producer: '',
+    archivist: '',
     production_companies: '',
     film_website: '',
     trailer_url: '',
     premiere_status: '',
-    content_warnings: ''
+    content_considerations: ''
   })
   
   const [saving, setSaving] = useState(false)
@@ -3070,12 +3077,12 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Art Director
+              Animator
             </label>
             <input
               type="text"
-              value={formData.art_director}
-              onChange={(e) => handleInputChange('art_director', e.target.value)}
+              value={formData.animator}
+              onChange={(e) => handleInputChange('animator', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -3136,6 +3143,18 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.executive_producer}
               onChange={(e) => handleInputChange('executive_producer', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Archivist
+            </label>
+            <input
+              type="text"
+              value={formData.archivist}
+              onChange={(e) => handleInputChange('archivist', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -3203,11 +3222,11 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
 
           <div className="col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Content Warnings
+              Content Considerations
             </label>
             <textarea
-              value={formData.content_warnings}
-              onChange={(e) => handleInputChange('content_warnings', e.target.value)}
+              value={formData.content_considerations}
+              onChange={(e) => handleInputChange('content_considerations', e.target.value)}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
