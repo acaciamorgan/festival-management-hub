@@ -57,7 +57,7 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
   },
   pressRequests: {
     id: 'pressRequests',
-    name: 'Press Requests',
+    name: 'Screener Requests',
     icon: 'envelope',
     hasGridView: true,
     hasRSVP: false,
@@ -172,5 +172,28 @@ export const getModuleConfig = (moduleId: string): ModuleConfig | undefined => {
 }
 
 export const getAllModules = (): ModuleConfig[] => {
-  return Object.values(moduleConfigs)
+  const orderedModuleIds = [
+    'festivalOverview',
+    'titles', 
+    'inAttendance',
+    'pressManagement',
+    'pressScreenings',
+    'screenerAccess',
+    'pressRequests',
+    'photoShoots',
+    'redCarpets',
+    'interviewManagement',
+    'specialEvents',
+    'contactsManagement',
+    'venueManagement', 
+    'ticketing',
+    'reportsAnalytics',
+    'archives',
+    'admin',
+    'programmingPipeline'
+  ]
+  
+  return orderedModuleIds
+    .map(id => moduleConfigs[id])
+    .filter(Boolean)
 }
