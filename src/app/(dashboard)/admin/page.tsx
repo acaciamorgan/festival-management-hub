@@ -262,44 +262,28 @@ export default function AdminPage() {
     setError('')
 
     try {
-      // Send invitation email through Supabase Auth
-      const siteUrl = 'https://callsheet.acaciaconsultinggroup.com'
+      // Generate a secure temporary password
+      const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8)
       
-      // Create the user with Supabase Auth invitation
-      const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
-        newUserEmail,
-        {
-          redirectTo: `${siteUrl}/auth/reset-password`,
+      // Create user directly with signUp
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: newUserEmail,
+        password: tempPassword,
+        options: {
           data: {
             user_name: newUserName,
             user_role: newUserRole,
             user_phone: newUserPhone
           }
         }
-      )
+      })
 
-      if (inviteError) {
-        // If admin API fails, try the alternative approach
-        // Generate a magic link
-        const { error: magicLinkError } = await supabase.auth.signInWithOtp({
-          email: newUserEmail,
-          options: {
-            shouldCreateUser: true,
-            emailRedirectTo: `${siteUrl}/auth/reset-password`,
-            data: {
-              user_name: newUserName,
-              user_role: newUserRole,
-              user_phone: newUserPhone
-            }
-          }
-        })
-        
-        if (magicLinkError) throw magicLinkError
-      }
+      if (signUpError) throw signUpError
+
+      const userId = signUpData.user?.id
+      if (!userId) throw new Error('Failed to create user')
       
       // Create user_permissions record
-      const userId = inviteData?.user?.id || crypto.randomUUID()
-      
       const { error: permError } = await supabase
         .from('user_permissions')
         .insert({
@@ -315,6 +299,16 @@ export default function AdminPage() {
         })
 
       if (permError) throw permError
+
+      // Send password reset email which will use your custom template
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(newUserEmail, {
+        redirectTo: 'https://callsheet.acaciaconsultinggroup.com/auth/reset-password'
+      })
+
+      if (resetError) {
+        console.warn('Password reset email failed:', resetError)
+        // Continue anyway - user was created successfully
+      }
 
       // Show success message
       setInvitationResult({
@@ -986,12 +980,9 @@ export default function AdminPage() {
                   <button
                     onClick={async () => {
                       try {
-                        const { error } = await supabase.auth.admin.inviteUserByEmail(
-                          editingUser.user_email,
-                          {
-                            redirectTo: 'https://callsheet.acaciaconsultinggroup.com/auth/reset-password'
-                          }
-                        )
+                        const { error } = await supabase.auth.resetPasswordForEmail(editingUser.user_email, {
+                          redirectTo: 'https://callsheet.acaciaconsultinggroup.com/auth/reset-password'
+                        })
                         if (error) throw error
                         setError('')
                         alert('Invitation resent successfully!')
