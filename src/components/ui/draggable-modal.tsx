@@ -64,7 +64,7 @@ export function DraggableModal({ children, onClose, defaultPosition = { x: 0, y:
   return (
     <div 
       ref={backdropRef}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 bg-transparent flex items-center justify-center p-4 z-50"
       onClick={handleBackdropClick}
     >
       <div 
