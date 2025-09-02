@@ -2,8 +2,6 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-export const runtime = 'nodejs'
-
 // Create admin client with service role key for admin operations
 function createAdminClient() {
   console.log('Admin client ENV check:', {
