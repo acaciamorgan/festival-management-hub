@@ -725,6 +725,196 @@ export default function AdminPage() {
         </div>
       </div>
         )}
+
+        {activeTab === 'close-festival' && (
+          <div className="p-6">
+            <div className="bg-white rounded-lg shadow-sm">
+              {loadingArchiveStatus ? (
+                <div className="p-12 text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-4 text-gray-600">Checking archive status...</p>
+                </div>
+              ) : archiveStatus ? (
+                <div className="p-6">
+                  <div className="mb-6">
+                    <h2 className="text-xl font-semibold mb-4">Festival Status</h2>
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div className="bg-gray-50 p-4 rounded">
+                        <div className="text-sm text-gray-600">Current Festival</div>
+                        <div className="text-lg font-medium">{archiveStatus.festival_name}</div>
+                        <div className="text-sm text-gray-500">{archiveStatus.festival_edition} Edition</div>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded">
+                        <div className="text-sm text-gray-600">Festival Year</div>
+                        <div className="text-lg font-medium">{archiveStatus.festival_year}</div>
+                        <div className="text-sm text-gray-500">
+                          {archiveStatus.start_date ? formatDate(archiveStatus.start_date) : 'Not set'} - 
+                          {archiveStatus.end_date ? formatDate(archiveStatus.end_date) : 'Not set'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mb-6">
+                      <h3 className="text-lg font-medium mb-3">Archive Status</h3>
+                      {archiveStatus.is_archived ? (
+                        <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                          <div className="flex items-center">
+                            <span className="text-green-600 text-xl mr-3">✓</span>
+                            <div>
+                              <div className="font-medium text-green-800">Festival Archived</div>
+                              <div className="text-sm text-green-700">
+                                The {archiveStatus.festival_year} festival has been archived and is ready to be closed.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                          <div className="flex items-center">
+                            <span className="text-yellow-600 text-xl mr-3">⚠️</span>
+                            <div>
+                              <div className="font-medium text-yellow-800">Not Archived</div>
+                              <div className="text-sm text-yellow-700">
+                                The festival must be archived before it can be closed. Please archive the festival first.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {archiveStatus.current_data_counts && (
+                      <div className="mb-6">
+                        <h3 className="text-lg font-medium mb-3">Current Data</h3>
+                        <div className="grid grid-cols-3 gap-3">
+                          {Object.entries(archiveStatus.current_data_counts).map(([key, count]) => (
+                            <div key={key} className="bg-gray-50 p-3 rounded">
+                              <div className="text-sm text-gray-600">{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
+                              <div className="text-lg font-medium">{count as number}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {archiveStatus.is_archived && (
+                      <div className="mt-6 pt-6 border-t">
+                        <h3 className="text-lg font-medium mb-3 text-red-800">Close Festival</h3>
+                        <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                          <div className="text-sm text-red-700">
+                            <strong>Warning:</strong> Closing the festival will:
+                            <ul className="list-disc list-inside mt-2">
+                              <li>Delete all current festival data (films, guests, events, etc.)</li>
+                              <li>Reset the system for the next festival edition</li>
+                              <li>This action cannot be undone (data is preserved in archives)</li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        {!showCloseConfirmation ? (
+                          <button
+                            onClick={() => setShowCloseConfirmation(true)}
+                            className="px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium"
+                          >
+                            Close {archiveStatus.festival_edition} Festival
+                          </button>
+                        ) : (
+                          <div className="space-y-4">
+                            {confirmationStep === 0 && (
+                              <div>
+                                <p className="mb-3 font-medium">Step 1: Confirm you want to close the festival</p>
+                                <div className="flex gap-3">
+                                  <button
+                                    onClick={() => setConfirmationStep(1)}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                                  >
+                                    Yes, Close Festival
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setShowCloseConfirmation(false)
+                                      setConfirmationStep(0)
+                                    }}
+                                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {confirmationStep === 1 && (
+                              <div>
+                                <p className="mb-3 font-medium">Step 2: Enter the festival year to confirm</p>
+                                <p className="text-sm text-gray-600 mb-3">
+                                  Type <strong>{archiveStatus.festival_year}</strong> to confirm closing the {archiveStatus.festival_edition} Festival
+                                </p>
+                                <input
+                                  type="text"
+                                  value={editionConfirmation}
+                                  onChange={(e) => setEditionConfirmation(e.target.value)}
+                                  placeholder={`Enter ${archiveStatus.festival_year}`}
+                                  className="w-full max-w-xs border border-gray-300 rounded-md px-3 py-2 mb-3"
+                                />
+                                <div className="flex gap-3">
+                                  <button
+                                    onClick={handleCloseFestival}
+                                    disabled={parseInt(editionConfirmation) !== archiveStatus.festival_year || closingFestival}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {closingFestival ? 'Closing Festival...' : 'Confirm Close Festival'}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setShowCloseConfirmation(false)
+                                      setConfirmationStep(0)
+                                      setEditionConfirmation('')
+                                    }}
+                                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-12 text-center">
+                  <p className="text-gray-600">No archive status available. Click "Refresh Status" to check.</p>
+                </div>
+              )}
+
+              {closeResult && (
+                <div className="mt-6 p-6 bg-green-50 border border-green-200 rounded-md">
+                  <h3 className="text-lg font-medium text-green-800 mb-3">Festival Closed Successfully</h3>
+                  <div className="space-y-2 text-sm">
+                    <div><strong>Closed Festival:</strong> {closeResult.closed_festival_name} ({closeResult.closed_festival_edition})</div>
+                    <div><strong>Year:</strong> {closeResult.closed_festival_year}</div>
+                    <div><strong>Next Edition:</strong> {closeResult.next_edition_number}th</div>
+                    <div><strong>Closed At:</strong> {new Date(closeResult.closed_at).toLocaleString()}</div>
+                  </div>
+                  {closeResult.deleted_counts && (
+                    <div className="mt-4">
+                      <div className="font-medium mb-2">Data Cleared:</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {Object.entries(closeResult.deleted_counts).map(([key, count]) => (
+                          <div key={key} className="text-xs">
+                            <span className="text-gray-600">{key.replace(/_/g, ' ')}:</span> {count as number}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Edit User Modal */}
