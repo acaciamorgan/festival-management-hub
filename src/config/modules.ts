@@ -187,7 +187,6 @@ export const getAllModules = (): ModuleConfig[] => {
     'contactsManagement',
     'venueManagement', 
     'ticketing',
-    'reportsAnalytics',
     'archives',
     'admin',
     'programmingPipeline'
