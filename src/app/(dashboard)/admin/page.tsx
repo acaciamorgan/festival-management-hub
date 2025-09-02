@@ -106,6 +106,37 @@ export default function AdminPage() {
     }
   }
 
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`Are you sure you want to permanently delete ${userName}? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+
+      // Refresh the users list
+      await loadUsers()
+      
+      console.log('User deleted successfully:', result.message)
+      
+    } catch (err: any) {
+      console.error('Error deleting user:', err)
+      setError(err.message || 'Failed to delete user')
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-8">
@@ -232,7 +263,10 @@ export default function AdminPage() {
                           <button className="text-blue-600 hover:text-blue-800">
                             Edit
                           </button>
-                          <button className="text-red-600 hover:text-red-800">
+                          <button 
+                            onClick={() => handleDeleteUser(userRecord.user_id, userRecord.user_name || userRecord.user_email)}
+                            className="text-red-600 hover:text-red-800"
+                          >
                             Delete
                           </button>
                         </div>
