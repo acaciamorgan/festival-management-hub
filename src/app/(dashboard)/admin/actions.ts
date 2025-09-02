@@ -4,6 +4,13 @@ import { createClient } from '@supabase/supabase-js'
 
 // Create admin client with service role key for admin operations
 function createAdminClient() {
+  console.log('Admin client ENV check:', {
+    url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    key: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    keyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length,
+    keyStart: process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 20)
+  })
+  
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
