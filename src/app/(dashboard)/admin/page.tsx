@@ -5,7 +5,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { createClient } from '@/lib/supabase/client'
 import { getAllModules } from '@/config/modules'
 import { DraggableModal } from '@/components/ui/draggable-modal'
-import { inviteUser, resendInvitation } from './actions'
+import { inviteUser, resendInvitation, deleteUser } from './actions'
 
 interface UserPermissionRecord {
   id: string
@@ -332,19 +332,10 @@ export default function AdminPage() {
     if (!deletingUser) return
 
     try {
-      // Delete from user_permissions table
-      const { error: permError } = await supabase
-        .from('user_permissions')
-        .delete()
-        .eq('user_id', deletingUser.user_id)
-
-      if (permError) throw permError
-
-      // Try to delete from Supabase Auth (may fail if not admin)
-      try {
-        await supabase.auth.admin.deleteUser(deletingUser.user_id)
-      } catch (authError) {
-        console.warn('Could not delete from auth (may require service role):', authError)
+      const result = await deleteUser(deletingUser.user_id)
+      
+      if (!result.success) {
+        throw new Error(result.error)
       }
 
       // Update local state
@@ -352,7 +343,7 @@ export default function AdminPage() {
       
       setDeletingUser(null)
       setShowDeleteConfirmation(false)
-      console.log('User deleted successfully')
+      console.log('User deleted successfully from both auth and permissions')
       
     } catch (err: any) {
       console.error('Error deleting user:', err)
