@@ -137,7 +137,7 @@ serve(async (req) => {
         .replace('Set Up My Account', 'Reset My Password')
     }
     
-    htmlContent = htmlContent.replace('{{SETUP_URL}}', setupUrl)
+    htmlContent = htmlContent.replaceAll('{{SETUP_URL}}', setupUrl)
 
     // Create email message
     const emailContent = [
