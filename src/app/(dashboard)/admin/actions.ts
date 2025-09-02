@@ -1,6 +1,7 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
 export async function inviteUser(formData: {
   name: string
@@ -8,7 +9,28 @@ export async function inviteUser(formData: {
   role: string
   phone: string
 }) {
-  const supabase = await createClient()
+  // Create admin client with service role key for admin operations
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!, // Use service role for admin operations
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // Server Component context
+          }
+        },
+      },
+    }
+  )
   
   try {
     // First, check if user already exists
@@ -90,7 +112,28 @@ export async function inviteUser(formData: {
 }
 
 export async function resendInvitation(email: string) {
-  const supabase = await createClient()
+  // Create admin client with service role key
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // Server Component context
+          }
+        },
+      },
+    }
+  )
   
   try {
     // Generate new password reset link

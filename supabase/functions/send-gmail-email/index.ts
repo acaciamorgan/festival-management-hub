@@ -81,7 +81,7 @@ serve(async (req) => {
     const now = Math.floor(Date.now() / 1000)
     const payload = {
       iss: serviceAccountEmail,
-      sub: 'morgan@teamacacia.com', // Impersonate this user
+      sub: 'morgan@teamacacia.com', // Impersonate this user for SENDING only
       scope: 'https://www.googleapis.com/auth/gmail.send',
       aud: 'https://oauth2.googleapis.com/token',
       exp: now + 3600,
