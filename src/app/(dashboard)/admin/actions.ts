@@ -25,31 +25,20 @@ export async function inviteUser(formData: {
   const supabase = createAdminClient()
   
   try {
-    
-    // First, check if user already exists
-    const { data: existingUser } = await supabase.auth.admin.getUserByEmail(formData.email)
-    
-    let userId: string
-    
-    if (existingUser.user) {
-      // User exists, just use their ID
-      userId = existingUser.user.id
-    } else {
-      // Create user without password - they'll set it via recovery link
-      const { data: signUpData, error: signUpError } = await supabase.auth.admin.createUser({
-        email: formData.email,
-        email_confirm: true, // Auto-confirm email
-        user_metadata: {
-          user_name: formData.name,
-          user_role: formData.role,
-          user_phone: formData.phone
-        }
-      })
+    // Create user without password - they'll set it via recovery link
+    const { data: signUpData, error: signUpError } = await supabase.auth.admin.createUser({
+      email: formData.email,
+      email_confirm: true, // Auto-confirm email
+      user_metadata: {
+        user_name: formData.name,
+        user_role: formData.role,
+        user_phone: formData.phone
+      }
+    })
 
-      if (signUpError) throw signUpError
-      userId = signUpData.user?.id || ''
-      if (!userId) throw new Error('Failed to create user')
-    }
+    if (signUpError) throw signUpError
+    const userId = signUpData.user?.id || ''
+    if (!userId) throw new Error('Failed to create user')
     
     // Create or update user_permissions record
     const { error: permError } = await supabase
