@@ -44,6 +44,8 @@ export default function AdminPage() {
   const [editionConfirmation, setEditionConfirmation] = useState('')
   const [closingFestival, setClosingFestival] = useState(false)
   const [closeResult, setCloseResult] = useState<any>(null)
+  const [deletingUser, setDeletingUser] = useState<UserPermissionRecord | null>(null)
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
   
   const supabase = createClient()
   const modules = getAllModules()
@@ -367,6 +369,38 @@ export default function AdminPage() {
     }
   }
 
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return
+
+    try {
+      // Delete from user_permissions table
+      const { error: permError } = await supabase
+        .from('user_permissions')
+        .delete()
+        .eq('user_id', deletingUser.user_id)
+
+      if (permError) throw permError
+
+      // Try to delete from Supabase Auth (may fail if not admin)
+      try {
+        await supabase.auth.admin.deleteUser(deletingUser.user_id)
+      } catch (authError) {
+        console.warn('Could not delete from auth (may require service role):', authError)
+      }
+
+      // Update local state
+      setUsers(prev => prev.filter(u => u.user_id !== deletingUser.user_id))
+      
+      setDeletingUser(null)
+      setShowDeleteConfirmation(false)
+      console.log('User deleted successfully')
+      
+    } catch (err: any) {
+      console.error('Error deleting user:', err)
+      setError(err.message || 'Failed to delete user')
+    }
+  }
+
   // Close Festival functions
   const loadArchiveStatus = async () => {
     setLoadingArchiveStatus(true)
@@ -459,7 +493,7 @@ export default function AdminPage() {
                 onClick={() => setShowAddUser(true)}
                 className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
               >
-                Pre-Approve User
+                Add User
               </button>
               <button
                 onClick={loadUsers}
@@ -664,6 +698,15 @@ export default function AdminPage() {
                         >
                           Permissions
                         </button>
+                        <button
+                          onClick={() => {
+                            setDeletingUser(userRecord)
+                            setShowDeleteConfirmation(true)
+                          }}
+                          className="px-3 py-1 text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200 rounded-md transition-colors"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -775,7 +818,7 @@ export default function AdminPage() {
           <div className="bg-white rounded-lg max-w-md w-full">
             <form autoComplete="off" onSubmit={(e) => e.preventDefault()}>
               <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium">Pre-Approve New User</h3>
+                <h3 className="text-lg font-medium">Add New User</h3>
               </div>
             
             <div className="p-6">
@@ -837,7 +880,7 @@ export default function AdminPage() {
                 </div>
                 
                 <div className="text-sm text-gray-600">
-                  A user record will be pre-approved for this email address. The user can then sign up normally and will automatically receive the configured permissions. They'll have read-only access to Festival Overview by default.
+                  An invitation email will be sent to this address. The user will receive a link to set their password and access the platform with read-only Festival Overview permissions by default.
                 </div>
               </div>
             </div>
@@ -861,7 +904,7 @@ export default function AdminPage() {
                 disabled={invitingUser}
                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
               >
-                {invitingUser ? 'Pre-Approving User...' : 'Pre-Approve User'}
+                {invitingUser ? 'Sending Invitation...' : 'Send Invitation'}
               </button>
             </div>
             </form>
@@ -966,6 +1009,56 @@ export default function AdminPage() {
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirmation && deletingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-red-800">Delete User</h3>
+            </div>
+            
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <span className="text-red-400 text-xl">⚠️</span>
+                    </div>
+                    <div className="ml-3">
+                      <h4 className="font-medium text-red-800 mb-2">Confirm Deletion</h4>
+                      <p className="text-sm text-red-700">
+                        Are you sure you want to permanently delete <strong>{deletingUser.user_name || deletingUser.user_email}</strong>?
+                      </p>
+                      <p className="text-sm text-red-600 mt-2">
+                        This action cannot be undone. The user will lose access to the platform immediately.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirmation(false)
+                  setDeletingUser(null)
+                }}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteUser}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Delete User
               </button>
             </div>
           </div>
