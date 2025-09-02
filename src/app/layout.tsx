@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Festival Management System",
+  title: "Callsheet",
   description: "Comprehensive film festival management platform",
 };
 
