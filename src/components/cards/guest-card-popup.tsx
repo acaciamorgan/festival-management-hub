@@ -401,19 +401,21 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
     <>
       {/* Transparent background overlay */}
       <div 
-        className="fixed inset-0 bg-transparent z-50"
+        className="fixed inset-0 bg-transparent z-[100]"
         onClick={onClose}
       />
       
       <div
-        className="fixed bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto z-[60]"
+        className="fixed bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto z-[110] flex flex-col"
         onClick={(e) => e.stopPropagation()}
         style={{ 
           left: `${position.x}px`, 
           top: `${position.y}px`,
           cursor: isDragging ? 'grabbing' : 'default',
           maxWidth: '1000px',
-          width: '90vw'
+          width: '90vw',
+          maxHeight: 'calc(100vh - 2rem)',
+          overflowY: 'auto'
         }}
       >
         {/* Header with drag handle */}
@@ -430,7 +432,8 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           </div>
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation()
                 if (onEdit) {
                   onEdit(guest)
                 }
@@ -444,14 +447,14 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                 e.stopPropagation()
                 onClose()
               }}
-              className="text-gray-400 hover:text-gray-600 text-xl"
+              className="text-gray-400 hover:text-gray-600 text-xl font-bold w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded"
             >
               ×
             </button>
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="flex-1 p-6 overflow-y-auto">
           {/* Basic Information */}
           <CollapsibleSection title="Basic Information" defaultExpanded={true}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

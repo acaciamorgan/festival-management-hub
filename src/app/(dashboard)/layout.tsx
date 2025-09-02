@@ -14,10 +14,9 @@ export default function DashboardLayout({
   const router = useRouter()
 
   useEffect(() => {
-    // Temporarily disabled for development - bypass auth
-    // if (!loading && !user) {
-    //   router.push('/auth/login')
-    // }
+    if (!loading && !user) {
+      router.push('/auth/login')
+    }
   }, [user, loading, router])
 
   if (loading) {
@@ -32,9 +31,13 @@ export default function DashboardLayout({
   }
 
   if (!user) {
-    // Temporary bypass for development - remove in production
-    console.log('User not authenticated, bypassing for development')
-    // Continue to render dashboard for development
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Redirecting to login...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

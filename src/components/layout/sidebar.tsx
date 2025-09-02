@@ -13,7 +13,7 @@ export function Sidebar() {
   const canAccessModule = (moduleId: string) => {
     // For development, allow access to core modules when no permissions
     if (!permissions) {
-      return ['festivalOverview', 'titles', 'programmingPipeline', 'pressManagement', 'pressScreenings', 'screenerAccess', 'venueManagement', 'contactsManagement', 'photoShoots', 'inAttendance', 'interviewManagement', 'redCarpets', 'specialEvents', 'ticketing', 'reportsAnalytics'].includes(moduleId)
+      return ['festivalOverview', 'titles', 'programmingPipeline', 'pressManagement', 'pressScreenings', 'screenerAccess', 'venueManagement', 'contactsManagement', 'photoShoots', 'inAttendance', 'interviewManagement', 'redCarpets', 'specialEvents', 'ticketing', 'reportsAnalytics', 'admin', 'archives'].includes(moduleId)
     }
     if (permissions.isAdmin) return true
     return permissions.modulePermissions[moduleId]?.canRead || false
@@ -22,7 +22,7 @@ export function Sidebar() {
   return (
     <aside className="w-64 bg-gray-900 text-white h-screen overflow-y-auto">
       <div className="p-4">
-        <h1 className="text-xl font-bold">Festival Management</h1>
+        <h1 className="text-xl font-bold">Callsheet</h1>
       </div>
       
       <nav className="mt-4">

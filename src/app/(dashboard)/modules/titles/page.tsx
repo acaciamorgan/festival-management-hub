@@ -623,7 +623,7 @@ export default function TitlesPage() {
           producer: '',
           executive_producer: '',
           archivist: '',
-          production_companies: ''
+          production_companies: '',
           film_website: '',
           trailer_url: '',
           premiere_status: '',
@@ -1867,7 +1867,7 @@ export default function TitlesPage() {
                           </button>
                         </div>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                          className="absolute right-0 top-0 h-full w-2 cursor-col-resize bg-gray-200 hover:bg-blue-500 opacity-30 hover:opacity-100 transition-opacity"
                           onMouseDown={(e) => {
                             e.preventDefault()
                             const startX = e.clientX
@@ -2030,7 +2030,7 @@ export default function TitlesPage() {
                         </div>
                         {/* Resize Handle */}
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                          className="absolute right-0 top-0 h-full w-2 cursor-col-resize bg-gray-200 hover:bg-blue-500 opacity-30 hover:opacity-100 transition-opacity"
                           onMouseDown={(e) => {
                             e.preventDefault()
                             const startX = e.clientX
@@ -2236,7 +2236,7 @@ export default function TitlesPage() {
                               </div>
                               {/* Resize Handle */}
                               <div
-                                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                                className="absolute right-0 top-0 h-full w-2 cursor-col-resize bg-gray-200 hover:bg-blue-500 opacity-30 hover:opacity-100 transition-opacity"
                                 onMouseDown={(e) => {
                                   e.preventDefault()
                                   const startX = e.clientX

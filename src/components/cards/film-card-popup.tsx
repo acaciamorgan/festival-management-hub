@@ -491,13 +491,22 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
   }, [film.title, film.id, supabase])
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+    <>
+      {/* Background overlay */}
       <div 
-        className="bg-white rounded-lg shadow-2xl border border-gray-300 max-w-4xl w-[800px] max-h-[80vh] overflow-hidden pointer-events-auto"
+        className="fixed inset-0 bg-transparent z-50"
+        onClick={onClose}
+      />
+      
+      <div 
+        className="fixed bg-white rounded-lg shadow-2xl border border-gray-300 max-w-4xl w-[800px] max-h-[80vh] overflow-hidden z-[60] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
         style={{ 
           left: `${position.x}px`, 
           top: `${position.y}px`,
-          cursor: isDragging ? 'grabbing' : 'default'
+          cursor: isDragging ? 'grabbing' : 'default',
+          maxHeight: 'calc(100vh - 2rem)',
+          overflowY: 'auto'
         }}
       >
       {/* Draggable Header */}
@@ -515,7 +524,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
         </button>
       </div>
 
-        <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
+        <div className="flex-1 overflow-y-auto">
           {/* Top-level info */}
           <div className="p-6 bg-blue-50 border-b border-gray-200">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -917,6 +926,6 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
           onClose={() => setShowGuestCard(null)}
         />
       )}
-    </div>
+    </>
   )
 }

@@ -260,17 +260,48 @@ export default function AdminPage() {
     setError('')
 
     try {
-      // Since admin API requires service role key, we'll create a pre-approved user record
-      // The user can then sign up normally and their account will be linked to this record
+      // Send invitation email through Supabase Auth
+      const siteUrl = 'https://callsheet.acaciaconsultinggroup.com'
       
-      // First, generate a unique temporary user ID using UUID format (we'll update this when they actually sign up)
-      const tempUserId = crypto.randomUUID()
+      // Create the user with Supabase Auth invitation
+      const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+        newUserEmail,
+        {
+          redirectTo: `${siteUrl}/auth/reset-password`,
+          data: {
+            user_name: newUserName,
+            user_role: newUserRole,
+            user_phone: newUserPhone
+          }
+        }
+      )
+
+      if (inviteError) {
+        // If admin API fails, try the alternative approach
+        // Generate a magic link
+        const { error: magicLinkError } = await supabase.auth.signInWithOtp({
+          email: newUserEmail,
+          options: {
+            shouldCreateUser: true,
+            emailRedirectTo: `${siteUrl}/auth/reset-password`,
+            data: {
+              user_name: newUserName,
+              user_role: newUserRole,
+              user_phone: newUserPhone
+            }
+          }
+        })
+        
+        if (magicLinkError) throw magicLinkError
+      }
       
-      // Create user_permissions record with pending status
+      // Create user_permissions record
+      const userId = inviteData?.user?.id || crypto.randomUUID()
+      
       const { error: permError } = await supabase
         .from('user_permissions')
         .insert({
-          user_id: tempUserId,
+          user_id: userId,
           user_email: newUserEmail,
           user_name: newUserName,
           user_role: newUserRole,
@@ -283,10 +314,10 @@ export default function AdminPage() {
 
       if (permError) throw permError
 
-      // Show popup with instructions for manual account creation
+      // Show success message
       setInvitationResult({
         email: newUserEmail,
-        tempPassword: 'MANUAL_SIGNUP_REQUIRED'
+        tempPassword: 'EMAIL_SENT'
       })
 
       // Refresh users list
@@ -300,8 +331,8 @@ export default function AdminPage() {
       setShowAddUser(false)
       
     } catch (err: any) {
-      console.error('Error creating user record:', err)
-      setError(err.message || 'Failed to create user record')
+      console.error('Error inviting user:', err)
+      setError(err.message || 'Failed to send invitation')
     } finally {
       setInvitingUser(false)
     }
@@ -946,49 +977,35 @@ export default function AdminPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-lg w-full">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-green-800">User Pre-Approved Successfully!</h3>
+              <h3 className="text-lg font-medium text-green-800">Invitation Sent Successfully!</h3>
             </div>
             
             <div className="p-6">
               <div className="space-y-4">
                 <div className="bg-green-50 border border-green-200 rounded-md p-4">
-                  <h4 className="font-medium text-green-800 mb-2">Pre-Approved User Details</h4>
+                  <h4 className="font-medium text-green-800 mb-2">User Invited</h4>
                   <div className="space-y-2 text-sm">
                     <div>
-                      <span className="font-medium">Email:</span> 
+                      <span className="font-medium">Email sent to:</span> 
                       <span className="ml-2 font-mono bg-gray-100 px-2 py-1 rounded">{invitationResult.email}</span>
                     </div>
                     <div className="text-green-700">
-                      ✓ User record created with default permissions
+                      ✓ Invitation email sent with password setup link
+                    </div>
+                    <div className="text-green-700">
+                      ✓ User permissions configured
                     </div>
                   </div>
                 </div>
                 
-                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-                  <h4 className="font-medium text-yellow-800 mb-2">Manual Setup Required</h4>
-                  <div className="text-sm text-yellow-700">
-                    <p className="mb-2">
-                      <strong>Instructions for the new user:</strong>
-                    </p>
-                    <ol className="list-decimal list-inside space-y-1 text-xs">
-                      <li>Go to the login page: <code className="bg-white px-1 rounded">localhost:3000/auth/login</code></li>
-                      <li>Click "Don't have an account? Contact your administrator for an invitation"</li>
-                      <li>Or use the direct signup URL (if public signup is enabled)</li>
-                      <li>Sign up with the exact email: <strong>{invitationResult.email}</strong></li>
-                      <li>Their account will automatically inherit the pre-configured permissions</li>
-                    </ol>
-                  </div>
-                </div>
-                
-                <div className="text-sm text-gray-600">
-                  <p className="mb-2">
-                    <strong>What happens next:</strong>
-                  </p>
-                  <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li>User appears as "pending" until they complete signup</li>
-                    <li>They have read-only access to Festival Overview by default</li>
-                    <li>You can modify their permissions using "Edit Permissions"</li>
-                    <li>Their user_id will be updated when they actually sign up</li>
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                  <h4 className="font-medium text-blue-800 mb-2">What happens next:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-blue-700">
+                    <li>User will receive an email with a secure link</li>
+                    <li>They'll set their own password</li>
+                    <li>Once logged in, they'll have access based on permissions you set</li>
+                    <li>Default: Read-only access to Festival Overview</li>
+                    <li>You can modify permissions anytime from this admin panel</li>
                   </ul>
                 </div>
               </div>
@@ -999,7 +1016,7 @@ export default function AdminPage() {
                 onClick={() => setInvitationResult(null)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
-                Got It
+                Done
               </button>
             </div>
           </div>

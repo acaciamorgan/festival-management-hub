@@ -1055,7 +1055,7 @@ export default function InAttendancePage() {
                     </div>
                     {/* Resize handle */}
                     <div
-                      className="absolute right-0 top-0 h-full w-2 cursor-col-resize bg-transparent hover:bg-blue-500 opacity-0 hover:opacity-100 transition-opacity"
+                      className="absolute right-0 top-0 h-full w-2 cursor-col-resize bg-gray-200 hover:bg-blue-500 opacity-30 hover:opacity-100 transition-opacity"
                       onMouseDown={(e) => {
                         e.preventDefault()
                         e.stopPropagation()

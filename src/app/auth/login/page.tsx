@@ -77,7 +77,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Festival Management System
+            Callsheet
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Sign in to your account
@@ -210,13 +210,7 @@ export default function LoginPage() {
           
           <div className="text-center">
             <p className="text-sm text-gray-600">
-              Don't have an account? <button 
-                type="button"
-                onClick={() => router.push('/auth/signup')}
-                className="text-blue-600 hover:text-blue-500 underline"
-              >
-                Sign up here
-              </button>
+              Invitation only platform
             </p>
           </div>
         </form>

@@ -212,27 +212,53 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     utils.book_append_sheet(workbook, featureFilmsSheet, 'Feature Films')
     console.log('Feature films sheet added to workbook')
     
-    // 2. Short Films
+    // 2. Short Films with Program Name Enrichment
     console.log('Exporting Short Films...')
-    const { data: shortFilms, error: shortError } = await supabase
+    
+    // First load shorts programs for enrichment
+    let shortsPrograms: Record<string, string> = {}
+    const { data: shortsProgramList } = await supabase
+      .from('shorts_programs')
+      .select('id, program_name')
+    
+    if (shortsProgramList) {
+      shortsProgramList.forEach(program => {
+        shortsPrograms[program.id] = program.program_name || 'Unknown Program'
+      })
+    }
+    
+    const { data: shortFilmsRaw, error: shortError } = await supabase
       .from('short_films')
       .select('*')
       .order('title')
     
-    console.log('Short films:', shortError ? 'ERROR: ' + shortError.message : `SUCCESS: ${shortFilms?.length || 0} records`)
+    console.log('Short films:', shortError ? 'ERROR: ' + shortError.message : `SUCCESS: ${shortFilmsRaw?.length || 0} records`)
     
-    const shortFilmsSheet = createStyledWorksheet(shortFilms || [], 'Short Films')
+    // Enrich shorts data with program names - insert after shorts_program_id
+    const shortFilms = shortFilmsRaw?.map(short => {
+      const enriched: any = {}
+      Object.keys(short).forEach(key => {
+        enriched[key] = short[key]
+        // Insert the program name right after shorts_program_id
+        if (key === 'shorts_program_id') {
+          enriched['shorts_program_name'] = shortsPrograms[short.shorts_program_id] || 'No Program'
+        }
+      })
+      return enriched
+    }) || []
+    
+    const shortFilmsSheet = createStyledWorksheet(shortFilms, 'Short Films')
     utils.book_append_sheet(workbook, shortFilmsSheet, 'Short Films')
-    console.log('Short films sheet added to workbook')
+    console.log('Short films sheet added to workbook with program names')
     
     // 3. Programs
     console.log('Exporting Programs...')
-    const { data: programs } = await supabase
+    const { data: programsList } = await supabase
       .from('programs')
       .select('*')
       .order('title')
     
-    const programsSheet = createStyledWorksheet(programs || [], 'Programs')
+    const programsSheet = createStyledWorksheet(programsList || [], 'Programs')
     utils.book_append_sheet(workbook, programsSheet, 'Programs')
     
     // 4. Press List
