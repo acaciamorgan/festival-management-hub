@@ -38,6 +38,8 @@ export async function inviteUser(formData: {
   console.log('SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
   console.log('SERVICE_ROLE_KEY exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
   console.log('SERVICE_ROLE_KEY length:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length)
+  console.log('SERVICE_ROLE_KEY first 20 chars:', process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 20))
+  console.log('All env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')))
   
   const supabase = await createAdminClient()
   
