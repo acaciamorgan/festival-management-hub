@@ -11,30 +11,35 @@ export async function inviteUser(formData: {
   const supabase = await createClient()
   
   try {
-    // Generate a secure temporary password
-    const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8)
+    // First, check if user already exists
+    const { data: existingUser } = await supabase.auth.admin.getUserByEmail(formData.email)
     
-    // Create user with admin privileges (server-side)
-    const { data: signUpData, error: signUpError } = await supabase.auth.admin.createUser({
-      email: formData.email,
-      password: tempPassword,
-      email_confirm: true, // Auto-confirm email
-      user_metadata: {
-        user_name: formData.name,
-        user_role: formData.role,
-        user_phone: formData.phone
-      }
-    })
-
-    if (signUpError) throw signUpError
-
-    const userId = signUpData.user?.id
-    if (!userId) throw new Error('Failed to create user')
+    let userId: string
     
-    // Create user_permissions record
+    if (existingUser.user) {
+      // User exists, just use their ID
+      userId = existingUser.user.id
+    } else {
+      // Create user without password - they'll set it via recovery link
+      const { data: signUpData, error: signUpError } = await supabase.auth.admin.createUser({
+        email: formData.email,
+        email_confirm: true, // Auto-confirm email
+        user_metadata: {
+          user_name: formData.name,
+          user_role: formData.role,
+          user_phone: formData.phone
+        }
+      })
+
+      if (signUpError) throw signUpError
+      userId = signUpData.user?.id || ''
+      if (!userId) throw new Error('Failed to create user')
+    }
+    
+    // Create or update user_permissions record
     const { error: permError } = await supabase
       .from('user_permissions')
-      .insert({
+      .upsert({
         user_id: userId,
         user_email: formData.email,
         user_name: formData.name,
@@ -44,6 +49,8 @@ export async function inviteUser(formData: {
         module_permissions: {
           festivalOverview: { canRead: true, canEdit: false }
         }
+      }, {
+        onConflict: 'user_id'
       })
 
     if (permError) throw permError
