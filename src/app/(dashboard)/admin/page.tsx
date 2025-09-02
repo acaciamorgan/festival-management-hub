@@ -57,6 +57,55 @@ export default function AdminPage() {
     }
   }
 
+  const handleAddUser = async () => {
+    if (!newUserName || !newUserEmail) {
+      setError('Name and email are required')
+      return
+    }
+
+    setAddingUser(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/admin/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newUserName,
+          email: newUserEmail,
+          role: newUserRole,
+          phone: newUserPhone
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+
+      // Success - close modal and refresh users
+      setShowAddUser(false)
+      setNewUserEmail('')
+      setNewUserName('')
+      setNewUserRole('')
+      setNewUserPhone('')
+      
+      // Refresh the users list
+      await loadUsers()
+      
+      console.log('User created successfully:', result.message)
+      
+    } catch (err: any) {
+      console.error('Error creating user:', err)
+      setError(err.message || 'Failed to create user')
+    } finally {
+      setAddingUser(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-8">
@@ -280,7 +329,7 @@ export default function AdminPage() {
                 Cancel
               </button>
               <button
-                onClick={() => alert('User creation will be implemented next')}
+                onClick={handleAddUser}
                 disabled={addingUser || !newUserName || !newUserEmail}
                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
               >
