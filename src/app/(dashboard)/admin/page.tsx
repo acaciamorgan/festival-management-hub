@@ -878,8 +878,7 @@ export default function AdminPage() {
 
       {/* Edit User Modal */}
       {editingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <DraggableModal>
+          <DraggableModal onClose={() => setEditingUser(null)}>
             <div className="max-w-md w-full">
               <div className="modal-header px-6 py-4 border-b border-gray-200 cursor-move">
                 <h3 className="text-lg font-medium">Edit User Details</h3>
@@ -988,13 +987,11 @@ export default function AdminPage() {
             </div>
             </div>
           </DraggableModal>
-        </div>
       )}
 
       {/* Add User Modal */}
       {showAddUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <DraggableModal>
+          <DraggableModal onClose={() => setShowAddUser(false)}>
             <div className="max-w-md w-full">
               <form autoComplete="off" onSubmit={(e) => e.preventDefault()}>
                 <div className="modal-header px-6 py-4 border-b border-gray-200 cursor-move">
@@ -1090,7 +1087,6 @@ export default function AdminPage() {
             </form>
             </div>
           </DraggableModal>
-        </div>
       )}
 
       {/* Permission Editor Modal */}

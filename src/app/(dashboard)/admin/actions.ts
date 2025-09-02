@@ -3,17 +3,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-export async function inviteUser(formData: {
-  name: string
-  email: string
-  role: string
-  phone: string
-}) {
-  // Create admin client with service role key for admin operations
+// Create admin client with service role key
+async function createAdminClient() {
   const cookieStore = await cookies()
-  const supabase = createServerClient(
+  return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!, // Use service role for admin operations
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       cookies: {
         getAll() {
@@ -31,6 +26,15 @@ export async function inviteUser(formData: {
       },
     }
   )
+}
+
+export async function inviteUser(formData: {
+  name: string
+  email: string
+  role: string
+  phone: string
+}) {
+  const supabase = await createAdminClient()
   
   try {
     // First, check if user already exists
@@ -107,33 +111,19 @@ export async function inviteUser(formData: {
     
   } catch (error: any) {
     console.error('Server-side invite error:', error)
+    // Return more specific error messages
+    if (error.message?.includes('admin')) {
+      return { success: false, error: 'Admin permissions required. Check server configuration.' }
+    }
+    if (error.message?.includes('EMAIL')) {
+      return { success: false, error: 'Email service error. Please try again.' }
+    }
     return { success: false, error: error.message || 'Failed to send invitation' }
   }
 }
 
 export async function resendInvitation(email: string) {
-  // Create admin client with service role key
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // Server Component context
-          }
-        },
-      },
-    }
-  )
+  const supabase = await createAdminClient()
   
   try {
     // Generate new password reset link
@@ -165,6 +155,14 @@ export async function resendInvitation(email: string) {
     return { success: true }
     
   } catch (error: any) {
+    console.error('Server-side resend error:', error)
+    // Return more specific error messages
+    if (error.message?.includes('admin')) {
+      return { success: false, error: 'Admin permissions required. Check server configuration.' }
+    }
+    if (error.message?.includes('EMAIL')) {
+      return { success: false, error: 'Email service error. Please try again.' }
+    }
     return { success: false, error: error.message || 'Failed to resend invitation' }
   }
 }

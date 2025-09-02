@@ -4,14 +4,16 @@ import { useState, useRef, useEffect, ReactNode } from 'react'
 
 interface DraggableModalProps {
   children: ReactNode
+  onClose?: () => void
   defaultPosition?: { x: number; y: number }
 }
 
-export function DraggableModal({ children, defaultPosition = { x: 0, y: 0 } }: DraggableModalProps) {
+export function DraggableModal({ children, onClose, defaultPosition = { x: 0, y: 0 } }: DraggableModalProps) {
   const [position, setPosition] = useState(defaultPosition)
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const modalRef = useRef<HTMLDivElement>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -52,19 +54,31 @@ export function DraggableModal({ children, defaultPosition = { x: 0, y: 0 } }: D
     }
   }
 
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    // Close modal if clicking on backdrop (not on modal content)
+    if (e.target === backdropRef.current && onClose) {
+      onClose()
+    }
+  }
+
   return (
     <div 
-      ref={modalRef}
-      className="fixed bg-white rounded-lg border border-gray-300 shadow-lg"
-      style={{
-        left: '50%',
-        top: '50%',
-        transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
-        cursor: isDragging ? 'grabbing' : 'default'
-      }}
-      onMouseDown={handleMouseDown}
+      ref={backdropRef}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      onClick={handleBackdropClick}
     >
-      {children}
+      <div 
+        ref={modalRef}
+        className="bg-white rounded-lg border border-gray-300 shadow-lg relative"
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          cursor: isDragging ? 'grabbing' : 'default'
+        }}
+        onMouseDown={handleMouseDown}
+        onClick={(e) => e.stopPropagation()} // Prevent backdrop click when clicking modal
+      >
+        {children}
+      </div>
     </div>
   )
 }
