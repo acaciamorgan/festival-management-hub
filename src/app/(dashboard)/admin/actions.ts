@@ -40,10 +40,10 @@ export async function inviteUser(formData: {
     const userId = signUpData.user?.id || ''
     if (!userId) throw new Error('Failed to create user')
     
-    // Create or update user_permissions record
+    // Create user_permissions record  
     const { error: permError } = await supabase
       .from('user_permissions')
-      .upsert({
+      .insert({
         user_id: userId,
         user_email: formData.email,
         user_name: formData.name,
@@ -53,8 +53,6 @@ export async function inviteUser(formData: {
         module_permissions: {
           festivalOverview: { canRead: true, canEdit: false }
         }
-      }, {
-        onConflict: 'user_id'
       })
 
     if (permError) throw permError
