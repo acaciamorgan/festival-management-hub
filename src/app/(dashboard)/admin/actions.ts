@@ -42,6 +42,16 @@ export async function inviteUser(formData: {
   const supabase = await createAdminClient()
   
   try {
+    // Test admin access first
+    const { data: testData, error: testError } = await supabase.auth.admin.listUsers()
+    
+    if (testError) {
+      console.error('Admin test failed:', testError)
+      throw new Error(`Admin auth failed: ${testError.message}`)
+    }
+    
+    console.log('Admin test successful, users found:', testData.users.length)
+    
     // First, check if user already exists
     const { data: existingUser } = await supabase.auth.admin.getUserByEmail(formData.email)
     
