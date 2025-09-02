@@ -255,9 +255,6 @@ export default function AdminPage() {
   }
 
   const handleInviteUser = async () => {
-    console.log('🔥 handleInviteUser called!')
-    console.log('🔥 Form data:', { name: newUserName, email: newUserEmail, role: newUserRole, phone: newUserPhone })
-    
     if (!newUserName || !newUserEmail) {
       setError('Name and email are required')
       return
