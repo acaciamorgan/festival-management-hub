@@ -4,13 +4,6 @@ import { createClient } from '@supabase/supabase-js'
 
 // Create admin client with service role key for admin operations
 function createAdminClient() {
-  console.log('Admin client ENV check:', {
-    url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    key: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    keyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length,
-    keyStart: process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 20)
-  })
-  
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -32,15 +25,6 @@ export async function inviteUser(formData: {
   const supabase = createAdminClient()
   
   try {
-    // Test admin access first
-    const { data: testData, error: testError } = await supabase.auth.admin.listUsers()
-    
-    if (testError) {
-      console.error('Admin test failed:', testError)
-      throw new Error(`Admin auth failed: ${testError.message}`)
-    }
-    
-    console.log('Admin test successful, users found:', testData.users.length)
     
     // First, check if user already exists
     const { data: existingUser } = await supabase.auth.admin.getUserByEmail(formData.email)
