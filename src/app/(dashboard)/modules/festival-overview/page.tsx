@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { getOrdinalSuffix } from '@/utils/ordinal'
 
 interface FestivalSettings {
   id: string
@@ -199,7 +200,7 @@ export default function FestivalOverviewPage() {
           <div className="bg-white rounded-lg border border-gray-300 p-8">
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                {editionNumber}th {festivalName}
+                {getOrdinalSuffix(editionNumber)} {festivalName}
               </h2>
               <p className="text-xl text-gray-600">
                 {formatDateRange()}

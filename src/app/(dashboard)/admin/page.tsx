@@ -670,16 +670,13 @@ export default function AdminPage() {
                         width: `${columnWidths['is_admin'] || 120}px`
                       }}
                     >
-                      <button
-                        onClick={() => handleAdminToggle(userRecord.user_id)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                          userRecord.is_admin
-                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                        }`}
-                      >
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        userRecord.is_admin
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
                         {userRecord.is_admin ? 'Admin' : 'User'}
-                      </button>
+                      </span>
                     </td>
                     <td 
                       className="px-3 py-2"
@@ -922,7 +919,7 @@ export default function AdminPage() {
 
       {/* Edit User Modal */}
       {editingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium">Edit User Details</h3>
@@ -984,22 +981,51 @@ export default function AdminPage() {
                     placeholder="123-456-7890"
                   />
                 </div>
+                
+                <div className="pt-4 border-t border-gray-200">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { error } = await supabase.auth.admin.inviteUserByEmail(
+                          editingUser.user_email,
+                          {
+                            redirectTo: 'https://callsheet.acaciaconsultinggroup.com/auth/reset-password'
+                          }
+                        )
+                        if (error) throw error
+                        setError('')
+                        alert('Invitation resent successfully!')
+                      } catch (err: any) {
+                        console.error('Error resending invitation:', err)
+                        setError('Failed to resend invitation: ' + err.message)
+                      }
+                    }}
+                    className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm"
+                  >
+                    Resend Invitation
+                  </button>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Sends a new invitation email with password reset link
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => setEditingUser(null)}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleEditUser}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Save Changes
-              </button>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setEditingUser(null)}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEditUser}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  Save Changes
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1007,7 +1033,7 @@ export default function AdminPage() {
 
       {/* Add User Modal */}
       {showAddUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full">
             <form autoComplete="off" onSubmit={(e) => e.preventDefault()}>
               <div className="px-6 py-4 border-b border-gray-200">
@@ -1107,7 +1133,7 @@ export default function AdminPage() {
 
       {/* Permission Editor Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium">
@@ -1116,6 +1142,28 @@ export default function AdminPage() {
             </div>
             
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+              {/* Admin Toggle */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Access Level</h4>
+                <button
+                  onClick={() => handleAdminToggle(selectedUser.user_id)}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    users.find(u => u.user_id === selectedUser.user_id)?.is_admin
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : 'bg-gray-600 text-white hover:bg-gray-700'
+                  }`}
+                >
+                  {users.find(u => u.user_id === selectedUser.user_id)?.is_admin ? 'Admin User' : 'Regular User'}
+                </button>
+                <p className="text-xs text-gray-500 mt-1">
+                  {users.find(u => u.user_id === selectedUser.user_id)?.is_admin 
+                    ? 'This user has full administrative access to all modules' 
+                    : 'This user has limited access based on module permissions below'
+                  }
+                </p>
+              </div>
+              
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Module Permissions</h4>
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -1210,7 +1258,7 @@ export default function AdminPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirmation && deletingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-red-800">Delete User</h3>
@@ -1260,7 +1308,7 @@ export default function AdminPage() {
 
       {/* Invitation Result Popup */}
       {invitationResult && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-lg w-full">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-green-800">Invitation Sent Successfully!</h3>
