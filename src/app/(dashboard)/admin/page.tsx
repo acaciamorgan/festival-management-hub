@@ -478,7 +478,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -553,7 +553,7 @@ export default function AdminPage() {
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-y-auto">
         {activeTab === 'users' && (
           <div className="p-6">
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
