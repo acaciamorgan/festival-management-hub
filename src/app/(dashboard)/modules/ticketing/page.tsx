@@ -287,7 +287,7 @@ function ScreeningBoard({
 
       {/* Set View Modal */}
       {showSetViewModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-transparent z-50 flex items-center justify-center">
           <div className="bg-white rounded-lg p-6 w-[600px] max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-6">Set Screening Board View</h3>
             

@@ -300,15 +300,18 @@ export default function AdminPage() {
 
       if (permError) throw permError
 
-      // Send password reset email which will use your custom template
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(newUserEmail, {
-        redirectTo: 'https://callsheet.acaciaconsultinggroup.com/auth/reset-password'
+      // Send custom email from morgan@teamacacia.com
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-gmail-email', {
+        body: {
+          to: newUserEmail,
+          subject: 'Register your Callsheet account today!',
+          setupUrl: 'https://callsheet.acaciaconsultinggroup.com/auth/reset-password',
+          type: 'invitation'
+        }
       })
 
-      if (resetError) {
-        console.warn('Password reset email failed:', resetError)
-        // Continue anyway - user was created successfully
-      }
+      if (emailError) throw emailError
+      if (emailData?.error) throw new Error(emailData.error)
 
       // Show success message
       setInvitationResult({
@@ -913,7 +916,7 @@ export default function AdminPage() {
 
       {/* Edit User Modal */}
       {editingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium">Edit User Details</h3>
@@ -980,10 +983,16 @@ export default function AdminPage() {
                   <button
                     onClick={async () => {
                       try {
-                        const { error } = await supabase.auth.resetPasswordForEmail(editingUser.user_email, {
-                          redirectTo: 'https://callsheet.acaciaconsultinggroup.com/auth/reset-password'
+                        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-gmail-email', {
+                          body: {
+                            to: editingUser.user_email,
+                            subject: 'Register your Callsheet account today!',
+                            setupUrl: 'https://callsheet.acaciaconsultinggroup.com/auth/reset-password',
+                            type: 'invitation'
+                          }
                         })
-                        if (error) throw error
+                        if (emailError) throw emailError
+                        if (emailData?.error) throw new Error(emailData.error)
                         setError('')
                         alert('Invitation resent successfully!')
                       } catch (err: any) {
@@ -1024,7 +1033,7 @@ export default function AdminPage() {
 
       {/* Add User Modal */}
       {showAddUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full">
             <form autoComplete="off" onSubmit={(e) => e.preventDefault()}>
               <div className="px-6 py-4 border-b border-gray-200">
@@ -1124,7 +1133,7 @@ export default function AdminPage() {
 
       {/* Permission Editor Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium">
@@ -1249,7 +1258,7 @@ export default function AdminPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirmation && deletingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-red-800">Delete User</h3>
@@ -1299,7 +1308,7 @@ export default function AdminPage() {
 
       {/* Invitation Result Popup */}
       {invitationResult && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-lg w-full">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-green-800">Invitation Sent Successfully!</h3>
