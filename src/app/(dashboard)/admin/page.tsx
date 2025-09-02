@@ -424,8 +424,11 @@ export default function AdminPage() {
       return
     }
 
-    if (parseInt(editionConfirmation) !== archiveStatus.festival_year) {
-      setError(`Please enter the correct festival year: ${archiveStatus.festival_year}`)
+    // Parse the edition number from the confirmation
+    const editionNumber = parseInt(archiveStatus.festival_edition.replace(/\D/g, ''))
+    
+    if (parseInt(editionConfirmation) !== editionNumber) {
+      setError(`Please enter the correct edition number: ${editionNumber}`)
       return
     }
 
@@ -434,7 +437,7 @@ export default function AdminPage() {
 
     try {
       const { data, error } = await supabase.rpc('close_festival', {
-        confirmation_edition: archiveStatus.festival_edition.replace(/\D/g, '') // Extract number from "60th"
+        confirmation_edition: editionNumber
       })
       
       if (error) throw error
@@ -845,21 +848,21 @@ export default function AdminPage() {
 
                             {confirmationStep === 1 && (
                               <div>
-                                <p className="mb-3 font-medium">Step 2: Enter the festival year to confirm</p>
+                                <p className="mb-3 font-medium">Step 2: Enter the edition number to confirm</p>
                                 <p className="text-sm text-gray-600 mb-3">
-                                  Type <strong>{archiveStatus.festival_year}</strong> to confirm closing the {archiveStatus.festival_edition} Festival
+                                  Type <strong>{parseInt(archiveStatus.festival_edition.replace(/\D/g, ''))}</strong> to confirm closing the {archiveStatus.festival_edition} Festival
                                 </p>
                                 <input
                                   type="text"
                                   value={editionConfirmation}
                                   onChange={(e) => setEditionConfirmation(e.target.value)}
-                                  placeholder={`Enter ${archiveStatus.festival_year}`}
+                                  placeholder={`Enter ${parseInt(archiveStatus.festival_edition.replace(/\D/g, ''))}`}
                                   className="w-full max-w-xs border border-gray-300 rounded-md px-3 py-2 mb-3"
                                 />
                                 <div className="flex gap-3">
                                   <button
                                     onClick={handleCloseFestival}
-                                    disabled={parseInt(editionConfirmation) !== archiveStatus.festival_year || closingFestival}
+                                    disabled={parseInt(editionConfirmation) !== parseInt(archiveStatus.festival_edition.replace(/\D/g, '')) || closingFestival}
                                     className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     {closingFestival ? 'Closing Festival...' : 'Confirm Close Festival'}
