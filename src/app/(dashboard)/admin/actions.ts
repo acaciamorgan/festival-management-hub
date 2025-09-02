@@ -3,7 +3,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-// Create admin client with service role key
+// Create admin client with service role key for admin operations
 async function createAdminClient() {
   const cookieStore = await cookies()
   return createServerClient(
