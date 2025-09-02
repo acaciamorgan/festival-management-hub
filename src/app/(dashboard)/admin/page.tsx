@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { createClient } from '@/lib/supabase/client'
 import { getAllModules } from '@/config/modules'
+import { DraggableModal } from '@/components/ui/draggable-modal'
+import { inviteUser, resendInvitation } from './actions'
 
 interface UserPermissionRecord {
   id: string
@@ -262,56 +264,16 @@ export default function AdminPage() {
     setError('')
 
     try {
-      // Generate a secure temporary password
-      const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8)
-      
-      // Create user directly with signUp
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      const result = await inviteUser({
+        name: newUserName,
         email: newUserEmail,
-        password: tempPassword,
-        options: {
-          data: {
-            user_name: newUserName,
-            user_role: newUserRole,
-            user_phone: newUserPhone
-          }
-        }
+        role: newUserRole,
+        phone: newUserPhone
       })
 
-      if (signUpError) throw signUpError
-
-      const userId = signUpData.user?.id
-      if (!userId) throw new Error('Failed to create user')
-      
-      // Create user_permissions record
-      const { error: permError } = await supabase
-        .from('user_permissions')
-        .insert({
-          user_id: userId,
-          user_email: newUserEmail,
-          user_name: newUserName,
-          user_role: newUserRole,
-          user_phone: newUserPhone,
-          is_admin: false,
-          module_permissions: {
-            festivalOverview: { canRead: true, canEdit: false }
-          }
-        })
-
-      if (permError) throw permError
-
-      // Send custom email from morgan@teamacacia.com
-      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-gmail-email', {
-        body: {
-          to: newUserEmail,
-          subject: 'Register your Callsheet account today!',
-          setupUrl: 'https://callsheet.acaciaconsultinggroup.com/auth/reset-password',
-          type: 'invitation'
-        }
-      })
-
-      if (emailError) throw emailError
-      if (emailData?.error) throw new Error(emailData.error)
+      if (!result.success) {
+        throw new Error(result.error)
+      }
 
       // Show success message
       setInvitationResult({
@@ -916,11 +878,12 @@ export default function AdminPage() {
 
       {/* Edit User Modal */}
       {editingUser && (
-        <div className="fixed inset-0 bg-transparent flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium">Edit User Details</h3>
-            </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <DraggableModal>
+            <div className="max-w-md w-full">
+              <div className="modal-header px-6 py-4 border-b border-gray-200 cursor-move">
+                <h3 className="text-lg font-medium">Edit User Details</h3>
+              </div>
             
             <div className="p-6">
               <div className="space-y-4">
@@ -983,18 +946,14 @@ export default function AdminPage() {
                   <button
                     onClick={async () => {
                       try {
-                        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-gmail-email', {
-                          body: {
-                            to: editingUser.user_email,
-                            subject: 'Register your Callsheet account today!',
-                            setupUrl: 'https://callsheet.acaciaconsultinggroup.com/auth/reset-password',
-                            type: 'invitation'
-                          }
-                        })
-                        if (emailError) throw emailError
-                        if (emailData?.error) throw new Error(emailData.error)
+                        const result = await resendInvitation(editingUser.user_email)
+                        
+                        if (!result.success) {
+                          throw new Error(result.error)
+                        }
+                        
                         setError('')
-                        alert('Invitation resent successfully!')
+                        alert('Password reset email sent successfully!')
                       } catch (err: any) {
                         console.error('Error resending invitation:', err)
                         setError('Failed to resend invitation: ' + err.message)
@@ -1027,18 +986,20 @@ export default function AdminPage() {
                 </button>
               </div>
             </div>
-          </div>
+            </div>
+          </DraggableModal>
         </div>
       )}
 
       {/* Add User Modal */}
       {showAddUser && (
-        <div className="fixed inset-0 bg-transparent flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full">
-            <form autoComplete="off" onSubmit={(e) => e.preventDefault()}>
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium">Add New User</h3>
-              </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <DraggableModal>
+            <div className="max-w-md w-full">
+              <form autoComplete="off" onSubmit={(e) => e.preventDefault()}>
+                <div className="modal-header px-6 py-4 border-b border-gray-200 cursor-move">
+                  <h3 className="text-lg font-medium">Add New User</h3>
+                </div>
             
             <div className="p-6">
               <div className="space-y-4">
@@ -1127,13 +1088,14 @@ export default function AdminPage() {
               </button>
             </div>
             </form>
-          </div>
+            </div>
+          </DraggableModal>
         </div>
       )}
 
       {/* Permission Editor Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 bg-transparent flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium">
@@ -1258,7 +1220,7 @@ export default function AdminPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirmation && deletingUser && (
-        <div className="fixed inset-0 bg-transparent flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-red-800">Delete User</h3>
@@ -1308,7 +1270,7 @@ export default function AdminPage() {
 
       {/* Invitation Result Popup */}
       {invitationResult && (
-        <div className="fixed inset-0 bg-transparent flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-lg w-full">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-green-800">Invitation Sent Successfully!</h3>

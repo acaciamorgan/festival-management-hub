@@ -27,7 +27,7 @@ const emailTemplate = `<!DOCTYPE html>
                 Callsheet is the communications backbone of the Chicago International Film Festival, powered by <a href="https://www.acaciaconsultinggroup.com" style="color:#4F46E5; text-decoration:none;">Acacia</a>. Here, you will see detailed information about each title screening during the Festival, as well as information that pertains to your work with the Festival including filmmaker attendance, screening schedules, special events, and more.
               </p>
               <p style="margin:0 0 30px; font-size:16px; line-height:1.5; color:#444;">
-                Follow this link to set up your account:
+                Click the button below to set up your account:
               </p>
               <!-- CTA button -->
               <table cellspacing="0" cellpadding="0" align="center" style="margin:0 0 30px;">
@@ -39,6 +39,10 @@ const emailTemplate = `<!DOCTYPE html>
                   </td>
                 </tr>
               </table>
+              <p style="margin:0 0 15px; font-size:14px; line-height:1.5; color:#666;">
+                If the button doesn't work, copy and paste this link into your browser:<br>
+                <span style="color:#4F46E5; word-break:break-all;">{{SETUP_URL}}</span>
+              </p>
               <p style="margin:0; font-size:16px; line-height:1.5; color:#444;">
                 Thank you!
               </p>
@@ -77,6 +81,7 @@ serve(async (req) => {
     const now = Math.floor(Date.now() / 1000)
     const payload = {
       iss: serviceAccountEmail,
+      sub: 'morgan@teamacacia.com', // Impersonate this user
       scope: 'https://www.googleapis.com/auth/gmail.send',
       aud: 'https://oauth2.googleapis.com/token',
       exp: now + 3600,
@@ -87,9 +92,13 @@ serve(async (req) => {
     const encodedPayload = btoa(JSON.stringify(payload)).replace(/[+/]/g, (m) => ({'+': '-', '/': '_'}[m] as string)).replace(/=/g, '')
 
     // Import private key and sign
+    // Remove PEM headers/footers and decode base64
+    const pemKey = privateKey.replace(/-----BEGIN PRIVATE KEY-----|\-----END PRIVATE KEY-----|\n|\r/g, '')
+    const keyBuffer = Uint8Array.from(atob(pemKey), c => c.charCodeAt(0))
+    
     const key = await crypto.subtle.importKey(
       'pkcs8',
-      new TextEncoder().encode(privateKey),
+      keyBuffer,
       { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
       false,
       ['sign']
@@ -158,6 +167,11 @@ serve(async (req) => {
     const gmailData = await gmailResponse.json()
     
     if (!gmailResponse.ok) {
+      console.error('Gmail API Error Details:', {
+        status: gmailResponse.status,
+        statusText: gmailResponse.statusText,
+        data: gmailData
+      })
       throw new Error('Gmail API error: ' + JSON.stringify(gmailData))
     }
 
