@@ -156,15 +156,6 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
     cardTypes: [],
     route: '/modules/archives'
   },
-  admin: {
-    id: 'admin',
-    name: 'Admin',
-    icon: 'settings',
-    hasGridView: true,
-    hasRSVP: false,
-    cardTypes: [],
-    route: '/admin'
-  }
 }
 
 export const getModuleConfig = (moduleId: string): ModuleConfig | undefined => {
@@ -188,7 +179,6 @@ export const getAllModules = (): ModuleConfig[] => {
     'venueManagement', 
     'ticketing',
     'archives',
-    'admin',
     'programmingPipeline'
   ]
   

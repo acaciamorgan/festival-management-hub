@@ -64,7 +64,7 @@ export function Sidebar() {
   const canAccessModule = (moduleId: string) => {
     // For development, allow access to core modules when no permissions
     if (!permissions) {
-      return ['festivalOverview', 'titles', 'programmingPipeline', 'pressManagement', 'pressScreenings', 'screenerAccess', 'venueManagement', 'contactsManagement', 'photoShoots', 'inAttendance', 'interviewManagement', 'redCarpets', 'specialEvents', 'ticketing', 'admin', 'archives'].includes(moduleId)
+      return ['festivalOverview', 'titles', 'programmingPipeline', 'pressManagement', 'pressScreenings', 'screenerAccess', 'venueManagement', 'contactsManagement', 'photoShoots', 'inAttendance', 'interviewManagement', 'redCarpets', 'specialEvents', 'ticketing', 'archives'].includes(moduleId)
     }
     if (permissions.isAdmin) return true
     return permissions.modulePermissions[moduleId]?.canRead || false
