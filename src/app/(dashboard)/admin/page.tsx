@@ -21,6 +21,12 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserRecord[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [error, setError] = useState('')
+  const [showAddUser, setShowAddUser] = useState(false)
+  const [newUserName, setNewUserName] = useState('')
+  const [newUserEmail, setNewUserEmail] = useState('')
+  const [newUserRole, setNewUserRole] = useState('')
+  const [newUserPhone, setNewUserPhone] = useState('')
+  const [addingUser, setAddingUser] = useState(false)
   
   const supabase = createClient()
 
@@ -80,6 +86,12 @@ export default function AdminPage() {
           </div>
           
           <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setShowAddUser(true)}
+              className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+            >
+              Add User
+            </button>
             <button
               onClick={loadUsers}
               disabled={loadingUsers}
@@ -184,6 +196,100 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+
+      {/* Add User Modal */}
+      {showAddUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium">Add New User</h3>
+            </div>
+            
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    placeholder="Full Name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    placeholder="user@example.com"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Role/Title
+                  </label>
+                  <input
+                    type="text"
+                    value={newUserRole}
+                    onChange={(e) => setNewUserRole(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    placeholder="e.g., Festival Coordinator, Press Manager"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={newUserPhone}
+                    onChange={(e) => setNewUserPhone(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    placeholder="123-456-7890"
+                  />
+                </div>
+                
+                <div className="text-sm text-gray-600">
+                  An invitation email will be sent to this address. The user will receive a link to set their password and access the platform.
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowAddUser(false)
+                  setNewUserEmail('')
+                  setNewUserName('')
+                  setNewUserRole('')
+                  setNewUserPhone('')
+                  setError('')
+                }}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => alert('User creation will be implemented next')}
+                disabled={addingUser || !newUserName || !newUserEmail}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+              >
+                {addingUser ? 'Adding User...' : 'Add User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
