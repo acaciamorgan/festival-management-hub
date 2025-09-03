@@ -10,7 +10,7 @@ import { getOrdinalSuffix } from '@/utils/ordinal'
 import { 
   Calendar, Film, Plane, Newspaper, PlayCircle, Eye, Tv,
   Camera, Star, Mic, Sparkles, BookOpen, Building, Ticket,
-  BarChart3, Archive, Settings, GitBranch, Home
+  BarChart3, Archive, Settings, GitBranch, Home, LogOut
 } from 'lucide-react'
 
 const moduleIcons: Record<string, any> = {
@@ -30,13 +30,12 @@ const moduleIcons: Record<string, any> = {
   ticketing: Ticket,
   reportsAnalytics: BarChart3,
   archives: Archive,
-  admin: Settings,
   programmingPipeline: GitBranch
 }
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { permissions } = useAuth()
+  const { signOut } = useAuth()
   const modules = getAllModules()
   const [festivalInfo, setFestivalInfo] = useState<{edition: string, name: string} | null>(null)
   const supabase = createClient()
@@ -62,12 +61,8 @@ export function Sidebar() {
   }, [supabase])
 
   const canAccessModule = (moduleId: string) => {
-    // For development, allow access to core modules when no permissions
-    if (!permissions) {
-      return ['festivalOverview', 'titles', 'programmingPipeline', 'pressManagement', 'pressScreenings', 'screenerAccess', 'venueManagement', 'contactsManagement', 'photoShoots', 'inAttendance', 'interviewManagement', 'redCarpets', 'specialEvents', 'ticketing', 'archives', 'admin'].includes(moduleId)
-    }
-    if (permissions.isAdmin) return true
-    return permissions.modulePermissions[moduleId]?.canRead || false
+    // Allow access to all modules
+    return true
   }
 
   return (
@@ -112,6 +107,16 @@ export function Sidebar() {
             )
           })}
         </ul>
+        
+        <div className="mt-auto p-4 border-t border-gray-800">
+          <button
+            onClick={signOut}
+            className="flex items-center w-full px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors rounded-md"
+          >
+            <LogOut className="w-4 h-4 mr-3" />
+            Sign Out
+          </button>
+        </div>
       </nav>
     </aside>
   )

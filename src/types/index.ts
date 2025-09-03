@@ -13,15 +13,6 @@ export interface ModuleConfig {
   route: string
 }
 
-// Permission Types
-export interface UserPermissions {
-  userId: string
-  modulePermissions: Record<string, {
-    canRead: boolean
-    canEdit: boolean
-  }>
-  isAdmin: boolean
-}
 
 // Grid Configuration
 export interface GridColumn {

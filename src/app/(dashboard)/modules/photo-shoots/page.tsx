@@ -46,7 +46,7 @@ interface PhotoShootFormData {
 }
 
 export default function PhotoShootsPage() {
-  const { user, permissions } = useAuth()
+  const { user } = useAuth()
   const [photoShoots, setPhotoShoots] = useState<PhotoShoot[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -64,7 +64,7 @@ export default function PhotoShootsPage() {
   const supabase = createClient()
 
   // Check if user has edit permissions for photo shoots
-  const canEditPhotoShoots = permissions?.modulePermissions?.['photoShoots']?.canEdit || permissions?.isAdmin
+  const canEditPhotoShoots = true
 
   // Export template function for Photo Shoots
   const exportPhotoShootsTemplate = () => {

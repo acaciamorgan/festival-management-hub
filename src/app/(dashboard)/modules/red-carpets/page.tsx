@@ -55,7 +55,7 @@ interface GroupedRedCarpetEvent {
 }
 
 export default function RedCarpetsPage() {
-  const { user, permissions } = useAuth()
+  const { user } = useAuth()
   const [redCarpets, setRedCarpets] = useState<RedCarpet[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -71,7 +71,7 @@ export default function RedCarpetsPage() {
   const supabase = createClient()
 
   // Check if user has edit permissions for red carpets
-  const canEditRedCarpets = permissions?.modulePermissions?.['redCarpets']?.canEdit || permissions?.isAdmin
+  const canEditRedCarpets = true
 
   // Export template function for Red Carpets
   const exportRedCarpetsTemplate = () => {

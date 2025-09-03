@@ -10,7 +10,7 @@ import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import * as XLSX from 'xlsx-js-style'
 
 export default function ContactsPage() {
-  const { user, permissions } = useAuth()
+  const { user } = useAuth()
   const [contacts, setContacts] = useState<ContactCard[]>([])
   const [filteredContacts, setFilteredContacts] = useState<ContactCard[]>([])
   const [loading, setLoading] = useState(false)
@@ -30,7 +30,7 @@ export default function ContactsPage() {
   const supabase = createClient()
 
   // Check if user has edit permissions for contacts
-  const canEditContacts = permissions?.modulePermissions?.['contacts']?.canEdit || permissions?.isAdmin
+  const canEditContacts = true
 
   // Export template function for Contacts
   const exportContactsTemplate = () => {
