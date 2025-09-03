@@ -121,12 +121,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to link user account' }, { status: 500 })
     }
 
-    // Generate password reset link for initial password setup
+    // Generate password setup link for initial password creation
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: email,
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/setup-password`
       }
     })
 

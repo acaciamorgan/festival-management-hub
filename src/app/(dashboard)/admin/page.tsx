@@ -452,9 +452,6 @@ export default function AdminPage() {
                   Role
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Access Level
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -482,11 +479,6 @@ export default function AdminPage() {
                       {userRecord.user_phone && (
                         <div className="text-sm text-gray-500">{userRecord.user_phone}</div>
                       )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        Active
-                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {isSuperAdmin ? (

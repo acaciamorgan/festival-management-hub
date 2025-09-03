@@ -63,12 +63,12 @@ export async function POST(request: Request) {
 
     // Auth user already exists - no need to create again
 
-    // Generate password reset link for password setup
+    // Generate password setup link for password creation
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: email,
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/setup-password`
       }
     })
 
