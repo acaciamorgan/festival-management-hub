@@ -315,13 +315,13 @@ export default function AdminPage() {
       }
 
       const response = await fetch('/api/admin/update-permissions', {
-        method: 'POST',
+        method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          userId: permissionsUser.user_id,
+          userId: permissionsUser.id,
           email: permissionsUser.user_email,
           modulePermissions: userPermissions,
           isAdmin: isAdminUser
@@ -732,10 +732,19 @@ export default function AdminPage() {
       {showPermissions && permissionsUser && (
         <DraggableModal>
           <div className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b modal-header cursor-move">
+            <div className="px-6 py-4 border-b modal-header cursor-move flex items-center justify-between">
               <h3 className="text-lg font-medium">
                 Manage Permissions - {permissionsUser.user_name || permissionsUser.user_email}
               </h3>
+              <button
+                onClick={() => {
+                  setShowPermissions(false)
+                  setPermissionsUser(null)
+                }}
+                className="text-gray-500 hover:text-gray-700 text-xl font-bold w-6 h-6 flex items-center justify-center"
+              >
+                ×
+              </button>
             </div>
             <div className="p-6">
               <div className="space-y-6">
