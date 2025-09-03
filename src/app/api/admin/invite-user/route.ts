@@ -92,13 +92,19 @@ export async function POST(request: Request) {
     if (inviteError) {
       console.error('Error sending invitation:', inviteError)
       
-      // Clean up the permissions record if invite fails
-      await supabaseAdmin
-        .from('user_permissions')
-        .delete()
-        .eq('id', permissionsRecord.id)
+      // If error is because user already exists in Auth, still return success
+      if (inviteError.message?.includes('already been invited') || 
+          inviteError.message?.includes('already exists')) {
+        console.log('User already in Auth, but permissions record created')
+      } else {
+        // Clean up the permissions record if invite fails for other reasons
+        await supabaseAdmin
+          .from('user_permissions')
+          .delete()
+          .eq('id', permissionsRecord.id)
 
-      return NextResponse.json({ error: 'Failed to send invitation' }, { status: 500 })
+        return NextResponse.json({ error: 'Failed to send invitation' }, { status: 500 })
+      }
     }
 
     return NextResponse.json({
