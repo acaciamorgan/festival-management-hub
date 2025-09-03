@@ -11,9 +11,7 @@ export async function PUT(request: Request) {
 
 async function handleUpdatePermissions(request: Request) {
   try {
-    const body = await request.json()
-    console.log('Update permissions request body:', body)
-    const { userId, modulePermissions, isAdmin } = body
+    const { userId, modulePermissions, isAdmin } = await request.json()
 
     // Get the Authorization header
     const authHeader = request.headers.get('Authorization')
