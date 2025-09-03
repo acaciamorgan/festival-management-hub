@@ -272,15 +272,33 @@ export default function AdminPage() {
   }
 
   const handlePermissionChange = (moduleId: string, permission: 'canRead' | 'canEdit', value: boolean) => {
-    setUserPermissions(prev => ({
-      ...prev,
-      [moduleId]: {
-        ...prev[moduleId],
-        [permission]: value,
-        // If enabling edit, also enable read
-        canRead: permission === 'canEdit' && value ? true : prev[moduleId]?.canRead || false
+    setUserPermissions(prev => {
+      const currentPerms = prev[moduleId] || { canRead: false, canEdit: false }
+      
+      if (permission === 'canRead') {
+        return {
+          ...prev,
+          [moduleId]: {
+            ...currentPerms,
+            canRead: value,
+            // If disabling read, also disable edit
+            canEdit: !value ? false : currentPerms.canEdit
+          }
+        }
+      } else if (permission === 'canEdit') {
+        return {
+          ...prev,
+          [moduleId]: {
+            ...currentPerms,
+            canEdit: value,
+            // If enabling edit, also enable read
+            canRead: value ? true : currentPerms.canRead
+          }
+        }
       }
-    }))
+      
+      return prev
+    })
   }
 
   const handleUpdatePermissions = async () => {
