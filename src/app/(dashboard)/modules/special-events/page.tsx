@@ -10,7 +10,7 @@ import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import * as XLSX from 'xlsx-js-style'
 
 export default function SpecialEventsPage() {
-  const { user } = useAuth()
+  const { user, permissions } = useAuth()
   const [specialEvents, setSpecialEvents] = useState<SpecialEventCard[]>([])
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -35,7 +35,7 @@ export default function SpecialEventsPage() {
   const supabase = createClient()
 
   // Check if user has edit permissions for special events
-  const canEditSpecialEvents = true
+  const canEditSpecialEvents = permissions?.modulePermissions?.['specialEvents']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
 
   // Export template function for Special Events
   const exportSpecialEventsTemplate = () => {

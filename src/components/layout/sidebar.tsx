@@ -35,7 +35,7 @@ const moduleIcons: Record<string, any> = {
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { signOut } = useAuth()
+  const { permissions, signOut } = useAuth()
   const modules = getAllModules()
   const [festivalInfo, setFestivalInfo] = useState<{edition: string, name: string} | null>(null)
   const supabase = createClient()
@@ -61,8 +61,13 @@ export function Sidebar() {
   }, [supabase])
 
   const canAccessModule = (moduleId: string) => {
-    // Allow access to all modules
-    return true
+    if (!permissions) return false
+    
+    // Admins and super admins can access everything
+    if (permissions.isAdmin || permissions.isSuperAdmin) return true
+    
+    // Check specific module permission
+    return permissions.modulePermissions[moduleId]?.canRead || false
   }
 
   return (
@@ -107,6 +112,37 @@ export function Sidebar() {
             )
           })}
         </ul>
+        
+        {/* Admin Section */}
+        {permissions?.isAdmin && (
+          <>
+            <div className="px-4 py-2 mt-6">
+              <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+                Administration
+              </h2>
+            </div>
+            <ul className="space-y-1">
+              <li>
+                <Link
+                  href="/admin"
+                  className={`flex items-center px-4 py-2 text-sm font-medium transition-colors ${
+                    pathname === '/admin'
+                      ? 'bg-gray-800 text-white border-r-2 border-blue-500'
+                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  }`}
+                >
+                  <Settings className="w-4 h-4 mr-3" />
+                  User Management
+                  {permissions?.isSuperAdmin && (
+                    <span className="ml-auto px-2 py-1 text-xs bg-purple-600 text-white rounded">
+                      SUPER
+                    </span>
+                  )}
+                </Link>
+              </li>
+            </ul>
+          </>
+        )}
         
         <div className="mt-auto p-4 border-t border-gray-800">
           <button

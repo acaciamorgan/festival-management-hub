@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/components/providers/auth-provider'
 import { PressCardPopup } from '@/components/cards/press-card-popup'
 import { PressCard, SocialMedia } from '@/types'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
@@ -9,6 +10,7 @@ import * as XLSX from 'xlsx-js-style'
 
 
 export default function PressManagementPage() {
+  const { permissions } = useAuth()
   const [press, setPress] = useState<PressCard[]>([])
   const [filteredPress, setFilteredPress] = useState<PressCard[]>([])
   const [loading, setLoading] = useState(false)
@@ -39,8 +41,8 @@ export default function PressManagementPage() {
   
   const supabase = createClient()
 
-  // All users can edit
-  const canEditPress = true
+  // Check if user has edit permissions for press management
+  const canEditPress = permissions?.modulePermissions?.['pressManagement']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
 
   // Export template function for Press
   const exportPressTemplate = () => {

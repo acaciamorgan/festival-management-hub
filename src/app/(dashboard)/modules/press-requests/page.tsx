@@ -35,7 +35,7 @@ interface FilmContact {
 }
 
 export default function PressRequestsPage() {
-  const { user } = useAuth()
+  const { user, permissions } = useAuth()
   const [requests, setRequests] = useState<PressRequest[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -51,7 +51,7 @@ export default function PressRequestsPage() {
   const supabase = createClient()
 
   // Check if user has edit permissions for press requests
-  const canEditPressRequests = true
+  const canEditPressRequests = permissions?.modulePermissions?.['pressRequests']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
 
   const loadRequests = useCallback(async () => {
     setLoading(true)

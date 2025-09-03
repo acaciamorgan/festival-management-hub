@@ -53,7 +53,7 @@ interface ShortFilmWithScreenerData extends ShortFilm {
 type ViewMode = 'features' | 'shorts'
 
 export default function ScreenerAccessPage() {
-  const { user } = useAuth()
+  const { user, permissions } = useAuth()
   const [viewMode, setViewMode] = useState<ViewMode>('features')
   const [films, setFilms] = useState<FilmWithScreenerData[]>([])
   const [shorts, setShorts] = useState<ShortFilmWithScreenerData[]>([])
@@ -71,7 +71,7 @@ export default function ScreenerAccessPage() {
   const supabase = createClient()
 
   // Check if user has edit permissions for screener access
-  const canEditScreenerAccess = true
+  const canEditScreenerAccess = permissions?.modulePermissions?.['screenerAccess']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
 
   // Export template function for Features
   const exportFeaturesTemplate = () => {

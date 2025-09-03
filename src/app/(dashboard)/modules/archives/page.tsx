@@ -21,7 +21,7 @@ interface ArchiveStats {
 }
 
 export default function ArchivesPage() {
-  const { user } = useAuth()
+  const { user, permissions } = useAuth()
   const [activeTab, setActiveTab] = useState<'overview' | 'archive' | 'export' | 'browse'>('overview')
   const [archiveStats, setArchiveStats] = useState<ArchiveStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -33,8 +33,8 @@ export default function ArchivesPage() {
 
   const supabase = createClient()
 
-  // Check if user has admin permissions
-  const isAdmin = true
+  // Check if user has admin permissions for archives
+  const isAdmin = permissions?.modulePermissions?.['archives']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
 
   useEffect(() => {
     loadArchiveStats()

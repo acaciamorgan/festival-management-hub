@@ -14,7 +14,7 @@ import * as XLSX from 'xlsx-js-style'
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableCell, TableRow, WidthType } from 'docx'
 
 export default function InAttendancePage() {
-  const { user } = useAuth()
+  const { user, permissions } = useAuth()
   const [guests, setGuests] = useState<GuestCard[]>([])
   const [filteredGuests, setFilteredGuests] = useState<GuestCard[]>([])
   const [loading, setLoading] = useState(false)
@@ -39,7 +39,7 @@ export default function InAttendancePage() {
   const supabase = createClient()
 
   // Check if user has edit permissions for in attendance
-  const canEditInAttendance = true
+  const canEditInAttendance = permissions?.modulePermissions?.['inAttendance']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
 
   // Daily Report generation function
   const generateDailyReport = async (reportDate: string) => {

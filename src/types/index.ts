@@ -13,6 +13,22 @@ export interface ModuleConfig {
   route: string
 }
 
+// Permission Types
+export interface ModulePermission {
+  canRead: boolean
+  canEdit: boolean
+}
+
+export interface UserPermissions {
+  userId: string
+  userEmail: string
+  userName?: string
+  userRole?: string
+  isAdmin: boolean
+  isSuperAdmin: boolean
+  modulePermissions: Record<string, ModulePermission>
+}
+
 
 // Grid Configuration
 export interface GridColumn {

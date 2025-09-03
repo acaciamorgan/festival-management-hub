@@ -50,7 +50,7 @@ interface ProgrammingFilm {
 }
 
 export default function ProgrammingPipelinePage() {
-  const { user } = useAuth()
+  const { user, permissions } = useAuth()
   const [programmingFilms, setProgrammingFilms] = useState<ProgrammingFilm[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -107,7 +107,7 @@ export default function ProgrammingPipelinePage() {
   const supabase = createClient()
 
   // Check if user has edit permissions for programming pipeline
-  const canEditProgrammingPipeline = true
+  const canEditProgrammingPipeline = permissions?.modulePermissions?.['programmingPipeline']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
 
   // Export template function for Films Grid
   const exportFilmsGridTemplate = () => {
