@@ -229,6 +229,41 @@ export default function AdminPage() {
     }
   }
 
+  const handleResetPassword = async (userEmail: string) => {
+    if (!confirm(`Send password reset email to ${userEmail}?`)) {
+      return
+    }
+
+    setError('')
+    setSuccessMessage('')
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        throw new Error('Not authenticated')
+      }
+
+      const response = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ email: userEmail })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send password reset')
+      }
+
+      setSuccessMessage(`Password reset email sent to ${userEmail}`)
+    } catch (err: any) {
+      setError(err.message || 'Failed to send password reset')
+    }
+  }
+
   const handleManagePermissions = (user: UserRecord) => {
     setPermissionsUser(user)
     setUserPermissions(user.module_permissions || {})
@@ -464,6 +499,14 @@ export default function AdminPage() {
                             className="text-orange-600 hover:text-orange-900"
                           >
                             Resend
+                          </button>
+                        )}
+                        {userRecord.user_id && !isSuperAdmin && (
+                          <button
+                            onClick={() => handleResetPassword(userRecord.user_email)}
+                            className="text-purple-600 hover:text-purple-900"
+                          >
+                            Reset Password
                           </button>
                         )}
                         {!isSuperAdmin && (

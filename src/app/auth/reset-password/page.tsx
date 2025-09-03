@@ -5,132 +5,101 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function ResetPasswordPage() {
-  const [password, setPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
-  const [authLoading, setAuthLoading] = useState(true)
-  const [hasValidSession, setHasValidSession] = useState(false)
+  const [success, setSuccess] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
-      try {
-        setAuthLoading(true)
-        setMessage('Verifying your reset link...')
-        
-        // First, handle any auth callback from URL hash
-        const { data, error } = await supabase.auth.getSession()
-        
-        if (error) {
-          setError('Authentication error: ' + error.message)
-          setAuthLoading(false)
-          return
-        }
-        
-        // If no session yet, try to exchange tokens from URL
-        if (!data.session) {
-          // Check URL for auth tokens (from email link)
-          const hashParams = new URLSearchParams(window.location.hash.substring(1))
-          const accessToken = hashParams.get('access_token')
-          const refreshToken = hashParams.get('refresh_token')
-          const type = hashParams.get('type')
-          
-          if (accessToken && refreshToken && type === 'recovery') {
-            setMessage('Setting up your session...')
-            
-            // Set the session using the tokens from the URL
-            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken
-            })
-            
-            if (sessionError) {
-              setError('Failed to authenticate: ' + sessionError.message)
-              setAuthLoading(false)
-              return
-            }
-            
-            if (!sessionData.session) {
-              setError('Invalid or expired reset link. Please request a new password reset.')
-              setAuthLoading(false)
-              return
-            }
-            
-            // Clear the URL hash for security
-            window.history.replaceState({}, document.title, window.location.pathname)
-            setHasValidSession(true)
-            setMessage('Ready to set your password!')
-            
-          } else {
-            setError('Invalid or expired reset link. Please request a new password reset.')
-          }
-        } else {
-          // Already have a valid session
-          setHasValidSession(true)
-          setMessage('Ready to set your password!')
-        }
-      } catch (err: any) {
-        setError('Authentication error: ' + err.message)
-      } finally {
-        setAuthLoading(false)
+    // Check if we have a valid recovery session
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        // User has clicked the recovery link
+        console.log('Password recovery session active')
       }
-    }
+    })
+  }, [])
+
+  const getPasswordStrength = (password: string) => {
+    if (!password) return { strength: 0, text: '', color: '' }
     
-    handleAuthCallback()
-  }, [supabase])
+    let strength = 0
+    if (password.length >= 8) strength++
+    if (password.length >= 12) strength++
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++
+    if (/[0-9]/.test(password)) strength++
+    if (/[^a-zA-Z0-9]/.test(password)) strength++
+
+    const strengthMap = [
+      { strength: 0, text: '', color: '' },
+      { strength: 1, text: 'Weak', color: 'text-red-600' },
+      { strength: 2, text: 'Fair', color: 'text-orange-600' },
+      { strength: 3, text: 'Good', color: 'text-yellow-600' },
+      { strength: 4, text: 'Strong', color: 'text-green-600' },
+      { strength: 5, text: 'Very Strong', color: 'text-green-700' }
+    ]
+
+    return strengthMap[strength]
+  }
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (password !== confirmPassword) {
+    setError('')
+
+    // Validation
+    if (!newPassword || !confirmPassword) {
+      setError('Please fill in all fields')
+      return
+    }
+
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
       setError('Passwords do not match')
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
-      return
-    }
-
     setLoading(true)
-    setError('')
 
     try {
-      // First verify we have a session
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
-        setError('Session expired. Please request a new password reset.')
-        return
-      }
-      
-      const { data, error } = await supabase.auth.updateUser({ 
-        password: password 
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
       })
 
       if (error) {
         setError(error.message)
-        console.error('Password update error:', error)
-      } else if (!data.user) {
-        setError('Failed to update password. Please try again.')
       } else {
-        setMessage('Password updated successfully! Redirecting to login...')
-        
-        // Sign out to ensure clean login with new password
-        await supabase.auth.signOut()
-        
+        setSuccess(true)
         setTimeout(() => {
           router.push('/auth/login')
-        }, 2000)
+        }, 3000)
       }
     } catch (err) {
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
     }
+  }
+
+  const passwordStrength = getPasswordStrength(newPassword)
+
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
+        <div className="max-w-md w-full space-y-8">
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded text-center">
+            <p className="font-medium">Password reset successfully!</p>
+            <p className="text-sm mt-2">Redirecting to login page...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -145,89 +114,72 @@ export default function ResetPasswordPage() {
           </p>
         </div>
 
-        {authLoading ? (
-          <div className="mt-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Verifying your reset link...</p>
-          </div>
-        ) : error ? (
-          <div className="mt-8 space-y-6">
+        <form className="mt-8 space-y-6" onSubmit={handleResetPassword}>
+          {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
               {error}
             </div>
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => router.push('/auth/login')}
-                className="text-sm text-blue-600 hover:text-blue-500"
-              >
-                Back to login
-              </button>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="new-password" className="block text-sm font-medium text-gray-700">
+                New Password
+              </label>
+              <input
+                id="new-password"
+                type="password"
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter new password (min 8 characters)"
+              />
+              {newPassword && (
+                <p className={`mt-1 text-sm ${passwordStrength.color}`}>
+                  Password strength: {passwordStrength.text}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700">
+                Confirm New Password
+              </label>
+              <input
+                id="confirm-password"
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Confirm new password"
+              />
+              {confirmPassword && newPassword !== confirmPassword && (
+                <p className="mt-1 text-sm text-red-600">Passwords do not match</p>
+              )}
             </div>
           </div>
-        ) : hasValidSession ? (
-          <form className="mt-8 space-y-6" onSubmit={handleResetPassword}>
-            {message && !error && (
-              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-                {message}
-              </div>
-            )}
 
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  New Password
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter new password"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                  Confirm New Password
-                </label>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Confirm new password"
-                />
-              </div>
-            </div>
-
+          <div>
             <button
               type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading || !newPassword || !confirmPassword}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Updating...' : 'Update Password'}
+              {loading ? 'Resetting...' : 'Reset Password'}
             </button>
+          </div>
 
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => router.push('/auth/login')}
-                className="text-sm text-blue-600 hover:text-blue-500"
-              >
-                Back to login
-              </button>
-            </div>
-          </form>
-        ) : null}
+          <div className="text-center">
+            <a
+              href="/auth/login"
+              className="text-sm text-blue-600 hover:text-blue-500"
+            >
+              Back to Sign In
+            </a>
+          </div>
+        </form>
       </div>
     </div>
   )
