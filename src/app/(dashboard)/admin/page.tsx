@@ -314,8 +314,15 @@ export default function AdminPage() {
         throw new Error('Not authenticated')
       }
 
+      console.log('Sending permissions update:', {
+        userId: permissionsUser.id,
+        email: permissionsUser.user_email,
+        modulePermissions: userPermissions,
+        isAdmin: isAdminUser
+      })
+
       const response = await fetch('/api/admin/update-permissions', {
-        method: 'PUT',
+        method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
@@ -328,7 +335,18 @@ export default function AdminPage() {
         })
       })
 
-      const result = await response.json()
+      console.log('Response status:', response.status)
+      console.log('Response headers:', response.headers.get('content-type'))
+
+      let result
+      try {
+        const text = await response.text()
+        console.log('Response text:', text)
+        result = JSON.parse(text)
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', parseError)
+        throw new Error('Server returned invalid response')
+      }
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to update permissions')

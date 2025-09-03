@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
+export async function POST(request: Request) {
+  return handleUpdatePermissions(request)
+}
+
 export async function PUT(request: Request) {
+  return handleUpdatePermissions(request)
+}
+
+async function handleUpdatePermissions(request: Request) {
   try {
-    const { userId, modulePermissions, isAdmin } = await request.json()
+    const body = await request.json()
+    console.log('Update permissions request body:', body)
+    const { userId, modulePermissions, isAdmin } = body
 
     // Get the Authorization header
     const authHeader = request.headers.get('Authorization')
