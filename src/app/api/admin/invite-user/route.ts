@@ -136,7 +136,7 @@ export async function POST(request: Request) {
         to: email,
         subject: 'Welcome to Callsheet - Chicago International Film Festival',
         tempPassword: tempPassword,
-        loginUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/login`,
+        loginUrl: `https://fanexpohq.com/auth/login`,
         type: 'invite'
       })
     })
