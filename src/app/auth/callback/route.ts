@@ -50,6 +50,11 @@ export async function GET(request: NextRequest) {
       if (updateError) {
         console.error('Error linking user to permissions:', updateError)
       }
+
+      // If user was invited (has invited_by metadata), redirect to password setup
+      if (user.user_metadata?.invited_by_name) {
+        return NextResponse.redirect(`${origin}/auth/setup-password`)
+      }
     }
 
     // Redirect to the main app
