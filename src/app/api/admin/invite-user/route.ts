@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       .from('user_permissions')
       .select('id')
       .eq('user_email', email)
-      .single()
+      .maybeSingle()
 
     if (existingUser) {
       return NextResponse.json({ error: 'User already exists' }, { status: 409 })

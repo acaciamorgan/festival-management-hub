@@ -6,6 +6,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { createClient } from '@/lib/supabase/client'
 import { getAllModules } from '@/config/modules'
 import { ModulePermission } from '@/types'
+import { DraggableModal } from '@/components/ui/draggable-modal'
 
 interface UserRecord {
   id: string
@@ -127,6 +128,8 @@ export default function AdminPage() {
       }
 
       setSuccessMessage(`Invitation sent to ${newUserEmail}`)
+      
+      // Close modal and reset form
       setShowAddUser(false)
       setNewUserEmail('')
       setNewUserName('')
@@ -502,9 +505,9 @@ export default function AdminPage() {
 
       {/* Add User Modal */}
       {showAddUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full">
-            <div className="px-6 py-4 border-b">
+        <DraggableModal>
+          <div className="max-w-md w-full">
+            <div className="px-6 py-4 border-b modal-header cursor-move">
               <h3 className="text-lg font-medium">Invite New User</h3>
             </div>
             <div className="p-6">
@@ -581,14 +584,14 @@ export default function AdminPage() {
               </button>
             </div>
           </div>
-        </div>
+        </DraggableModal>
       )}
 
       {/* Edit User Modal */}
       {showEditUser && editingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full">
-            <div className="px-6 py-4 border-b">
+        <DraggableModal>
+          <div className="max-w-md w-full">
+            <div className="px-6 py-4 border-b modal-header cursor-move">
               <h3 className="text-lg font-medium">Edit User</h3>
             </div>
             <div className="p-6">
@@ -661,14 +664,14 @@ export default function AdminPage() {
               </button>
             </div>
           </div>
-        </div>
+        </DraggableModal>
       )}
 
       {/* Permissions Modal */}
       {showPermissions && permissionsUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b">
+        <DraggableModal>
+          <div className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b modal-header cursor-move">
               <h3 className="text-lg font-medium">
                 Manage Permissions - {permissionsUser.user_name || permissionsUser.user_email}
               </h3>
@@ -752,7 +755,7 @@ export default function AdminPage() {
               </button>
             </div>
           </div>
-        </div>
+        </DraggableModal>
       )}
     </div>
   )
