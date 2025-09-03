@@ -5,57 +5,23 @@ export async function POST(request: Request) {
   try {
     const { email } = await request.json()
 
-    // Get the Authorization header
-    const authHeader = request.headers.get('Authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const token = authHeader.split(' ')[1]
-
-    // Verify the requester is authenticated and get their user info
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-    }
-
-    // Check if requester is an admin
-    const { data: requesterPermissions, error: permError } = await supabaseAdmin
-      .from('user_permissions')
-      .select('is_admin, is_super_admin')
-      .eq('user_id', user.id)
-      .single()
-
-    if (permError || !requesterPermissions?.is_admin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    }
-
     // Validate email
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 })
     }
 
     // Check if user exists
-    const { data: targetUser, error: targetError } = await supabaseAdmin
+    const { data: existingUser, error: userError } = await supabaseAdmin
       .from('user_permissions')
-      .select('user_id, is_super_admin')
+      .select('user_id, user_email')
       .eq('user_email', email)
       .single()
 
-    if (targetError || !targetUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    if (userError || !existingUser || !existingUser.user_id) {
+      return NextResponse.json({ error: 'No account found with this email address' }, { status: 404 })
     }
 
-    if (!targetUser.user_id) {
-      return NextResponse.json({ error: 'User has not accepted invitation yet' }, { status: 400 })
-    }
-
-    // Protect super admin accounts (only super admins can reset super admin passwords)
-    if (targetUser.is_super_admin && !requesterPermissions.is_super_admin) {
-      return NextResponse.json({ error: 'Cannot reset super admin password' }, { status: 403 })
-    }
-
-    // Generate password reset link and send via custom Gmail template
+    // Generate password reset link
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: email,
@@ -91,8 +57,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ 
-      message: 'Password reset email sent successfully',
-      email: email
+      message: 'Password reset email sent successfully'
     })
 
   } catch (error) {

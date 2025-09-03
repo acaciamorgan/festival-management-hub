@@ -61,21 +61,46 @@ export async function POST(request: Request) {
     const senderName = senderInfo?.user_name || user.email || 'Administrator'
     const senderEmail = senderInfo?.user_email || user.email
 
-    // Resend Supabase Auth invitation email with sender information
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: {
-        name: existingUser.user_name || '',
-        role: existingUser.user_role || '',
-        invited_by_name: senderName,
-        invited_by_email: senderEmail,
-        organization: 'Film Festival Management'
-      },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+    // Generate new invite link and send via custom Gmail template
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'invite',
+      email: email,
+      options: {
+        data: {
+          name: existingUser.user_name || '',
+          role: existingUser.user_role || '',
+          invited_by_name: senderName,
+          invited_by_email: senderEmail,
+          organization: 'Film Festival Management'
+        },
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+      }
     })
 
     if (inviteError) {
-      console.error('Error resending invitation:', inviteError)
-      return NextResponse.json({ error: 'Failed to resend invitation' }, { status: 500 })
+      console.error('Error generating invitation link:', inviteError)
+      return NextResponse.json({ error: 'Failed to generate invitation link' }, { status: 500 })
+    }
+
+    // Send custom email via Gmail API using Supabase Edge Function
+    const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-gmail-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+      },
+      body: JSON.stringify({
+        to: email,
+        subject: `Reminder: You're invited to join Callsheet - Chicago International Film Festival`,
+        setupUrl: inviteData.properties?.action_link,
+        type: 'invite'
+      })
+    })
+
+    if (!emailResponse.ok) {
+      const emailError = await emailResponse.json()
+      console.error('Error resending invitation email:', emailError)
+      return NextResponse.json({ error: 'Failed to resend invitation email' }, { status: 500 })
     }
 
     return NextResponse.json({

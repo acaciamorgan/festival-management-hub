@@ -77,34 +77,60 @@ export async function POST(request: Request) {
     const senderName = senderInfo?.user_name || user.email || 'Administrator'
     const senderEmail = senderInfo?.user_email || user.email
 
-    // Send Supabase Auth invitation email with sender information
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: {
-        name: name,
-        role: role || null,
-        invited_by_name: senderName,
-        invited_by_email: senderEmail,
-        organization: 'Film Festival Management'
-      },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+    // Generate invite link and send via custom Gmail template
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'invite',
+      email: email,
+      options: {
+        data: {
+          name: name,
+          role: role || null,
+          invited_by_name: senderName,
+          invited_by_email: senderEmail,
+          organization: 'Film Festival Management'
+        },
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+      }
     })
 
     if (inviteError) {
-      console.error('Error sending invitation:', inviteError)
+      console.error('Error generating invitation link:', inviteError)
       
-      // If error is because user already exists in Auth, still return success
-      if (inviteError.message?.includes('already been invited') || 
-          inviteError.message?.includes('already exists')) {
-        console.log('User already in Auth, but permissions record created')
-      } else {
-        // Clean up the permissions record if invite fails for other reasons
-        await supabaseAdmin
-          .from('user_permissions')
-          .delete()
-          .eq('id', permissionsRecord.id)
+      // Clean up the permissions record if invite fails
+      await supabaseAdmin
+        .from('user_permissions')
+        .delete()
+        .eq('id', permissionsRecord.id)
 
-        return NextResponse.json({ error: 'Failed to send invitation' }, { status: 500 })
-      }
+      return NextResponse.json({ error: 'Failed to generate invitation link' }, { status: 500 })
+    }
+
+    // Send custom email via Gmail API using Supabase Edge Function
+    const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-gmail-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+      },
+      body: JSON.stringify({
+        to: email,
+        subject: `You're invited to join Callsheet - Chicago International Film Festival`,
+        setupUrl: inviteData.properties?.action_link,
+        type: 'invite'
+      })
+    })
+
+    if (!emailResponse.ok) {
+      const emailError = await emailResponse.json()
+      console.error('Error sending invitation email:', emailError)
+      
+      // Clean up the permissions record if email fails
+      await supabaseAdmin
+        .from('user_permissions')
+        .delete()
+        .eq('id', permissionsRecord.id)
+
+      return NextResponse.json({ error: 'Failed to send invitation email' }, { status: 500 })
     }
 
     return NextResponse.json({
