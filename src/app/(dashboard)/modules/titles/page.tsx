@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { FilmCard, ProgramCard, VenueCard, GuestCard } from '@/types'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
@@ -97,7 +98,8 @@ interface ShortFilm {
 type ViewMode = 'features' | 'shorts' | 'programs'
 
 export default function TitlesPage() {
-  const { permissions } = useAuth()
+  const { } = useAuth()
+  const { permissions } = usePermissions()
   const [viewMode, setViewMode] = useState<ViewMode>('features')
   const [films, setFilms] = useState<FeatureFilm[]>([])
   const [shorts, setShorts] = useState<ShortFilm[]>([])

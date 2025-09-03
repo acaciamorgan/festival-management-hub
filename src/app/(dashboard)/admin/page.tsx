@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { createClient } from '@/lib/supabase/client'
 import { getAllModules } from '@/config/modules'
 import { ModulePermission } from '@/types'
@@ -21,7 +22,8 @@ interface UserRecord {
 }
 
 export default function AdminPage() {
-  const { user, permissions, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
+  const { permissions } = usePermissions()
   const [users, setUsers] = useState<UserRecord[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [error, setError] = useState('')

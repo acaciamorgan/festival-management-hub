@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import * as XLSX from 'xlsx-js-style'
@@ -53,7 +54,8 @@ interface ShortFilmWithScreenerData extends ShortFilm {
 type ViewMode = 'features' | 'shorts'
 
 export default function ScreenerAccessPage() {
-  const { user, permissions } = useAuth()
+  const { user } = useAuth()
+  const { permissions } = usePermissions()
   const [viewMode, setViewMode] = useState<ViewMode>('features')
   const [films, setFilms] = useState<FilmWithScreenerData[]>([])
   const [shorts, setShorts] = useState<ShortFilmWithScreenerData[]>([])

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { exportFestivalToExcel, exportArchivedYear } from '@/utils/excel-export'
 import { archiveFestival, clearFestivalData, getArchivedYears } from '@/lib/simple-archive'
 
@@ -21,7 +22,8 @@ interface ArchiveStats {
 }
 
 export default function ArchivesPage() {
-  const { user, permissions } = useAuth()
+  const { user } = useAuth()
+  const { permissions } = usePermissions()
   const [activeTab, setActiveTab] = useState<'overview' | 'archive' | 'export' | 'browse'>('overview')
   const [archiveStats, setArchiveStats] = useState<ArchiveStats | null>(null)
   const [loading, setLoading] = useState(true)

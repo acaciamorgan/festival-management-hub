@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { PressRequestFormModal } from '@/components/forms/press-request-form-modal'
 import { GenerateRequestsModal } from '@/components/modals/generate-requests-modal'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
@@ -35,7 +36,8 @@ interface FilmContact {
 }
 
 export default function PressRequestsPage() {
-  const { user, permissions } = useAuth()
+  const { user } = useAuth()
+  const { permissions } = usePermissions()
   const [requests, setRequests] = useState<PressRequest[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')

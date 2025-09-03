@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ModuleLayoutProps } from '@/types'
 import { DataGrid } from '@/components/ui/data-grid'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 
 
 export function ModuleLayout({
@@ -16,7 +17,8 @@ export function ModuleLayout({
   children
 }: ModuleLayoutProps) {
   const [view, setView] = useState<'grid' | 'calendar'>('grid')
-  const { permissions } = useAuth()
+  const { } = useAuth()
+  const { permissions } = usePermissions()
 
   const canEdit = permissions?.isAdmin || 
     permissions?.modulePermissions[moduleConfig.id]?.canEdit || false

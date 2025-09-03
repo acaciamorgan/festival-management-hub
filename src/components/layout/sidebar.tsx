@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { getAllModules } from '@/config/modules'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getOrdinalSuffix } from '@/utils/ordinal'
@@ -35,7 +36,8 @@ const moduleIcons: Record<string, any> = {
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { permissions, signOut } = useAuth()
+  const { signOut } = useAuth()
+  const { permissions } = usePermissions()
   const modules = getAllModules()
   const [festivalInfo, setFestivalInfo] = useState<{edition: string, name: string} | null>(null)
   const supabase = createClient()

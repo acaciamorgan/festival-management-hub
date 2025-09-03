@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { ContactCard } from '@/types'
 import { ContactFormModal } from '@/components/forms/contact-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
@@ -10,7 +11,8 @@ import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import * as XLSX from 'xlsx-js-style'
 
 export default function ContactsPage() {
-  const { user, permissions } = useAuth()
+  const { user } = useAuth()
+  const { permissions } = usePermissions()
   const [contacts, setContacts] = useState<ContactCard[]>([])
   const [filteredContacts, setFilteredContacts] = useState<ContactCard[]>([])
   const [loading, setLoading] = useState(false)

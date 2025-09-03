@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { PressCardPopup } from '@/components/cards/press-card-popup'
 import { PressCard, SocialMedia } from '@/types'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
@@ -10,7 +11,8 @@ import * as XLSX from 'xlsx-js-style'
 
 
 export default function PressManagementPage() {
-  const { permissions } = useAuth()
+  const { } = useAuth()
+  const { permissions } = usePermissions()
   const [press, setPress] = useState<PressCard[]>([])
   const [filteredPress, setFilteredPress] = useState<PressCard[]>([])
   const [loading, setLoading] = useState(false)

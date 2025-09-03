@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { RedCarpetFormModal } from '@/components/forms/red-carpet-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
@@ -55,7 +56,8 @@ interface GroupedRedCarpetEvent {
 }
 
 export default function RedCarpetsPage() {
-  const { user, permissions } = useAuth()
+  const { user } = useAuth()
+  const { permissions } = usePermissions()
   const [redCarpets, setRedCarpets] = useState<RedCarpet[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')

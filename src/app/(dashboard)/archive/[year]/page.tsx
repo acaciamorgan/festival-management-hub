@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { getAllModules } from '@/config/modules'
 import GenericArchiveViewer from '@/components/archive/generic-archive-viewer'
 import TitlesArchive from '@/components/archive/titles-archive'
@@ -21,7 +22,8 @@ interface FestivalYear {
 export default function ArchiveBrowserPage() {
   const params = useParams()
   const year = parseInt(params.year as string)
-  const { user, permissions, loading } = useAuth()
+  const { user, loading } = useAuth()
+  const { permissions } = usePermissions()
   const [festivalInfo, setFestivalInfo] = useState<FestivalYear | null>(null)
   const [activeModule, setActiveModule] = useState<string>('festival-overview')
   const [loadingFestival, setLoadingFestival] = useState(true)

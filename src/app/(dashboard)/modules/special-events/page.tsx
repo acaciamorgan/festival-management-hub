@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { SpecialEventCard } from '@/types'
 import { SpecialEventFormModal } from '@/components/forms/special-event-form-modal'
 import { SpecialEventsCalendar } from '@/components/calendar/special-events-calendar'
@@ -10,7 +11,8 @@ import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import * as XLSX from 'xlsx-js-style'
 
 export default function SpecialEventsPage() {
-  const { user, permissions } = useAuth()
+  const { user } = useAuth()
+  const { permissions } = usePermissions()
   const [specialEvents, setSpecialEvents] = useState<SpecialEventCard[]>([])
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)

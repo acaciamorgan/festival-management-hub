@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { ColorPalette } from '@/components/ColorPalette'
 import { ProgrammingFilmFormModal } from '@/components/forms/programming-film-form-modal'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
@@ -50,7 +51,8 @@ interface ProgrammingFilm {
 }
 
 export default function ProgrammingPipelinePage() {
-  const { user, permissions } = useAuth()
+  const { user } = useAuth()
+  const { permissions } = usePermissions()
   const [programmingFilms, setProgrammingFilms] = useState<ProgrammingFilm[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
