@@ -10,7 +10,7 @@ const emailTemplate = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Register your Callsheet account</title>
+  <title>{{EMAIL_TITLE}}</title>
 </head>
 <body style="margin:0; padding:0; font-family:Arial, sans-serif; background-color:#f9f9f9;">
   <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="#f9f9f9">
@@ -21,27 +21,34 @@ const emailTemplate = `<!DOCTYPE html>
           <tr>
             <td style="padding:40px; text-align:left;">
               <h1 style="margin:0 0 20px; font-size:24px; color:#111;">
-                Register your Callsheet account today!
+                {{EMAIL_HEADER}}
               </h1>
               <p style="margin:0 0 15px; font-size:16px; line-height:1.5; color:#444;">
                 Callsheet is the communications backbone of the Chicago International Film Festival, powered by <a href="https://www.acaciaconsultinggroup.com" style="color:#4F46E5; text-decoration:none;">Acacia</a>. Here, you will see detailed information about each title screening during the Festival, as well as information that pertains to your work with the Festival including filmmaker attendance, screening schedules, special events, and more.
               </p>
+              <p style="margin:0 0 15px; font-size:16px; line-height:1.5; color:#444;">
+                Your login credentials are:
+              </p>
+              <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:6px; padding:20px; margin:0 0 20px;">
+                <p style="margin:0 0 10px; font-size:14px; color:#666;"><strong>Email:</strong> {{USER_EMAIL}}</p>
+                <p style="margin:0; font-size:14px; color:#666;"><strong>Temporary Password:</strong> <code style="background:#e9ecef; padding:2px 6px; border-radius:3px; font-family:monospace;">{{TEMP_PASSWORD}}</code></p>
+              </div>
               <p style="margin:0 0 30px; font-size:16px; line-height:1.5; color:#444;">
-                Click the button below to set up your account:
+                {{LOGIN_INSTRUCTION}}
               </p>
               <!-- CTA button -->
               <table cellspacing="0" cellpadding="0" align="center" style="margin:0 0 30px;">
                 <tr>
                   <td bgcolor="#4F46E5" style="border-radius:6px;">
-                    <a href="{{SETUP_URL}}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:16px; color:#ffffff; text-decoration:none; font-weight:bold; border-radius:6px;">
-                      Set Up My Account
+                    <a href="{{LOGIN_URL}}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:16px; color:#ffffff; text-decoration:none; font-weight:bold; border-radius:6px;">
+                      {{BUTTON_TEXT}}
                     </a>
                   </td>
                 </tr>
               </table>
               <p style="margin:0 0 15px; font-size:14px; line-height:1.5; color:#666;">
                 If the button doesn't work, copy and paste this link into your browser:<br>
-                <span style="color:#4F46E5; word-break:break-all;">{{SETUP_URL}}</span>
+                <span style="color:#4F46E5; word-break:break-all;">{{LOGIN_URL}}</span>
               </p>
               <p style="margin:0; font-size:16px; line-height:1.5; color:#444;">
                 Thank you!
@@ -62,7 +69,7 @@ serve(async (req) => {
   }
 
   try {
-    const { to, subject, setupUrl, type } = await req.json()
+    const { to, subject, tempPassword, loginUrl, type } = await req.json()
 
     // Get service account credentials
     const serviceAccountEmail = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_EMAIL')
@@ -128,16 +135,33 @@ serve(async (req) => {
       throw new Error('Failed to get access token: ' + JSON.stringify(tokenData))
     }
 
-    // Prepare email content
+    // Prepare email content with template replacements
     let htmlContent = emailTemplate
+    
     if (type === 'password_reset') {
       htmlContent = htmlContent
-        .replace('Register your Callsheet account today!', 'Reset your Callsheet password')
-        .replace('Follow this link to set up your account:', 'Reset your Callsheet password at this link:')
-        .replace('Set Up My Account', 'Reset My Password')
+        .replaceAll('{{EMAIL_TITLE}}', 'Reset your Callsheet password')
+        .replaceAll('{{EMAIL_HEADER}}', 'Reset your Callsheet password')
+        .replaceAll('{{LOGIN_INSTRUCTION}}', 'Use your temporary password below to log in, then you will be prompted to create a new password.')
+        .replaceAll('{{BUTTON_TEXT}}', 'Login to Reset Password')
+    } else if (type === 'invite_with_password') {
+      htmlContent = htmlContent
+        .replaceAll('{{EMAIL_TITLE}}', 'Callsheet Access Reminder')
+        .replaceAll('{{EMAIL_HEADER}}', 'Callsheet Access Reminder')
+        .replaceAll('{{LOGIN_INSTRUCTION}}', 'Here are your updated login credentials. You will be prompted to change your password on login.')
+        .replaceAll('{{BUTTON_TEXT}}', 'Login to Callsheet')
+    } else {
+      htmlContent = htmlContent
+        .replaceAll('{{EMAIL_TITLE}}', 'Welcome to Callsheet')
+        .replaceAll('{{EMAIL_HEADER}}', 'Welcome to Callsheet!')
+        .replaceAll('{{LOGIN_INSTRUCTION}}', 'Use the credentials below to log in. You will be prompted to change your password on first login.')
+        .replaceAll('{{BUTTON_TEXT}}', 'Login to Callsheet')
     }
     
-    htmlContent = htmlContent.replaceAll('{{SETUP_URL}}', setupUrl)
+    htmlContent = htmlContent
+      .replaceAll('{{USER_EMAIL}}', to)
+      .replaceAll('{{TEMP_PASSWORD}}', tempPassword)
+      .replaceAll('{{LOGIN_URL}}', loginUrl)
 
     // Create email message
     const emailContent = [
