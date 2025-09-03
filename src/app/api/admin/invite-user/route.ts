@@ -77,17 +77,21 @@ export async function POST(request: Request) {
     const senderName = senderInfo?.user_name || user.email || 'Administrator'
     const senderEmail = senderInfo?.user_email || user.email
 
+    // Generate secure temporary password
+    const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!${Math.floor(Math.random() * 9) + 1}`
+    
     // Create Auth user immediately using createUser (doesn't send automatic emails)
     const { data: authUser, error: authCreateError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
-      password: Math.random().toString(36).slice(-12), // Temporary password they'll reset
+      password: tempPassword,
       email_confirm: true,
       user_metadata: {
         name: name,
         role: role || null,
         invited_by_name: senderName,
         invited_by_email: senderEmail,
-        organization: 'Film Festival Management'
+        organization: 'Film Festival Management',
+        needs_password_change: true
       }
     })
 
@@ -121,22 +125,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to link user account' }, { status: 500 })
     }
 
-    // Generate password setup link for initial password creation
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email: email,
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/setup-password`
-      }
-    })
-
-    if (inviteError) {
-      console.error('Error generating invitation link:', inviteError)
-      // Don't clean up permissions record since Auth user was created successfully
-      return NextResponse.json({ error: 'Failed to generate invitation link' }, { status: 500 })
-    }
-
-    // Send custom email via Gmail API using Supabase Edge Function
+    // Send custom email with temporary password via Gmail API
     const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-gmail-email`, {
       method: 'POST',
       headers: {
@@ -146,8 +135,9 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         to: email,
         subject: `You're invited to join Callsheet - Chicago International Film Festival`,
-        setupUrl: inviteData.properties?.action_link,
-        type: 'invite'
+        tempPassword: tempPassword,
+        loginUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/login`,
+        type: 'invite_with_password'
       })
     })
 

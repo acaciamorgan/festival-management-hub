@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -17,6 +17,13 @@ export default function SettingsPage() {
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState('')
   const [changingPassword, setChangingPassword] = useState(false)
+  const [forceChange, setForceChange] = useState(false)
+
+  useEffect(() => {
+    // Check if this is a forced password change from first login
+    const urlParams = new URLSearchParams(window.location.search)
+    setForceChange(urlParams.get('force_password_change') === 'true')
+  }, [])
 
   // Password strength checker
   const getPasswordStrength = (password: string) => {

@@ -63,21 +63,21 @@ export async function POST(request: Request) {
 
     // Auth user already exists - no need to create again
 
-    // Generate password setup link for password creation
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email: email,
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/setup-password`
-      }
-    })
-
-    if (inviteError) {
-      console.error('Error generating invitation link:', inviteError)
-      return NextResponse.json({ error: 'Failed to generate invitation link' }, { status: 500 })
+    // Generate new temporary password for resend
+    const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!${Math.floor(Math.random() * 9) + 1}`
+    
+    // Update the user's password
+    const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
+      existingUser.user_id,
+      { password: tempPassword }
+    )
+    
+    if (passwordError) {
+      console.error('Error updating password:', passwordError)
+      return NextResponse.json({ error: 'Failed to generate new password' }, { status: 500 })
     }
 
-    // Send custom email via Gmail API using Supabase Edge Function
+    // Send custom email with new temporary password via Gmail API
     const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-gmail-email`, {
       method: 'POST',
       headers: {
@@ -87,8 +87,9 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         to: email,
         subject: `Reminder: You're invited to join Callsheet - Chicago International Film Festival`,
-        setupUrl: inviteData.properties?.action_link,
-        type: 'invite'
+        tempPassword: tempPassword,
+        loginUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/login`,
+        type: 'invite_with_password'
       })
     })
 

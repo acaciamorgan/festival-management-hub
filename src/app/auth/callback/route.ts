@@ -51,9 +51,9 @@ export async function GET(request: NextRequest) {
         console.error('Error linking user to permissions:', updateError)
       }
 
-      // If user was invited (has invited_by metadata), redirect to password setup
-      if (user.user_metadata?.invited_by_name) {
-        return NextResponse.redirect(`${origin}/auth/setup-password`)
+      // If user needs to change password (first login), redirect to password change
+      if (user.user_metadata?.needs_password_change) {
+        return NextResponse.redirect(`${origin}/settings?force_password_change=true`)
       }
     }
 
