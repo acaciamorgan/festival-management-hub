@@ -77,7 +77,35 @@ export async function POST(request: Request) {
     const senderName = senderInfo?.user_name || user.email || 'Administrator'
     const senderEmail = senderInfo?.user_email || user.email
 
-    // Generate invite link and send via custom Gmail template
+    // First create the Auth user with inviteUserByEmail to set up the account
+    const { data: authInviteData, error: authInviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      data: {
+        name: name,
+        role: role || null,
+        invited_by_name: senderName,
+        invited_by_email: senderEmail,
+        organization: 'Film Festival Management'
+      },
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+    })
+
+    if (authInviteError) {
+      console.error('Error creating Auth user:', authInviteError)
+      
+      // If error is because user already exists in Auth, that's okay
+      if (!authInviteError.message?.includes('already been invited') && 
+          !authInviteError.message?.includes('already exists')) {
+        // Clean up the permissions record if invite fails for other reasons
+        await supabaseAdmin
+          .from('user_permissions')
+          .delete()
+          .eq('id', permissionsRecord.id)
+
+        return NextResponse.json({ error: 'Failed to create user account' }, { status: 500 })
+      }
+    }
+
+    // Now generate a custom invite link for our branded email
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'invite',
       email: email,
@@ -95,13 +123,7 @@ export async function POST(request: Request) {
 
     if (inviteError) {
       console.error('Error generating invitation link:', inviteError)
-      
-      // Clean up the permissions record if invite fails
-      await supabaseAdmin
-        .from('user_permissions')
-        .delete()
-        .eq('id', permissionsRecord.id)
-
+      // Don't clean up permissions record since Auth user was created successfully
       return NextResponse.json({ error: 'Failed to generate invitation link' }, { status: 500 })
     }
 
