@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         user_email: email,
         user_name: name,
         user_role: role || null,
-        phone: phone || null,
+        user_phone: phone || null,
         is_admin: false,
         is_super_admin: false,
         module_permissions: modulePermissions || {}
