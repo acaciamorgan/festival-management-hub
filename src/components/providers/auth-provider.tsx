@@ -24,7 +24,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserPermissions = async (userId: string, userEmail: string): Promise<UserPermissions | null> => {
     try {
-      // Use service role client to bypass any RLS
       const { data, error } = await supabase
         .from('user_permissions')
         .select('*')
@@ -32,31 +31,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (error) {
-        // If no permissions record exists, create a default one
-        if (error.code === 'PGRST116') {
-          console.log('No permissions found, creating default record')
-          
-          const { data: newRecord, error: insertError } = await supabase
-            .from('user_permissions')
-            .insert({
-              user_id: userId,
-              user_email: userEmail,
-              is_admin: false,
-              is_super_admin: false,
-              module_permissions: {}
-            })
-            .select()
-            .single()
-
-          if (insertError) {
-            console.error('Error creating default permissions:', insertError)
-            return null
-          }
-
-          data = newRecord
-        } else {
-          console.error('Error fetching permissions:', error)
-          return null
+        console.error('No permissions found for user:', error)
+        // Return basic fallback permissions instead of trying to create record
+        return {
+          userId: userId,
+          userEmail: userEmail,
+          userName: undefined,
+          userRole: undefined,
+          isAdmin: false,
+          isSuperAdmin: false,
+          modulePermissions: {}
         }
       }
 
