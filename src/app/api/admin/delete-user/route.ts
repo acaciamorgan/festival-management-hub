@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
-export async function DELETE(request: Request) {
+export async function POST(request: Request) {
   try {
     const { userId } = await request.json()
 
