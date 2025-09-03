@@ -77,47 +77,56 @@ export async function POST(request: Request) {
     const senderName = senderInfo?.user_name || user.email || 'Administrator'
     const senderEmail = senderInfo?.user_email || user.email
 
-    // First create the Auth user with inviteUserByEmail to set up the account
-    const { data: authInviteData, error: authInviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: {
+    // Create Auth user immediately using createUser (doesn't send automatic emails)
+    const { data: authUser, error: authCreateError } = await supabaseAdmin.auth.admin.createUser({
+      email: email,
+      password: Math.random().toString(36).slice(-12), // Temporary password they'll reset
+      email_confirm: true,
+      user_metadata: {
         name: name,
         role: role || null,
         invited_by_name: senderName,
         invited_by_email: senderEmail,
         organization: 'Film Festival Management'
-      },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+      }
     })
 
-    if (authInviteError) {
-      console.error('Error creating Auth user:', authInviteError)
+    if (authCreateError) {
+      console.error('Error creating Auth user:', authCreateError)
       
-      // If error is because user already exists in Auth, that's okay
-      if (!authInviteError.message?.includes('already been invited') && 
-          !authInviteError.message?.includes('already exists')) {
-        // Clean up the permissions record if invite fails for other reasons
-        await supabaseAdmin
-          .from('user_permissions')
-          .delete()
-          .eq('id', permissionsRecord.id)
+      // Clean up the permissions record if user creation fails
+      await supabaseAdmin
+        .from('user_permissions')
+        .delete()
+        .eq('id', permissionsRecord.id)
 
-        return NextResponse.json({ error: 'Failed to create user account' }, { status: 500 })
-      }
+      return NextResponse.json({ error: 'Failed to create user account' }, { status: 500 })
     }
 
-    // Now generate a custom invite link for our branded email
+    // Update the permissions record with the actual user_id
+    const { error: updateError } = await supabaseAdmin
+      .from('user_permissions')
+      .update({ user_id: authUser.user.id })
+      .eq('id', permissionsRecord.id)
+
+    if (updateError) {
+      console.error('Error updating permissions with user_id:', updateError)
+      // Clean up both records if this fails
+      await supabaseAdmin.auth.admin.deleteUser(authUser.user.id)
+      await supabaseAdmin
+        .from('user_permissions')
+        .delete()
+        .eq('id', permissionsRecord.id)
+
+      return NextResponse.json({ error: 'Failed to link user account' }, { status: 500 })
+    }
+
+    // Generate password reset link for initial password setup
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',
+      type: 'recovery',
       email: email,
       options: {
-        data: {
-          name: name,
-          role: role || null,
-          invited_by_name: senderName,
-          invited_by_email: senderEmail,
-          organization: 'Film Festival Management'
-        },
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`
       }
     })
 

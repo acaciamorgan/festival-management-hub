@@ -46,9 +46,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Only resend if user hasn't accepted the invite yet (user_id is null)
-    if (existingUser.user_id) {
-      return NextResponse.json({ error: 'User has already accepted the invitation' }, { status: 400 })
+    // Verify user exists (user_id should always exist now)
+    if (!existingUser.user_id) {
+      return NextResponse.json({ error: 'Invalid user state - missing user ID' }, { status: 400 })
     }
 
     // Get sender's information for email
@@ -61,36 +61,14 @@ export async function POST(request: Request) {
     const senderName = senderInfo?.user_name || user.email || 'Administrator'
     const senderEmail = senderInfo?.user_email || user.email
 
-    // Try to create/update the Auth user - ignore most errors since this is a resend
-    try {
-      await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-        data: {
-          name: existingUser.user_name || '',
-          role: existingUser.user_role || '',
-          invited_by_name: senderName,
-          invited_by_email: senderEmail,
-          organization: 'Film Festival Management'
-        },
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
-      })
-    } catch (authError) {
-      // Ignore most Auth errors for resends - user likely already exists
-      console.log('Auth invite attempt (expected to fail on resend):', authError)
-    }
+    // Auth user already exists - no need to create again
 
-    // Generate new invite link for our custom branded email
+    // Generate password reset link for password setup
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',
+      type: 'recovery',
       email: email,
       options: {
-        data: {
-          name: existingUser.user_name || '',
-          role: existingUser.user_role || '',
-          invited_by_name: senderName,
-          invited_by_email: senderEmail,
-          organization: 'Film Festival Management'
-        },
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`
       }
     })
 

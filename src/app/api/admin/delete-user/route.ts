@@ -56,13 +56,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 403 })
     }
 
-    // If user has accepted the invite (has user_id), delete from Supabase Auth first
+    // Delete from Supabase Auth (user_id should always exist now)
     if (targetUser.user_id) {
       const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(targetUser.user_id)
       if (authDeleteError) {
         console.error('Error deleting user from auth:', authDeleteError)
         return NextResponse.json({ error: 'Failed to delete user from authentication system' }, { status: 500 })
       }
+    } else {
+      console.warn('User has no user_id - this should not happen with the new invite system')
     }
 
     // Delete from user_permissions table

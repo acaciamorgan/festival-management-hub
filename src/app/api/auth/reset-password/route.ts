@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       .eq('user_email', email)
       .single()
 
-    if (userError || !existingUser || !existingUser.user_id) {
+    if (userError || !existingUser) {
       return NextResponse.json({ error: 'No account found with this email address' }, { status: 404 })
     }
 
