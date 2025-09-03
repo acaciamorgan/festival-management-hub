@@ -67,12 +67,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to create user permissions' }, { status: 500 })
     }
 
-    // Send Supabase Auth invitation email
+    // Get sender's information for email
+    const { data: senderInfo, error: senderError } = await supabaseAdmin
+      .from('user_permissions')
+      .select('user_name, user_email')
+      .eq('user_id', user.id)
+      .single()
+
+    const senderName = senderInfo?.user_name || user.email || 'Administrator'
+    const senderEmail = senderInfo?.user_email || user.email
+
+    // Send Supabase Auth invitation email with sender information
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: {
         name: name,
-        role: role || null
-      }
+        role: role || null,
+        invited_by_name: senderName,
+        invited_by_email: senderEmail,
+        organization: 'Film Festival Management'
+      },
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
     })
 
     if (inviteError) {

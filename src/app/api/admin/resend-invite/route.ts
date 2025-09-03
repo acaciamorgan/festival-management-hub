@@ -51,12 +51,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User has already accepted the invitation' }, { status: 400 })
     }
 
-    // Resend Supabase Auth invitation email
+    // Get sender's information for email
+    const { data: senderInfo, error: senderError } = await supabaseAdmin
+      .from('user_permissions')
+      .select('user_name, user_email')
+      .eq('user_id', user.id)
+      .single()
+
+    const senderName = senderInfo?.user_name || user.email || 'Administrator'
+    const senderEmail = senderInfo?.user_email || user.email
+
+    // Resend Supabase Auth invitation email with sender information
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: {
         name: existingUser.user_name || '',
-        role: existingUser.user_role || ''
-      }
+        role: existingUser.user_role || '',
+        invited_by_name: senderName,
+        invited_by_email: senderEmail,
+        organization: 'Film Festival Management'
+      },
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
     })
 
     if (inviteError) {
