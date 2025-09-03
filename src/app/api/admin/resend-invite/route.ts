@@ -61,23 +61,21 @@ export async function POST(request: Request) {
     const senderName = senderInfo?.user_name || user.email || 'Administrator'
     const senderEmail = senderInfo?.user_email || user.email
 
-    // First ensure the Auth user exists with inviteUserByEmail
-    const { data: authInviteData, error: authInviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: {
-        name: existingUser.user_name || '',
-        role: existingUser.user_role || '',
-        invited_by_name: senderName,
-        invited_by_email: senderEmail,
-        organization: 'Film Festival Management'
-      },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
-    })
-
-    // Ignore errors if user already exists in Auth - that's expected for resends
-    if (authInviteError && !authInviteError.message?.includes('already been invited') && 
-        !authInviteError.message?.includes('already exists')) {
-      console.error('Error creating/updating Auth user:', authInviteError)
-      return NextResponse.json({ error: 'Failed to update user account' }, { status: 500 })
+    // Try to create/update the Auth user - ignore most errors since this is a resend
+    try {
+      await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+        data: {
+          name: existingUser.user_name || '',
+          role: existingUser.user_role || '',
+          invited_by_name: senderName,
+          invited_by_email: senderEmail,
+          organization: 'Film Festival Management'
+        },
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+      })
+    } catch (authError) {
+      // Ignore most Auth errors for resends - user likely already exists
+      console.log('Auth invite attempt (expected to fail on resend):', authError)
     }
 
     // Generate new invite link for our custom branded email
