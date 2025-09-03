@@ -1633,7 +1633,7 @@ export default function TitlesPage() {
             >
               👥 {showGuestMode ? 'Hide Guests' : 'Show Guests'}
             </button>
-            {viewMode === 'shorts' && (
+            {canEditTitles && viewMode === 'shorts' && (
               <>
                 <button
                   onClick={() => setShowCreateProgramModal(true)}
@@ -1654,12 +1654,14 @@ export default function TitlesPage() {
             )}
             {viewMode === 'programs' && (
               <>
-                <button
-                  onClick={() => setShowCreateEventModal(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
-                >
-                  ➕ Create Program
-                </button>
+                {canEditTitles && (
+                  <button
+                    onClick={() => setShowCreateEventModal(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
+                  >
+                    ➕ Create Program
+                  </button>
+                )}
                 <button
                   onClick={() => setShowIndustryDaysOnly(!showIndustryDaysOnly)}
                   className={`px-4 py-2 rounded-md transition-colors ${
@@ -1672,16 +1674,18 @@ export default function TitlesPage() {
                 </button>
               </>
             )}
-            <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors">
-              {uploading ? 'Uploading...' : '📂 Upload CSV'}
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleCSVUpload}
-                disabled={uploading}
-                className="hidden"
-              />
-            </label>
+            {canEditTitles && (
+              <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors">
+                {uploading ? 'Uploading...' : '📂 Upload CSV'}
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
         </div>
         
@@ -1958,11 +1962,14 @@ export default function TitlesPage() {
             </h2>
             <p className="text-gray-600 mb-4">
               {viewMode === 'programs' 
-                ? 'Click "Create Program" to add your first program event.'
-                : `Upload a CSV file to add ${viewMode === 'features' ? 'films' : 'shorts'} to the database.`
+                ? (canEditTitles ? 'Click "Create Program" to add your first program event.' : 'No program events have been created yet.')
+                : (canEditTitles 
+                    ? `Upload a CSV file to add ${viewMode === 'features' ? 'films' : 'shorts'} to the database.`
+                    : `No ${viewMode === 'features' ? 'films' : 'shorts'} have been added yet.`
+                  )
               }
             </p>
-            {viewMode !== 'programs' && (
+            {canEditTitles && viewMode !== 'programs' && (
               <label className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md cursor-pointer transition-colors inline-block">
                 📂 Upload CSV File
                 <input
