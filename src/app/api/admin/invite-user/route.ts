@@ -125,19 +125,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to link user account' }, { status: 500 })
     }
 
-    // Send custom email with temporary password via Gmail API
-    const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-gmail-email`, {
+    // Send invitation via working edge function
+    const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-invitation`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
       },
       body: JSON.stringify({
-        to: email,
-        subject: `You're invited to join Callsheet - Chicago International Film Festival`,
-        tempPassword: tempPassword,
-        loginUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/login`,
-        type: 'invite_with_password'
+        email: email,
+        name: name,
+        role: role,
+        phone: phone,
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/settings?force_password_change=true`
       })
     })
 
