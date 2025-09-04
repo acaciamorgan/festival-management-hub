@@ -110,14 +110,15 @@ export default function SettingsPage() {
       setNewPassword('')
       setConfirmPassword('')
 
-      // Optional: Redirect to login after 2 seconds
-      setTimeout(() => {
-        setPasswordSuccess('Password changed. Redirecting to login...')
+      // If this was a forced password change, redirect to main app
+      if (forceChange) {
         setTimeout(() => {
-          supabase.auth.signOut()
-          router.push('/auth/login')
+          setPasswordSuccess('Password changed successfully! Redirecting to main app...')
+          setTimeout(() => {
+            router.push('/modules/festival-overview')
+          }, 1000)
         }, 1000)
-      }, 2000)
+      }
 
     } catch (error: any) {
       setPasswordError(error.message || 'Failed to change password')

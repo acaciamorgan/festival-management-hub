@@ -38,10 +38,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 })
     }
 
-    // Update the password
+    // Update the password and clear the password change requirement
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       user.id,
-      { password: newPassword }
+      { 
+        password: newPassword,
+        user_metadata: {
+          ...user.user_metadata,
+          needs_password_change: false
+        }
+      }
     )
 
     if (updateError) {

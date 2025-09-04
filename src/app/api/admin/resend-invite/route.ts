@@ -66,10 +66,15 @@ export async function POST(request: Request) {
     // Generate new temporary password for resend
     const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!${Math.floor(Math.random() * 9) + 1}`
     
-    // Update the user's password
+    // Update the user's password and set needs_password_change flag
     const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
       existingUser.user_id,
-      { password: tempPassword }
+      { 
+        password: tempPassword,
+        user_metadata: {
+          needs_password_change: true
+        }
+      }
     )
     
     if (passwordError) {
