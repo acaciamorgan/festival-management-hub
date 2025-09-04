@@ -24,7 +24,7 @@ interface ArchiveStats {
 export default function ArchivesPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
-  const [activeTab, setActiveTab] = useState<'overview' | 'archive' | 'export' | 'browse'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'archive' | 'export' | 'browse' | 'administration'>('overview')
   const [archiveStats, setArchiveStats] = useState<ArchiveStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [archiving, setArchiving] = useState(false)
@@ -32,6 +32,12 @@ export default function ArchivesPage() {
   const [archiveResult, setArchiveResult] = useState<any>(null)
   const [exportResult, setExportResult] = useState<any>(null)
   const [selectedBrowseYear, setSelectedBrowseYear] = useState<number | null>(null)
+  
+  // Close Festival states
+  const [closureStep, setClosureStep] = useState<'none' | 'prepare' | 'confirm'>('none')
+  const [closureConfirmText, setClosureConfirmText] = useState('')
+  const [closing, setClosing] = useState(false)
+  const [closureResult, setClosureResult] = useState<any>(null)
 
   const supabase = createClient()
 
@@ -153,6 +159,88 @@ export default function ArchivesPage() {
     })
   }
 
+  // Check if current festival can be closed (must be archived first)
+  const canCloseFestival = () => {
+    return archiveResult?.success === true
+  }
+
+  const handlePrepareFestivalClosure = () => {
+    setClosureStep('prepare')
+  }
+
+  const handleProceedToConfirm = () => {
+    setClosureStep('confirm')
+    setClosureConfirmText('')
+  }
+
+  const handleCloseFestival = async () => {
+    if (closureConfirmText !== 'CLOSE FESTIVAL') {
+      alert('Please type "CLOSE FESTIVAL" to confirm')
+      return
+    }
+
+    setClosing(true)
+    setClosureResult(null)
+
+    try {
+      // Tables to wipe (everything except user_permissions and venues)
+      const tablesToWipe = [
+        'film_cards',
+        'guest_cards', 
+        'press_cards',
+        'contact_cards',
+        'interview_cards',
+        'published_screenings',
+        'pi_jury_screenings', 
+        'tech_check_screenings',
+        'press_screening_cards',
+        'photo_shoot_cards',
+        'red_carpet_cards',
+        'special_event_cards',
+        'screener_access_cards',
+        'press_request_cards',
+        'shorts_programs',
+        'programming_pipeline_cards'
+      ]
+
+      console.log('Starting festival closure - wiping tables:', tablesToWipe)
+
+      // Delete all data from each table
+      for (const table of tablesToWipe) {
+        const { error } = await supabase
+          .from(table)
+          .delete()
+          .neq('id', 'impossible-id') // Delete all rows
+        
+        if (error) {
+          console.error(`Error wiping ${table}:`, error)
+          throw new Error(`Failed to wipe ${table}: ${error.message}`)
+        }
+        
+        console.log(`Successfully wiped ${table}`)
+      }
+
+      setClosureResult({
+        success: true,
+        message: 'Festival closed successfully. All data wiped except users and venues.',
+        tablesWiped: tablesToWipe.length
+      })
+
+      // Reset states
+      setClosureStep('none')
+      setClosureConfirmText('')
+      
+    } catch (error) {
+      console.error('Festival closure failed:', error)
+      setClosureResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      })
+    } finally {
+      setClosing(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -179,7 +267,7 @@ export default function ArchivesPage() {
       <div className="bg-white border-b border-gray-200">
         <nav className="px-6">
           <div className="flex space-x-8">
-            {['overview', 'archive', 'export', 'browse'].map((tab) => (
+            {['overview', 'archive', 'export', 'browse', 'administration'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
@@ -492,6 +580,169 @@ export default function ArchivesPage() {
                   <p className="text-sm">Archive a festival first to browse its data</p>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'administration' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-2xl">⚠️</span>
+                <h2 className="text-lg font-medium text-gray-900">Festival Administration</h2>
+              </div>
+              
+              <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+                <div className="flex items-start">
+                  <span className="text-red-600 text-xl mr-3">🚨</span>
+                  <div>
+                    <h3 className="text-sm font-medium text-red-800">Danger Zone</h3>
+                    <p className="text-sm text-red-700 mt-1">
+                      Actions in this section are irreversible and will permanently modify or delete festival data.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Close Festival Section */}
+              <div className="border border-gray-200 rounded-lg p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-2xl">🔄</span>
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">Close Current Festival</h3>
+                    <p className="text-sm text-gray-600">
+                      Archive current festival data and wipe all content for next edition
+                    </p>
+                  </div>
+                </div>
+
+                {closureResult && (
+                  <div className={`mb-4 p-4 rounded-md ${
+                    closureResult.success 
+                      ? 'bg-green-50 border border-green-200 text-green-800' 
+                      : 'bg-red-50 border border-red-200 text-red-800'
+                  }`}>
+                    {closureResult.success ? (
+                      <div>
+                        <p className="font-medium">✅ {closureResult.message}</p>
+                        <p className="text-sm mt-1">Wiped {closureResult.tablesWiped} data tables</p>
+                      </div>
+                    ) : (
+                      <p className="font-medium">❌ {closureResult.error}</p>
+                    )}
+                  </div>
+                )}
+
+                {closureStep === 'none' && (
+                  <div className="space-y-4">
+                    {!canCloseFestival() && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                        <div className="flex items-start">
+                          <span className="text-yellow-600 text-lg mr-3">⚠️</span>
+                          <div>
+                            <h4 className="text-sm font-medium text-yellow-800">Prerequisites Required</h4>
+                            <p className="text-sm text-yellow-700 mt-1">
+                              You must successfully archive the current festival before closing it.
+                              Go to the "Archive" tab and complete the archive process first.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="bg-gray-50 rounded-md p-4">
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">What happens when you close the festival:</h4>
+                      <ul className="text-sm text-gray-700 space-y-1 list-disc list-inside">
+                        <li><strong>KEEPS:</strong> User accounts and venue data</li>
+                        <li><strong>DELETES:</strong> All films, guests, press, events, screenings, and other festival content</li>
+                        <li><strong>RESULT:</strong> Clean slate for next festival edition</li>
+                      </ul>
+                    </div>
+
+                    <button
+                      onClick={handlePrepareFestivalClosure}
+                      disabled={!canCloseFestival()}
+                      className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+                    >
+                      Prepare Festival Closure
+                    </button>
+                  </div>
+                )}
+
+                {closureStep === 'prepare' && (
+                  <div className="space-y-4">
+                    <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                      <div className="flex items-start">
+                        <span className="text-red-600 text-xl mr-3">⚠️</span>
+                        <div>
+                          <h4 className="text-sm font-medium text-red-800">Final Warning</h4>
+                          <p className="text-sm text-red-700 mt-1">
+                            This will permanently delete ALL festival content except users and venues. 
+                            This action cannot be undone. Are you absolutely sure?
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={() => setClosureStep('none')}
+                        className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-medium"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleProceedToConfirm}
+                        className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 font-medium"
+                      >
+                        Yes, Proceed to Confirmation
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {closureStep === 'confirm' && (
+                  <div className="space-y-4">
+                    <div className="bg-red-100 border-2 border-red-300 rounded-md p-4">
+                      <div className="flex items-start">
+                        <span className="text-red-600 text-2xl mr-3">🚨</span>
+                        <div>
+                          <h4 className="text-lg font-bold text-red-800">CONFIRMATION REQUIRED</h4>
+                          <p className="text-sm text-red-700 mt-2">
+                            Type exactly: <code className="bg-red-200 px-2 py-1 rounded font-mono text-red-900">CLOSE FESTIVAL</code>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <input
+                        type="text"
+                        value={closureConfirmText}
+                        onChange={(e) => setClosureConfirmText(e.target.value)}
+                        placeholder="Type confirmation text here..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      />
+                    </div>
+
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={() => setClosureStep('prepare')}
+                        className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-medium"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={handleCloseFestival}
+                        disabled={closing || closureConfirmText !== 'CLOSE FESTIVAL'}
+                        className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+                      >
+                        {closing ? 'Closing Festival...' : 'CLOSE FESTIVAL'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
