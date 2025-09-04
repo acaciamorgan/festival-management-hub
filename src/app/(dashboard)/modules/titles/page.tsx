@@ -1435,9 +1435,9 @@ export default function TitlesPage() {
   const processShortsCSV = async (rows: string[][], headers: string[], headerRowIndex: number = 0) => {
     setUploadStatus('Processing shorts CSV with new simple approach...')
     
-    // Find column indices directly
+    // Find column indices directly - check for both "Film Title" and "Title"
     const indices = {
-      title: headers.indexOf('Film Title'),
+      title: headers.indexOf('Film Title') !== -1 ? headers.indexOf('Film Title') : headers.indexOf('Title'),
       source: headers.indexOf('Source'),
       original_language_title: headers.indexOf('Original Language Title'),
       language: headers.indexOf('Language'),
@@ -1467,6 +1467,12 @@ export default function TitlesPage() {
     }
 
     console.log('Column indices found:', indices)
+    console.log('Title column index:', indices.title)
+    if (indices.title === -1) {
+      console.error('ERROR: Could not find title column! Headers are:', headers)
+      setUploadStatus('Error: Could not find title column in CSV. Looking for "Film Title" or "Title"')
+      return
+    }
     
     // NEW SIMPLE APPROACH - Skip all the complex mapping
     let created = 0
