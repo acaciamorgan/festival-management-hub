@@ -371,15 +371,34 @@ export default function InterviewManagementPage() {
     )
   }
 
-  // Format date/time for display
+  // Format date/time for display - NO TIMEZONE CONVERSION
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return '—'
-    const date = new Date(dateString)
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-    const dayName = dayNames[date.getDay()]
-    const month = (date.getMonth() + 1).toString().padStart(2, '0')
-    const day = date.getDate().toString().padStart(2, '0')
-    return `${dayName}, ${month}/${day}`
+    
+    // Parse date string directly without timezone conversion
+    const parts = dateString.split('-')
+    if (parts.length !== 3) return dateString
+    
+    const year = parseInt(parts[0])
+    const month = parseInt(parts[1])
+    const day = parseInt(parts[2])
+    
+    // Calculate day of week manually without Date object
+    // Zeller's congruence algorithm for day of week
+    let q = day
+    let m = month
+    let y = year
+    
+    if (month < 3) {
+      m = month + 12
+      y = year - 1
+    }
+    
+    const h = (q + Math.floor((13 * (m + 1)) / 5) + y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400)) % 7
+    const dayNames = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    const dayName = dayNames[h]
+    
+    return `${dayName}, ${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}`
   }
 
   const formatTime = (timeString: string | null): string => {
