@@ -17,7 +17,7 @@ export default function InterviewManagementPage() {
   const [interviews, setInterviews] = useState<InterviewCard[]>([])
   const [loading, setLoading] = useState(false)
 
-  const canEditInterviews = permissions?.modulePermissions?.['interviews']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
+  const canEditInterviews = permissions?.modulePermissions?.['interviewManagement']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   const [searchTerm, setSearchTerm] = useState('')
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'film_title', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})

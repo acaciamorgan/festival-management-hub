@@ -32,7 +32,7 @@ export default function ContactsPage() {
   const supabase = createClient()
 
   // Check if user has edit permissions for contacts
-  const canEditContacts = permissions?.modulePermissions?.['contacts']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
+  const canEditContacts = permissions?.modulePermissions?.['contactsManagement']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
 
   // Export template function for Contacts
   const exportContactsTemplate = () => {

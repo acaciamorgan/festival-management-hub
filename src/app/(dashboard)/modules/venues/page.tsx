@@ -14,7 +14,7 @@ export default function VenueManagementPage() {
   const [filteredVenues, setFilteredVenues] = useState<VenueCard[]>([])
   const [loading, setLoading] = useState(false)
 
-  const canEditVenues = permissions?.modulePermissions?.['venues']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
+  const canEditVenues = permissions?.modulePermissions?.['venueManagement']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedVenueType, setSelectedVenueType] = useState('')
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'name', direction: 'asc' })
