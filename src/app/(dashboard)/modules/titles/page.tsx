@@ -1435,9 +1435,9 @@ export default function TitlesPage() {
   const processShortsCSV = async (rows: string[][], headers: string[], headerRowIndex: number = 0) => {
     setUploadStatus('Processing shorts CSV with new simple approach...')
     
-    // Find column indices directly - check for both "Film Title" and "Title"
+    // Find column indices - prioritize "Title" (what the template generates) over "Film Title" (legacy)
     const indices = {
-      title: headers.indexOf('Film Title') !== -1 ? headers.indexOf('Film Title') : headers.indexOf('Title'),
+      title: headers.indexOf('Title') !== -1 ? headers.indexOf('Title') : headers.indexOf('Film Title'),
       source: headers.indexOf('Source'),
       original_language_title: headers.indexOf('Original Language Title'),
       language: headers.indexOf('Language'),
