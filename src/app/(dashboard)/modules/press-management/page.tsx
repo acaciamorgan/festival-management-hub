@@ -313,6 +313,8 @@ export default function PressManagementPage() {
         return 'bg-purple-50 hover:bg-purple-100'
       case 'G':
         return 'bg-green-50 hover:bg-green-100'
+      case 'S':
+        return 'bg-blue-50 hover:bg-blue-100'
       default:
         return 'hover:bg-gray-50'
     }
@@ -481,6 +483,8 @@ export default function PressManagementPage() {
                 pressData.accreditation_level = 'G'
               } else if (value.includes('Accredited - P')) {
                 pressData.accreditation_level = 'P'
+              } else if (value.includes('Accredited - S')) {
+                pressData.accreditation_level = 'S'
               } else {
                 pressData.accreditation_level = 'Unassigned'
               }
@@ -777,7 +781,7 @@ export default function PressManagementPage() {
                 <option value="">All Levels</option>
                 {uniqueAccreditationLevels.map(level => (
                   <option key={level} value={level}>
-                    {level === 'P' ? 'Premium (P)' : level === 'G' ? 'General (G)' : level}
+                    {level === 'P' ? 'Premium (P)' : level === 'G' ? 'General (G)' : level === 'S' ? 'Social (S)' : level}
                   </option>
                 ))}
               </select>
@@ -995,9 +999,11 @@ export default function PressManagementPage() {
                               ? 'bg-purple-100 text-purple-800'
                               : pressCard.accreditation_level === 'G'
                               ? 'bg-green-100 text-green-800'
+                              : pressCard.accreditation_level === 'S'
+                              ? 'bg-blue-100 text-blue-800'
                               : 'bg-gray-100 text-gray-800'
                           }`}>
-                            {pressCard.accreditation_level === 'P' ? 'Premium' : pressCard.accreditation_level === 'G' ? 'General' : pressCard.accreditation_level}
+                            {pressCard.accreditation_level === 'P' ? 'Premium' : pressCard.accreditation_level === 'G' ? 'General' : pressCard.accreditation_level === 'S' ? 'Social' : pressCard.accreditation_level}
                           </span>
                         )}
                       </td>
@@ -1096,6 +1102,7 @@ export default function PressManagementPage() {
                     <option value="Unassigned">Unassigned</option>
                     <option value="P">Premium (P)</option>
                     <option value="G">General (G)</option>
+                    <option value="S">Social (S)</option>
                   </select>
                 </div>
               </div>
