@@ -789,27 +789,31 @@ export default function InAttendancePage() {
             >
               🎬 {showFilmsMode ? 'Hide Films' : 'Show Films'}
             </button>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-            >
-              Add Guest
-            </button>
-            <div className="relative">
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleCSVImport}
-                disabled={uploading}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-              />
+            {canEditInAttendance && (
               <button
-                disabled={uploading}
-                className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed"
+                onClick={() => setShowAddModal(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
               >
-                {uploading ? 'Importing...' : 'Import CSV'}
+                Add Guest
               </button>
-            </div>
+            )}
+            {canEditInAttendance && (
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVImport}
+                  disabled={uploading}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                />
+                <button
+                  disabled={uploading}
+                  className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed"
+                >
+                  {uploading ? 'Importing...' : 'Import CSV'}
+                </button>
+              </div>
+            )}
             {uploadStatus && (
               <span className="text-sm text-gray-600">{uploadStatus}</span>
             )}

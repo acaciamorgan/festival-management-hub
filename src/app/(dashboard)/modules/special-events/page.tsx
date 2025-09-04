@@ -586,12 +586,14 @@ export default function SpecialEventsPage() {
                 </label>
               </>
             )}
-            <button
-              onClick={handleAddEvent}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-            >
-              Add Event
-            </button>
+            {canEditSpecialEvents && (
+              <button
+                onClick={handleAddEvent}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+              >
+                Add Event
+              </button>
+            )}
           </div>
         </div>
       </div>

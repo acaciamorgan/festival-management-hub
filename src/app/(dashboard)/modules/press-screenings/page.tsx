@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { PressScreeningCard, VenueCard, TheaterHouse } from '@/types'
 import { PressScreeningFormModal } from '@/components/forms/press-screening-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
@@ -10,6 +11,7 @@ import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 
 export default function PressScreeningsPage() {
   const { user } = useAuth()
+  const { permissions } = usePermissions()
   const [pressScreenings, setPressScreenings] = useState<PressScreeningCard[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -25,6 +27,8 @@ export default function PressScreeningsPage() {
   const [showShortCodeSuggestions, setShowShortCodeSuggestions] = useState(false)
 
   const supabase = createClient()
+
+  const canEditPressScreenings = permissions?.modulePermissions?.['pressScreenings']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
 
   const loadVenueShortCodes = useCallback(async () => {
     try {
@@ -431,12 +435,14 @@ export default function PressScreeningsPage() {
           </div>
           
           <div className="flex items-center space-x-4">
-            <button
-              onClick={handleAddScreening}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-            >
-              Add Screening
-            </button>
+            {canEditPressScreenings && (
+              <button
+                onClick={handleAddScreening}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+              >
+                Add Screening
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -651,12 +657,14 @@ export default function PressScreeningsPage() {
             <p className="text-gray-500 mb-4">
               {searchTerm ? 'Try adjusting your search' : 'Get started by adding your first press screening'}
             </p>
-            <button
-              onClick={handleAddScreening}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-            >
-              Add Screening
-            </button>
+            {canEditPressScreenings && (
+              <button
+                onClick={handleAddScreening}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+              >
+                Add Screening
+              </button>
+            )}
           </div>
         )}
       </div>

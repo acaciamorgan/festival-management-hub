@@ -433,26 +433,30 @@ export default function PhotoShootsPage() {
                 📄 Create Photo Shoots Template
               </button>
             )}
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
-            >
-              Add Shoot
-            </button>
-            <div className="relative">
-              <input
-                type="file"
-                accept=".csv"
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                onChange={(e) => {
-                  // TODO: Implement CSV import
-                  console.log('CSV import not yet implemented')
-                }}
-              />
-              <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-medium">
-                Import CSV
+            {canEditPhotoShoots && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+              >
+                Add Shoot
               </button>
-            </div>
+            )}
+            {canEditPhotoShoots && (
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  onChange={(e) => {
+                    // TODO: Implement CSV import
+                    console.log('CSV import not yet implemented')
+                  }}
+                />
+                <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-medium">
+                  Import CSV
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

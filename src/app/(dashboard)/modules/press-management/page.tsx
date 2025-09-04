@@ -710,22 +710,26 @@ export default function PressManagementPage() {
                 📄 Create Press Template
               </button>
             )}
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
-            >
-              ➕ Add Journalist
-            </button>
-            <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors">
-              {uploading ? 'Uploading...' : '📂 Upload CSV'}
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleCSVUpload}
-                disabled={uploading}
-                className="hidden"
-              />
-            </label>
+            {canEditPress && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
+              >
+                ➕ Add Journalist
+              </button>
+            )}
+            {canEditPress && (
+              <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors">
+                {uploading ? 'Uploading...' : '📂 Upload CSV'}
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
         </div>
         

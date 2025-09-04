@@ -316,12 +316,14 @@ export default function PressRequestsPage() {
             >
               Generate Requests ({newRequestsCount} new)
             </button>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
-            >
-              Add Request
-            </button>
+            {canEditPressRequests && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+              >
+                Add Request
+              </button>
+            )}
           </div>
         </div>
       </div>
