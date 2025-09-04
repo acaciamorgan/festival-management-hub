@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
 import * as XLSX from 'xlsx-js-style'
@@ -860,7 +861,10 @@ type ViewMode = 'ticketing' | 'pi-jury' | 'tech-checks' | 'screening-board'
 
 export default function TicketingPage() {
   const { user } = useAuth()
+  const { permissions } = usePermissions()
   const [viewMode, setViewMode] = useState<ViewMode>('ticketing')
+
+  const canEditTicketing = permissions?.modulePermissions?.['ticketing']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   
   // Data states
   const [publishedScreenings, setPublishedScreenings] = useState<PublishedScreening[]>([])
@@ -1728,12 +1732,14 @@ export default function TicketingPage() {
                 {unpublishing ? 'Unpublishing...' : `Unpublish Selected (${selectedForUnpublish.size})`}
               </button>
             )}
-            <button
-              onClick={handleAddScreening}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
-            >
-              {viewMode === 'tech-checks' ? 'Add Tech Check' : 'Add Screening'}
-            </button>
+            {canEditTicketing && (
+              <button
+                onClick={handleAddScreening}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+              >
+                {viewMode === 'tech-checks' ? 'Add Tech Check' : 'Add Screening'}
+              </button>
+            )}
             
             {/* Export Dropdown */}
             <div className="relative export-dropdown">

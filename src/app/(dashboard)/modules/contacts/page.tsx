@@ -536,12 +536,14 @@ export default function ContactsPage() {
             >
               🎬 {showFilmsMode ? 'Hide Films' : 'Show Films'}
             </button>
-            <button
-              onClick={handleAddContact}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-            >
-              Add Contact
-            </button>
+            {canEditContacts && (
+              <button
+                onClick={handleAddContact}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+              >
+                Add Contact
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -717,12 +719,14 @@ export default function ContactsPage() {
             <p className="text-gray-500 mb-4">
               {searchTerm || selectedContactType ? 'Try adjusting your filters' : 'Get started by adding your first contact'}
             </p>
-            <button
-              onClick={handleAddContact}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-            >
-              Add Contact
-            </button>
+            {canEditContacts && (
+              <button
+                onClick={handleAddContact}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+              >
+                Add Contact
+              </button>
+            )}
           </div>
         )}
       </div>
