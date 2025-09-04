@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { getOrdinalSuffix } from '@/utils/ordinal'
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd'
 
 interface FestivalSettings {
   id: string
@@ -126,16 +125,34 @@ export default function FestivalOverviewPage() {
     setImportantLinks(updated)
   }
 
-  const onDragEnd = (result: DropResult) => {
-    if (!result.destination) {
-      return
-    }
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
-    const items = Array.from(importantLinks)
-    const [reorderedItem] = items.splice(result.source.index, 1)
-    items.splice(result.destination.index, 0, reorderedItem)
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/html', index.toString())
+  }
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null)
+  }
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault()
+    if (draggedIndex === null || draggedIndex === dropIndex) return
+
+    const items = [...importantLinks]
+    const draggedItem = items[draggedIndex]
+    items.splice(draggedIndex, 1)
+    items.splice(dropIndex, 0, draggedItem)
+    
     setImportantLinks(items)
+    setDraggedIndex(null)
   }
 
   const formatDateRange = () => {
@@ -268,7 +285,7 @@ export default function FestivalOverviewPage() {
 
         {/* Settings Tab */}
         {activeTab === 'settings' && canEditFestivalOverview && (
-          <div className="bg-white rounded-lg border border-gray-300 p-8">
+          <div className="bg-white rounded-lg border border-gray-300 p-8 h-[calc(100vh-200px)] overflow-auto">
             <h2 className="text-2xl font-semibold text-gray-900 mb-8">Festival Settings</h2>
             
             <div className="max-w-2xl">
@@ -331,59 +348,50 @@ export default function FestivalOverviewPage() {
               <div className="mb-8">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Important Links</h3>
                 
-                <DragDropContext onDragEnd={onDragEnd}>
-                  <Droppable droppableId="important-links">
-                    {(provided) => (
-                      <div
-                        {...provided.droppableProps}
-                        ref={provided.innerRef}
-                        className="space-y-4"
-                      >
-                        {importantLinks.map((link, index) => (
-                          <Draggable key={index} draggableId={index.toString()} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                className={`flex gap-2 ${
-                                  snapshot.isDragging ? 'bg-green-50 shadow-lg' : ''
-                                }`}
-                              >
-                                <div
-                                  {...provided.dragHandleProps}
-                                  className="flex items-center px-2 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
-                                >
-                                  ⋮⋮
-                                </div>
-                                <input
-                                  type="text"
-                                  placeholder="Link Title"
-                                  value={link.title}
-                                  onChange={(e) => updateImportantLink(index, 'title', e.target.value)}
-                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                />
-                                <input
-                                  type="url"
-                                  placeholder="URL"
-                                  value={link.url}
-                                  onChange={(e) => updateImportantLink(index, 'url', e.target.value)}
-                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                />
-                                <button
-                                  onClick={() => removeImportantLink(index)}
-                                  className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-md"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
+                <div className="space-y-4">
+                  {importantLinks.map((link, index) => (
+                    <div
+                      key={index}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragOver={handleDragOver}
+                      onDragEnd={handleDragEnd}
+                      onDrop={(e) => handleDrop(e, index)}
+                      className={`flex gap-2 p-2 rounded border ${
+                        draggedIndex === index 
+                          ? 'bg-green-50 shadow-lg border-green-300' 
+                          : 'bg-white border-gray-200 hover:border-gray-300'
+                      } transition-all cursor-move`}
+                    >
+                      <div className="flex items-center px-2 text-gray-400 hover:text-gray-600">
+                        ⋮⋮
                       </div>
-                    )}
-                  </Droppable>
-                </DragDropContext>
+                      <input
+                        type="text"
+                        placeholder="Link Title"
+                        value={link.title}
+                        onChange={(e) => updateImportantLink(index, 'title', e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        draggable={false}
+                      />
+                      <input
+                        type="url"
+                        placeholder="URL"
+                        value={link.url}
+                        onChange={(e) => updateImportantLink(index, 'url', e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        draggable={false}
+                      />
+                      <button
+                        onClick={() => removeImportantLink(index)}
+                        className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-md"
+                        draggable={false}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
                 
                 <button
                   onClick={addImportantLink}
