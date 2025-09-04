@@ -32,7 +32,7 @@ export default function ContactsPage() {
   const [uploadStatus, setUploadStatus] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedContactType, setSelectedContactType] = useState('')
-  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'contact_name', direction: 'asc' })
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'last_name', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingContact, setEditingContact] = useState<ContactCard | null>(null)
@@ -504,13 +504,21 @@ export default function ContactsPage() {
     setFilteredContacts(filtered)
   }, [contacts, searchTerm, selectedContactType])
 
-  // Sort contacts
+  // Sort contacts with special handling for last name
   const sortedContacts = useMemo(() => {
     if (!sortConfig) return filteredContacts
 
     return [...filteredContacts].sort((a, b) => {
-      const aVal = a[sortConfig.key as keyof ContactCard]
-      const bVal = b[sortConfig.key as keyof ContactCard]
+      let aVal: any, bVal: any
+
+      // Special handling for last name sorting
+      if (sortConfig.key === 'last_name') {
+        aVal = getLastName(a.contact_name || '')
+        bVal = getLastName(b.contact_name || '')
+      } else {
+        aVal = a[sortConfig.key as keyof ContactCard]
+        bVal = b[sortConfig.key as keyof ContactCard]
+      }
 
       if (aVal == null && bVal == null) return 0
       if (aVal == null) return 1
@@ -526,6 +534,15 @@ export default function ContactsPage() {
       return 0
     })
   }, [filteredContacts, sortConfig])
+
+  // Sort and filter films based on film view mode
+  const sortedFilms = useMemo(() => {
+    const filtered = films.filter(film => 
+      viewMode === 'by-film' ? film.film_type === filmViewMode : true
+    )
+    
+    return filtered.sort((a, b) => a.title.localeCompare(b.title))
+  }, [films, filmViewMode, viewMode])
 
   const handleSort = (key: string) => {
     setSortConfig(current => {
@@ -758,18 +775,21 @@ export default function ContactsPage() {
       <div className="flex-1 overflow-auto p-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  {[
-                    { key: 'contact_name', label: 'Name', width: 200 },
-                    { key: 'contact_company', label: 'Company', width: 200 },
-                    { key: 'contact_email', label: 'Email', width: 250 },
-                    { key: 'phone', label: 'Phone', width: 150 },
-                    { key: 'contact_type', label: 'Type', width: 150 },
-                    { key: 'associated_films', label: 'Associated Films', width: 300 },
-                    { key: 'actions', label: 'Actions', width: 120 }
-                  ].map((column) => (
+            
+            {/* BY CONTACT VIEW */}
+            {viewMode === 'by-contact' && (
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {[
+                      { key: 'last_name', label: 'Name (by Last)', width: 200 },
+                      { key: 'contact_company', label: 'Company', width: 200 },
+                      { key: 'contact_email', label: 'Email', width: 250 },
+                      { key: 'phone', label: 'Phone', width: 150 },
+                      { key: 'contact_type', label: 'Type', width: 150 },
+                      { key: 'associated_films', label: 'Associated Films', width: 300 },
+                      { key: 'actions', label: 'Actions', width: 120 }
+                    ].map((column) => (
                     <th
                       key={column.key}
                       className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100"
@@ -857,12 +877,92 @@ export default function ContactsPage() {
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            )}
+
+            {/* BY FILM VIEW */}
+            {viewMode === 'by-film' && (
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {[
+                      { key: 'title', label: 'Film Title', width: 300 },
+                      { key: 'director', label: 'Director', width: 200 },
+                      { key: 'film_type', label: 'Type', width: 80 },
+                      { key: 'programs', label: 'Programs', width: 200 },
+                      ...(filmViewMode === 'shorts' ? [{ key: 'shorts_program_name', label: 'Shorts Program', width: 200 }] : []),
+                      { key: 'contacts', label: 'Contacts', width: 400 }
+                    ].map((column) => (
+                      <th
+                        key={column.key}
+                        className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50"
+                        style={{ minWidth: `${column.width}px` }}
+                      >
+                        <span>{column.label}</span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {sortedFilms.map((film) => (
+                    <tr key={film.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
+                        <button
+                          onClick={() => handleFilmClick(film)}
+                          className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                        >
+                          {film.title}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
+                        {film.director}
+                      </td>
+                      <td className="px-3 py-2 text-sm border-r border-gray-100">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          film.film_type === 'feature' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {film.film_type === 'feature' ? 'Feature' : 'Short'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
+                        {film.programs}
+                      </td>
+                      {filmViewMode === 'shorts' && (
+                        <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
+                          {film.shorts_program_name}
+                        </td>
+                      )}
+                      <td className="px-3 py-2 text-sm text-gray-900">
+                        {film.contacts && film.contacts.length > 0 ? (
+                          <div className="max-w-sm">
+                            {film.contacts.map((contact: any, index: number) => (
+                              <div key={index} className="text-xs mb-1">
+                                <span className="font-medium">{contact.name}</span>
+                                {contact.company && <span className="text-gray-500"> ({contact.company})</span>}
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                  {contact.contact_type}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">No contacts assigned</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
           </div>
         </div>
 
-        {sortedContacts.length === 0 && !loading && (
+        {/* Empty state messages */}
+        {viewMode === 'by-contact' && sortedContacts.length === 0 && !loading && (
           <div className="text-center py-12">
             <div className="text-gray-400 text-lg mb-4">📇</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No contacts found</h3>
@@ -877,6 +977,16 @@ export default function ContactsPage() {
                 Add Contact
               </button>
             )}
+          </div>
+        )}
+
+        {viewMode === 'by-film' && sortedFilms.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 text-lg mb-4">🎬</div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No {filmViewMode} found</h3>
+            <p className="text-gray-500 mb-4">
+              No {filmViewMode} have been uploaded yet
+            </p>
           </div>
         )}
       </div>
