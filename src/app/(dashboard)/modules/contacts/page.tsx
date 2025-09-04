@@ -64,6 +64,7 @@ export default function ContactsPage() {
   const exportContactsTemplate = () => {
     // Define headers with proper display names
     const headerMapping = [
+      { field: 'film_title', display: 'Film Title' },
       { field: 'contact_name', display: 'Contact Name' },
       { field: 'contact_company', display: 'Company' },
       { field: 'contact_email', display: 'Email' },
@@ -71,7 +72,6 @@ export default function ContactsPage() {
       { field: 'contact_type', display: 'Contact Type' },
       { field: 'mailing_address', display: 'Mailing Address' },
       { field: 'notes', display: 'Notes' },
-      { field: 'film_assignments', display: 'Film Assignments' },
       { field: 'contact_role', display: 'Contact Role' }
     ]
     
@@ -411,6 +411,7 @@ export default function ContactsPage() {
       
       // Field mapping for Contacts CSV
       const fieldMap: Record<string, string> = {
+        'Film Title': 'film_title',
         'Contact Name': 'contact_name',
         'Company': 'contact_company',
         'Email': 'contact_email',
@@ -418,28 +419,27 @@ export default function ContactsPage() {
         'Contact Type': 'contact_type',
         'Mailing Address': 'mailing_address',
         'Notes': 'notes',
-        'Film Assignments': 'film_assignments', // Format: "Film Title 1|Role, Film Title 2|Role"
-        'Contact Role': 'contact_role' // Default role for all assignments if Film Assignments doesn't specify
+        'Contact Role': 'contact_role'
       }
 
       // Process data rows
       const contactData = []
-      const filmAssignments: Array<{contact: any, assignments: string, defaultRole?: string}> = []
+      const filmAssignments: Array<{contact: any, filmTitle: string, role: string}> = []
       
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i]
         const contactRecord: any = {}
-        let filmAssignmentsText = ''
-        let defaultRole = ''
+        let filmTitle = ''
+        let contactRole = ''
         
         headers.forEach((header, index) => {
           const fieldName = fieldMap[header]
           if (fieldName && row[index]) {
             let value = row[index].trim()
-            if (fieldName === 'film_assignments') {
-              filmAssignmentsText = value
+            if (fieldName === 'film_title') {
+              filmTitle = value
             } else if (fieldName === 'contact_role') {
-              defaultRole = value
+              contactRole = value
             } else {
               contactRecord[fieldName] = value
             }
@@ -452,12 +452,12 @@ export default function ContactsPage() {
           contactRecord.created_by = user?.id
           contactData.push(contactRecord)
           
-          // Store film assignments for processing after contact creation
-          if (filmAssignmentsText) {
+          // Store film assignment if we have a film title
+          if (filmTitle && contactRole) {
             filmAssignments.push({
               contact: contactRecord,
-              assignments: filmAssignmentsText,
-              defaultRole
+              filmTitle: filmTitle,
+              role: contactRole
             })
           }
         }
@@ -500,44 +500,29 @@ export default function ContactsPage() {
         ]
 
         // Process each contact's film assignments
-        for (const { contact, assignments, defaultRole } of filmAssignments) {
+        for (const { contact, filmTitle, role } of filmAssignments) {
           // Find the inserted contact ID
           const insertedContact = insertedContacts?.find(c => c.contact_name === contact.contact_name)
           if (!insertedContact) continue
 
-          // Parse assignments: "Film Title 1|Role, Film Title 2|Role"
-          const assignmentList = assignments.split(',').map(a => a.trim())
-          
-          for (const assignment of assignmentList) {
-            let filmTitle: string
-            let role: string
-
-            if (assignment.includes('|')) {
-              [filmTitle, role] = assignment.split('|').map(s => s.trim())
-            } else {
-              filmTitle = assignment.trim()
-              role = defaultRole || contact.contact_type || 'Other'
-            }
-
-            // Find matching film
-            const film = allFilms.find(f => f.title.toLowerCase() === filmTitle.toLowerCase())
-            if (film) {
-              try {
-                await supabase.from('film_contacts').upsert({
-                  film_id: film.id,
-                  film_type: film.film_type,
-                  name: contact.contact_name,
-                  company: contact.contact_company,
-                  email: contact.contact_email,
-                  contact_type: role,
-                  contact_id: insertedContact.id
-                }, {
-                  onConflict: 'film_id,name,contact_type'
-                })
-                filmAssignmentCount++
-              } catch (error) {
-                console.error(`Error assigning ${contact.contact_name} to ${filmTitle}:`, error)
-              }
+          // Find matching film
+          const film = allFilms.find(f => f.title.toLowerCase() === filmTitle.toLowerCase())
+          if (film) {
+            try {
+              await supabase.from('film_contacts').upsert({
+                film_id: film.id,
+                film_type: film.film_type,
+                name: contact.contact_name,
+                company: contact.contact_company,
+                email: contact.contact_email,
+                contact_type: role,
+                contact_id: insertedContact.id
+              }, {
+                onConflict: 'film_id,name,contact_type'
+              })
+              filmAssignmentCount++
+            } catch (error) {
+              console.error(`Error assigning ${contact.contact_name} to ${filmTitle}:`, error)
             }
           }
         }
@@ -1001,7 +986,7 @@ export default function ContactsPage() {
                       { key: 'phone', label: 'Phone', width: 150 },
                       { key: 'mailing_address', label: 'Mailing Address', width: 200 },
                       { key: 'contact_type', label: 'Type', width: 150 },
-                      { key: 'associated_films', label: 'Associated Films', width: 300 },
+                      { key: 'associated_films', label: 'Film Title', width: 300 },
                       { key: 'actions', label: 'Actions', width: 160 }
                     ].map((column) => (
                     <th
