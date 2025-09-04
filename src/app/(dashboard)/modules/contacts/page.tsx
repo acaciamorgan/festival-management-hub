@@ -10,11 +10,23 @@ import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import * as XLSX from 'xlsx-js-style'
 
+type ViewMode = 'by-contact' | 'by-film'
+type FilmViewMode = 'features' | 'shorts'
+
 export default function ContactsPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
+  const [viewMode, setViewMode] = useState<ViewMode>('by-contact')
+  const [filmViewMode, setFilmViewMode] = useState<FilmViewMode>('features')
+  
+  // Contact-related state
   const [contacts, setContacts] = useState<ContactCard[]>([])
   const [filteredContacts, setFilteredContacts] = useState<ContactCard[]>([])
+  
+  // Film-related state
+  const [films, setFilms] = useState<any[]>([])
+  const [filteredFilms, setFilteredFilms] = useState<any[]>([])
+  
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<string>('')
@@ -26,10 +38,16 @@ export default function ContactsPage() {
   const [editingContact, setEditingContact] = useState<ContactCard | null>(null)
   const [selectedFilm, setSelectedFilm] = useState<any>(null)
   const [showFilmCard, setShowFilmCard] = useState(false)
-  const [showFilmsMode, setShowFilmsMode] = useState(false)
   const [existingFilms, setExistingFilms] = useState<Set<string>>(new Set())
 
   const supabase = createClient()
+
+  // Utility function to extract last name for sorting
+  const getLastName = (fullName: string) => {
+    if (!fullName) return ''
+    const parts = fullName.trim().split(' ')
+    return parts[parts.length - 1].toLowerCase()
+  }
 
   // Check if user has edit permissions for contacts
   const canEditContacts = permissions?.modulePermissions?.['contactsManagement']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
@@ -122,6 +140,80 @@ export default function ContactsPage() {
     loadExistingFilms()
   }, [showFilmsMode, supabase])
 
+  const loadFilms = useCallback(async () => {
+    setLoading(true)
+    try {
+      // Load features and shorts with their contacts
+      const [featuresResponse, shortsResponse] = await Promise.all([
+        supabase
+          .from('feature_films')
+          .select('id, title, director, countries, program_1, program_2, program_3, program_4')
+          .order('title'),
+        supabase
+          .from('short_films')
+          .select(`
+            id, title, director, countries, program_1, program_2, program_3,
+            shorts_programs(id, program_name, program_number)
+          `)
+          .order('title')
+      ])
+
+      if (featuresResponse.error || shortsResponse.error) {
+        console.error('Error loading films:', featuresResponse.error || shortsResponse.error)
+        setFilms([])
+        setFilteredFilms([])
+        return
+      }
+
+      // Load contacts for each film
+      const allFilms = []
+      
+      // Process features
+      for (const feature of featuresResponse.data || []) {
+        const { data: filmContacts } = await supabase
+          .from('film_contacts')
+          .select('name, company, email, contact_type')
+          .eq('film_id', feature.id)
+          .eq('film_type', 'feature')
+
+        allFilms.push({
+          ...feature,
+          film_type: 'feature',
+          contacts: filmContacts || [],
+          programs: [feature.program_1, feature.program_2, feature.program_3, feature.program_4]
+            .filter(Boolean).join(', ')
+        })
+      }
+      
+      // Process shorts
+      for (const short of shortsResponse.data || []) {
+        const { data: filmContacts } = await supabase
+          .from('film_contacts')
+          .select('name, company, email, contact_type')
+          .eq('film_id', short.id)
+          .eq('film_type', 'short')
+
+        allFilms.push({
+          ...short,
+          film_type: 'short',
+          contacts: filmContacts || [],
+          programs: [short.program_1, short.program_2, short.program_3]
+            .filter(Boolean).join(', '),
+          shorts_program_name: short.shorts_programs?.program_name || ''
+        })
+      }
+
+      setFilms(allFilms)
+      setFilteredFilms(allFilms)
+    } catch (error) {
+      console.error('Error loading films:', error)
+      setFilms([])
+      setFilteredFilms([])
+    } finally {
+      setLoading(false)
+    }
+  }, [supabase])
+
   const loadContacts = useCallback(async () => {
     setLoading(true)
     try {
@@ -138,9 +230,8 @@ export default function ContactsPage() {
         return
       }
 
-      // Only load film associations if Show Films mode is active
+      // Always load film associations for the new contact view
       let contactsWithFilms
-      if (showFilmsMode) {
         contactsWithFilms = await Promise.all(
         (contactsData || []).map(async (contact) => {
           // Get film contacts that match this contact's name
@@ -235,8 +326,12 @@ export default function ContactsPage() {
   }, [supabase, showFilmsMode])
 
   useEffect(() => {
-    loadContacts()
-  }, [loadContacts])
+    if (viewMode === 'by-contact') {
+      loadContacts()
+    } else {
+      loadFilms()
+    }
+  }, [loadContacts, loadFilms, viewMode])
 
   // CSV parsing function
   const parseCSV = (text: string): string[][] => {
@@ -499,11 +594,66 @@ export default function ContactsPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
             <span className="text-2xl mr-3">📇</span>
             <h1 className="text-2xl font-semibold text-gray-900">Contacts Management</h1>
           </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 mb-4">
+          <button
+            onClick={() => setViewMode('by-contact')}
+            className={`px-4 py-2 rounded-t-lg font-medium ${
+              viewMode === 'by-contact'
+                ? 'bg-white border-t border-l border-r border-gray-300 text-blue-600'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            By Contact
+          </button>
+          <button
+            onClick={() => setViewMode('by-film')}
+            className={`px-4 py-2 rounded-t-lg font-medium ${
+              viewMode === 'by-film'
+                ? 'bg-white border-t border-l border-r border-gray-300 text-blue-600'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            By Film
+          </button>
+        </div>
+
+        {/* Film sub-tabs (only show when in by-film mode) */}
+        {viewMode === 'by-film' && (
+          <div className="flex space-x-1 mb-4">
+            <button
+              onClick={() => setFilmViewMode('features')}
+              className={`px-3 py-1 rounded text-sm font-medium ${
+                filmViewMode === 'features'
+                  ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Features
+            </button>
+            <button
+              onClick={() => setFilmViewMode('shorts')}
+              className={`px-3 py-1 rounded text-sm font-medium ${
+                filmViewMode === 'shorts'
+                  ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Shorts
+            </button>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex items-center justify-between">
+          <div></div>
           
           <div className="flex items-center space-x-4">
             {canEditContacts && (
