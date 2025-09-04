@@ -627,10 +627,14 @@ export default function ContactsPage() {
 
   // Sort and filter films based on film view mode
   const sortedFilms = useMemo(() => {
-    const filtered = films.filter(film => 
-      viewMode === 'by-film' ? film.film_type === filmViewMode : true
-    )
+    const filtered = films.filter(film => {
+      if (viewMode !== 'by-film') return true
+      // Convert plural filmViewMode to singular for matching
+      const expectedType = filmViewMode === 'features' ? 'feature' : 'short'
+      return film.film_type === expectedType
+    })
     
+    console.log(`Filtering ${films.length} films for ${filmViewMode}, got ${filtered.length} results`)
     return filtered.sort((a, b) => a.title.localeCompare(b.title))
   }, [films, filmViewMode, viewMode])
 
