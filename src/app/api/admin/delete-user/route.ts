@@ -56,27 +56,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 403 })
     }
 
-    // Delete from Supabase Auth - handle both new and old user types
-    if (targetUser.user_id) {
-      // New users with user_id - delete directly
-      const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(targetUser.user_id)
+    // Always try to find and delete the auth user by email
+    const { data: { users: authUsers } } = await supabaseAdmin.auth.admin.listUsers()
+    const authUserToDelete = authUsers?.find(u => u.email === targetUser.user_email)
+    
+    if (authUserToDelete) {
+      const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(authUserToDelete.id)
       if (authDeleteError) {
         console.error('Error deleting user from auth:', authDeleteError)
-        return NextResponse.json({ error: 'Failed to delete user from authentication system' }, { status: 500 })
+        // Continue anyway - we'll delete from permissions even if auth fails
+      } else {
+        console.log(`Successfully deleted auth user: ${authUserToDelete.email}`)
       }
-    } else if (targetUser.user_email) {
-      // Old users without user_id - find and delete by email
-      const { data: authUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers()
-      if (!listError && authUsers) {
-        const authUser = authUsers.users.find(u => u.email === targetUser.user_email)
-        if (authUser) {
-          const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(authUser.id)
-          if (authDeleteError) {
-            console.error('Error deleting orphaned user from auth:', authDeleteError)
-            return NextResponse.json({ error: 'Failed to delete user from authentication system' }, { status: 500 })
-          }
-        }
-      }
+    } else {
+      console.log(`No auth user found for email: ${targetUser.user_email}`)
     }
 
     // Delete from user_permissions table
