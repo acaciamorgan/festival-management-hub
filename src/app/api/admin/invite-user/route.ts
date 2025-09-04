@@ -104,7 +104,10 @@ export async function POST(request: Request) {
         .delete()
         .eq('id', permissionsRecord.id)
 
-      return NextResponse.json({ error: 'Failed to create user account' }, { status: 500 })
+      return NextResponse.json({ 
+        error: 'Failed to create user account',
+        details: authCreateError.message || authCreateError
+      }, { status: 500 })
     }
 
     // Update the permissions record with the actual user_id
