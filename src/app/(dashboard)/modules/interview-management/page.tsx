@@ -154,6 +154,11 @@ export default function InterviewManagementPage() {
   // Film card click handler
   const handleFilmClick = async (interview: InterviewCard) => {
     if (!showFilms) return
+    
+    // Don't open film card if multiple films (comma-separated)
+    if (interview.film_title && interview.film_title.includes(',')) {
+      return // Multiple films - can't open single film card
+    }
 
     try {
       let filmData = null
@@ -547,7 +552,7 @@ export default function InterviewManagementPage() {
                   <tr key={interview.id} className="hover:bg-gray-50">
                     {/* Title */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['film_title'] || 200}px` }}>
-                      {showFilms ? (
+                      {showFilms && interview.film_title && !interview.film_title.includes(',') ? (
                         <button
                           onClick={() => handleFilmClick(interview)}
                           className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"

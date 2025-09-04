@@ -56,6 +56,9 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
   const [showFilmDropdown, setShowFilmDropdown] = useState(false)
   const [showJournalistDropdown, setShowJournalistDropdown] = useState(false)
   const [showSubjectDropdown, setShowSubjectDropdown] = useState(false)
+  
+  // Multiple films selection
+  const [selectedFilms, setSelectedFilms] = useState<string[]>([])
 
   const supabase = createClient()
 
@@ -148,6 +151,9 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
       setFilmSearch(interview.film_title || '')
       setJournalistSearch(interview.journalist_name || '')
       setSubjectSearch(interview.subject_names || '')
+      // Initialize selectedFilms from comma-separated film_title
+      const titles = interview.film_title ? interview.film_title.split(',').map(t => t.trim()).filter(t => t) : []
+      setSelectedFilms(titles)
     } else {
       setFormData({
         film_id: '',
@@ -169,6 +175,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
       setFilmSearch('')
       setJournalistSearch('')
       setSubjectSearch('')
+      setSelectedFilms([])
     }
   }, [interview])
 
@@ -207,33 +214,37 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
 
   // Film selection handlers
   const handleFilmSelect = (film: FilmOption) => {
-    if (film.type === 'feature') {
+    // Add to selected films if not already there
+    if (!selectedFilms.includes(film.title)) {
+      const newFilms = [...selectedFilms, film.title]
+      setSelectedFilms(newFilms)
+      
+      // Update form data with comma-separated titles
       setFormData(prev => ({
         ...prev,
-        film_id: film.id,
-        shorts_program_id: '',
-        program_id: '',
-        film_title: film.title
-      }))
-    } else if (film.type === 'short') {
-      setFormData(prev => ({
-        ...prev,
-        film_id: '',
-        shorts_program_id: film.id,
-        program_id: '',
-        film_title: film.title
-      }))
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        film_id: '',
-        shorts_program_id: '',
-        program_id: film.id,
-        film_title: film.title
+        // Clear individual IDs when multiple films selected
+        film_id: newFilms.length > 1 ? '' : (film.type === 'feature' ? film.id : ''),
+        shorts_program_id: newFilms.length > 1 ? '' : (film.type === 'short' ? film.id : ''),
+        program_id: newFilms.length > 1 ? '' : (film.type === 'program' ? film.id : ''),
+        film_title: newFilms.join(', ')
       }))
     }
-    setFilmSearch(film.title)
+    setFilmSearch('')
     setShowFilmDropdown(false)
+  }
+  
+  // Remove film from selection
+  const handleRemoveFilm = (title: string) => {
+    const newFilms = selectedFilms.filter(t => t !== title)
+    setSelectedFilms(newFilms)
+    
+    setFormData(prev => ({
+      ...prev,
+      film_id: '',
+      shorts_program_id: '',
+      program_id: '',
+      film_title: newFilms.join(', ')
+    }))
   }
 
   // Journalist selection handlers
@@ -380,8 +391,31 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
           {/* Film/Program Selection */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Title <span className="text-red-500">*</span>
+              Title(s) <span className="text-red-500">*</span>
+              <span className="text-xs text-gray-500 ml-2">Select multiple films if needed</span>
             </label>
+            
+            {/* Selected Films Display */}
+            {selectedFilms.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {selectedFilms.map((title) => (
+                  <span 
+                    key={title}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
+                  >
+                    {title}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFilm(title)}
+                      className="ml-2 text-blue-600 hover:text-blue-800"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            
             <div className="relative">
               <input
                 type="text"
@@ -391,9 +425,9 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                   setShowFilmDropdown(true)
                 }}
                 onFocus={() => setShowFilmDropdown(true)}
-                placeholder="Search films and programs..."
+                placeholder="Search films and programs to add..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
+                required={selectedFilms.length === 0}
               />
               {showFilmDropdown && filteredFilms.length > 0 && (
                 <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
