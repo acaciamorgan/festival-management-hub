@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { getOrdinalSuffix } from '@/utils/ordinal'
 
 interface FestivalSettings {
@@ -17,9 +18,12 @@ interface FestivalSettings {
 }
 
 export default function FestivalOverviewPage() {
+  const { permissions } = usePermissions()
   const [activeTab, setActiveTab] = useState<'overview' | 'settings'>('overview')
   const [festivalSettings, setFestivalSettings] = useState<FestivalSettings | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const canEditFestivalOverview = permissions?.modulePermissions?.['festivalOverview']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   const [saving, setSaving] = useState(false)
   
   // Form state for settings
@@ -183,16 +187,18 @@ export default function FestivalOverviewPage() {
           >
             Festival Overview
           </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`px-6 py-2 rounded-t-lg font-medium ${
-              activeTab === 'settings'
-                ? 'bg-white border-t border-l border-r border-gray-300 text-green-600'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Festival Settings
-          </button>
+          {canEditFestivalOverview && (
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`px-6 py-2 rounded-t-lg font-medium ${
+                activeTab === 'settings'
+                  ? 'bg-white border-t border-l border-r border-gray-300 text-green-600'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Festival Settings
+            </button>
+          )}
         </div>
 
         {/* Overview Tab */}
@@ -248,7 +254,7 @@ export default function FestivalOverviewPage() {
         )}
 
         {/* Settings Tab */}
-        {activeTab === 'settings' && (
+        {activeTab === 'settings' && canEditFestivalOverview && (
           <div className="bg-white rounded-lg border border-gray-300 p-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-8">Festival Settings</h2>
             
