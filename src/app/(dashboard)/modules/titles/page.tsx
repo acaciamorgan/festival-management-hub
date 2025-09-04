@@ -1463,7 +1463,9 @@ export default function TitlesPage() {
       film_website: headers.indexOf('Film website'),
       trailer_url: headers.findIndex(h => h && h.includes('Trailer')),
       premiere_status: headers.indexOf('Premiere Status'),
-      content_considerations: headers.indexOf('Content Considerations')
+      content_considerations: headers.indexOf('Content Considerations'),
+      shorts_program_name: headers.indexOf('Shorts Program Name'),
+      program_order: headers.indexOf('Program Order') !== -1 ? headers.indexOf('Program Order') : headers.indexOf('Order')
     }
 
     console.log('Column indices found:', indices)
@@ -1477,6 +1479,9 @@ export default function TitlesPage() {
     // NEW SIMPLE APPROACH - Skip all the complex mapping
     let created = 0
     let updated = 0
+    
+    // Cache for program names to IDs to avoid repeated queries
+    const programCache: { [key: string]: string } = {}
 
     // Process each row directly (start after header row)
     for (let i = headerRowIndex + 1; i < rows.length; i++) {
@@ -1527,6 +1532,51 @@ export default function TitlesPage() {
       if (row[indices.run_time]) {
         const runtime = parseInt(row[indices.run_time])
         if (!isNaN(runtime)) shortData.run_time = runtime
+      }
+
+      // Handle Shorts Program Name and Order
+      const shortsProgramName = row[indices.shorts_program_name]?.trim()
+      if (shortsProgramName) {
+        // Check cache first
+        if (!programCache[shortsProgramName]) {
+          // Check if program exists
+          const { data: existingProgram } = await supabase
+            .from('shorts_programs')
+            .select('id')
+            .eq('program_name', shortsProgramName)
+            .single()
+          
+          if (existingProgram) {
+            programCache[shortsProgramName] = existingProgram.id
+          } else {
+            // Create new program
+            const { data: newProgram, error } = await supabase
+              .from('shorts_programs')
+              .insert({ program_name: shortsProgramName })
+              .select('id')
+              .single()
+            
+            if (newProgram && !error) {
+              programCache[shortsProgramName] = newProgram.id
+              console.log(`Created new shorts program: ${shortsProgramName}`)
+            } else {
+              console.error(`Failed to create shorts program: ${shortsProgramName}`, error)
+            }
+          }
+        }
+        
+        // Set the shorts_program_id
+        if (programCache[shortsProgramName]) {
+          shortData.shorts_program_id = programCache[shortsProgramName]
+        }
+      }
+      
+      // Handle Program Order
+      if (row[indices.program_order]) {
+        const order = parseInt(row[indices.program_order])
+        if (!isNaN(order)) {
+          shortData.program_order = order
+        }
       }
 
       console.log(`Processing: ${title} - crew data imported successfully`)
@@ -2208,6 +2258,7 @@ export default function TitlesPage() {
                             { key: 'original_language_title', label: 'Original Title', width: 180 },
                             { key: 'director', label: 'Director', width: 150 },
                             { key: 'countries', label: 'Countries', width: 150 },
+                            { key: 'shorts_program_name', label: 'Shorts Program', width: 180 },
                             { key: 'programs', label: 'Programs', width: 150 },
                             { key: 'genres', label: 'Genres', width: 120 },
                             { key: 'run_time', label: 'Runtime', width: 80 },
@@ -2298,6 +2349,7 @@ export default function TitlesPage() {
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['original_language_title'] || 180}px` }}>{short.original_language_title}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['director'] || 150}px` }}>{renderPersonName(short.director)}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['countries'] || 150}px` }}>{short.countries}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['shorts_program_name'] || 180}px` }}>{short.shorts_program?.program_name || ''}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['programs'] || 150}px` }}>{short.programs}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['genres'] || 120}px` }}>{short.genres}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['run_time'] || 80}px` }}>{short.run_time ? `${short.run_time} min` : ''}</td>
