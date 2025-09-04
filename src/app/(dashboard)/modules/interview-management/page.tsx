@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { InterviewCard, FilmCard, PressCard, GuestCard, ProgramCard } from '@/types'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { PressCardPopup } from '@/components/cards/press-card-popup'
@@ -12,8 +13,11 @@ import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 
 export default function InterviewManagementPage() {
   const { user } = useAuth()
+  const { permissions } = usePermissions()
   const [interviews, setInterviews] = useState<InterviewCard[]>([])
   const [loading, setLoading] = useState(false)
+
+  const canEditInterviews = permissions?.modulePermissions?.['interviews']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   const [searchTerm, setSearchTerm] = useState('')
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'film_title', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
@@ -409,12 +413,14 @@ export default function InterviewManagementPage() {
           </div>
           
           <div className="flex items-center space-x-4">
-            <button
-              onClick={handleAddInterview}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-            >
-              Add Interview
-            </button>
+            {canEditInterviews && (
+              <button
+                onClick={handleAddInterview}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+              >
+                Add Interview
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -633,12 +639,14 @@ export default function InterviewManagementPage() {
             <p className="text-gray-500 mb-4">
               {searchTerm ? 'Try adjusting your search' : 'Get started by adding your first interview'}
             </p>
-            <button
-              onClick={handleAddInterview}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-            >
-              Add Interview
-            </button>
+            {canEditInterviews && (
+              <button
+                onClick={handleAddInterview}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+              >
+                Add Interview
+              </button>
+            )}
           </div>
         )}
       </div>

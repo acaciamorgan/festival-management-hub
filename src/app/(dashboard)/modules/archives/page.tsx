@@ -313,13 +313,15 @@ export default function ArchivesPage() {
                   </div>
 
                   <div className="flex items-center space-x-4">
-                    <button
-                      onClick={handleArchiveCurrentFestival}
-                      disabled={archiving}
-                      className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 disabled:opacity-50 font-medium"
-                    >
-                      {archiving ? 'Archiving...' : 'Archive Current Festival'}
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={handleArchiveCurrentFestival}
+                        disabled={archiving}
+                        className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 disabled:opacity-50 font-medium"
+                      >
+                        {archiving ? 'Archiving...' : 'Archive Current Festival'}
+                      </button>
+                    )}
                   </div>
 
                   {archiveResult && (
@@ -386,13 +388,15 @@ export default function ArchivesPage() {
                       <div>• Ticketing</div>
                     </div>
                   </div>
-                  <button
-                    onClick={handleExportCurrent}
-                    disabled={exporting}
-                    className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {exporting ? 'Exporting...' : 'Export Current Festival'}
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={handleExportCurrent}
+                      disabled={exporting}
+                      className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {exporting ? 'Exporting...' : 'Export Current Festival'}
+                    </button>
+                  )}
                 </div>
 
                 {archiveStats && archiveStats.total_years > 0 && (
@@ -407,13 +411,15 @@ export default function ArchivesPage() {
                           <div>
                             <span className="font-medium">{year.year}</span> - {year.edition} {year.festival_name}
                           </div>
-                          <button
-                            onClick={() => handleExportArchivedYear(year.year)}
-                            disabled={exporting}
-                            className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
-                          >
-                            Export
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleExportArchivedYear(year.year)}
+                              disabled={exporting}
+                              className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              Export
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>

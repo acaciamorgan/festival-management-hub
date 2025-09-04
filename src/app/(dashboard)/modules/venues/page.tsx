@@ -2,15 +2,19 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { usePermissions } from '@/hooks/use-permissions'
 import { VenueCard, TheaterHouse, VenueType } from '@/types'
 import { VenueFormModal } from '@/components/forms/venue-form-modal'
 import { VenueCardPopup } from '@/components/cards/venue-card-popup'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 
 export default function VenueManagementPage() {
+  const { permissions } = usePermissions()
   const [venues, setVenues] = useState<VenueCard[]>([])
   const [filteredVenues, setFilteredVenues] = useState<VenueCard[]>([])
   const [loading, setLoading] = useState(false)
+
+  const canEditVenues = permissions?.modulePermissions?.['venues']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedVenueType, setSelectedVenueType] = useState('')
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'name', direction: 'asc' })
@@ -336,12 +340,14 @@ export default function VenueManagementPage() {
             <h1 className="text-2xl font-semibold text-gray-900">Venue Management</h1>
           </div>
           
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-          >
-            Add Venue
-          </button>
+          {canEditVenues && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+            >
+              Add Venue
+            </button>
+          )}
         </div>
       </div>
 
