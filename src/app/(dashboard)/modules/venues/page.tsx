@@ -218,7 +218,8 @@ export default function VenueManagementPage() {
         </div>
 
         {/* Section Table */}
-        <table className="min-w-full">
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
               {tableColumns.map((column) => (
@@ -317,6 +318,7 @@ export default function VenueManagementPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     )
   }
@@ -409,8 +411,8 @@ export default function VenueManagementPage() {
       </div>
 
       {/* Data Grid */}
-      <div className="flex-1 overflow-auto bg-white">
-        <div className="min-w-full overflow-x-auto overflow-y-auto max-h-full">
+      <div className="flex-1 overflow-hidden bg-white">
+        <div className="h-full overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-lg text-gray-500">Loading venues...</div>
