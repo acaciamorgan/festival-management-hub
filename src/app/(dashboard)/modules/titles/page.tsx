@@ -1549,12 +1549,13 @@ export default function TitlesPage() {
           if (existingProgram) {
             programCache[shortsProgramName] = existingProgram.id
           } else {
-            // Create new program - extract program number from name if possible
-            let programNumber = null
-            const numberMatch = shortsProgramName.match(/Shorts Program (\d+)/i)
+            // Create new program - extract program number from name
+            let programNumber = 999 // default fallback
+            const numberMatch = shortsProgramName.match(/(\d+)/)
             if (numberMatch) {
               programNumber = parseInt(numberMatch[1])
             }
+            console.log(`Extracting program number from "${shortsProgramName}": ${programNumber}`)
             
             const { data: newProgram, error } = await supabase
               .from('shorts_programs')
