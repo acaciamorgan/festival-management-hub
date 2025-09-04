@@ -88,7 +88,7 @@ export async function POST(request: Request) {
         to: email,
         subject: `Reminder: You're invited to join Callsheet - Chicago International Film Festival`,
         tempPassword: tempPassword,
-        loginUrl: `https://fanexpohq.com/auth/login`,
+        loginUrl: `https://callsheet.acaciaconsultinggroup.com/auth/login`,
         type: 'invite_with_password'
       })
     })
