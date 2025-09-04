@@ -116,11 +116,6 @@ export default function ContactsPage() {
   // Load existing films and programs only when Show Films toggle is activated
   useEffect(() => {
     const loadExistingFilms = async () => {
-      if (!showFilmsMode) {
-        setExistingFilms(new Set())
-        return
-      }
-
       try {
         const [featureFilms, shortFilms, programs] = await Promise.all([
           supabase.from('feature_films').select('title'),
@@ -147,7 +142,7 @@ export default function ContactsPage() {
     }
 
     loadExistingFilms()
-  }, [showFilmsMode, supabase])
+  }, [supabase])
 
   const loadFilms = useCallback(async () => {
     setLoading(true)
@@ -240,8 +235,7 @@ export default function ContactsPage() {
       }
 
       // Always load film associations for the new contact view
-      let contactsWithFilms
-        contactsWithFilms = await Promise.all(
+      const contactsWithFilms = await Promise.all(
         (contactsData || []).map(async (contact) => {
           // Get film contacts that match this contact's name
           const { data: filmContacts } = await supabase
@@ -313,15 +307,7 @@ export default function ContactsPage() {
             associated_films_data: associatedFilmsData
           }
         })
-        )
-      } else {
-        // When toggle is off, just load basic contact data with empty film arrays
-        contactsWithFilms = (contactsData || []).map(contact => ({
-          ...contact,
-          associated_films: [],
-          associated_films_data: []
-        }))
-      }
+      )
 
       setContacts(contactsWithFilms)
       setFilteredContacts(contactsWithFilms)
@@ -332,7 +318,7 @@ export default function ContactsPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase, showFilmsMode])
+  }, [supabase])
 
   useEffect(() => {
     if (viewMode === 'by-contact') {
@@ -871,16 +857,6 @@ export default function ContactsPage() {
                 </label>
               </>
             )}
-            <button
-              onClick={() => setShowFilmsMode(!showFilmsMode)}
-              className={`px-4 py-2 rounded-md transition-colors font-medium ${
-                showFilmsMode 
-                  ? 'bg-green-600 hover:bg-green-700 text-white' 
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-              }`}
-            >
-              🎬 {showFilmsMode ? 'Hide Films' : 'Show Films'}
-            </button>
             {canEditContacts && (
               <button
                 onClick={handleAddContact}
@@ -1017,16 +993,12 @@ export default function ContactsPage() {
                         <div className="max-w-xs">
                           {contact.associated_films_data.map((film, index) => (
                             <span key={film.id}>
-                              {showFilmsMode ? (
-                                <button
-                                  onClick={() => handleFilmClick(film)}
-                                  className="text-blue-600 hover:text-blue-800 hover:underline text-xs"
-                                >
-                                  {film.title}
-                                </button>
-                              ) : (
-                                <span className="text-gray-900 text-xs">{film.title}</span>
-                              )}
+                              <button
+                                onClick={() => handleFilmClick(film)}
+                                className="text-blue-600 hover:text-blue-800 hover:underline text-xs"
+                              >
+                                {film.title}
+                              </button>
                               {index < contact.associated_films_data!.length - 1 && (
                                 <span className="text-gray-400">, </span>
                               )}
