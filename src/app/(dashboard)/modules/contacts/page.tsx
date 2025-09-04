@@ -147,8 +147,8 @@ export default function ContactsPage() {
   const loadFilms = useCallback(async () => {
     setLoading(true)
     try {
-      // Load features and shorts with their contacts
-      const [featuresResponse, shortsResponse] = await Promise.all([
+      // Load all films and all contacts in parallel (only 3 queries total instead of N+1)
+      const [featuresResponse, shortsResponse, allContactsResponse] = await Promise.all([
         supabase
           .from('feature_films')
           .select('id, title, director, countries, program_1, program_2, program_3, program_4')
@@ -159,54 +159,62 @@ export default function ContactsPage() {
             id, title, director, countries, program_1, program_2, program_3,
             shorts_programs(id, program_name, program_number)
           `)
-          .order('title')
+          .order('title'),
+        supabase
+          .from('film_contacts')
+          .select('film_id, film_type, name, company, email, contact_type')
       ])
 
-      if (featuresResponse.error || shortsResponse.error) {
-        console.error('Error loading films:', featuresResponse.error || shortsResponse.error)
+      if (featuresResponse.error || shortsResponse.error || allContactsResponse.error) {
+        console.error('Error loading films:', featuresResponse.error || shortsResponse.error || allContactsResponse.error)
         setFilms([])
         setFilteredFilms([])
         return
       }
 
-      // Load contacts for each film
+      // Create a map of film_id + film_type -> contacts for fast lookup
+      const contactsMap: { [key: string]: any[] } = {}
+      for (const contact of allContactsResponse.data || []) {
+        const key = `${contact.film_id}-${contact.film_type}`
+        if (!contactsMap[key]) {
+          contactsMap[key] = []
+        }
+        contactsMap[key].push({
+          name: contact.name,
+          company: contact.company,
+          email: contact.email,
+          contact_type: contact.contact_type
+        })
+      }
+
       const allFilms = []
       
-      // Process features
+      // Process features - all features will appear even without contacts
       for (const feature of featuresResponse.data || []) {
-        const { data: filmContacts } = await supabase
-          .from('film_contacts')
-          .select('name, company, email, contact_type')
-          .eq('film_id', feature.id)
-          .eq('film_type', 'feature')
-
+        const contactKey = `${feature.id}-feature`
         allFilms.push({
           ...feature,
           film_type: 'feature',
-          contacts: filmContacts || [],
+          contacts: contactsMap[contactKey] || [], // Empty array if no contacts
           programs: [feature.program_1, feature.program_2, feature.program_3, feature.program_4]
             .filter(Boolean).join(', ')
         })
       }
       
-      // Process shorts
+      // Process shorts - all shorts will appear even without contacts
       for (const short of shortsResponse.data || []) {
-        const { data: filmContacts } = await supabase
-          .from('film_contacts')
-          .select('name, company, email, contact_type')
-          .eq('film_id', short.id)
-          .eq('film_type', 'short')
-
+        const contactKey = `${short.id}-short`
         allFilms.push({
           ...short,
           film_type: 'short',
-          contacts: filmContacts || [],
+          contacts: contactsMap[contactKey] || [], // Empty array if no contacts
           programs: [short.program_1, short.program_2, short.program_3]
             .filter(Boolean).join(', '),
           shorts_program_name: short.shorts_programs?.program_name || ''
         })
       }
 
+      console.log(`Loaded ${allFilms.length} films (${featuresResponse.data?.length} features, ${shortsResponse.data?.length} shorts)`)
       setFilms(allFilms)
       setFilteredFilms(allFilms)
     } catch (error) {
