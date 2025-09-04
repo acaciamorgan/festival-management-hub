@@ -1549,19 +1549,25 @@ export default function TitlesPage() {
           if (existingProgram) {
             programCache[shortsProgramName] = existingProgram.id
           } else {
-            // Create new program - extract program number from name
-            let programNumber = 999 // default fallback
-            const numberMatch = shortsProgramName.match(/(\d+)/)
-            if (numberMatch) {
-              programNumber = parseInt(numberMatch[1])
-            }
-            console.log(`Extracting program number from "${shortsProgramName}": ${programNumber}`)
+            // Get the next program number
+            const { data: existingPrograms } = await supabase
+              .from('shorts_programs')
+              .select('program_number')
+              .order('program_number', { ascending: false })
+              .limit(1)
+
+            const nextProgramNumber = existingPrograms && existingPrograms.length > 0 
+              ? (existingPrograms[0].program_number || 0) + 1 
+              : 1
+
+            console.log(`Creating new program "${shortsProgramName}" with program_number: ${nextProgramNumber}`)
             
+            // Create new program
             const { data: newProgram, error } = await supabase
               .from('shorts_programs')
               .insert({ 
                 program_name: shortsProgramName,
-                program_number: programNumber
+                program_number: nextProgramNumber
               })
               .select('id')
               .single()
