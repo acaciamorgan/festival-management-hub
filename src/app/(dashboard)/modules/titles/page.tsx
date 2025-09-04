@@ -976,13 +976,15 @@ export default function TitlesPage() {
         console.log('Sample data row:', rows[headerRowIndex + 1])
       }
       
-      // Detect if this is a shorts CSV by looking for specific shorts-only headers
-      const isShortsCsv = headers.some(header => 
-        header.trim().toLowerCase().includes('order coding') ||
-        header.trim() === 'Film Title' // Shorts use "Film Title", features use "Title"
-      )
+      // Respect the current tab context when determining how to process the CSV
+      // If user is on Shorts tab, process as shorts. If on Features tab, process as features.
+      // This ensures uploads stay in the correct tab as expected by the user.
+      const shouldProcessAsShorts = viewMode === 'shorts'
+      
+      console.log('Current view mode:', viewMode)
+      console.log('Processing as:', shouldProcessAsShorts ? 'shorts' : 'features')
 
-      if (isShortsCsv) {
+      if (shouldProcessAsShorts) {
         await processShortsCSV(rows, headers, headerRowIndex)
       } else {
         await processFeatureFilmsCSV(rows, headers)
