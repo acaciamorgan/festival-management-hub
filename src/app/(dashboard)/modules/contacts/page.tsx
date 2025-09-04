@@ -33,6 +33,7 @@ export default function ContactsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedContactType, setSelectedContactType] = useState('')
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'last_name', direction: 'asc' })
+  const [filmSortConfig, setFilmSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'title', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingContact, setEditingContact] = useState<ContactCard | null>(null)
@@ -635,8 +636,28 @@ export default function ContactsPage() {
     })
     
     console.log(`Filtering ${films.length} films for ${filmViewMode}, got ${filtered.length} results`)
+    
+    // Apply sorting if filmSortConfig is set
+    if (filmSortConfig) {
+      return filtered.sort((a, b) => {
+        let aVal = a[filmSortConfig.key]
+        let bVal = b[filmSortConfig.key]
+        
+        // Handle special cases
+        if (filmSortConfig.key === 'contacts') {
+          aVal = a.contacts?.length || 0
+          bVal = b.contacts?.length || 0
+        }
+        
+        if (aVal === bVal) return 0
+        
+        const result = aVal > bVal ? 1 : -1
+        return filmSortConfig.direction === 'asc' ? result : -result
+      })
+    }
+    
     return filtered.sort((a, b) => a.title.localeCompare(b.title))
-  }, [films, filmViewMode, viewMode])
+  }, [films, filmViewMode, viewMode, filmSortConfig])
 
   const handleSort = (key: string) => {
     setSortConfig(current => {
@@ -647,9 +668,23 @@ export default function ContactsPage() {
     })
   }
 
+  const handleFilmSort = (key: string) => {
+    setFilmSortConfig(current => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+      }
+      return { key, direction: 'asc' }
+    })
+  }
+
   const getSortIcon = (key: string) => {
     if (sortConfig?.key !== key) return '↕️'
     return sortConfig.direction === 'asc' ? '↑' : '↓'
+  }
+
+  const getFilmSortIcon = (key: string) => {
+    if (filmSortConfig?.key !== key) return '↕️'
+    return filmSortConfig.direction === 'asc' ? '↑' : '↓'
   }
 
   const handleAddContact = () => {
@@ -938,9 +973,9 @@ export default function ContactsPage() {
       </div>
 
       {/* Contacts Table */}
-      <div className="flex-1 overflow-auto p-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
+      <div className="flex-1 overflow-hidden p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden h-full flex flex-col">
+          <div className="overflow-auto flex-1">
             
             {/* BY CONTACT VIEW */}
             {viewMode === 'by-contact' && (
@@ -1055,19 +1090,54 @@ export default function ContactsPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     {[
-                      { key: 'title', label: 'Film Title', width: 300 },
-                      { key: 'director', label: 'Director', width: 200 },
-                      { key: 'film_type', label: 'Type', width: 80 },
-                      { key: 'programs', label: 'Programs', width: 200 },
-                      ...(filmViewMode === 'shorts' ? [{ key: 'shorts_program_name', label: 'Shorts Program', width: 200 }] : []),
-                      { key: 'contacts', label: 'Contacts', width: 400 }
+                      { key: 'title', label: 'Film Title', width: 300, sortable: true },
+                      { key: 'director', label: 'Director', width: 200, sortable: true },
+                      { key: 'film_type', label: 'Type', width: 80, sortable: false },
+                      { key: 'programs', label: 'Programs', width: 200, sortable: false },
+                      ...(filmViewMode === 'shorts' ? [{ key: 'shorts_program_name', label: 'Shorts Program', width: 200, sortable: true }] : []),
+                      { key: 'contact_names', label: 'Names', width: 250, sortable: false },
+                      { key: 'contact_emails', label: 'Emails', width: 300, sortable: false }
                     ].map((column) => (
                       <th
                         key={column.key}
-                        className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50"
-                        style={{ minWidth: `${column.width}px` }}
+                        className={`relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 ${
+                          column.sortable ? 'cursor-pointer hover:bg-gray-100 select-none' : ''
+                        }`}
+                        style={{ 
+                          minWidth: `${columnWidths[column.key] || column.width}px`,
+                          width: columnWidths[column.key] || column.width
+                        }}
+                        onClick={column.sortable ? () => handleFilmSort(column.key) : undefined}
                       >
-                        <span>{column.label}</span>
+                        <div className="flex items-center justify-between">
+                          <span>{column.label}</span>
+                          {column.sortable && (
+                            <span className="ml-1 text-gray-400">{getFilmSortIcon(column.key)}</span>
+                          )}
+                        </div>
+                        {/* Resize handle */}
+                        <div 
+                          className="absolute right-0 top-0 bottom-0 w-1 bg-transparent hover:bg-blue-500 cursor-col-resize"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            const startX = e.clientX;
+                            const startWidth = columnWidths[column.key] || column.width;
+                            
+                            const handleMouseMove = (e: MouseEvent) => {
+                              const diff = e.clientX - startX;
+                              const newWidth = Math.max(80, startWidth + diff);
+                              setColumnWidths(prev => ({ ...prev, [column.key]: newWidth }));
+                            };
+                            
+                            const handleMouseUp = () => {
+                              document.removeEventListener('mousemove', handleMouseMove);
+                              document.removeEventListener('mouseup', handleMouseUp);
+                            };
+                            
+                            document.addEventListener('mousemove', handleMouseMove);
+                            document.addEventListener('mouseup', handleMouseUp);
+                          }}
+                        />
                       </th>
                     ))}
                   </tr>
@@ -1103,21 +1173,35 @@ export default function ContactsPage() {
                           {film.shorts_program_name}
                         </td>
                       )}
-                      <td className="px-3 py-2 text-sm text-gray-900">
+                      {/* Names Column */}
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
                         {film.contacts && film.contacts.length > 0 ? (
-                          <div className="max-w-sm">
+                          <div className="space-y-1">
                             {film.contacts.map((contact: any, index: number) => (
-                              <div key={index} className="text-xs mb-1">
+                              <div key={index} className="text-xs">
                                 <span className="font-medium">{contact.name}</span>
-                                {contact.company && <span className="text-gray-500"> ({contact.company})</span>}
-                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                {contact.company && <span className="text-gray-500 block text-xs">({contact.company})</span>}
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 mt-0.5">
                                   {contact.contact_type}
                                 </span>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400 italic">No contacts assigned</span>
+                          <span className="text-xs text-gray-400 italic">No contacts</span>
+                        )}
+                      </td>
+                      {/* Emails Column */}
+                      <td className="px-3 py-2 text-sm text-gray-900">
+                        {film.contacts && film.contacts.length > 0 ? (
+                          <div className="text-xs break-all">
+                            {film.contacts
+                              .filter((contact: any) => contact.email)
+                              .map((contact: any) => contact.email)
+                              .join(', ')}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">No emails</span>
                         )}
                       </td>
                     </tr>
