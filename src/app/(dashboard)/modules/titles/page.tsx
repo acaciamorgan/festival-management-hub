@@ -1549,10 +1549,19 @@ export default function TitlesPage() {
           if (existingProgram) {
             programCache[shortsProgramName] = existingProgram.id
           } else {
-            // Create new program
+            // Create new program - extract program number from name if possible
+            let programNumber = null
+            const numberMatch = shortsProgramName.match(/Shorts Program (\d+)/i)
+            if (numberMatch) {
+              programNumber = parseInt(numberMatch[1])
+            }
+            
             const { data: newProgram, error } = await supabase
               .from('shorts_programs')
-              .insert({ program_name: shortsProgramName })
+              .insert({ 
+                program_name: shortsProgramName,
+                program_number: programNumber
+              })
               .select('id')
               .single()
             
