@@ -999,6 +999,7 @@ export default function ContactsPage() {
                       { key: 'contact_company', label: 'Company', width: 200 },
                       { key: 'contact_email', label: 'Email', width: 250 },
                       { key: 'phone', label: 'Phone', width: 150 },
+                      { key: 'mailing_address', label: 'Mailing Address', width: 200 },
                       { key: 'contact_type', label: 'Type', width: 150 },
                       { key: 'associated_films', label: 'Associated Films', width: 300 },
                       { key: 'actions', label: 'Actions', width: 160 }
@@ -1039,6 +1040,9 @@ export default function ContactsPage() {
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['phone'] || 150}px` }}>
                       {contact.phone}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['mailing_address'] || 200}px` }}>
+                      {contact.mailing_address}
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_type'] || 150}px` }}>
                       {contact.contact_type && (
@@ -1103,11 +1107,11 @@ export default function ContactsPage() {
                   <tr>
                     {[
                       { key: 'title', label: 'Film Title', width: 300, sortable: true },
-                      { key: 'director', label: 'Director', width: 200, sortable: true },
-                      { key: 'film_type', label: 'Type', width: 80, sortable: false },
-                      ...(filmViewMode === 'shorts' ? [{ key: 'shorts_program_name', label: 'Shorts Program', width: 200, sortable: true }] : []),
-                      { key: 'contact_names', label: 'Names', width: 250, sortable: false },
-                      { key: 'contact_emails', label: 'Emails', width: 300, sortable: false }
+                      { key: 'contact_companies', label: 'Company', width: 200, sortable: false },
+                      { key: 'contact_names', label: 'Names', width: 200, sortable: false },
+                      { key: 'contact_emails', label: 'Emails', width: 250, sortable: false },
+                      { key: 'contact_phones', label: 'Phone', width: 150, sortable: false },
+                      { key: 'contact_mailing_addresses', label: 'Mailing Address', width: 200, sortable: false }
                     ].map((column) => (
                       <th
                         key={column.key}
@@ -1167,20 +1171,20 @@ export default function ContactsPage() {
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
                         {film.director}
                       </td>
-                      <td className="px-3 py-2 text-sm border-r border-gray-100">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          film.film_type === 'feature' 
-                            ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {film.film_type === 'feature' ? 'Feature' : 'Short'}
-                        </span>
+                      {/* Company Column */}
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
+                        {film.contacts && film.contacts.length > 0 ? (
+                          <div className="space-y-1">
+                            {film.contacts.map((contact: any, index: number) => (
+                              <div key={index} className="text-xs">
+                                {contact.company || <span className="text-gray-400 italic">No company</span>}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">No contacts</span>
+                        )}
                       </td>
-                      {filmViewMode === 'shorts' && (
-                        <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
-                          {film.shorts_program_name}
-                        </td>
-                      )}
                       {/* Names Column */}
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
                         {film.contacts && film.contacts.length > 0 ? (
@@ -1200,7 +1204,7 @@ export default function ContactsPage() {
                         )}
                       </td>
                       {/* Emails Column */}
-                      <td className="px-3 py-2 text-sm text-gray-900">
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
                         {film.contacts && film.contacts.length > 0 ? (
                           <div className="text-xs break-all">
                             {film.contacts
@@ -1210,6 +1214,34 @@ export default function ContactsPage() {
                           </div>
                         ) : (
                           <span className="text-xs text-gray-400 italic">No emails</span>
+                        )}
+                      </td>
+                      {/* Phone Column */}
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
+                        {film.contacts && film.contacts.length > 0 ? (
+                          <div className="space-y-1">
+                            {film.contacts.map((contact: any, index: number) => (
+                              <div key={index} className="text-xs">
+                                {contact.phone || <span className="text-gray-400 italic">No phone</span>}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">No contacts</span>
+                        )}
+                      </td>
+                      {/* Mailing Address Column */}
+                      <td className="px-3 py-2 text-sm text-gray-900">
+                        {film.contacts && film.contacts.length > 0 ? (
+                          <div className="space-y-1">
+                            {film.contacts.map((contact: any, index: number) => (
+                              <div key={index} className="text-xs">
+                                {contact.mailing_address || <span className="text-gray-400 italic">No address</span>}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">No contacts</span>
                         )}
                       </td>
                     </tr>
@@ -1311,7 +1343,6 @@ export default function ContactsPage() {
                     <option value="Filmmaker">Filmmaker</option>
                     <option value="Producer">Producer</option>
                     <option value="Director">Director</option>
-                    <option value="Press/Media">Press/Media</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>
