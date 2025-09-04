@@ -985,9 +985,9 @@ export default function ContactsPage() {
       </div>
 
       {/* Contacts Table */}
-      <div className="flex-1 flex flex-col p-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex-1 flex flex-col min-h-0">
-          <div className="flex-1 overflow-auto">
+      <div className="flex-1 p-6">
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
             
             {/* BY CONTACT VIEW */}
             {viewMode === 'by-contact' && (
