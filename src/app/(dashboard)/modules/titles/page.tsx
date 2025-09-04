@@ -1568,6 +1568,7 @@ export default function TitlesPage() {
         // Set the shorts_program_id
         if (programCache[shortsProgramName]) {
           shortData.shorts_program_id = programCache[shortsProgramName]
+          console.log(`Setting shorts_program_id for "${title}" to ${programCache[shortsProgramName]} (${shortsProgramName})`)
         }
       }
       
@@ -1619,7 +1620,13 @@ export default function TitlesPage() {
     }
 
     setUploadStatus(`Successfully processed! Created: ${created}, Updated: ${updated}`)
-    await loadShorts()
+    console.log('Program cache at end of import:', programCache)
+    
+    // Force a complete reload with relationships
+    setTimeout(async () => {
+      await loadShorts()
+      console.log('Shorts reloaded after import')
+    }, 500)
   }
 
   useEffect(() => {
