@@ -22,6 +22,13 @@ export default function FestivalOverviewPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'settings'>('overview')
   const [festivalSettings, setFestivalSettings] = useState<FestivalSettings | null>(null)
   const [loading, setLoading] = useState(true)
+  
+  // Stats state
+  const [totalFeatures, setTotalFeatures] = useState<number>(0)
+  const [totalShorts, setTotalShorts] = useState<number>(0)
+  const [totalScreenings, setTotalScreenings] = useState<number>(0)
+  const [totalVenues, setTotalVenues] = useState<number>(0)
+  const [statsLoading, setStatsLoading] = useState(true)
 
   const canEditFestivalOverview = permissions?.modulePermissions?.['festivalOverview']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   const [saving, setSaving] = useState(false)
@@ -42,7 +49,45 @@ export default function FestivalOverviewPage() {
 
   useEffect(() => {
     loadFestivalSettings()
+    loadStats()
   }, [])
+
+  const loadStats = async () => {
+    setStatsLoading(true)
+    try {
+      // Get total features
+      const { count: featuresCount } = await supabase
+        .from('feature_films')
+        .select('*', { count: 'exact', head: true })
+
+      // Get total shorts  
+      const { count: shortsCount } = await supabase
+        .from('short_films')
+        .select('*', { count: 'exact', head: true })
+
+      // Get public screenings (exclude P&I and Tech Checks)
+      const { count: screeningsCount } = await supabase
+        .from('screenings')
+        .select('*', { count: 'exact', head: true })
+        .not('screening_type', 'in', '(P&I,Tech Check)')
+
+      // Get movie theater venues
+      const { count: venuesCount } = await supabase
+        .from('venues')
+        .select('*', { count: 'exact', head: true })
+        .eq('venue_type', 'Movie Theater')
+
+      setTotalFeatures(featuresCount || 0)
+      setTotalShorts(shortsCount || 0)  
+      setTotalScreenings(screeningsCount || 0)
+      setTotalVenues(venuesCount || 0)
+
+    } catch (error) {
+      console.error('Error loading stats:', error)
+    } finally {
+      setStatsLoading(false)
+    }
+  }
 
   const loadFestivalSettings = async () => {
     try {
@@ -262,22 +307,40 @@ export default function FestivalOverviewPage() {
               </div>
             </div>
 
-            {/* Quick Stats - Placeholder for future */}
+            {/* Festival At a Glance Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center p-6 bg-gray-50 rounded-lg">
                 <h4 className="text-lg font-medium text-gray-900 mb-2">Total Films</h4>
-                <p className="text-3xl font-bold text-green-600">—</p>
-                <p className="text-sm text-gray-500">Coming soon</p>
+                {statsLoading ? (
+                  <p className="text-3xl font-bold text-gray-400">—</p>
+                ) : (
+                  <div>
+                    <p className="text-3xl font-bold text-green-600">{totalFeatures + totalShorts}</p>
+                    <p className="text-sm text-gray-500">{totalFeatures} features, {totalShorts} shorts</p>
+                  </div>
+                )}
               </div>
               <div className="text-center p-6 bg-gray-50 rounded-lg">
-                <h4 className="text-lg font-medium text-gray-900 mb-2">Screenings</h4>
-                <p className="text-3xl font-bold text-green-600">—</p>
-                <p className="text-sm text-gray-500">Coming soon</p>
+                <h4 className="text-lg font-medium text-gray-900 mb-2">Public Screenings</h4>
+                {statsLoading ? (
+                  <p className="text-3xl font-bold text-gray-400">—</p>
+                ) : (
+                  <div>
+                    <p className="text-3xl font-bold text-green-600">{totalScreenings}</p>
+                    <p className="text-sm text-gray-500">Excludes P&I and Tech Checks</p>
+                  </div>
+                )}
               </div>
               <div className="text-center p-6 bg-gray-50 rounded-lg">
-                <h4 className="text-lg font-medium text-gray-900 mb-2">Venues</h4>
-                <p className="text-3xl font-bold text-green-600">—</p>
-                <p className="text-sm text-gray-500">Coming soon</p>
+                <h4 className="text-lg font-medium text-gray-900 mb-2">Movie Theaters</h4>
+                {statsLoading ? (
+                  <p className="text-3xl font-bold text-gray-400">—</p>
+                ) : (
+                  <div>
+                    <p className="text-3xl font-bold text-green-600">{totalVenues}</p>
+                    <p className="text-sm text-gray-500">Screening venues</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
