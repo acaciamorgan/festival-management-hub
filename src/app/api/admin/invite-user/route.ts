@@ -77,10 +77,92 @@ export async function POST(request: Request) {
     const senderName = senderInfo?.user_name || user.email || 'Administrator'
     const senderEmail = senderInfo?.user_email || user.email
 
-    // Generate secure temporary password
+    // Check if auth user already exists
+    const { data: existingAuthUser, error: lookupError } = await supabaseAdmin.auth.admin.getUserById(email)
+      .catch(() => ({ data: null, error: null }))
+    
+    // Try to get user by email if ID lookup fails
+    const { data: { users: existingUsers } } = await supabaseAdmin.auth.admin.listUsers()
+    const existingAuthUserByEmail = existingUsers?.find(u => u.email === email)
+    
+    if (existingAuthUserByEmail) {
+      // User already exists in Auth, just update the permissions record
+      const { error: updateError } = await supabaseAdmin
+        .from('user_permissions')
+        .update({ user_id: existingAuthUserByEmail.id })
+        .eq('id', permissionsRecord.id)
+      
+      if (updateError) {
+        console.error('Error updating permissions with existing user_id:', updateError)
+        await supabaseAdmin
+          .from('user_permissions')
+          .delete()
+          .eq('id', permissionsRecord.id)
+        
+        return NextResponse.json({ 
+          error: 'Failed to link existing user account',
+          details: updateError.message
+        }, { status: 500 })
+      }
+      
+      // Generate new temp password for existing user
+      const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!${Math.floor(Math.random() * 9) + 1}`
+      
+      // Update the existing user's password
+      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
+        existingAuthUserByEmail.id,
+        { 
+          password: tempPassword,
+          user_metadata: {
+            ...existingAuthUserByEmail.user_metadata,
+            needs_password_change: true
+          }
+        }
+      )
+      
+      if (passwordError) {
+        console.error('Error updating password for existing user:', passwordError)
+      }
+      
+      // Send email with the new password
+      const emailResponse = await fetch(`https://xqzjthbearpqcrzfdfer.supabase.co/functions/v1/send-gmail-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhxemp0aGJlYXJwcWNyemZkZmVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMTQ2MDUsImV4cCI6MjA2ODg5MDYwNX0.DUz_xMU4IW0Z4MsXZ9kVPT5hDp3frdXsHIm6BSfYKvk`
+        },
+        body: JSON.stringify({
+          to: email,
+          subject: 'Welcome to Callsheet - Chicago International Film Festival',
+          tempPassword: tempPassword,
+          loginUrl: `https://fanexpohq.com/auth/login`,
+          type: 'invite'
+        })
+      })
+      
+      if (!emailResponse.ok) {
+        const emailError = await emailResponse.json()
+        console.error('Error sending invitation email to existing user:', emailError)
+        return NextResponse.json({ error: 'Failed to send invitation email' }, { status: 500 })
+      }
+      
+      return NextResponse.json({
+        message: 'User invited successfully (existing user)',
+        user: {
+          id: permissionsRecord.id,
+          email: email,
+          name: name,
+          role: role,
+          phone: phone,
+          invited: true
+        }
+      })
+    }
+    
+    // Generate secure temporary password for new user
     const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!${Math.floor(Math.random() * 9) + 1}`
     
-    // Create Auth user immediately using createUser (doesn't send automatic emails)
+    // Create new Auth user
     const { data: authUser, error: authCreateError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: tempPassword,
