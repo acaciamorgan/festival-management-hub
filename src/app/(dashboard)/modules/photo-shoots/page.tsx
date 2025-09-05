@@ -699,7 +699,8 @@ export default function PhotoShootsPage() {
                         type="checkbox"
                         checked={shoot.selects_received}
                         onChange={() => toggleCheckbox(shoot.id, 'selects_received', shoot.selects_received)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        disabled={!canEditPhotoShoots}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:cursor-not-allowed"
                       />
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center" style={{ minWidth: `${columnWidths['sent_to_pr'] || 100}px` }}>
@@ -707,7 +708,8 @@ export default function PhotoShootsPage() {
                         type="checkbox"
                         checked={shoot.sent_to_pr}
                         onChange={() => toggleCheckbox(shoot.id, 'sent_to_pr', shoot.sent_to_pr)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        disabled={!canEditPhotoShoots}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:cursor-not-allowed"
                       />
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 text-center">

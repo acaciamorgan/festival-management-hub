@@ -628,25 +628,30 @@ export default function InterviewManagementPage() {
                         type="checkbox"
                         checked={interview.status === 'Complete'}
                         onChange={() => handleCompleteToggle(interview)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        disabled={!canEditInterviews}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:cursor-not-allowed"
                       />
                     </td>
                     
                     {/* Actions */}
                     <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 120}px` }}>
                       <div className="flex space-x-1">
-                        <button
-                          onClick={() => handleEditInterview(interview)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteInterview(interview)}
-                          className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-medium"
-                        >
-                          Delete
-                        </button>
+                        {canEditInterviews && (
+                          <>
+                            <button
+                              onClick={() => handleEditInterview(interview)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteInterview(interview)}
+                              className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-medium"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -468,7 +468,8 @@ export default function ScreenerAccessPage() {
         onChange={(e) => updateScreenerData(film.id, { 
           access_type: e.target.value as ScreenerData['access_type']
         })}
-        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        disabled={!canEditScreenerAccess}
+        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
       >
         <option value="tbd">TBD</option>
         {viewMode === 'features' && (
@@ -527,7 +528,8 @@ export default function ScreenerAccessPage() {
               link_url: e.target.value || null 
             })}
             placeholder="https://..."
-            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={!canEditScreenerAccess}
+            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           />
         </td>
         <td 
@@ -544,7 +546,8 @@ export default function ScreenerAccessPage() {
               link_password: e.target.value || null 
             })}
             placeholder="Optional password"
-            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={!canEditScreenerAccess}
+            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           />
         </td>
       </>
@@ -596,7 +599,8 @@ export default function ScreenerAccessPage() {
             onChange={(e) => updateScreenerData(film.id, { 
               cinesend_instructions_sent: e.target.checked 
             })}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            disabled={!canEditScreenerAccess}
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:cursor-not-allowed"
           />
         </td>
         <td 
@@ -612,7 +616,8 @@ export default function ScreenerAccessPage() {
             onChange={(e) => updateScreenerData(film.id, { 
               cinesend_uploaded: e.target.checked 
             })}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            disabled={!canEditScreenerAccess}
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:cursor-not-allowed"
           />
         </td>
       </>

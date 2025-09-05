@@ -523,7 +523,7 @@ export default function PressRequestsPage() {
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 text-center">
                       <div className="flex justify-center space-x-2">
-                        {request.status === 'new' && (
+                        {request.status === 'new' && canEditPressRequests && (
                           <>
                             <button
                               onClick={() => updateRequestStatus(request.id, 'requested')}
@@ -539,12 +539,14 @@ export default function PressRequestsPage() {
                             </button>
                           </>
                         )}
-                        <button
-                          onClick={() => setSelectedRequest(request)}
-                          className="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-700"
-                        >
-                          Edit
-                        </button>
+                        {canEditPressRequests && (
+                          <button
+                            onClick={() => setSelectedRequest(request)}
+                            className="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-700"
+                          >
+                            Edit
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
