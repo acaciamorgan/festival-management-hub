@@ -34,7 +34,7 @@ interface FilmContact {
 
 interface ScreenerData {
   film_id: string
-  access_type: 'TBD' | 'cinesend' | 'link_available' | 'request_link' | 'no_links'
+  access_type: 'tbd' | 'cinesend' | 'link_available' | 'request_link' | 'no_links'
   cinesend_instructions_sent: boolean
   cinesend_uploaded: boolean
   link_url: string | null
@@ -460,7 +460,7 @@ export default function ScreenerAccessPage() {
   }
 
   const renderAccessTypeCell = (film: FilmWithScreenerData | ShortFilmWithScreenerData) => {
-    const currentType = film.screener_data?.access_type || 'TBD'
+    const currentType = film.screener_data?.access_type || 'tbd'
     
     return (
       <select
@@ -471,7 +471,7 @@ export default function ScreenerAccessPage() {
         disabled={!canEditScreenerAccess}
         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
       >
-        <option value="TBD">TBD</option>
+        <option value="tbd">TBD</option>
         {viewMode === 'features' && (
           <>
             <option value="cinesend">CineSend</option>
