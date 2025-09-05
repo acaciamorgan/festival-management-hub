@@ -2025,7 +2025,10 @@ export default function TitlesPage() {
                       <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 100}px` }}>
                         {canEditTitles && (
                           <button
-                            onClick={() => setEditingEvent(program)}
+                            onClick={() => {
+                              setEditingEvent(program)
+                              setShowCreateEventModal(true)
+                            }}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium"
                           >
                             Edit
