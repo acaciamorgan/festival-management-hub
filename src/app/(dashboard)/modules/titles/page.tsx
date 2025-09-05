@@ -1454,7 +1454,7 @@ export default function TitlesPage() {
       original_language_title: headers.indexOf('Original Language Title'),
       language: headers.indexOf('Language'),
       subtitles: headers.indexOf('Subtitles'),
-      run_time: headers.indexOf('Run Time'),
+      run_time: headers.indexOf('Runtime') !== -1 ? headers.indexOf('Runtime') : headers.indexOf('Run Time'),
       director: headers.indexOf('Director'),
       countries: headers.indexOf('Countries'),
       program_1: headers.indexOf('Program 1'),
