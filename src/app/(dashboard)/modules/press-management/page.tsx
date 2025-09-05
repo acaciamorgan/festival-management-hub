@@ -443,6 +443,12 @@ export default function PressManagementPage() {
       
       for (let i = 1; i < rows.length; i++) {
         const values = rows[i]
+        
+        // Skip completely empty rows or rows where all cells are empty
+        if (!values || values.length === 0 || values.every(cell => !cell || !cell.trim())) {
+          continue
+        }
+        
         const pressData: Partial<PressCard> = {}
         let firstName = ''
         let lastName = ''

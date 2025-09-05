@@ -206,6 +206,12 @@ export default function SpecialEventsPage() {
       const eventData = []
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i]
+        
+        // Skip completely empty rows or rows where all cells are empty
+        if (!row || row.length === 0 || row.every(cell => !cell || !cell.trim())) {
+          continue
+        }
+        
         const eventRecord: any = {}
         
         headers.forEach((header, index) => {

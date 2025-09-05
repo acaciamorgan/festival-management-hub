@@ -1064,7 +1064,11 @@ export default function TitlesPage() {
     // Process each data row using the column indices
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i]
-      if (!row || row.length === 0) continue
+      
+      // Skip completely empty rows or rows where all cells are empty
+      if (!row || row.length === 0 || row.every(cell => !cell || !cell.trim())) {
+        continue
+      }
       
       // Debug specific film
       const titleValue = row[indices.title]?.trim()
@@ -1314,6 +1318,12 @@ export default function TitlesPage() {
     // Process each row (skip program headers and empty rows)
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i]
+      
+      // Skip completely empty rows or rows where all cells are empty
+      if (!row || row.length === 0 || row.every(cell => !cell || !cell.trim())) {
+        continue
+      }
+      
       const rowData: any = {}
       
       // Skip rows that are program headers (no film title)
