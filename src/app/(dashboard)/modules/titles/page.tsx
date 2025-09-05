@@ -7,6 +7,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { FilmCard, ProgramCard, VenueCard, GuestCard } from '@/types'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
+import { ProgramCardPopup } from '@/components/cards/program-card-popup'
 import { FilmEditModal } from '@/components/forms/film-edit-modal'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { normalizeDateValue } from '@/lib/date-utils'
@@ -128,6 +129,7 @@ export default function TitlesPage() {
   const [editingFilmType, setEditingFilmType] = useState<'feature' | 'short'>('feature')
   const [showEditModal, setShowEditModal] = useState(false)
   const [showGuestCard, setShowGuestCard] = useState<GuestCard | null>(null)
+  const [showProgramCard, setShowProgramCard] = useState<ProgramCard | null>(null)
   const [showGuestMode, setShowGuestMode] = useState(false)
   const [confirmedGuests, setConfirmedGuests] = useState<Set<string>>(new Set())
   const [showAddFilmModal, setShowAddFilmModal] = useState(false)
@@ -1985,7 +1987,7 @@ export default function TitlesPage() {
                       <td 
                         className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50 sticky left-0 bg-white z-20 shadow-sm" 
                         style={{ minWidth: `${columnWidths['title'] || 250}px` }}
-                        onClick={() => setEditingEvent(program)}
+                        onClick={() => setShowProgramCard(program)}
                       >
                         <span className="text-blue-600 hover:text-blue-800 hover:underline">
                           {program.title}
@@ -2458,6 +2460,14 @@ export default function TitlesPage() {
         <GuestCardPopup
           guest={showGuestCard}
           onClose={() => setShowGuestCard(null)}
+        />
+      )}
+
+      {/* Program Card Popup */}
+      {showProgramCard && (
+        <ProgramCardPopup
+          program={showProgramCard}
+          onClose={() => setShowProgramCard(null)}
         />
       )}
 
