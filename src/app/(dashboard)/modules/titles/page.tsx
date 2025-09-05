@@ -1437,37 +1437,41 @@ export default function TitlesPage() {
   const processShortsCSV = async (rows: string[][], headers: string[], headerRowIndex: number = 0) => {
     setUploadStatus('Processing shorts CSV with new simple approach...')
     
-    // Find column indices - prioritize "Title" (what the template generates) over "Film Title" (legacy)
+    // Find column indices - match EXACT CSV headers
     const indices = {
-      title: headers.indexOf('Title') !== -1 ? headers.indexOf('Title') : headers.indexOf('Film Title'),
+      title: headers.indexOf('Title'),
       source: headers.indexOf('Source'),
       original_language_title: headers.indexOf('Original Language Title'),
       language: headers.indexOf('Language'),
-      subtitles: headers.indexOf('Subtitles? (Yes or No)'),
-      run_time: headers.indexOf('Run time'),
+      subtitles: headers.indexOf('Subtitles'),
+      run_time: headers.indexOf('Run Time'),
       director: headers.indexOf('Director'),
-      countries: headers.findIndex(h => h && h.includes('Country')),
+      countries: headers.indexOf('Countries'),
       program_1: headers.indexOf('Program 1'),
       program_2: headers.indexOf('Program 2'),
+      program_3: headers.indexOf('Program 3'),
       genre_1: headers.indexOf('Genre 1'),
       genre_2: headers.indexOf('Genre 2'),
       genre_3: headers.indexOf('Genre 3'),
-      captions: headers.findIndex(h => h && h.includes('Captions')),
+      captions: headers.indexOf('Captions'),
       screenwriter: headers.indexOf('Screenwriter'),
       cinematographer: headers.indexOf('Cinematographer'),
       animator: headers.indexOf('Animator'),
       editor: headers.indexOf('Editor'),
+      sound_designer: headers.indexOf('Sound Designer'),
       principal_cast: headers.indexOf('Principal Cast'),
-      music_score: headers.indexOf('Music/Score'),
+      music_score: headers.indexOf('Music Score'),
       producer: headers.indexOf('Producer'),
       executive_producer: headers.indexOf('Executive Producer'),
+      archivist: headers.indexOf('Archivist'),
       production_companies: headers.indexOf('Production Companies'),
-      film_website: headers.indexOf('Film website'),
-      trailer_url: headers.findIndex(h => h && h.includes('Trailer')),
+      film_website: headers.indexOf('Film Website'),
+      trailer_url: headers.indexOf('Trailer URL'),
       premiere_status: headers.indexOf('Premiere Status'),
       content_considerations: headers.indexOf('Content Considerations'),
+      shorts_program_id: headers.indexOf('Shorts Program ID'),
       shorts_program_name: headers.indexOf('Shorts Program Name'),
-      program_order: headers.indexOf('Program Order') !== -1 ? headers.indexOf('Program Order') : headers.indexOf('Order')
+      program_order: headers.indexOf('Program Order')
     }
 
     console.log('Column indices found:', indices)
@@ -1519,10 +1523,12 @@ export default function TitlesPage() {
         cinematographer: row[indices.cinematographer]?.replace(/^\s+|\s+$/g, '') || null,
         animator: row[indices.animator]?.replace(/^\s+|\s+$/g, '') || null,
         editor: row[indices.editor]?.replace(/^\s+|\s+$/g, '') || null,
+        sound_designer: row[indices.sound_designer]?.replace(/^\s+|\s+$/g, '') || null,
         principal_cast: row[indices.principal_cast]?.replace(/^\s+|\s+$/g, '') || null,
         music_score: row[indices.music_score]?.replace(/^\s+|\s+$/g, '') || null,
         producer: row[indices.producer]?.replace(/^\s+|\s+$/g, '') || null,
         executive_producer: row[indices.executive_producer]?.replace(/^\s+|\s+$/g, '') || null,
+        archivist: row[indices.archivist]?.replace(/^\s+|\s+$/g, '') || null,
         production_companies: row[indices.production_companies]?.replace(/^\s+|\s+$/g, '') || null,
         film_website: row[indices.film_website]?.trim() || null,
         trailer_url: row[indices.trailer_url]?.trim() || null,
