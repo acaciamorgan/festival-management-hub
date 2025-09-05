@@ -55,18 +55,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Cannot reset super admin password' }, { status: 403 })
     }
 
-    // Generate password reset link and send via custom Gmail template
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email: email,
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`
+    // Generate secure temporary password
+    const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!${Math.floor(Math.random() * 9) + 1}`
+    
+    // Update the user's password to the temporary password
+    const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
+      targetUser.user_id,
+      { 
+        password: tempPassword,
+        user_metadata: {
+          needs_password_change: true
+        }
       }
-    })
-
-    if (linkError) {
-      console.error('Error generating reset link:', linkError)
-      return NextResponse.json({ error: 'Failed to generate password reset link' }, { status: 500 })
+    )
+    
+    if (passwordError) {
+      console.error('Error updating user password:', passwordError)
+      return NextResponse.json({ error: 'Failed to update user password' }, { status: 500 })
     }
 
     // Send custom email via Gmail API using Supabase Edge Function
@@ -79,7 +84,8 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         to: email,
         subject: 'Reset your Callsheet password',
-        setupUrl: linkData.properties?.action_link,
+        tempPassword: tempPassword,
+        loginUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/login`,
         type: 'password_reset'
       })
     })

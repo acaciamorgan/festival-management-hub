@@ -870,16 +870,18 @@ export default function PressManagementPage() {
           <div className="bg-white rounded-lg shadow-sm p-6 text-center">
             <h2 className="text-lg font-medium mb-4">No Press Cards Yet</h2>
             <p className="text-gray-600 mb-4">Upload a CSV file to add press to the database.</p>
-            <label className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md cursor-pointer transition-colors inline-block">
-              📂 Upload CSV File
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleCSVUpload}
-                disabled={uploading}
-                className="hidden"
-              />
-            </label>
+            {canEditPress && (
+              <label className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md cursor-pointer transition-colors inline-block">
+                📂 Upload CSV File
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
