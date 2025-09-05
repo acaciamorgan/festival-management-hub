@@ -178,7 +178,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
           .from('venues')
           .insert([{
             ...venueData,
-            created_at: new Date().toISOString()
+            created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
           }])
           .select()
           .single()
@@ -208,7 +208,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
             house_name: house.house_name.trim(),
             seat_count: house.seat_count,
             short_code: house.short_code?.trim() || null,
-            created_at: new Date().toISOString()
+            created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
           }))
 
           console.log('Inserting theater houses:', housesToInsert)

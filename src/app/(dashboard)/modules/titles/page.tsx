@@ -1931,7 +1931,8 @@ export default function TitlesPage() {
                       { key: 'venue_name', label: 'Venue', width: 150 },
                       { key: 'participants', label: 'Participants', width: 200 },
                       { key: 'description', label: 'Description', width: 300 },
-                      { key: 'is_industry_days', label: 'Industry Days', width: 120 }
+                      { key: 'is_industry_days', label: 'Industry Days', width: 120 },
+                      { key: 'actions', label: 'Actions', width: 100 }
                     ].map((column) => (
                       <th
                         key={column.key}
@@ -2014,11 +2015,21 @@ export default function TitlesPage() {
                           {program.description}
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['is_industry_days'] || 120}px` }}>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['is_industry_days'] || 120}px` }}>
                         {program.is_industry_days && (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             Industry Days
                           </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 100}px` }}>
+                        {canEditTitles && (
+                          <button
+                            onClick={() => setEditingEvent(program)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium"
+                          >
+                            Edit
+                          </button>
                         )}
                       </td>
                     </tr>

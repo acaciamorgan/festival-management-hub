@@ -152,11 +152,16 @@ export default function ArchivesPage() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+    if (!dateString) return '—'
+    // Parse date string directly without timezone conversion
+    if (dateString.includes('-')) {
+      const [year, month, day] = dateString.split(' ')[0].split('-')
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                         'July', 'August', 'September', 'October', 'November', 'December']
+      const monthIndex = parseInt(month) - 1
+      return `${monthNames[monthIndex]} ${parseInt(day)}, ${year}`
+    }
+    return dateString
   }
 
   // Check if current festival can be closed (must be archived first)

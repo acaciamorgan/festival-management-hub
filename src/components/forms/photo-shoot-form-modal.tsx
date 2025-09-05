@@ -363,7 +363,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         // special_event: formData.special_event.trim() || null,  // Removed - to be implemented later
         selects_received: formData.selects_received,
         sent_to_pr: formData.sent_to_pr,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
       }
 
       console.log('Photo Shoot: Attempting to save data:', photoShootData)
@@ -389,7 +389,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         // Create new photo shoot
         console.log('Photo Shoot: Creating new photo shoot:', {
           ...photoShootData,
-          created_at: new Date().toISOString(),
+          created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
           created_by: user?.id
         })
         
@@ -397,7 +397,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
           .from('photo_shoots')
           .insert([{
             ...photoShootData,
-            created_at: new Date().toISOString(),
+            created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
             created_by: user?.id
           }])
           .select()

@@ -413,7 +413,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
           film_program_start_time: formData.film_program_start_time || null,
           rsvp_form_url: formData.rsvp_form_url.trim() || null,
           rsvp_responses_url: formData.rsvp_responses_url.trim() || null,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
         }
 
         let savedRedCarpet: any
@@ -435,7 +435,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
             .from('red_carpets')
             .insert([{
               ...redCarpetData,
-              created_at: new Date().toISOString(),
+              created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
               created_by: user?.id
             }])
             .select()

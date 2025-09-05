@@ -1153,11 +1153,13 @@ export default function ProgrammingPipelinePage() {
 
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return '—'
-    const date = new Date(dateString)
-    const month = (date.getMonth() + 1).toString().padStart(2, '0')
-    const day = date.getDate().toString().padStart(2, '0')
-    const year = date.getFullYear().toString().slice(-2)
-    return `${month}/${day}/${year}`
+    // Parse date string directly without timezone conversion
+    if (dateString.includes('-')) {
+      const [year, month, day] = dateString.split('-')
+      const shortYear = year.slice(-2)
+      return `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${shortYear}`
+    }
+    return dateString
   }
 
   const getStatusBadge = () => {
@@ -1220,7 +1222,9 @@ export default function ProgrammingPipelinePage() {
     const link = document.createElement('a')
     const url = URL.createObjectURL(blob)
     link.setAttribute('href', url)
-    link.setAttribute('download', `programming-pipeline-${new Date().toISOString().split('T')[0]}.csv`)
+    const today = new Date()
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    link.setAttribute('download', `programming-pipeline-${dateStr}.csv`)
     link.style.visibility = 'hidden'
     document.body.appendChild(link)
     link.click()
@@ -1266,7 +1270,9 @@ export default function ProgrammingPipelinePage() {
     XLSX.utils.book_append_sheet(wb, ws, 'Films Grid')
 
     // Generate Excel file and trigger download
-    XLSX.writeFile(wb, `programming-pipeline-${new Date().toISOString().split('T')[0]}.xlsx`)
+    const today = new Date()
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    XLSX.writeFile(wb, `programming-pipeline-${dateStr}.xlsx`)
   }
 
   // Render cell with highlighting and notes support

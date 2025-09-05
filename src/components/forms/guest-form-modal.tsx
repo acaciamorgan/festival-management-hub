@@ -350,7 +350,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         checked_in: formData.checked_in,
         notes: formData.notes.trim() || null,
         films_display: formData.film_titles.trim() || '—',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
       }
 
       console.log('Attempting to save guest data:', guestData)
@@ -374,7 +374,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
           .from('guests')
           .update({
             ...guestData,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
           })
           .eq('id', existingGuest.id)
           .select()
@@ -388,7 +388,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
           .from('guests')
           .insert([{
             ...guestData,
-            created_at: new Date().toISOString(),
+            created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
             created_by: user?.id
           }])
           .select()

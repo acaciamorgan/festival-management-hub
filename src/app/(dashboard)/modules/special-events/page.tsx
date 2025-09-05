@@ -226,10 +226,23 @@ export default function SpecialEventsPage() {
             }
             // Handle date field
             else if (fieldName === 'event_date') {
-              // Try to parse date in various formats
-              const date = new Date(value)
-              if (!isNaN(date.getTime())) {
-                value = date.toISOString().split('T')[0]
+              // Parse date strings directly without timezone conversion
+              if (value && typeof value === 'string') {
+                // Handle MM/DD/YYYY format
+                if (value.includes('/')) {
+                  const parts = value.split('/')
+                  if (parts.length === 3) {
+                    const month = parts[0].padStart(2, '0')
+                    const day = parts[1].padStart(2, '0')
+                    const year = parts[2].length === 2 ? '20' + parts[2] : parts[2]
+                    value = `${year}-${month}-${day}`
+                  }
+                }
+                // Handle other formats by preserving as-is if already YYYY-MM-DD
+                else if (value.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+                  const [year, month, day] = value.split('-')
+                  value = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+                }
               }
             }
             
@@ -447,12 +460,29 @@ export default function SpecialEventsPage() {
 
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return '—'
-    const date = new Date(dateString)
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-    const dayName = dayNames[date.getDay()]
-    const month = (date.getMonth() + 1).toString().padStart(2, '0')
-    const day = date.getDate().toString().padStart(2, '0')
-    return `${dayName}, ${month}/${day}`
+    // Parse date string directly without timezone conversion
+    if (dateString.includes('-')) {
+      const [year, month, day] = dateString.split('-').map(Number)
+      
+      // Use Zeller's congruence to calculate day of week
+      let zYear = year
+      let zMonth = month
+      if (zMonth < 3) {
+        zMonth += 12
+        zYear -= 1
+      }
+      
+      const k = zYear % 100
+      const j = Math.floor(zYear / 100)
+      let h = (day + Math.floor((13 * (zMonth + 1)) / 5) + k + Math.floor(k / 4) + Math.floor(j / 4) - 2 * j) % 7
+      if (h < 0) h += 7
+      
+      const dayNames = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+      const dayName = dayNames[h]
+      
+      return `${dayName}, ${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`
+    }
+    return dateString
   }
 
   const formatTime = (timeString: string | null): string => {
@@ -529,7 +559,7 @@ export default function SpecialEventsPage() {
     try {
       const { error } = await supabase
         .from('special_events')
-        .update({ [field]: value, updated_at: new Date().toISOString() })
+        .update({ [field]: value, updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0') })
         .eq('id', eventId)
 
       if (error) throw error

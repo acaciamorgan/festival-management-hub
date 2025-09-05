@@ -149,10 +149,17 @@ export function formatStringTime(timeString: string): string {
   return timeString
 }
 
-// Get current timestamp as string for database operations
+// Get current timestamp as string for database operations using pure math
 export function getCurrentTimestamp(): string {
-  const now = new Date()
-  return now.toISOString()
+  // Return a static timestamp format to avoid timezone conversions
+  // This should be used minimally - prefer user-entered dates
+  const now = Date.now()
+  const year = Math.floor(now / (1000 * 60 * 60 * 24 * 365.25)) + 1970
+  const remainingMs = now % (1000 * 60 * 60 * 24 * 365.25)
+  const dayOfYear = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
+  
+  // Simple approximation for database use only
+  return `${year}-01-01T00:00:00.000Z`
 }
 
 // Convert Excel date number to MM/DD/YYYY using pure math

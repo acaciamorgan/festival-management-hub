@@ -206,13 +206,31 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
         // Parse confirmed status
         const confirmed = primaryRow['Confirmed?']?.toLowerCase().trim() === 'yes'
 
-        // Parse arrival date
+        // Parse arrival date without timezone conversion
         const arrivalDate = primaryRow['Arrival Date']?.trim()
-        const parsedArrivalDate = arrivalDate ? new Date(arrivalDate).toISOString().split('T')[0] : null
+        const parsedArrivalDate = arrivalDate ? (() => {
+          if (arrivalDate.includes('/')) {
+            const parts = arrivalDate.split('/')
+            const month = parts[0].padStart(2, '0')
+            const day = parts[1].padStart(2, '0')
+            const year = parts[2].length === 2 ? '20' + parts[2] : parts[2]
+            return `${year}-${month}-${day}`
+          }
+          return arrivalDate.includes('-') ? arrivalDate : null
+        })() : null
 
-        // Parse departure date  
+        // Parse departure date without timezone conversion
         const departureDate = primaryRow['Departure Date']?.trim()
-        const parsedDepartureDate = departureDate ? new Date(departureDate).toISOString().split('T')[0] : null
+        const parsedDepartureDate = departureDate ? (() => {
+          if (departureDate.includes('/')) {
+            const parts = departureDate.split('/')
+            const month = parts[0].padStart(2, '0')
+            const day = parts[1].padStart(2, '0')
+            const year = parts[2].length === 2 ? '20' + parts[2] : parts[2]
+            return `${year}-${month}-${day}`
+          }
+          return departureDate.includes('-') ? departureDate : null
+        })() : null
 
         // Get flight information directly from CSV columns
         const arrivalAirline = primaryRow['Arrival Airline']?.trim() || null
@@ -257,8 +275,8 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           hotel_confirmation_number: primaryRow['Hotel Confirmation']?.trim() || null,
           checked_in: false,
           notes: primaryRow['Notes']?.trim() || null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
+          updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
         }
 
         // Check if guest already exists
@@ -282,7 +300,7 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
             .from('guests')
             .update({
               ...guestData,
-              updated_at: new Date().toISOString()
+              updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
             })
             .eq('id', existingGuest.id)
             .select()

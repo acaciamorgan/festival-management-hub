@@ -166,17 +166,15 @@ export default function PhotoShootsPage() {
           allFilmTitles.add(title.trim())
         })
       }
-      if (shoot.subjects_display) {
-        shoot.subjects_display.split(',').forEach(name => {
-          allGuestNames.add(name.trim())
-        })
-      }
+      // DON'T add subjects from photo shoot data - only use actual guest cards
     })
     
     // For now, assume all items exist and make them clickable
     // We'll check existence when clicked instead of preloading
     setExistingFilms(allFilmTitles)
-    setExistingGuests(allGuestNames)
+    // Only use actual guest names from the guests table, not from photo shoot data
+    const actualGuestNames = new Set((guestsData || []).map(g => g.name))
+    setExistingGuests(actualGuestNames)
   }
 
   useEffect(() => {

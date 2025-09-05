@@ -6,9 +6,33 @@ export const archiveConfigs = {
     columns: [
       { key: 'festival_name', label: 'Festival Name' },
       { key: 'edition_number', label: 'Edition' },
-      { key: 'start_date', label: 'Start Date', render: (value: string) => new Date(value).toLocaleDateString() },
-      { key: 'end_date', label: 'End Date', render: (value: string) => new Date(value).toLocaleDateString() },
-      { key: 'created_at', label: 'Created', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'start_date', label: 'Start Date', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } },
+      { key: 'end_date', label: 'End Date', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } },
+      { key: 'created_at', label: 'Created', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   programmingPipeline: {
@@ -18,7 +42,15 @@ export const archiveConfigs = {
       { key: 'title', label: 'Program Title' },
       { key: 'program_type', label: 'Type' },
       { key: 'description', label: 'Description', render: (value: string) => value?.substring(0, 100) + '...' },
-      { key: 'created_at', label: 'Created', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Created', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   titles: {
@@ -39,7 +71,15 @@ export const archiveConfigs = {
       { key: 'language', label: 'Language' },
       { key: 'production_companies', label: 'Production Companies' },
       { key: 'premiere_status', label: 'Premiere Status' },
-      { key: 'created_at', label: 'Added', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Added', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   pressManagement: {
@@ -50,7 +90,15 @@ export const archiveConfigs = {
       { key: 'media_outlet', label: 'Media Outlet' },
       { key: 'email', label: 'Email' },
       { key: 'phone', label: 'Phone' },
-      { key: 'created_at', label: 'Added', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Added', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   pressScreenings: {
@@ -58,10 +106,26 @@ export const archiveConfigs = {
     title: 'Press Screenings',
     columns: [
       { key: 'title', label: 'Film Title' },
-      { key: 'screening_date', label: 'Date', render: (value: string) => new Date(value).toLocaleDateString() },
+      { key: 'screening_date', label: 'Date', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } },
       { key: 'screening_time', label: 'Time' },
       { key: 'short_code', label: 'Venue' },
-      { key: 'created_at', label: 'Created', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Created', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   screenerAccess: {
@@ -70,7 +134,15 @@ export const archiveConfigs = {
     columns: [
       { key: 'film_id', label: 'Film ID' },
       { key: 'access_type', label: 'Access Type' },
-      { key: 'created_at', label: 'Granted', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Granted', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   pressRequests: {
@@ -82,7 +154,15 @@ export const archiveConfigs = {
       { key: 'request_type', label: 'Type' },
       { key: 'film_titles', label: 'Films' },
       { key: 'status', label: 'Status' },
-      { key: 'created_at', label: 'Requested', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Requested', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   photoShoots: {
@@ -92,9 +172,25 @@ export const archiveConfigs = {
       { key: 'film_program_display', label: 'Film/Program' },
       { key: 'subjects_display', label: 'Subjects' },
       { key: 'photographer', label: 'Photographer' },
-      { key: 'shoot_date', label: 'Date', render: (value: string) => new Date(value).toLocaleDateString() },
+      { key: 'shoot_date', label: 'Date', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } },
       { key: 'shoot_time', label: 'Time' },
-      { key: 'created_at', label: 'Created', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Created', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   inAttendance: {
@@ -106,7 +202,15 @@ export const archiveConfigs = {
       { key: 'email', label: 'Email' },
       { key: 'phone', label: 'Phone' },
       { key: 'company', label: 'Company' },
-      { key: 'created_at', label: 'Added', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Added', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   interviewManagement: {
@@ -116,7 +220,15 @@ export const archiveConfigs = {
       { key: 'name', label: 'Name' },
       { key: 'media_outlet', label: 'Media Outlet' },
       { key: 'email', label: 'Email' },
-      { key: 'created_at', label: 'Added', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Added', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   redCarpets: {
@@ -125,10 +237,26 @@ export const archiveConfigs = {
     columns: [
       { key: 'film_program_display', label: 'Film/Program' },
       { key: 'subjects_display', label: 'Subjects' },
-      { key: 'carpet_date', label: 'Date', render: (value: string) => new Date(value).toLocaleDateString() },
+      { key: 'carpet_date', label: 'Date', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } },
       { key: 'carpet_start_time', label: 'Start Time' },
       { key: 'house', label: 'Venue' },
-      { key: 'created_at', label: 'Created', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Created', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   specialEvents: {
@@ -137,10 +265,26 @@ export const archiveConfigs = {
     columns: [
       { key: 'title', label: 'Event Title' },
       { key: 'event_type', label: 'Type' },
-      { key: 'event_date', label: 'Date', render: (value: string) => new Date(value).toLocaleDateString() },
+      { key: 'event_date', label: 'Date', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } },
       { key: 'start_time', label: 'Start Time' },
       { key: 'venue_name', label: 'Venue' },
-      { key: 'created_at', label: 'Created', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Created', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   venueManagement: {
@@ -152,7 +296,15 @@ export const archiveConfigs = {
       { key: 'address', label: 'Address' },
       { key: 'capacity', label: 'Capacity' },
       { key: 'contact_person', label: 'Contact' },
-      { key: 'created_at', label: 'Added', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Added', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   contactsManagement: {
@@ -164,7 +316,15 @@ export const archiveConfigs = {
       { key: 'company', label: 'Company' },
       { key: 'email', label: 'Email' },
       { key: 'phone', label: 'Phone' },
-      { key: 'created_at', label: 'Added', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Added', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   ticketing: {
@@ -172,12 +332,28 @@ export const archiveConfigs = {
     title: 'Published Screenings',
     columns: [
       { key: 'film_title', label: 'Film' },
-      { key: 'screening_date', label: 'Date', render: (value: string) => new Date(value).toLocaleDateString() },
+      { key: 'screening_date', label: 'Date', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } },
       { key: 'start_time', label: 'Time' },
       { key: 'venue_short_code', label: 'Venue' },
       { key: 'capacity', label: 'Capacity' },
       { key: 'tickets_sold', label: 'Sold' },
-      { key: 'created_at', label: 'Created', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Created', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   },
   reportsAnalytics: {
@@ -187,7 +363,15 @@ export const archiveConfigs = {
       { key: 'requester_outlet', label: 'Outlet' },
       { key: 'request_type', label: 'Request Type' },
       { key: 'status', label: 'Status' },
-      { key: 'created_at', label: 'Date', render: (value: string) => new Date(value).toLocaleDateString() }
+      { key: 'created_at', label: 'Date', render: (value: string) => {
+        if (!value) return '—'
+        // Parse date string directly without timezone conversion
+        if (value.includes('-')) {
+          const [year, month, day] = value.split(' ')[0].split('-')
+          return `${month}/${day}/${year}`
+        }
+        return value
+      } }
     ]
   }
 }

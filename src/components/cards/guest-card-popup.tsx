@@ -216,9 +216,10 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
               }
             }
             
-            // Sort all screenings by date and time
+            // Sort all screenings by date and time without timezone conversion
             allScreenings.sort((a, b) => {
-              const dateCompare = new Date(a.screening_date).getTime() - new Date(b.screening_date).getTime()
+              // Compare dates as strings (YYYY-MM-DD format)
+              const dateCompare = a.screening_date.localeCompare(b.screening_date)
               if (dateCompare !== 0) return dateCompare
               
               // If dates are equal, compare times
@@ -295,11 +296,13 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
 
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return 'Not specified'
-    const date = new Date(dateString)
-    const month = (date.getMonth() + 1).toString().padStart(2, '0')
-    const day = date.getDate().toString().padStart(2, '0')
-    const year = date.getFullYear().toString().slice(-2)
-    return `${month}/${day}/${year}`
+    // Parse date string directly without timezone conversion
+    if (dateString.includes('-')) {
+      const [year, month, day] = dateString.split('-')
+      const shortYear = year.slice(-2)
+      return `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${shortYear}`
+    }
+    return dateString
   }
 
   const formatTime = (timeString: string | undefined): string => {
@@ -703,11 +706,13 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                 {/* Photo Shoots */}
                 {photoShoots.map((shoot) => {
                   const date = shoot.shoot_date ? (() => {
-                    const d = new Date(shoot.shoot_date)
-                    const month = (d.getMonth() + 1).toString().padStart(2, '0')
-                    const day = d.getDate().toString().padStart(2, '0')
-                    const year = d.getFullYear().toString().slice(-2)
-                    return `${month}/${day}/${year}`
+                    // Parse date string directly without timezone conversion
+                    if (shoot.shoot_date.includes('-')) {
+                      const [year, month, day] = shoot.shoot_date.split('-')
+                      const shortYear = year.slice(-2)
+                      return `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${shortYear}`
+                    }
+                    return shoot.shoot_date
                   })() : 'TBD'
                   
                   const time = shoot.shoot_time ? formatTimeForDisplay(shoot.shoot_time) : 'TBD'
@@ -724,11 +729,13 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                 {/* Red Carpets */}
                 {redCarpets.map((carpet) => {
                   const date = carpet.carpet_date ? (() => {
-                    const d = new Date(carpet.carpet_date)
-                    const month = (d.getMonth() + 1).toString().padStart(2, '0')
-                    const day = d.getDate().toString().padStart(2, '0')
-                    const year = d.getFullYear().toString().slice(-2)
-                    return `${month}/${day}/${year}`
+                    // Parse date string directly without timezone conversion
+                    if (carpet.carpet_date.includes('-')) {
+                      const [year, month, day] = carpet.carpet_date.split('-')
+                      const shortYear = year.slice(-2)
+                      return `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${shortYear}`
+                    }
+                    return carpet.carpet_date
                   })() : 'TBD'
                   
                   const time = carpet.carpet_start_time ? (() => {
@@ -762,15 +769,31 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
             {filmScreenings.length > 0 ? (
               <div className="space-y-2">
                 {filmScreenings.map((screening) => {
-                  // Format date as "Mon, Oct 23"
+                  // Format date as "Mon, Oct 23" without timezone conversion
                   const date = screening.screening_date ? (() => {
-                    const d = new Date(screening.screening_date)
-                    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-                    const dayName = dayNames[d.getDay()]
-                    const month = monthNames[d.getMonth()]
-                    const day = d.getDate()
-                    return `${dayName}, ${month} ${day}`
+                    if (screening.screening_date.includes('-')) {
+                      const [year, month, day] = screening.screening_date.split('-').map(Number)
+                      
+                      // Use Zeller's congruence to calculate day of week
+                      let zYear = year
+                      let zMonth = month
+                      if (zMonth < 3) {
+                        zMonth += 12
+                        zYear -= 1
+                      }
+                      
+                      const k = zYear % 100
+                      const j = Math.floor(zYear / 100)
+                      let h = (day + Math.floor((13 * (zMonth + 1)) / 5) + k + Math.floor(k / 4) + Math.floor(j / 4) - 2 * j) % 7
+                      if (h < 0) h += 7
+                      
+                      const dayNames = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+                      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                      const dayName = dayNames[h]
+                      const monthName = monthNames[month - 1]
+                      return `${dayName}, ${monthName} ${day}`
+                    }
+                    return screening.screening_date
                   })() : 'TBD'
                   
                   // Format time as "7:00 PM"

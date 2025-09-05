@@ -79,32 +79,59 @@ export async function parseDateSafeWithContext(dateString: string): Promise<Date
   throw new Error(`Unsupported date format: ${dateString}`)
 }
 
-// Convert Excel date number to MM/DD/YYYY format using festival year context
+// Convert Excel date number to MM/DD/YYYY format using pure math (no Date objects)
 export async function convertExcelDateWithContext(excelDateNumber: number): Promise<string> {
   const festivalYear = await getFestivalYear()
   
-  // Excel date calculation: 1 = January 1, 1900
-  // But Excel incorrectly treats 1900 as a leap year, so we need to account for that
-  const excelEpoch = new Date(1900, 0, 1) // January 1, 1900
-  let daysSinceEpoch = excelDateNumber - 1
+  // Excel epoch: January 1, 1900 is day 1
+  // Calculate days since epoch using pure math
+  let daysSince1900 = excelDateNumber - 1
   
-  // Account for Excel's leap year bug (Feb 29, 1900 doesn't exist but Excel thinks it does)
+  // Account for Excel's leap year bug (1900 wasn't a leap year but Excel thinks it was)
   if (excelDateNumber >= 60) {
-    daysSinceEpoch -= 1
+    daysSince1900 -= 1
   }
   
-  // Create date in UTC to avoid timezone issues
-  const resultDate = new Date(1900, 0, 1)
-  resultDate.setUTCDate(resultDate.getUTCDate() + daysSinceEpoch)
+  // Calculate year using pure math
+  let year = 1900
+  let remainingDays = daysSince1900
   
-  const month = resultDate.getUTCMonth() + 1
-  const day = resultDate.getUTCDate() + 1
-  const calculatedYear = resultDate.getUTCFullYear()
+  // Add years
+  while (remainingDays >= 365) {
+    const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0)
+    const daysInYear = isLeapYear ? 366 : 365
+    
+    if (remainingDays >= daysInYear) {
+      remainingDays -= daysInYear
+      year++
+    } else {
+      break
+    }
+  }
   
-  // If the calculated year is close to the festival year, use festival year
-  // This handles cases where Excel dates might be slightly off
-  const yearDiff = Math.abs(calculatedYear - festivalYear)
-  const finalYear = yearDiff <= 1 ? festivalYear : calculatedYear
+  // Calculate month and day using pure math
+  const daysInMonths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  
+  // Adjust February for leap year
+  const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0)
+  if (isLeapYear) {
+    daysInMonths[1] = 29
+  }
+  
+  let month = 1
+  let day = remainingDays + 1
+  
+  for (let i = 0; i < 12; i++) {
+    if (day <= daysInMonths[i]) {
+      month = i + 1
+      break
+    }
+    day -= daysInMonths[i]
+  }
+  
+  // If calculated year is close to festival year, use festival year
+  const yearDiff = Math.abs(year - festivalYear)
+  const finalYear = yearDiff <= 1 ? festivalYear : year
   
   return `${month}/${day}/${finalYear}`
 }

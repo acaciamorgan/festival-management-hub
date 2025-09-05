@@ -758,12 +758,15 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
             <CollapsibleSection title="Interviews" isEmpty={filmInterviews.length === 0}>
               {filmInterviews.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {filmInterviews.map((interview) => (
-                    <div key={interview.id} className="bg-gray-50 rounded-lg p-3">
-                      {/* Line 1: Status Badge */}
-                      <div className="mb-2">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                    <div key={interview.id} className="bg-gray-50 rounded-lg px-3 py-2">
+                      {/* Single Line Display */}
+                      <div className="text-sm text-gray-900 flex items-center flex-wrap gap-2">
+                        <span className="font-medium">{interview.journalist_name || 'Journalist TBD'}</span>
+                        {interview.outlet && <span className="text-gray-600">| {interview.outlet}</span>}
+                        {interview.subject_names && <span className="text-gray-600">| {interview.subject_names}</span>}
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
                           interview.status === 'Complete' ? 'bg-green-100 text-green-800' :
                           interview.status === 'Scheduled' ? 'bg-blue-100 text-blue-800' :
                           interview.status === 'Declined' ? 'bg-red-100 text-red-800' :
@@ -772,23 +775,13 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                         }`}>
                           {interview.status}
                         </span>
+                        {interview.status === 'Scheduled' && interview.interview_date && (
+                          <span className="text-gray-500 text-xs">
+                            | {formatDateForDisplay(interview.interview_date)}
+                            {interview.interview_time && ` at ${formatTimeForDisplay(interview.interview_time)}`}
+                          </span>
+                        )}
                       </div>
-                      
-                      {/* Line 2: Main Info */}
-                      <div className="text-sm text-gray-900 mb-1">
-                        <span className="font-medium">{interview.journalist_name || 'Journalist TBD'}</span>
-                        {interview.outlet && <span> | Outlet: {interview.outlet}</span>}
-                        {interview.subject_names && <span> | Subject(s): {interview.subject_names}</span>}
-                      </div>
-                      
-                      {/* Line 3: Scheduling Info (only when scheduled) */}
-                      {interview.status === 'Scheduled' && (
-                        <div className="text-sm text-gray-600">
-                          {interview.interview_date && <span>Date: {formatDateForDisplay(interview.interview_date)}</span>}
-                          {interview.interview_time && <span> | Time: {formatTimeForDisplay(interview.interview_time)}</span>}
-                          {interview.location && <span> | Location: {interview.location}</span>}
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>

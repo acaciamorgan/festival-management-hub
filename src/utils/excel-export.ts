@@ -447,8 +447,9 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     utils.book_append_sheet(workbook, ticketingSheet, 'Ticketing')
     console.log('Ticketing sheet added to workbook')
     
-    // Generate filename
-    const currentDate = new Date().toISOString().split('T')[0]
+    // Generate filename without timezone conversion
+    const today = new Date()
+    const currentDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
     const filename = `${festivalName.replace(/\s+/g, '_')}_${edition ? edition + '_' : ''}Export_${currentDate}.xlsx`
     
     // Write file
