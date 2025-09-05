@@ -1475,7 +1475,12 @@ export default function TitlesPage() {
     }
 
     console.log('Column indices found:', indices)
+    console.log('Headers found:', headers)
     console.log('Title column index:', indices.title)
+    console.log('Run Time column index:', indices.run_time)
+    console.log('Countries column index:', indices.countries)
+    console.log('Language column index:', indices.language)
+    
     if (indices.title === -1) {
       console.error('ERROR: Could not find title column! Headers are:', headers)
       setUploadStatus('Error: Could not find title column in CSV. Looking for "Film Title" or "Title"')
@@ -1504,6 +1509,11 @@ export default function TitlesPage() {
         continue
       }
 
+      console.log(`Processing row ${i}: Title="${title}"`)
+      console.log(`  Raw countries data: "${row[indices.countries]}"`)
+      console.log(`  Raw run_time data: "${row[indices.run_time]}"`)
+      console.log(`  Raw language data: "${row[indices.language]}"`)
+      
       // Build the short data object directly from indices
       const shortData: any = {
         title,
