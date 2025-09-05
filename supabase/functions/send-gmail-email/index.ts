@@ -71,6 +71,8 @@ serve(async (req) => {
   try {
     const { to, subject, tempPassword, loginUrl, type } = await req.json()
 
+    console.log('Gmail function received:', { to, subject, tempPassword, loginUrl, type })
+
     // Get service account credentials
     const serviceAccountEmail = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_EMAIL')
     const privateKey = Deno.env.get('GOOGLE_PRIVATE_KEY')?.replace(/\\n/g, '\n')

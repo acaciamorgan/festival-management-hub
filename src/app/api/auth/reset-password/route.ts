@@ -21,31 +21,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No account found with this email address' }, { status: 404 })
     }
 
-    // Generate password reset link
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email: email,
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`
+    // Generate secure temporary password
+    const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!${Math.floor(Math.random() * 9) + 1}`
+    
+    // Update the user's password to the temporary password
+    const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
+      existingUser.user_id,
+      { 
+        password: tempPassword,
+        user_metadata: {
+          needs_password_change: true
+        }
       }
-    })
-
-    if (linkError) {
-      console.error('Error generating reset link:', linkError)
-      return NextResponse.json({ error: 'Failed to generate password reset link' }, { status: 500 })
+    )
+    
+    if (passwordError) {
+      console.error('Error updating user password:', passwordError)
+      return NextResponse.json({ error: 'Failed to update user password' }, { status: 500 })
     }
 
     // Send custom email via Gmail API using Supabase Edge Function
-    const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-gmail-email`, {
+    const emailResponse = await fetch(`https://xqzjthbearpqcrzfdfer.supabase.co/functions/v1/send-gmail-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhxemp0aGJlYXJwcWNyemZkZmVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMTQ2MDUsImV4cCI6MjA2ODg5MDYwNX0.DUz_xMU4IW0Z4MsXZ9kVPT5hDp3frdXsHIm6BSfYKvk`
       },
       body: JSON.stringify({
         to: email,
         subject: 'Reset your Callsheet password',
-        setupUrl: linkData.properties?.action_link,
+        tempPassword: tempPassword,
+        loginUrl: `https://callsheet.acaciaconsultinggroup.com/auth/login`,
         type: 'password_reset'
       })
     })
