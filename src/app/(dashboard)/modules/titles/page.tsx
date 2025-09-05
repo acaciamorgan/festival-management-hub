@@ -1497,7 +1497,14 @@ export default function TitlesPage() {
     // Process each row directly (start after header row)
     for (let i = headerRowIndex + 1; i < rows.length; i++) {
       const row = rows[i]
-      if (!row || row.length === 0 || !row[indices.title]?.trim()) continue
+      
+      // Skip completely empty rows or rows where all cells are empty
+      if (!row || row.length === 0 || row.every(cell => !cell || !cell.trim())) {
+        console.log(`Skipping empty row ${i}`)
+        continue
+      }
+      
+      if (!row[indices.title]?.trim()) continue
 
       const title = row[indices.title]?.trim()
       if (!title) continue
