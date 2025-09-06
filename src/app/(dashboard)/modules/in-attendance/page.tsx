@@ -1016,7 +1016,7 @@ export default function InAttendancePage() {
                   { key: 'films_display', label: 'Film / Program Titles', width: 200, sortable: false },
                   { key: 'checked_in', label: 'Checked In', width: 80, sortable: true },
                   { key: 'guest_type', label: 'Type', width: 80, sortable: true },
-                  { key: 'arranging_travel', label: 'Travel', width: 80, sortable: true },
+                  { key: 'arranging_travel', label: 'Arranging Travel', width: 120, sortable: true },
                   { key: 'country', label: 'Country', width: 100, sortable: true },
                   { key: 'arrival_date', label: 'Arrival Date', width: 100, sortable: true },
                   { key: 'arrival_airline', label: 'Arrival Airline', width: 100, sortable: false },
