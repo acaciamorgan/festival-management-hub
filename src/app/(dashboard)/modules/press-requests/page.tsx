@@ -206,10 +206,15 @@ export default function PressRequestsPage() {
 
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return '—'
-    const date = new Date(dateString)
-    const month = (date.getMonth() + 1).toString().padStart(2, '0')
-    const day = date.getDate().toString().padStart(2, '0')
-    const year = date.getFullYear().toString().slice(-2)
+    
+    // Parse YYYY-MM-DD format with string manipulation only
+    const parts = dateString.split('-')
+    if (parts.length !== 3) return dateString // Return as-is if not expected format
+    
+    const year = parts[0].slice(-2) // Get last 2 digits
+    const month = parts[1]
+    const day = parts[2]
+    
     return `${month}/${day}/${year}`
   }
 
@@ -226,12 +231,27 @@ export default function PressRequestsPage() {
 
   const formatDateTime = (dateTimeString: string | null): string => {
     if (!dateTimeString) return '—'
-    const date = new Date(dateTimeString)
-    return `${formatDate(dateTimeString)} ${date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
-    })}`
+    
+    // Split datetime string (format: YYYY-MM-DD HH:mm:ss or YYYY-MM-DDTHH:mm:ss)
+    const datePart = dateTimeString.split('T')[0] || dateTimeString.split(' ')[0]
+    const timePart = dateTimeString.includes('T') ? 
+      dateTimeString.split('T')[1]?.split('.')[0] : 
+      dateTimeString.split(' ')[1]?.split('.')[0]
+    
+    const formattedDate = formatDate(datePart)
+    
+    if (!timePart) return formattedDate
+    
+    // Parse time without Date object
+    const [hours, minutes] = timePart.split(':')
+    const hour24 = parseInt(hours, 10)
+    const min = parseInt(minutes, 10)
+    
+    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+    const minStr = min.toString().padStart(2, '0')
+    
+    return `${formattedDate} ${hour12}:${minStr} ${ampm}`
   }
 
   const updateRequestStatus = async (requestId: string, status: PressRequest['status']) => {
@@ -303,7 +323,7 @@ export default function PressRequestsPage() {
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">📧 Press Requests</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">📧 Screener Requests</h1>
             <p className="text-sm text-gray-600 mt-1">
               {sortedRequests.length} requests • {newRequestsCount} new
             </p>
@@ -393,7 +413,7 @@ export default function PressRequestsPage() {
         <div className="overflow-auto" style={{ height: 'calc(100vh - 220px)' }}>
           {loading ? (
             <div className="flex items-center justify-center h-64">
-              <div className="text-lg text-gray-500">Loading press requests...</div>
+              <div className="text-lg text-gray-500">Loading screener requests...</div>
             </div>
           ) : (
             <table className="min-w-full">
@@ -555,8 +575,8 @@ export default function PressRequestsPage() {
                   <tr>
                     <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
                       {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
-                        ? 'No press requests match your filters.'
-                        : 'No press requests found. Click "Add Request" to create your first press request.'}
+                        ? 'No screener requests match your filters.'
+                        : 'No screener requests found. Click "Add Request" to create your first screener request.'}
                     </td>
                   </tr>
                 )}
@@ -566,7 +586,7 @@ export default function PressRequestsPage() {
         </div>
       </div>
 
-      {/* Press Request Form Modal */}
+      {/* Screener Request Form Modal */}
       <PressRequestFormModal
         request={selectedRequest}
         isOpen={showAddModal || !!selectedRequest}
