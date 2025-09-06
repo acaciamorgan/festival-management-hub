@@ -197,18 +197,20 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           warnings.push(`Unknown type "${csvType}" for ${guestName}, using "Other"`)
         }
 
-        // Validate and normalize arranging travel
+        // Validate and normalize arranging travel - handle various header formats
         let arrangingTravel: ArrangingTravel = 'TBD'
-        const csvArrangingTravel = primaryRow['Arranging Travel']?.trim()
+        const csvArrangingTravel = primaryRow['Arranging Travel']?.trim() || 
+                                    primaryRow['Travel']?.trim() || 
+                                    primaryRow['Travel (Festival, Studio, Local)']?.trim()
         if (csvArrangingTravel === 'Festival') arrangingTravel = 'Festival'
-        else if (csvArrangingTravel === 'Distributor') arrangingTravel = 'Distributor'
+        else if (csvArrangingTravel === 'Studio' || csvArrangingTravel === 'Distributor') arrangingTravel = 'Distributor'
         else if (csvArrangingTravel === 'Local') arrangingTravel = 'Local'
         else if (csvArrangingTravel && csvArrangingTravel !== 'TBD') {
           warnings.push(`Unknown arranging travel "${csvArrangingTravel}" for ${guestName}, using "TBD"`)
         }
 
-        // Parse confirmed status
-        const confirmed = primaryRow['Confirmed?']?.toLowerCase().trim() === 'yes'
+        // Parse confirmed status - handle various header formats
+        const confirmed = (primaryRow['Confirmed?'] || primaryRow['Confirmed'])?.toLowerCase().trim() === 'yes'
 
         // Parse arrival date without timezone conversion
         const arrivalDate = primaryRow['Arrival Date']?.trim()
@@ -236,20 +238,21 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           return departureDate.includes('-') ? departureDate : null
         })() : null
 
-        // Get flight information directly from CSV columns
+        // Get flight information - handle various header formats
         const arrivalAirline = primaryRow['Arrival Airline']?.trim() || null
-        const arrivalFlightNumber = primaryRow['Arrival Flight Number']?.trim() || null
-        const inboundDepartureTime = primaryRow['Inbound Departure Time']?.trim() || null
-        const arrivalOriginAirport = primaryRow['Arrival Origin Airport']?.trim() || null
-        const arrivalAirport = primaryRow['Arrival Airport']?.trim() || null
-        const inboundArrivalTime = primaryRow['Inbound Arrival Time']?.trim() || null
+        const arrivalFlightNumber = (primaryRow['Arrival Flight Number'] || primaryRow['Flight #'])?.trim() || null
+        const arrivalTakeoffTime = (primaryRow['Inbound Departure Time'] || primaryRow['Depart Time'])?.trim() || null
+        const arrivalOrigin = (primaryRow['Arrival Origin Airport'] || primaryRow['Origin'])?.trim() || null
+        const arrivalDestination = primaryRow['Arrival Airport']?.trim() || null
+        const arrivalLandingTime = (primaryRow['Inbound Arrival Time'] || primaryRow['Arrive Time'])?.trim() || null
         
-        const outboundDepartureTime = primaryRow['Outbound Departure Time']?.trim() || null
+        // For departure fields, need contextual parsing
+        const departureTakeoffTime = primaryRow['Depart Time']?.trim() || primaryRow['Outbound Departure Time']?.trim() || null
         const departureAirline = primaryRow['Departure Airline']?.trim() || null
-        const departureFlightNumber = primaryRow['Departure Flight Number']?.trim() || null
-        const departureAirport = primaryRow['Departure Airport']?.trim() || null
-        const destinationAirport = primaryRow['Destination Airport']?.trim() || null
-        const outboundArrivalTime = primaryRow['Outbound Arrival Time']?.trim() || null
+        const departureFlightNumber = (primaryRow['Departure Flight Number'] || primaryRow['Flight #'])?.trim() || null
+        const departureOrigin = primaryRow['Departure Airport']?.trim() || null
+        const departureDestination = (primaryRow['Destination Airport'] || primaryRow['Destination'])?.trim() || null
+        const departureLandingTime = primaryRow['Arrive Time']?.trim() || primaryRow['Outbound Arrival Time']?.trim() || null
 
         // Create guest record
         const guestData = {
@@ -257,25 +260,25 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           country: primaryRow['Country']?.trim() || null,
           guest_type: guestType,
           confirmed,
-          role: null, // Will be populated later from film associations
+          role: primaryRow['Role']?.trim() || null,
           contact_name: primaryRow['Contact']?.trim() || null,
           contact_email: primaryRow['Email']?.trim() || null,
           arranging_travel: arrangingTravel,
           arrival_date: parsedArrivalDate,
           arrival_airline: arrivalAirline,
           arrival_flight_number: arrivalFlightNumber,
-          inbound_departure_time: inboundDepartureTime,
-          arrival_origin_airport: arrivalOriginAirport,
-          arrival_airport: arrivalAirport,
-          inbound_arrival_time: inboundArrivalTime,
+          arrival_takeoff_time: arrivalTakeoffTime,
+          arrival_origin: arrivalOrigin,
+          arrival_destination: arrivalDestination,
+          arrival_landing_time: arrivalLandingTime,
           departure_date: parsedDepartureDate,
-          outbound_departure_time: outboundDepartureTime,
+          departure_takeoff_time: departureTakeoffTime,
           departure_airline: departureAirline,
           departure_flight_number: departureFlightNumber,
-          departure_airport: departureAirport,
-          destination_airport: destinationAirport,
-          outbound_arrival_time: outboundArrivalTime,
-          hotel_name: primaryRow['Accommodations']?.trim() || null,
+          departure_origin: departureOrigin,
+          departure_destination: departureDestination,
+          departure_landing_time: departureLandingTime,
+          hotel_name: (primaryRow['Hotel'] || primaryRow['Accommodations'])?.trim() || null,
           hotel_confirmation_number: primaryRow['Hotel Confirmation']?.trim() || null,
           checked_in: false,
           notes: primaryRow['Notes']?.trim() || null,
@@ -341,47 +344,25 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           savedGuest = newGuest
         }
 
-        // Process film associations
-        const filmTitles = guestRows
-          .map(row => row['Film Title']?.trim())
-          .filter(title => title && title !== '')
-
-        if (filmTitles.length > 0) {
-          // Try to find matching films in database
-          const { data: filmsData } = await supabase
-            .from('feature_films')
-            .select('id, title')
-            .in('title', filmTitles)
-
-          const filmAssociations = filmTitles.map(title => {
-            const matchedFilm = filmsData?.find(f => f.title === title)
-            if (!matchedFilm) {
-              warnings.push(`Film "${title}" not found in database for guest ${guestName}`)
-            }
-            return {
-              guest_id: savedGuest.id,
-              film_id: matchedFilm?.id || null,
-              film_title: title
-            }
-          })
-
-          // Insert film associations
-          const { data: guestFilmsData, error: filmsError } = await supabase
-            .from('guest_films')
-            .insert(filmAssociations)
-            .select()
-
-          if (filmsError) {
-            warnings.push(`Error associating films for ${guestName}: ${filmsError.message}`)
-          }
-
-          // Add films to saved guest for return
-          savedGuest.films = guestFilmsData || []
-          savedGuest.films_display = filmTitles.join(', ')
+        // Get film/program titles directly from CSV - no lookups
+        const filmsDisplay = (primaryRow['Film Title'] || primaryRow['Film/Program Titles'])?.trim() || '—'
+        
+        // Update the saved guest with films_display field
+        const { data: displayUpdatedGuest, error: displayError } = await supabase
+          .from('guests')
+          .update({ films_display: filmsDisplay })
+          .eq('id', savedGuest.id)
+          .select()
+          .single()
+        
+        if (displayError) {
+          warnings.push(`Error updating films display for ${guestName}: ${displayError.message}`)
         } else {
-          savedGuest.films = []
-          savedGuest.films_display = '—'
+          savedGuest = displayUpdatedGuest
         }
+        
+        savedGuest.films_display = filmsDisplay
+        savedGuest.films = []
 
         importedGuests.push(savedGuest)
         
