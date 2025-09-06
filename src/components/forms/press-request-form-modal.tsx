@@ -689,14 +689,44 @@ export function PressRequestFormModal({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
                             <div className="text-sm font-medium text-gray-900">
-                              {new Date(screening.screening_date).toLocaleDateString('en-US', {
-                                weekday: 'short',
-                                month: 'short', 
-                                day: 'numeric'
-                              })} at {new Date(`1970-01-01T${screening.start_time}`).toLocaleTimeString('en-US', {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                hour12: true
+                              {(() => {
+                                const parts = screening.screening_date.split('-')
+                                if (parts.length !== 3) return screening.screening_date
+                                const year = parseInt(parts[0])
+                                const month = parseInt(parts[1]) - 1
+                                const day = parseInt(parts[2])
+                                
+                                // Calculate day of week using Zeller's congruence
+                                let q = day
+                                let m = month + 1
+                                let k = year % 100
+                                let j = Math.floor(year / 100)
+                                
+                                if (m < 3) {
+                                  m += 12
+                                  if (k === 0) {
+                                    k = 99
+                                    j--
+                                  } else {
+                                    k--
+                                  }
+                                }
+                                
+                                const h = (q + Math.floor((13 * (m + 1)) / 5) + k + Math.floor(k / 4) + Math.floor(j / 4) - 2 * j) % 7
+                                const dayIndex = (h + 5) % 7
+                                
+                                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                                
+                                return `${dayNames[dayIndex]}, ${monthNames[month]} ${day}`
+                              })()} at {(() => {
+                                if (!screening.start_time) return ''
+                                const [hours, minutes] = screening.start_time.split(':')
+                                const hour24 = parseInt(hours, 10)
+                                const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+                                const ampm = hour24 >= 12 ? 'PM' : 'AM'
+                                return `${hour12}:${minutes} ${ampm}`
+                              })()
                               })}
                             </div>
                             <div className="flex items-center space-x-2">

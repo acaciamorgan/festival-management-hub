@@ -591,14 +591,33 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                       const parts = screening.screening_date.split('-')
                       if (parts.length !== 3) return screening.screening_date
                       const year = parseInt(parts[0])
-                      const month = parseInt(parts[1]) - 1
+                      const month = parseInt(parts[1])
                       const day = parseInt(parts[2])
-                      const d = new Date(year, month, day)
+                      
+                      // Calculate day of week using Zeller's congruence
+                      let q = day
+                      let m = month
+                      let k = year % 100
+                      let j = Math.floor(year / 100)
+                      
+                      if (m < 3) {
+                        m += 12
+                        if (k === 0) {
+                          k = 99
+                          j--
+                        } else {
+                          k--
+                        }
+                      }
+                      
+                      const h = (q + Math.floor((13 * (m + 1)) / 5) + k + Math.floor(k / 4) + Math.floor(j / 4) - 2 * j) % 7
+                      const dayIndex = (h + 5) % 7
+                      
                       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
                       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-                      const dayName = dayNames[d.getDay()]
-                      const monthName = monthNames[d.getMonth()]
-                      const dayNum = d.getDate()
+                      const dayName = dayNames[dayIndex]
+                      const monthName = monthNames[month - 1]
+                      const dayNum = day
                       return `${dayName}, ${monthName} ${dayNum}`
                     })() : 'TBD'
                     
@@ -649,13 +668,32 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                       const parts = screening.screening_date.split('-')
                       if (parts.length !== 3) return screening.screening_date
                       const year = parseInt(parts[0])
-                      const month = parseInt(parts[1]) - 1
+                      const month = parseInt(parts[1])
                       const day = parseInt(parts[2])
-                      const d = new Date(year, month, day)
+                      
+                      // Calculate day of week using Zeller's congruence
+                      let q = day
+                      let m = month
+                      let k = year % 100
+                      let j = Math.floor(year / 100)
+                      
+                      if (m < 3) {
+                        m += 12
+                        if (k === 0) {
+                          k = 99
+                          j--
+                        } else {
+                          k--
+                        }
+                      }
+                      
+                      const h = (q + Math.floor((13 * (m + 1)) / 5) + k + Math.floor(k / 4) + Math.floor(j / 4) - 2 * j) % 7
+                      const dayIndex = (h + 5) % 7
+                      
                       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-                      const dayName = dayNames[d.getDay()]
-                      const monthStr = (d.getMonth() + 1).toString().padStart(2, '0')
-                      const dayStr = d.getDate().toString().padStart(2, '0')
+                      const dayName = dayNames[dayIndex]
+                      const monthStr = month.toString().padStart(2, '0')
+                      const dayStr = day.toString().padStart(2, '0')
                       return `${dayName}, ${monthStr}/${dayStr}`
                     })() : 'TBD'
                     

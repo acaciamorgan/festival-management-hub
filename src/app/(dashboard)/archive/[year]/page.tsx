@@ -63,11 +63,16 @@ export default function ArchiveBrowserPage() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+    const parts = dateString.split('T')[0].split('-')
+    if (parts.length !== 3) return dateString
+    const year = parts[0]
+    const month = parseInt(parts[1])
+    const day = parseInt(parts[2])
+    
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December']
+    
+    return `${monthNames[month - 1]} ${day}, ${year}`
   }
 
   if (loading || loadingFestival) {
