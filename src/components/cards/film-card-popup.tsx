@@ -193,6 +193,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
   // Load photo shoots and red carpets for this film
   useEffect(() => {
+    console.log('DEBUG: Film Card useEffect triggered for film:', film.title, 'ID:', film.id)
     const loadEvents = async () => {
       try {
         // Load photo shoots
