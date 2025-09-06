@@ -363,7 +363,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                   checked_in
                 )
               `)
-              .eq('film_title', film.title)
+              .eq('film_id', film.id)
             console.log('DEBUG: Guest films query result:', guestFilms)
             console.log('DEBUG: Guest films error:', guestFilmsError)
 
