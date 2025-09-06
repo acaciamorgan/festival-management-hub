@@ -180,10 +180,24 @@ export default function FestivalOverviewArchive({ archiveYear }: FestivalOvervie
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Archive Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
             <div>
-              <strong>Originally Created:</strong> {new Date(festivalSettings.created_at).toLocaleDateString()}
+              <strong>Originally Created:</strong> {(() => {
+                const parts = festivalSettings.created_at.split('T')[0].split('-')
+                if (parts.length !== 3) return festivalSettings.created_at
+                const month = parseInt(parts[1]).toString()
+                const day = parseInt(parts[2]).toString()
+                const year = parts[0]
+                return `${month}/${day}/${year}`
+              })()}
             </div>
             <div>
-              <strong>Last Updated:</strong> {new Date(festivalSettings.updated_at).toLocaleDateString()}
+              <strong>Last Updated:</strong> {(() => {
+                const parts = festivalSettings.updated_at.split('T')[0].split('-')
+                if (parts.length !== 3) return festivalSettings.updated_at
+                const month = parseInt(parts[1]).toString()
+                const day = parseInt(parts[2]).toString()
+                const year = parts[0]
+                return `${month}/${day}/${year}`
+              })()}
             </div>
           </div>
         </div>
