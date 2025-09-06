@@ -348,6 +348,72 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           savedGuest = displayUpdatedGuest
         }
         
+        // Create film associations if films are specified
+        if (filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== '') {
+          const filmTitles = filmsDisplay.split(',').map(title => title.trim()).filter(title => title)
+          
+          if (filmTitles.length > 0) {
+            // Look up films in database
+            const [featureFilms, shortFilms, programs] = await Promise.all([
+              supabase.from('feature_films').select('id, title').in('title', filmTitles),
+              supabase.from('short_films').select('id, title').in('title', filmTitles),
+              supabase.from('programs').select('id, title').in('title', filmTitles)
+            ])
+            
+            const allMatchedFilms = [
+              ...(featureFilms.data || []),
+              ...(shortFilms.data || [])
+            ]
+            
+            const allMatchedPrograms = programs.data || []
+            
+            // Create film associations
+            const filmAssociations = []
+            const programAssociations = []
+            
+            for (const title of filmTitles) {
+              const matchedFilm = allMatchedFilms.find(f => f.title === title)
+              const matchedProgram = allMatchedPrograms.find(p => p.title === title)
+              
+              if (matchedFilm) {
+                filmAssociations.push({
+                  guest_id: savedGuest.id,
+                  film_id: matchedFilm.id,
+                  film_title: matchedFilm.title
+                })
+              } else if (matchedProgram) {
+                programAssociations.push({
+                  guest_id: savedGuest.id,
+                  program_id: matchedProgram.id,
+                  program_title: matchedProgram.title
+                })
+              }
+            }
+            
+            // Insert film associations
+            if (filmAssociations.length > 0) {
+              const { error: filmAssocError } = await supabase
+                .from('guest_films')
+                .insert(filmAssociations)
+              
+              if (filmAssocError) {
+                warnings.push(`Warning: Could not create film associations for ${guestName}: ${filmAssocError.message}`)
+              }
+            }
+            
+            // Insert program associations
+            if (programAssociations.length > 0) {
+              const { error: programAssocError } = await supabase
+                .from('guest_programs')
+                .insert(programAssociations)
+              
+              if (programAssocError) {
+                warnings.push(`Warning: Could not create program associations for ${guestName}: ${programAssocError.message}`)
+              }
+            }
+          }
+        }
+        
         savedGuest.films_display = filmsDisplay
         savedGuest.films = []
 
