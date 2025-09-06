@@ -149,7 +149,7 @@ export async function validateRSVPToken(token: string): Promise<string | null> {
     return null
   }
 
-  if (new Date(data.expires_at) < new Date()) {
+  if (Date.now() > new Date(data.expires_at).getTime()) {
     return null // Token expired
   }
 

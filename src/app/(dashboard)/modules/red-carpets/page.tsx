@@ -304,10 +304,11 @@ export default function RedCarpetsPage() {
 
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return '—'
-    const date = new Date(dateString)
-    const month = (date.getMonth() + 1).toString().padStart(2, '0')
-    const day = date.getDate().toString().padStart(2, '0')
-    const year = date.getFullYear().toString().slice(-2)
+    const parts = dateString.split('-')
+    if (parts.length !== 3) return dateString
+    const year = parts[0].slice(-2)
+    const month = parts[1]
+    const day = parts[2]
     return `${month}/${day}/${year}`
   }
 
