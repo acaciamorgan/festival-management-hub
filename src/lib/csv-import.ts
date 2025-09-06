@@ -218,11 +218,9 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           }
         }
 
-        // Validate and normalize arranging travel - handle various header formats
+        // Use the exact template header: 'Travel'
         let arrangingTravel: ArrangingTravel = 'TBD'
-        const csvArrangingTravel = primaryRow['Arranging Travel']?.trim() || 
-                                    primaryRow['Travel']?.trim() || 
-                                    primaryRow['Travel (Festival, Studio, Local)']?.trim()
+        const csvArrangingTravel = primaryRow['Travel']?.trim()
         console.log(`Guest ${guestName} - CSV Travel value: "${csvArrangingTravel}"`)
         
         if (csvArrangingTravel) {
@@ -235,8 +233,8 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           }
         }
 
-        // Parse confirmed status - handle various header formats
-        const confirmed = (primaryRow['Confirmed?'] || primaryRow['Confirmed'])?.toLowerCase().trim() === 'yes'
+        // Use exact template header: 'Confirmed'
+        const confirmed = primaryRow['Confirmed']?.toLowerCase().trim() === 'yes'
 
         // Parse arrival date without timezone conversion
         const arrivalDate = primaryRow['Arrival Date']?.trim()
@@ -272,21 +270,21 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           return departureDate.includes('-') ? departureDate : null
         })() : null
 
-        // Get flight information - handle various header formats
+        // Use exact template headers
         const arrivalAirline = primaryRow['Arrival Airline']?.trim() || null
-        const arrivalFlightNumber = (primaryRow['Arrival Flight Number'] || primaryRow['Flight #'])?.trim() || null
-        const arrivalTakeoffTime = (primaryRow['Inbound Departure Time'] || primaryRow['Depart Time'])?.trim() || null
-        const arrivalOrigin = (primaryRow['Arrival Origin Airport'] || primaryRow['Origin'])?.trim() || null
+        const arrivalFlightNumber = primaryRow['Flight #']?.trim() || null  // Template uses 'Flight #'
+        const arrivalTakeoffTime = primaryRow['Depart Time']?.trim() || null  // Template uses 'Depart Time'
+        const arrivalOrigin = primaryRow['Origin']?.trim() || null  // Template uses 'Origin'
         const arrivalDestination = primaryRow['Arrival Airport']?.trim() || null
-        const arrivalLandingTime = (primaryRow['Inbound Arrival Time'] || primaryRow['Arrive Time'])?.trim() || null
+        const arrivalLandingTime = primaryRow['Arrive Time']?.trim() || null  // Template uses 'Arrive Time'
         
-        // For departure fields, need contextual parsing
-        const departureTakeoffTime = primaryRow['Depart Time']?.trim() || primaryRow['Outbound Departure Time']?.trim() || null
+        // For departure fields - template reuses same column names but in departure context
+        const departureTakeoffTime = primaryRow['Depart Time']?.trim() || null
         const departureAirline = primaryRow['Departure Airline']?.trim() || null
-        const departureFlightNumber = (primaryRow['Departure Flight Number'] || primaryRow['Flight #'])?.trim() || null
+        const departureFlightNumber = primaryRow['Flight #']?.trim() || null
         const departureOrigin = primaryRow['Departure Airport']?.trim() || null
-        const departureDestination = (primaryRow['Destination Airport'] || primaryRow['Destination'])?.trim() || null
-        const departureLandingTime = primaryRow['Arrive Time']?.trim() || primaryRow['Outbound Arrival Time']?.trim() || null
+        const departureDestination = primaryRow['Destination']?.trim() || null
+        const departureLandingTime = primaryRow['Arrive Time']?.trim() || null
 
         // Create guest record
         const guestData = {
@@ -312,7 +310,7 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           departure_airport: departureOrigin,
           destination_airport: departureDestination,
           outbound_arrival_time: departureLandingTime,
-          hotel_name: (primaryRow['Hotel'] || primaryRow['Accommodations'])?.trim() || null,
+          hotel_name: primaryRow['Hotel']?.trim() || null,  // Template uses 'Hotel'
           hotel_confirmation_number: primaryRow['Hotel Confirmation']?.trim() || null,
           checked_in: false,
           notes: primaryRow['Notes']?.trim() || null,
@@ -378,8 +376,8 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           savedGuest = newGuest
         }
 
-        // Get film/program titles directly from CSV - no lookups
-        const filmsDisplay = (primaryRow['Film Title'] || primaryRow['Film/Program Titles'])?.trim() || '—'
+        // Use exact template header: 'Film/Program Titles'
+        const filmsDisplay = primaryRow['Film/Program Titles']?.trim() || '—'
         
         // Update the saved guest with films_display field
         const { data: displayUpdatedGuest, error: displayError } = await supabase
