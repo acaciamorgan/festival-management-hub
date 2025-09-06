@@ -150,7 +150,8 @@ export interface ModuleLayoutProps {
 
 // Guest Management Types
 export type GuestType = 'Features' | 'Shorts' | 'Industry' | 'CineYouth' | 'Jury' | 'Other'
-export type ArrangingTravel = 'Festival' | 'Distributor' | 'Local' | 'TBD'
+// ArrangingTravel is now open-text, no longer an enum
+// export type ArrangingTravel = 'Festival' | 'Distributor' | 'Local' | 'TBD'
 
 export interface GuestFilm {
   id: string
@@ -179,7 +180,7 @@ export interface GuestCard {
   contact_email?: string
   
   // Travel
-  arranging_travel: ArrangingTravel
+  arranging_travel: string | null
   
   // Arrival
   arrival_date?: string

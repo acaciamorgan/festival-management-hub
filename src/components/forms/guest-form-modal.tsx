@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
-import { GuestCard, GuestType, ArrangingTravel, GuestFilm } from '@/types'
+import { GuestCard, GuestType, GuestFilm } from '@/types'
 
 interface GuestFormModalProps {
   guest?: GuestCard | null
@@ -24,7 +24,7 @@ interface GuestFormData {
   contact_email: string
   
   // Travel
-  arranging_travel: ArrangingTravel
+  arranging_travel: string
   
   // Arrival
   arrival_date: string
@@ -67,7 +67,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
     role: '',
     contact_name: '',
     contact_email: '',
-    arranging_travel: 'TBD',
+    arranging_travel: '',
     arrival_date: '',
     arrival_takeoff_time: '',
     arrival_landing_time: '',
@@ -173,7 +173,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         role: guest.role || '',
         contact_name: guest.contact_name || '',
         contact_email: guest.contact_email || '',
-        arranging_travel: guest.arranging_travel || 'TBD',
+        arranging_travel: guest.arranging_travel || '',
         arrival_date: guest.arrival_date || '',
         arrival_takeoff_time: guest.arrival_takeoff_time || '',
         arrival_landing_time: guest.arrival_landing_time || '',
@@ -204,7 +204,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         role: '',
         contact_name: '',
         contact_email: '',
-        arranging_travel: 'TBD',
+        arranging_travel: '',
         arrival_date: '',
         arrival_takeoff_time: '',
         arrival_landing_time: '',
@@ -714,16 +714,13 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Arranging Travel
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={formData.arranging_travel}
-                    onChange={(e) => setFormData(prev => ({ ...prev, arranging_travel: e.target.value as ArrangingTravel }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, arranging_travel: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="TBD">TBD</option>
-                    <option value="Festival">Festival</option>
-                    <option value="Distributor">Distributor</option>
-                    <option value="Local">Local</option>
-                  </select>
+                    placeholder="e.g., Festival, Studio, Local, etc."
+                  />
                 </div>
 
                 {/* Arrival Information */}

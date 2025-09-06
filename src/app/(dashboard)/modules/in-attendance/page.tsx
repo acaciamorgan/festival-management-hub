@@ -209,7 +209,7 @@ export default function InAttendancePage() {
       { field: 'films_display', display: 'Film/Program Titles' },
       { field: 'checked_in', display: 'Checked In' },
       { field: 'guest_type', display: 'Type' },
-      { field: 'arranging_travel', display: 'Travel' },
+      { field: 'arranging_travel', display: 'Arranging Travel' },
       { field: 'country', display: 'Country' },
       { field: 'arrival_date', display: 'Arrival Date' },
       { field: 'arrival_airline', display: 'Arrival Airline' },

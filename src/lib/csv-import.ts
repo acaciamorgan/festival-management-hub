@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import { GuestCard, GuestType, ArrangingTravel } from '@/types'
+import { GuestCard, GuestType } from '@/types'
 
 export interface CSVGuestRow {
   'Type': string
@@ -74,18 +74,7 @@ export async function parseCSVContent(csvContent: string): Promise<CSVGuestRow[]
   const rows: CSVGuestRow[] = []
 
   // Process data rows starting after the header
-  // SKIP the "(Festival, Studio, Local)" line if it exists
-  let startIndex = headerRowIndex + 1
-  if (records[startIndex] && records[startIndex].some((cell: string) => 
-    cell?.toLowerCase().includes('festival') && 
-    cell?.toLowerCase().includes('studio') && 
-    cell?.toLowerCase().includes('local')
-  )) {
-    console.log('Skipping multi-line header continuation row')
-    startIndex = headerRowIndex + 2
-  }
-
-  for (let i = startIndex; i < records.length; i++) {
+  for (let i = headerRowIndex + 1; i < records.length; i++) {
     const record = records[i]
     
     // Skip empty rows or rows with all empty cells
@@ -218,20 +207,9 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           }
         }
 
-        // Use the exact template header: 'Travel'
-        let arrangingTravel: ArrangingTravel = 'TBD'
-        const csvArrangingTravel = primaryRow['Travel']?.trim()
-        console.log(`Guest ${guestName} - CSV Travel value: "${csvArrangingTravel}"`)
-        
-        if (csvArrangingTravel) {
-          if (csvArrangingTravel === 'Festival') arrangingTravel = 'Festival'
-          else if (csvArrangingTravel === 'Studio' || csvArrangingTravel === 'Distributor') arrangingTravel = 'Distributor'
-          else if (csvArrangingTravel === 'Local') arrangingTravel = 'Local'
-          else if (csvArrangingTravel !== 'TBD') {
-            console.log(`Unknown arranging travel "${csvArrangingTravel}" for ${guestName}, using "TBD"`)
-            warnings.push(`Unknown arranging travel "${csvArrangingTravel}" for ${guestName}, using "TBD"`)
-          }
-        }
+        // Use the Arranging Travel column as open text - no validation
+        const arrangingTravel = primaryRow['Arranging Travel']?.trim() || null
+        console.log(`Guest ${guestName} - CSV Arranging Travel value: "${arrangingTravel}"`)
 
         // Use exact template header: 'Confirmed'
         const confirmed = primaryRow['Confirmed']?.toLowerCase().trim() === 'yes'
