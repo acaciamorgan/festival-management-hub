@@ -1232,7 +1232,7 @@ export default function TitlesPage() {
         // UPDATE existing Card - newest data takes priority
         const { error } = await supabase
           .from('feature_films')
-          .update({ ...filmData, updated_at: new Date().toISOString() })
+          .update({ ...filmData })
           .eq('id', existingCard.id)
         
         if (error) {
@@ -1414,7 +1414,7 @@ export default function TitlesPage() {
         // Update existing short
         const { error: updateError } = await supabase
           .from('short_films')
-          .update({ ...shortData, updated_at: new Date().toISOString() })
+          .update({ ...shortData })
           .eq('id', existingShort.id)
 
         if (updateError) {
@@ -2028,10 +2028,11 @@ export default function TitlesPage() {
                       </td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['event_date'] || 100}px` }}>
                         {program.event_date ? (() => {
-                          const date = new Date(program.event_date)
-                          const month = (date.getMonth() + 1).toString().padStart(2, '0')
-                          const day = date.getDate().toString().padStart(2, '0')
-                          const year = date.getFullYear().toString().slice(-2)
+                          const parts = program.event_date.split('-')
+                          if (parts.length !== 3) return program.event_date
+                          const year = parts[0].slice(-2)
+                          const month = parts[1]
+                          const day = parts[2]
                           return `${month}/${day}/${year}`
                         })() : ''}
                       </td>
