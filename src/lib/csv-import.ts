@@ -203,16 +203,19 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           continue
         }
         
-        // Map CSV Type to our guest types
-        let guestType: GuestType = 'Other'
+        // Map CSV Type to our guest types - only set if CSV has a value
+        let guestType: GuestType | null = null
         const csvType = primaryRow['Type']?.trim()
-        if (csvType === 'Features') guestType = 'Features'
-        else if (csvType === 'Shorts') guestType = 'Shorts'
-        else if (csvType === 'Industry') guestType = 'Industry'
-        else if (csvType === 'CineYouth') guestType = 'CineYouth'
-        else if (csvType === 'Jury') guestType = 'Jury'
-        else if (csvType) {
-          warnings.push(`Unknown type "${csvType}" for ${guestName}, using "Other"`)
+        if (csvType) {
+          if (csvType === 'Features') guestType = 'Features'
+          else if (csvType === 'Shorts') guestType = 'Shorts'
+          else if (csvType === 'Industry') guestType = 'Industry'
+          else if (csvType === 'CineYouth') guestType = 'CineYouth'
+          else if (csvType === 'Jury') guestType = 'Jury'
+          else {
+            guestType = 'Other'
+            warnings.push(`Unknown type "${csvType}" for ${guestName}, using "Other"`)
+          }
         }
 
         // Validate and normalize arranging travel - handle various header formats
@@ -220,11 +223,16 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
         const csvArrangingTravel = primaryRow['Arranging Travel']?.trim() || 
                                     primaryRow['Travel']?.trim() || 
                                     primaryRow['Travel (Festival, Studio, Local)']?.trim()
-        if (csvArrangingTravel === 'Festival') arrangingTravel = 'Festival'
-        else if (csvArrangingTravel === 'Studio' || csvArrangingTravel === 'Distributor') arrangingTravel = 'Distributor'
-        else if (csvArrangingTravel === 'Local') arrangingTravel = 'Local'
-        else if (csvArrangingTravel && csvArrangingTravel !== 'TBD') {
-          warnings.push(`Unknown arranging travel "${csvArrangingTravel}" for ${guestName}, using "TBD"`)
+        console.log(`Guest ${guestName} - CSV Travel value: "${csvArrangingTravel}"`)
+        
+        if (csvArrangingTravel) {
+          if (csvArrangingTravel === 'Festival') arrangingTravel = 'Festival'
+          else if (csvArrangingTravel === 'Studio' || csvArrangingTravel === 'Distributor') arrangingTravel = 'Distributor'
+          else if (csvArrangingTravel === 'Local') arrangingTravel = 'Local'
+          else if (csvArrangingTravel !== 'TBD') {
+            console.log(`Unknown arranging travel "${csvArrangingTravel}" for ${guestName}, using "TBD"`)
+            warnings.push(`Unknown arranging travel "${csvArrangingTravel}" for ${guestName}, using "TBD"`)
+          }
         }
 
         // Parse confirmed status - handle various header formats
