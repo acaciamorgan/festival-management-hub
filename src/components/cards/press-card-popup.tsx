@@ -258,12 +258,17 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
     loadInterviews()
   }, [press.id])
 
-  // Date formatting helper
+  // Date formatting helper - string-based parsing only
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return '—'
-    const date = new Date(dateString)
-    const month = (date.getMonth() + 1).toString().padStart(2, '0')
-    const day = date.getDate().toString().padStart(2, '0')
+    
+    // Parse YYYY-MM-DD format with string manipulation only
+    const parts = dateString.split('-')
+    if (parts.length !== 3) return dateString // Return as-is if not expected format
+    
+    const month = parts[1]
+    const day = parts[2]
+    
     return `${month}/${day}`
   }
 
