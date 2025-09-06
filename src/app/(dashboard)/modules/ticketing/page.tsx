@@ -8,6 +8,30 @@ import { DraggableModal } from '@/components/ui/draggable-modal'
 import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
 import * as XLSX from 'xlsx-js-style'
 
+// Helper functions for calendar calculations without Date objects
+function getDaysInMonth(year: number, month: number): number {
+  // Month is 1-based (January = 1)
+  if (month === 2) {
+    return isLeapYear(year) ? 29 : 28
+  }
+  if ([4, 6, 9, 11].includes(month)) {
+    return 30
+  }
+  return 31
+}
+
+function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0)
+}
+
+function getCurrentDateString(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = (now.getMonth() + 1).toString().padStart(2, '0')
+  const day = now.getDate().toString().padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 // Screening Board Component
 interface ScreeningBoardProps {
   currentDate: string
@@ -122,7 +146,7 @@ function ScreeningBoard({
         newYear -= 1
       }
       // Get days in previous month
-      const daysInMonth = new Date(newYear, newMonth, 0).getDate()
+      const daysInMonth = getDaysInMonth(newYear, newMonth)
       newDay = daysInMonth
     }
     
@@ -137,7 +161,7 @@ function ScreeningBoard({
     let newMonth = month
     let newYear = year
     
-    const daysInMonth = new Date(year, month, 0).getDate()
+    const daysInMonth = getDaysInMonth(year, month)
     if (newDay > daysInMonth) {
       newDay = 1
       newMonth += 1
@@ -962,13 +986,13 @@ export default function TicketingPage() {
         }
       } else {
         // If no festival settings found, default to today
-        const today = new Date().toISOString().split('T')[0]
+        const today = getCurrentDateString()
         setCurrentBoardDate(today)
       }
     } catch (error) {
       console.error('Error loading festival settings:', error)
       // If there's an error, default to today
-      const today = new Date().toISOString().split('T')[0]
+      const today = getCurrentDateString()
       setCurrentBoardDate(today)
     }
   }, [supabase, currentBoardDate])
@@ -1258,7 +1282,7 @@ export default function TicketingPage() {
   // Set default date if not set
   useEffect(() => {
     if (!currentBoardDate) {
-      const today = new Date().toISOString().split('T')[0]
+      const today = getCurrentDateString()
       setCurrentBoardDate(today)
     }
   }, [currentBoardDate])
@@ -1379,7 +1403,7 @@ export default function TicketingPage() {
     })
 
     // Generate filename with view name and timestamp
-    const today = new Date().toISOString().split('T')[0]
+    const today = getCurrentDateString()
     const filename = `${viewName} Export ${today}`
 
     if (format === 'csv') {
