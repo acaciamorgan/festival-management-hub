@@ -341,6 +341,14 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
         const loadGuests = async () => {
           try {
             // Load guests who have this film in their guest_films associations
+            console.log('DEBUG: Looking for film title:', film.title)
+            
+            // Debug: Check all guest_films records to see what titles exist
+            const { data: allGuestFilms, error: allGuestFilmsError } = await supabase
+              .from('guest_films')
+              .select('film_title, guests(name)')
+            console.log('DEBUG: All guest_films records:', allGuestFilms)
+            
             const { data: guestFilms, error: guestFilmsError } = await supabase
               .from('guest_films')
               .select(`
@@ -356,6 +364,8 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                 )
               `)
               .eq('film_title', film.title)
+            console.log('DEBUG: Guest films query result:', guestFilms)
+            console.log('DEBUG: Guest films error:', guestFilmsError)
 
             let allGuests: any[] = []
 
