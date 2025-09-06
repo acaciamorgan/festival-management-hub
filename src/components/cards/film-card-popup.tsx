@@ -277,7 +277,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             house,
             rsvp_responses_url,
             canceled,
-            venues(name, short_code)
+            venues(name)
           `)
           .eq('title', film.title)
           .order('screening_date', { ascending: true })
@@ -732,7 +732,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                       return `${hour12}:${minutes} ${ampm}`
                     })() : 'TBD'
                     
-                    const venue = screening.venues?.short_code || screening.venues?.name || 'TBD'
+                    const venue = screening.venues?.name || 'TBD'
                     const house = screening.house ? ` ${screening.house}` : ''
                     const canceledText = screening.canceled ? ' [CANCELED]' : ''
                     
