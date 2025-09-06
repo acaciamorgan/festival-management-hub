@@ -412,7 +412,7 @@ export default function VenueManagementPage() {
 
       {/* Data Grid */}
       <div className="flex-1 overflow-hidden bg-white">
-        <div className="h-full overflow-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-lg text-gray-500">Loading venues...</div>

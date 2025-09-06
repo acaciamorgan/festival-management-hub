@@ -512,7 +512,7 @@ export default function InterviewManagementPage() {
       {/* Interviews Table */}
       <div className="flex-1 overflow-auto p-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
             <table className="min-w-full">
               <thead className="bg-gray-50">
                 <tr>
