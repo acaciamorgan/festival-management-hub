@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { InterviewCard, InterviewStatus, PressCard, GuestCard } from '@/types'
 import { normalizeDateValue } from '@/lib/date-utils'
+import { getGuestSuggestions } from '@/lib/guest-matching'
 
 interface InterviewFormModalProps {
   interview: InterviewCard | null
@@ -56,6 +57,13 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
   const [showFilmDropdown, setShowFilmDropdown] = useState(false)
   const [showJournalistDropdown, setShowJournalistDropdown] = useState(false)
   const [showSubjectDropdown, setShowSubjectDropdown] = useState(false)
+  const [guestSuggestions, setGuestSuggestions] = useState<Array<{
+    id: string
+    name: string
+    films_display: string
+    label: string
+  }>>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   
   // Multiple films selection
   const [selectedFilms, setSelectedFilms] = useState<string[]>([])
@@ -260,8 +268,27 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     setShowJournalistDropdown(false)
   }
 
+  // Load guest suggestions
+  const loadGuestSuggestions = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setGuestSuggestions([])
+      return
+    }
+
+    setLoadingSuggestions(true)
+    try {
+      const suggestions = await getGuestSuggestions(query)
+      setGuestSuggestions(suggestions)
+    } catch (error) {
+      console.error('Error loading guest suggestions:', error)
+      setGuestSuggestions([])
+    } finally {
+      setLoadingSuggestions(false)
+    }
+  }, [])
+
   // Subject selection handlers
-  const handleSubjectSelect = (guest: GuestCard) => {
+  const handleSubjectSelect = (guest: GuestCard | { id: string, name: string }) => {
     setFormData(prev => ({
       ...prev,
       subject_names: guest.name,
@@ -270,6 +297,20 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     setSubjectSearch(guest.name)
     setShowSubjectDropdown(false)
   }
+
+  // Handle subject input changes with debounced suggestions
+  const handleSubjectInputChange = useCallback(async (value: string) => {
+    setSubjectSearch(value)
+    setFormData(prev => ({ ...prev, subject_names: value }))
+    
+    if (value.length >= 2) {
+      setShowSubjectDropdown(true)
+      await loadGuestSuggestions(value)
+    } else {
+      setShowSubjectDropdown(false)
+      setGuestSuggestions([])
+    }
+  }, [loadGuestSuggestions])
 
   // Clear linked press data when typing manually
   const handleJournalistNameChange = (value: string) => {
@@ -351,9 +392,6 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     press.name.toLowerCase().includes(journalistSearch.toLowerCase())
   )
 
-  const filteredGuests = guestOptions.filter(guest =>
-    guest.name.toLowerCase().includes(subjectSearch.toLowerCase())
-  )
 
   if (!isOpen) return null
 
@@ -516,27 +554,42 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
               <input
                 type="text"
                 value={subjectSearch}
-                onChange={(e) => {
-                  setSubjectSearch(e.target.value)
-                  setFormData(prev => ({ ...prev, subject_names: e.target.value }))
-                  setShowSubjectDropdown(true)
+                onChange={(e) => handleSubjectInputChange(e.target.value)}
+                onFocus={() => {
+                  if (subjectSearch.length >= 2) {
+                    setShowSubjectDropdown(true)
+                  }
                 }}
-                onFocus={() => setShowSubjectDropdown(true)}
+                onBlur={() => {
+                  // Delay hiding to allow click on dropdown
+                  setTimeout(() => setShowSubjectDropdown(false), 150)
+                }}
                 placeholder="Search guests or enter names..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              {showSubjectDropdown && filteredGuests.length > 0 && subjectSearch && (
+              {showSubjectDropdown && subjectSearch.length >= 2 && (
                 <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                  {filteredGuests.map((guest) => (
-                    <button
-                      key={guest.id}
-                      type="button"
-                      onClick={() => handleSubjectSelect(guest)}
-                      className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
-                    >
-                      {guest.name}
-                    </button>
-                  ))}
+                  {loadingSuggestions ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">
+                      Loading suggestions...
+                    </div>
+                  ) : guestSuggestions.length > 0 ? (
+                    guestSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.id}
+                        type="button"
+                        onClick={() => handleSubjectSelect(suggestion)}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm border-b border-gray-100 last:border-b-0"
+                      >
+                        <div className="font-medium text-blue-600">{suggestion.name}</div>
+                        <div className="text-xs text-gray-500">{suggestion.films_display}</div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-gray-500">
+                      No guest matches found. You can still type any name.
+                    </div>
+                  )}
                 </div>
               )}
             </div>
