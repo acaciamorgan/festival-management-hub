@@ -10,6 +10,7 @@ import { PressCardPopup } from '@/components/cards/press-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { InterviewFormModal } from '@/components/forms/interview-form-modal'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import { matchSubjectsToGuests, GuestMatch } from '@/lib/guest-matching'
 
 export default function InterviewManagementPage() {
   const { user } = useAuth()
@@ -28,6 +29,10 @@ export default function InterviewManagementPage() {
   const [showFilms, setShowFilms] = useState(false)
   const [showGuests, setShowGuests] = useState(false)
   const [showJournalists, setShowJournalists] = useState(false)
+  
+  // Guest matching state
+  const [guestMatches, setGuestMatches] = useState<Map<string, string>>(new Map())
+  const [matchingGuests, setMatchingGuests] = useState(false)
   
   // Card popup states
   const [selectedFilm, setSelectedFilm] = useState<any>(null)
@@ -214,6 +219,70 @@ export default function InterviewManagementPage() {
     } catch (error) {
       console.error('Error loading press card:', error)
     }
+  }
+
+  // Perform guest matching when Show Guests is clicked
+  const handleShowGuestsToggle = async () => {
+    if (!showGuests && interviews.length > 0) {
+      // Turning on - perform matching
+      setMatchingGuests(true)
+      
+      try {
+        // Get all unique subject names from current interviews
+        const allSubjectNames = new Set<string>()
+        interviews.forEach(interview => {
+          if (interview.subject_names && interview.subject_names !== '—') {
+            interview.subject_names.split(', ').forEach(name => {
+              allSubjectNames.add(name.trim())
+            })
+          }
+        })
+
+        // Group subjects by film for contextual matching
+        const subjectsByFilm = new Map<string, string[]>()
+        interviews.forEach(interview => {
+          if (interview.subject_names && interview.film_title) {
+            const names = interview.subject_names.split(', ').map(n => n.trim())
+            const existing = subjectsByFilm.get(interview.film_title) || []
+            subjectsByFilm.set(interview.film_title, [...new Set([...existing, ...names])])
+          }
+        })
+
+        // Perform contextual matching for each film
+        const allMatches = new Map<string, string>()
+        
+        for (const [filmTitle, subjects] of subjectsByFilm.entries()) {
+          const result = await matchSubjectsToGuests(subjects, filmTitle)
+          result.matches.forEach(match => {
+            allMatches.set(match.name, match.guestId)
+          })
+        }
+
+        // Match any remaining unmatched subjects without film context
+        const unmatchedGlobal = Array.from(allSubjectNames).filter(name => 
+          !allMatches.has(name)
+        )
+        
+        if (unmatchedGlobal.length > 0) {
+          const globalResult = await matchSubjectsToGuests(unmatchedGlobal)
+          globalResult.matches.forEach(match => {
+            allMatches.set(match.name, match.guestId)
+          })
+        }
+
+        setGuestMatches(allMatches)
+        console.log(`Guest matching complete: ${allMatches.size} matches found from ${allSubjectNames.size} subjects`)
+      } catch (error) {
+        console.error('Error matching guests:', error)
+      } finally {
+        setMatchingGuests(false)
+      }
+    } else if (showGuests) {
+      // Turning off - clear matches
+      setGuestMatches(new Map())
+    }
+    
+    setShowGuests(!showGuests)
   }
 
   // Open guest card by name
@@ -498,14 +567,15 @@ export default function InterviewManagementPage() {
             Show Films
           </button>
           <button
-            onClick={() => setShowGuests(!showGuests)}
+            onClick={handleShowGuestsToggle}
+            disabled={matchingGuests}
             className={`px-3 py-1 text-sm font-medium rounded-md border ${
               showGuests 
                 ? 'bg-blue-600 text-white border-blue-600' 
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-            }`}
+            } ${matchingGuests ? 'opacity-50 cursor-wait' : ''}`}
           >
-            Show Guests
+            {matchingGuests ? 'Matching...' : 'Show Guests'}
           </button>
           <button
             onClick={() => setShowJournalists(!showJournalists)}
@@ -605,17 +675,29 @@ export default function InterviewManagementPage() {
                         <div className="flex flex-wrap gap-1">
                           {interview.subject_names.split(', ').map((name, index) => {
                             const trimmedName = name.trim()
+                            const hasGuestMatch = showGuests && guestMatches.has(trimmedName)
+                            
                             return (
                               <span key={index}>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    openGuestCard(trimmedName)
-                                  }}
-                                  className="text-blue-600 hover:text-blue-800 hover:underline text-left"
-                                >
-                                  {name}
-                                </button>
+                                {hasGuestMatch ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openGuestCard(trimmedName)
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                                    title={`${trimmedName} ✓ Guest`}
+                                  >
+                                    {name}
+                                  </button>
+                                ) : (
+                                  <span 
+                                    className={showGuests ? "text-gray-600" : "text-gray-900"}
+                                    title={showGuests ? `${trimmedName} ⚬ Text only` : undefined}
+                                  >
+                                    {name}
+                                  </span>
+                                )}
                                 {index < interview.subject_names.split(', ').length - 1 && <span className="text-gray-400">, </span>}
                               </span>
                             )
