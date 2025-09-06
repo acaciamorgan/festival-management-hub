@@ -76,13 +76,17 @@ export async function parseCSVContent(csvContent: string): Promise<CSVGuestRow[]
   // Process data rows starting after the header
   for (let i = headerRowIndex + 1; i < records.length; i++) {
     const record = records[i]
-    if (!record || record.length === 0) continue // Skip empty rows
+    
+    // Skip empty rows or rows with all empty cells
+    if (!record || record.length === 0 || record.every(cell => !cell || !cell.trim())) {
+      continue
+    }
     
     const row: any = {}
     
     // Map each header to its corresponding value
     headers.forEach((header, index) => {
-      row[header] = record[index] || ''
+      row[header] = (record && record[index]) ? record[index] : ''
     })
     
     // Only add rows that have a name
