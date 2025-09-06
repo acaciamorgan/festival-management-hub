@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { InterviewCard, InterviewStatus, PressCard, GuestCard } from '@/types'
 import { normalizeDateValue } from '@/lib/date-utils'
 import { getGuestSuggestions } from '@/lib/guest-matching'
+import { parseSmartDateAsync, formatDateForDisplay } from '@/lib/date-utils-smart'
 
 interface InterviewFormModalProps {
   interview: InterviewCard | null
@@ -626,9 +627,13 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                     Date
                   </label>
                   <input
-                    type="date"
-                    value={formData.interview_date}
-                    onChange={(e) => handleInputChange('interview_date', e.target.value)}
+                    type="text"
+                    value={formData.interview_date ? formatDateForDisplay(formData.interview_date) : ''}
+                    onChange={async (e) => {
+                      const parsed = await parseSmartDateAsync(e.target.value)
+                      handleInputChange('interview_date', parsed || e.target.value)
+                    }}
+                    placeholder="MM/DD or MM/DD/YYYY"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>

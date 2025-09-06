@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import { GuestCard, GuestType } from '@/types'
+import { getFestivalYear, parseSmartDate } from '@/lib/smart-date-parser'
 
 export interface CSVGuestRow {
   'Type': string
@@ -161,6 +162,9 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
   const errors: string[] = []
   const warnings: string[] = []
   const importedGuests: GuestCard[] = []
+  
+  // Get festival year once for all date parsing
+  const festivalYear = await getFestivalYear()
 
   try {
     // Group rows by guest name to handle duplicate guests with multiple films
@@ -214,45 +218,12 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
         // Use exact template header: 'Confirmed'
         const confirmed = primaryRow['Confirmed']?.toLowerCase().trim() === 'yes'
 
-        // Parse arrival date without timezone conversion
+        // Parse dates using smart date parser with festival year
         const arrivalDate = primaryRow['Arrival Date']?.trim()
-        const parsedArrivalDate = arrivalDate ? (() => {
-          if (arrivalDate.includes('/')) {
-            const parts = arrivalDate.split('/')
-            if (!parts || parts.length < 2) {
-              console.log(`Invalid arrival date format: ${arrivalDate}`)
-              return null
-            }
-            const month = parts[0]?.padStart(2, '0') || '01'
-            const day = parts[1]?.padStart(2, '0') || '01'
-            // Handle 2-part dates (MM/DD) by assuming current year 2025
-            const year = parts[2] ? 
-              (parts[2].length === 2 ? '20' + parts[2] : parts[2]) : 
-              '2025'
-            return `${year}-${month}-${day}`
-          }
-          return arrivalDate.includes('-') ? arrivalDate : null
-        })() : null
+        const parsedArrivalDate = parseSmartDate(arrivalDate, festivalYear)
 
-        // Parse departure date without timezone conversion
         const departureDate = primaryRow['Departure Date']?.trim()
-        const parsedDepartureDate = departureDate ? (() => {
-          if (departureDate.includes('/')) {
-            const parts = departureDate.split('/')
-            if (!parts || parts.length < 2) {
-              console.log(`Invalid departure date format: ${departureDate}`)
-              return null
-            }
-            const month = parts[0]?.padStart(2, '0') || '01'
-            const day = parts[1]?.padStart(2, '0') || '01'
-            // Handle 2-part dates (MM/DD) by assuming current year 2025
-            const year = parts[2] ? 
-              (parts[2].length === 2 ? '20' + parts[2] : parts[2]) : 
-              '2025'
-            return `${year}-${month}-${day}`
-          }
-          return departureDate.includes('-') ? departureDate : null
-        })() : null
+        const parsedDepartureDate = parseSmartDate(departureDate, festivalYear)
 
         // Use exact template headers
         const arrivalAirline = primaryRow['Arrival Airline']?.trim() || null
