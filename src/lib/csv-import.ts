@@ -74,7 +74,18 @@ export async function parseCSVContent(csvContent: string): Promise<CSVGuestRow[]
   const rows: CSVGuestRow[] = []
 
   // Process data rows starting after the header
-  for (let i = headerRowIndex + 1; i < records.length; i++) {
+  // SKIP the "(Festival, Studio, Local)" line if it exists
+  let startIndex = headerRowIndex + 1
+  if (records[startIndex] && records[startIndex].some((cell: string) => 
+    cell?.toLowerCase().includes('festival') && 
+    cell?.toLowerCase().includes('studio') && 
+    cell?.toLowerCase().includes('local')
+  )) {
+    console.log('Skipping multi-line header continuation row')
+    startIndex = headerRowIndex + 2
+  }
+
+  for (let i = startIndex; i < records.length; i++) {
     const record = records[i]
     
     // Skip empty rows or rows with all empty cells
