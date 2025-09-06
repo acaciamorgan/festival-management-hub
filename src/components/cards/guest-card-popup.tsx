@@ -666,9 +666,12 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
               <div className="space-y-3">
                 {guestInterviews.map((interview) => (
                   <div key={interview.id} className="bg-gray-50 rounded-lg p-3">
-                    {/* Line 1: Status Badge */}
-                    <div className="mb-2">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                    {/* Single Line: Main Info + Status Badge */}  
+                    <div className="text-sm text-gray-900 mb-1 flex items-center flex-wrap gap-2">
+                      <span className="font-medium">{interview.film_title}</span>
+                      {interview.journalist_name && <span> | Journalist: {interview.journalist_name}</span>}
+                      {interview.outlet && <span> | Outlet: {interview.outlet}</span>}
+                      <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
                         interview.status === 'Complete' ? 'bg-green-100 text-green-800' :
                         interview.status === 'Scheduled' ? 'bg-blue-100 text-blue-800' :
                         interview.status === 'Declined' ? 'bg-red-100 text-red-800' :
@@ -677,13 +680,6 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                       }`}>
                         {interview.status}
                       </span>
-                    </div>
-                    
-                    {/* Line 2: Main Info */}  
-                    <div className="text-sm text-gray-900 mb-1">
-                      <span className="font-medium">{interview.film_title}</span>
-                      {interview.journalist_name && <span> | Journalist: {interview.journalist_name}</span>}
-                      {interview.outlet && <span> | Outlet: {interview.outlet}</span>}
                     </div>
                     
                     {/* Line 3: Scheduling Info (only when scheduled) */}
