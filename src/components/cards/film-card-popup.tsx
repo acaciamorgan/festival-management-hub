@@ -149,10 +149,12 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
   const formatDateForDisplay = (dateString: string | undefined): string => {
     if (!dateString) return 'TBD'
-    const date = new Date(dateString)
-    const month = (date.getMonth() + 1).toString().padStart(2, '0')
-    const day = date.getDate().toString().padStart(2, '0')
-    const year = date.getFullYear().toString().slice(-2)
+    // Parse YYYY-MM-DD format without timezone conversion
+    const parts = dateString.split('-')
+    if (parts.length !== 3) return dateString
+    const year = parts[0].slice(-2)
+    const month = parts[1]
+    const day = parts[2]
     return `${month}/${day}/${year}`
   }
 
@@ -584,15 +586,20 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               {filmScreenings.length > 0 ? (
                 <div className="space-y-2">
                   {filmScreenings.map((screening) => {
-                    // Format date as "Mon, Oct 23"
+                    // Format date as "Mon, Oct 23" without timezone conversion
                     const date = screening.screening_date ? (() => {
-                      const d = new Date(screening.screening_date)
+                      const parts = screening.screening_date.split('-')
+                      if (parts.length !== 3) return screening.screening_date
+                      const year = parseInt(parts[0])
+                      const month = parseInt(parts[1]) - 1
+                      const day = parseInt(parts[2])
+                      const d = new Date(year, month, day)
                       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
                       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
                       const dayName = dayNames[d.getDay()]
-                      const month = monthNames[d.getMonth()]
-                      const day = d.getDate()
-                      return `${dayName}, ${month} ${day}`
+                      const monthName = monthNames[d.getMonth()]
+                      const dayNum = d.getDate()
+                      return `${dayName}, ${monthName} ${dayNum}`
                     })() : 'TBD'
                     
                     // Format time as "7:00 PM"
@@ -639,12 +646,17 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                 <div className="space-y-2">
                   {filmPressScreenings.map((screening) => {
                     const date = screening.screening_date ? (() => {
-                      const d = new Date(screening.screening_date)
+                      const parts = screening.screening_date.split('-')
+                      if (parts.length !== 3) return screening.screening_date
+                      const year = parseInt(parts[0])
+                      const month = parseInt(parts[1]) - 1
+                      const day = parseInt(parts[2])
+                      const d = new Date(year, month, day)
                       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
                       const dayName = dayNames[d.getDay()]
-                      const month = (d.getMonth() + 1).toString().padStart(2, '0')
-                      const day = d.getDate().toString().padStart(2, '0')
-                      return `${dayName}, ${month}/${day}`
+                      const monthStr = (d.getMonth() + 1).toString().padStart(2, '0')
+                      const dayStr = d.getDate().toString().padStart(2, '0')
+                      return `${dayName}, ${monthStr}/${dayStr}`
                     })() : 'TBD'
                     
                     const time = screening.screening_time ? (() => {
@@ -725,13 +737,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                   
                   {/* Red Carpets */}
                   {filmRedCarpets.map((carpet) => {
-                    const date = carpet.carpet_date ? (() => {
-                      const d = new Date(carpet.carpet_date)
-                      const month = (d.getMonth() + 1).toString().padStart(2, '0')
-                      const day = d.getDate().toString().padStart(2, '0')
-                      const year = d.getFullYear().toString().slice(-2)
-                      return `${month}/${day}/${year}`
-                    })() : 'TBD'
+                    const date = formatDateForDisplay(carpet.carpet_date)
                     
                     const time = carpet.carpet_start_time ? (() => {
                       const [hours, minutes] = carpet.carpet_start_time.split(':')
@@ -792,21 +798,8 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               {filmGuests.length > 0 ? (
                 <div className="space-y-3">
                   {filmGuests.map((guest) => {
-                    const arrivalDate = guest.arrival_date ? (() => {
-                      const d = new Date(guest.arrival_date)
-                      const month = (d.getMonth() + 1).toString().padStart(2, '0')
-                      const day = d.getDate().toString().padStart(2, '0')
-                      const year = d.getFullYear().toString().slice(-2)
-                      return `${month}/${day}/${year}`
-                    })() : 'TBD'
-                    
-                    const departureDate = guest.departure_date ? (() => {
-                      const d = new Date(guest.departure_date)
-                      const month = (d.getMonth() + 1).toString().padStart(2, '0')
-                      const day = d.getDate().toString().padStart(2, '0')
-                      const year = d.getFullYear().toString().slice(-2)
-                      return `${month}/${day}/${year}`
-                    })() : 'TBD'
+                    const arrivalDate = formatDateForDisplay(guest.arrival_date)
+                    const departureDate = formatDateForDisplay(guest.departure_date)
                     
                     return (
                       <div key={guest.id} className="border-l-4 border-green-400 pl-4 py-2">
