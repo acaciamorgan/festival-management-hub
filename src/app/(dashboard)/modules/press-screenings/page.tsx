@@ -305,12 +305,42 @@ export default function PressScreeningsPage() {
 
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return '—'
-    const date = new Date(dateString)
+    
+    // Parse YYYY-MM-DD format with string manipulation only
+    const parts = dateString.split('-')
+    if (parts.length !== 3) return dateString // Return as-is if not expected format
+    
+    const year = parseInt(parts[0])
+    const month = parseInt(parts[1]) - 1 // Month for day calculation (0-based)
+    const day = parseInt(parts[2])
+    
+    // Calculate day of week using string-based math (no Date object)
+    // Zeller's congruence algorithm for day of week calculation
+    let q = day
+    let m = month + 1
+    let k = year % 100
+    let j = Math.floor(year / 100)
+    
+    if (m < 3) {
+      m += 12
+      if (k === 0) {
+        k = 99
+        j--
+      } else {
+        k--
+      }
+    }
+    
+    const h = (q + Math.floor((13 * (m + 1)) / 5) + k + Math.floor(k / 4) + Math.floor(j / 4) - 2 * j) % 7
+    const dayIndex = (h + 5) % 7 // Convert to Sunday=0 format
+    
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-    const dayName = dayNames[date.getDay()]
-    const month = (date.getMonth() + 1).toString().padStart(2, '0')
-    const day = date.getDate().toString().padStart(2, '0')
-    return `${dayName}, ${month}/${day}`
+    const dayName = dayNames[dayIndex]
+    
+    const monthStr = parts[1]
+    const dayStr = parts[2]
+    
+    return `${dayName}, ${monthStr}/${dayStr}`
   }
 
   const formatTime = (timeString: string | null): string => {
