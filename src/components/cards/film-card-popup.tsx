@@ -275,6 +275,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             title,
             venue_id,
             house,
+            short_code,
             rsvp_responses_url,
             canceled,
             venues(name)
@@ -733,7 +734,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                       return `${hour12}:${minutes} ${ampm}`
                     })() : 'TBD'
                     
-                    const venue = screening.venues?.name || 'TBD'
+                    const venue = screening.short_code || screening.venues?.name || 'TBD'
                     const house = screening.house ? ` ${screening.house}` : ''
                     const canceledText = screening.canceled ? ' [CANCELED]' : ''
                     
