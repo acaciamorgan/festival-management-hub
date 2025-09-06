@@ -727,7 +727,7 @@ export function PressRequestFormModal({
                                 const ampm = hour24 >= 12 ? 'PM' : 'AM'
                                 return `${hour12}:${minutes} ${ampm}`
                               })()
-                              })}
+                              }
                             </div>
                             <div className="flex items-center space-x-2">
                               <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
