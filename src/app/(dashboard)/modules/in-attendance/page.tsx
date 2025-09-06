@@ -186,10 +186,55 @@ export default function InAttendancePage() {
   }
 
   const handleDailyReportClick = (days: number) => {
+    // Get today's date as string without timezone conversion
     const today = new Date()
-    const targetDate = new Date(today)
-    targetDate.setDate(today.getDate() + days)
-    const dateString = targetDate.toISOString().split('T')[0]
+    const year = today.getFullYear()
+    const month = today.getMonth() + 1  // getMonth is 0-based, but we're only using for calculation
+    const day = today.getDate()
+    
+    // Calculate target date using pure math (no Date object manipulation)
+    let targetYear = year
+    let targetMonth = month
+    let targetDay = day + days
+    
+    // Handle day overflow
+    const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    if (targetYear % 4 === 0 && targetYear % 100 !== 0 || targetYear % 400 === 0) {
+      daysInMonth[1] = 29 // Leap year
+    }
+    
+    while (targetDay > daysInMonth[targetMonth - 1]) {
+      targetDay -= daysInMonth[targetMonth - 1]
+      targetMonth++
+      if (targetMonth > 12) {
+        targetMonth = 1
+        targetYear++
+        // Recalculate leap year for new year
+        if (targetYear % 4 === 0 && targetYear % 100 !== 0 || targetYear % 400 === 0) {
+          daysInMonth[1] = 29
+        } else {
+          daysInMonth[1] = 28
+        }
+      }
+    }
+    
+    while (targetDay < 1) {
+      targetMonth--
+      if (targetMonth < 1) {
+        targetMonth = 12
+        targetYear--
+        // Recalculate leap year for new year
+        if (targetYear % 4 === 0 && targetYear % 100 !== 0 || targetYear % 400 === 0) {
+          daysInMonth[1] = 29
+        } else {
+          daysInMonth[1] = 28
+        }
+      }
+      targetDay += daysInMonth[targetMonth - 1]
+    }
+    
+    // Format as YYYY-MM-DD string
+    const dateString = `${targetYear}-${targetMonth.toString().padStart(2, '0')}-${targetDay.toString().padStart(2, '0')}`
     generateDailyReport(dateString)
   }
 
@@ -467,10 +512,15 @@ export default function InAttendancePage() {
 
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return '—'
-    const date = new Date(dateString)
-    const month = (date.getMonth() + 1).toString().padStart(2, '0')
-    const day = date.getDate().toString().padStart(2, '0')
-    const year = date.getFullYear().toString().slice(-2)
+    
+    // Parse YYYY-MM-DD format with string manipulation only
+    const parts = dateString.split('-')
+    if (parts.length !== 3) return dateString // Return as-is if not expected format
+    
+    const year = parts[0].slice(-2) // Get last 2 digits
+    const month = parts[1]
+    const day = parts[2]
+    
     return `${month}/${day}/${year}`
   }
 
