@@ -216,26 +216,37 @@ export default function InterviewManagementPage() {
     }
   }
 
-  // Guest card click handler
-  const handleSubjectClick = async (interview: InterviewCard) => {
-    if (!showGuests || !interview.subject_guest_ids?.length) return
-
-    // For now, show the first guest if multiple
-    const guestId = interview.subject_guest_ids[0]
-
+  // Open guest card by name
+  const openGuestCard = async (guestName: string) => {
     try {
       const { data: guestData, error } = await supabase
         .from('guests')
-        .select('*')
-        .eq('id', guestId)
+        .select(`
+          *,
+          guest_films:guest_films(film_title),
+          guest_programs:guest_programs(program_title)
+        `)
+        .eq('name', guestName)
         .single()
 
-      if (error) throw error
+      if (error || !guestData) {
+        console.warn('Guest not found in database:', guestName)
+        return
+      }
 
-      setSelectedGuest(guestData)
+      const formattedGuest = {
+        ...guestData,
+        films: guestData.guest_films || [],
+        films_display: [
+          ...(guestData.guest_films || []).map((f: any) => f.film_title),
+          ...(guestData.guest_programs || []).map((p: any) => p.program_title)
+        ].join(', ') || '—'
+      }
+
+      setSelectedGuest(formattedGuest)
       setShowGuestCard(true)
     } catch (error) {
-      console.error('Error loading guest card:', error)
+      console.error('Error fetching guest:', error)
     }
   }
 
@@ -514,7 +525,7 @@ export default function InterviewManagementPage() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
             <table className="min-w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 sticky top-0">
                 <tr>
                   {[
                     { key: 'film_title', label: 'Title', width: 200 },
@@ -590,15 +601,28 @@ export default function InterviewManagementPage() {
                     
                     {/* Subject(s) */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['subject_names'] || 180}px` }}>
-                      {showGuests && interview.subject_guest_ids?.length ? (
-                        <button
-                          onClick={() => handleSubjectClick(interview)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline text-left"
-                        >
-                          {interview.subject_names || '—'}
-                        </button>
+                      {interview.subject_names && interview.subject_names !== '—' ? (
+                        <div className="flex flex-wrap gap-1">
+                          {interview.subject_names.split(', ').map((name, index) => {
+                            const trimmedName = name.trim()
+                            return (
+                              <span key={index}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openGuestCard(trimmedName)
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                                >
+                                  {name}
+                                </button>
+                                {index < interview.subject_names.split(', ').length - 1 && <span className="text-gray-400">, </span>}
+                              </span>
+                            )
+                          })}
+                        </div>
                       ) : (
-                        <span>{interview.subject_names || '—'}</span>
+                        <span className="text-gray-500">—</span>
                       )}
                     </td>
                     
