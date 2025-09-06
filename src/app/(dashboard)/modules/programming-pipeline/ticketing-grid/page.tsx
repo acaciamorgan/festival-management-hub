@@ -1012,9 +1012,12 @@ export default function TicketingGridPage() {
       'Status': screening.is_cancelled ? 'CANCELLED' : 'ACTIVE'
     }))
 
-    // Generate timestamp for filename using string operations
-    const today = new Date().toISOString().split('T')[0] // Only use for current date
-    const timestamp = today
+    // Generate timestamp for filename using current date
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = (now.getMonth() + 1).toString().padStart(2, '0')
+    const day = now.getDate().toString().padStart(2, '0')
+    const timestamp = `${year}-${month}-${day}`
     const filename = `Ticketing Grid ${timestamp}`
 
     if (format === 'csv') {
