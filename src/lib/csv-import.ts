@@ -178,8 +178,10 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
     const guestGroups = new Map<string, CSVGuestRow[]>()
     
     csvRows.forEach((row, index) => {
+      console.log(`Processing row ${index + 2}:`, row)
       const guestName = row['Name']?.trim()
       if (!guestName) {
+        console.log(`Row ${index + 2} missing guest name, skipping`)
         errors.push(`Row ${index + 2} missing guest name, skipping`)
         return
       }
@@ -193,8 +195,13 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
     // Process each unique guest
     for (const [guestName, guestRows] of guestGroups) {
       try {
+        console.log(`Processing guest: ${guestName}, rows:`, guestRows)
         // Use the first row for guest data (should be identical across rows except for film title)
         const primaryRow = guestRows[0]
+        if (!primaryRow) {
+          errors.push(`No data for guest ${guestName}`)
+          continue
+        }
         
         // Map CSV Type to our guest types
         let guestType: GuestType = 'Other'
@@ -228,9 +235,13 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
         const parsedArrivalDate = arrivalDate ? (() => {
           if (arrivalDate.includes('/')) {
             const parts = arrivalDate.split('/')
-            const month = parts[0].padStart(2, '0')
-            const day = parts[1].padStart(2, '0')
-            const year = parts[2].length === 2 ? '20' + parts[2] : parts[2]
+            if (!parts || parts.length < 3) {
+              console.log(`Invalid arrival date format: ${arrivalDate}`)
+              return null
+            }
+            const month = parts[0]?.padStart(2, '0') || '01'
+            const day = parts[1]?.padStart(2, '0') || '01'
+            const year = (parts[2] && parts[2].length === 2) ? '20' + parts[2] : (parts[2] || '2025')
             return `${year}-${month}-${day}`
           }
           return arrivalDate.includes('-') ? arrivalDate : null
@@ -241,9 +252,13 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
         const parsedDepartureDate = departureDate ? (() => {
           if (departureDate.includes('/')) {
             const parts = departureDate.split('/')
-            const month = parts[0].padStart(2, '0')
-            const day = parts[1].padStart(2, '0')
-            const year = parts[2].length === 2 ? '20' + parts[2] : parts[2]
+            if (!parts || parts.length < 3) {
+              console.log(`Invalid departure date format: ${departureDate}`)
+              return null
+            }
+            const month = parts[0]?.padStart(2, '0') || '01'
+            const day = parts[1]?.padStart(2, '0') || '01'
+            const year = (parts[2] && parts[2].length === 2) ? '20' + parts[2] : (parts[2] || '2025')
             return `${year}-${month}-${day}`
           }
           return departureDate.includes('-') ? departureDate : null
