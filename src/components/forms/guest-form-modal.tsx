@@ -414,11 +414,13 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         
         if (filmTitles.length > 0) {
           // Try to find matching films and programs
+          console.log('DEBUG GUEST: Searching in feature_films, short_films, and programs tables')
           const [featureFilms, shortFilms, programs] = await Promise.all([
             supabase.from('feature_films').select('id, title').in('title', filmTitles),
             supabase.from('short_films').select('id, title').in('title', filmTitles),
             supabase.from('programs').select('id, title').in('title', filmTitles)
           ])
+          console.log('DEBUG GUEST: Query errors - Features:', featureFilms.error, 'Shorts:', shortFilms.error, 'Programs:', programs.error)
           console.log('DEBUG GUEST: Feature films found:', featureFilms.data)
           console.log('DEBUG GUEST: Short films found:', shortFilms.data)
           console.log('DEBUG GUEST: Programs found:', programs.data)
@@ -458,6 +460,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
           // Save film associations
           console.log('DEBUG GUEST: Film associations to insert:', filmAssociations)
           if (filmAssociations.length > 0) {
+            console.log('DEBUG GUEST: Attempting to insert into guest_films table...')
             const { data: guestFilmsData, error: guestFilmsError } = await supabase
               .from('guest_films')
               .insert(filmAssociations)
@@ -465,12 +468,13 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
             if (guestFilmsError) {
               console.error('ERROR saving film associations:', guestFilmsError)
+              console.error('ERROR details:', JSON.stringify(guestFilmsError, null, 2))
             } else {
               console.log('DEBUG GUEST: Successfully saved film associations:', guestFilmsData)
               savedGuest.films = guestFilmsData
             }
           } else {
-            console.log('DEBUG GUEST: No film associations to save')
+            console.log('DEBUG GUEST: No film associations to save - filmAssociations array is empty')
             savedGuest.films = []
           }
 
