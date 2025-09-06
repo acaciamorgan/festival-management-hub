@@ -219,13 +219,16 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
         const parsedArrivalDate = arrivalDate ? (() => {
           if (arrivalDate.includes('/')) {
             const parts = arrivalDate.split('/')
-            if (!parts || parts.length < 3) {
+            if (!parts || parts.length < 2) {
               console.log(`Invalid arrival date format: ${arrivalDate}`)
               return null
             }
             const month = parts[0]?.padStart(2, '0') || '01'
             const day = parts[1]?.padStart(2, '0') || '01'
-            const year = (parts[2] && parts[2].length === 2) ? '20' + parts[2] : (parts[2] || '2025')
+            // Handle 2-part dates (MM/DD) by assuming current year 2025
+            const year = parts[2] ? 
+              (parts[2].length === 2 ? '20' + parts[2] : parts[2]) : 
+              '2025'
             return `${year}-${month}-${day}`
           }
           return arrivalDate.includes('-') ? arrivalDate : null
@@ -236,13 +239,16 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
         const parsedDepartureDate = departureDate ? (() => {
           if (departureDate.includes('/')) {
             const parts = departureDate.split('/')
-            if (!parts || parts.length < 3) {
+            if (!parts || parts.length < 2) {
               console.log(`Invalid departure date format: ${departureDate}`)
               return null
             }
             const month = parts[0]?.padStart(2, '0') || '01'
             const day = parts[1]?.padStart(2, '0') || '01'
-            const year = (parts[2] && parts[2].length === 2) ? '20' + parts[2] : (parts[2] || '2025')
+            // Handle 2-part dates (MM/DD) by assuming current year 2025
+            const year = parts[2] ? 
+              (parts[2].length === 2 ? '20' + parts[2] : parts[2]) : 
+              '2025'
             return `${year}-${month}-${day}`
           }
           return departureDate.includes('-') ? departureDate : null
