@@ -410,6 +410,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
         // Parse film/program titles and create associations
         const filmTitles = formData.film_titles.split(',').map(title => title.trim()).filter(title => title)
+        console.log('DEBUG GUEST: Film titles to search for:', filmTitles)
         
         if (filmTitles.length > 0) {
           // Try to find matching films and programs
@@ -418,6 +419,9 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
             supabase.from('short_films').select('id, title').in('title', filmTitles),
             supabase.from('programs').select('id, title').in('title', filmTitles)
           ])
+          console.log('DEBUG GUEST: Feature films found:', featureFilms.data)
+          console.log('DEBUG GUEST: Short films found:', shortFilms.data)
+          console.log('DEBUG GUEST: Programs found:', programs.data)
 
           const allMatchedFilms = [
             ...(featureFilms.data || []),
@@ -435,6 +439,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
             const matchedProgram = allMatchedPrograms.find(p => p.title === title)
             
             if (matchedFilm) {
+              console.log('DEBUG GUEST: Creating film association for:', title, 'with film ID:', matchedFilm.id)
               filmAssociations.push({
                 guest_id: savedGuest.id,
                 film_id: matchedFilm.id,
@@ -451,6 +456,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
           }
 
           // Save film associations
+          console.log('DEBUG GUEST: Film associations to insert:', filmAssociations)
           if (filmAssociations.length > 0) {
             const { data: guestFilmsData, error: guestFilmsError } = await supabase
               .from('guest_films')
@@ -458,11 +464,13 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
               .select()
 
             if (guestFilmsError) {
-              console.warn('Error saving film associations:', guestFilmsError)
+              console.error('ERROR saving film associations:', guestFilmsError)
             } else {
+              console.log('DEBUG GUEST: Successfully saved film associations:', guestFilmsData)
               savedGuest.films = guestFilmsData
             }
           } else {
+            console.log('DEBUG GUEST: No film associations to save')
             savedGuest.films = []
           }
 

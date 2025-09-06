@@ -349,6 +349,22 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               .select('film_title, guests(name)')
             console.log('DEBUG: All guest_films records:', allGuestFilms)
             
+            // First try to get ALL guest_films to see if any exist
+            const { data: allGuestFilmsTest, error: allGuestFilmsTestError } = await supabase
+              .from('guest_films')
+              .select(`
+                film_id,
+                film_title,
+                guest_id,
+                guests (
+                  id,
+                  name,
+                  role
+                )
+              `)
+            console.log('DEBUG: ALL guest_films in database:', allGuestFilmsTest)
+            console.log('DEBUG: Film ID we are looking for:', film.id)
+            
             const { data: guestFilms, error: guestFilmsError } = await supabase
               .from('guest_films')
               .select(`
