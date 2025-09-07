@@ -276,16 +276,10 @@ export function PressRequestFormModal({
         error: featuresError
       })
 
-      const { data: shorts, error: shortsError } = await supabase
-        .from('short_films')
-        .select('id, title')
-        .order('title')
-
-      console.log('Shorts basic result:', {
-        count: shorts?.length || 0,
-        hasError: !!shortsError,
-        error: shortsError
-      })
+      // Skip loading individual shorts - only shorts programs (which are in feature_films) should be available
+      // Individual shorts cannot be requested separately from their curated programs
+      const shorts: any[] = []
+      console.log('Skipping individual shorts - using shorts programs from feature_films instead')
 
       const { data: programs, error: programsError } = await supabase
         .from('programs')
@@ -341,7 +335,7 @@ export function PressRequestFormModal({
       console.log('Total films loaded:', allFilms.length)
       console.log('Film breakdown:', {
         features: features?.length || 0,
-        shorts: shorts?.length || 0,
+        shorts: 0, // Individual shorts excluded - shorts programs are in features
         programs: programs?.length || 0
       })
       console.log('Access type breakdown:', {
