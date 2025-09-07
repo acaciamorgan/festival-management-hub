@@ -401,10 +401,12 @@ export function PressRequestFormModal({
       
       // Filter based on request type
       if (formData.request_type === 'screener_link') {
-        // Only show films with link_available or request_link access (exclude no_links)
+        // Only show films with link_available, request_link, or cinesend access (exclude no_links)
         const beforeAccessFilter = filtered.length
         filtered = filtered.filter(film => 
-          film.access_type === 'link_available' || film.access_type === 'request_link'
+          film.access_type === 'link_available' || 
+          film.access_type === 'request_link' ||
+          film.access_type === 'cinesend'
         )
         console.log('Screener link request - filtered out no_links films:', {
           before: beforeAccessFilter,
