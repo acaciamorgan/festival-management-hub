@@ -480,18 +480,18 @@ export function PressRequestFormModal({
     setLoading(true)
 
     try {
-      const requestData = {
-        ...formData,
-        film_titles: selectedFilms.map(f => f.title).join(', '),
-        screening_id: selectedScreening?.id || null,
-        screening_type: selectedScreening?.screening_type || null,
-        screening_date: selectedScreening?.screening_date || null,
-        screening_time: selectedScreening?.start_time || null,
-        venue_short_code: selectedScreening?.venue_short_code || null
-      }
-
       if (request) {
-        // Update existing request
+        // Update existing request (single film only)
+        const requestData = {
+          ...formData,
+          film_titles: selectedFilms.map(f => f.title).join(', '),
+          screening_id: selectedScreening?.id || null,
+          screening_type: selectedScreening?.screening_type || null,
+          screening_date: selectedScreening?.screening_date || null,
+          screening_time: selectedScreening?.start_time || null,
+          venue_short_code: selectedScreening?.venue_short_code || null
+        }
+        
         const { data, error } = await supabase
           .from('press_requests')
           .update(requestData)
@@ -502,18 +502,33 @@ export function PressRequestFormModal({
         if (error) throw error
         onSave(data)
       } else {
-        // Create new request
-        const { data, error } = await supabase
-          .from('press_requests')
-          .insert({
-            ...requestData,
+        // Create individual requests for each film
+        const createdRequests = []
+        
+        for (const film of selectedFilms) {
+          const requestData = {
+            ...formData,
+            film_titles: film.title, // Single film title per request
+            screening_id: selectedScreening?.id || null,
+            screening_type: selectedScreening?.screening_type || null,
+            screening_date: selectedScreening?.screening_date || null,
+            screening_time: selectedScreening?.start_time || null,
+            venue_short_code: selectedScreening?.venue_short_code || null,
             created_by: user?.id
-          })
-          .select()
-          .single()
+          }
+          
+          const { data, error } = await supabase
+            .from('press_requests')
+            .insert(requestData)
+            .select()
+            .single()
 
-        if (error) throw error
-        onSave(data)
+          if (error) throw error
+          createdRequests.push(data)
+        }
+        
+        // Call onSave for each created request
+        createdRequests.forEach(req => onSave(req))
       }
 
       onClose()

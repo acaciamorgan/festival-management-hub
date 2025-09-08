@@ -120,36 +120,11 @@ export default function PressRequestsPage() {
     loadFilmContacts()
   }, [loadRequests, loadFilmContacts])
 
-  // Expand requests into individual film rows
-  const expandedRequests = useMemo(() => {
-    const expanded: (PressRequest & { individual_film_title: string })[] = []
-    
-    requests.forEach(request => {
-      if (request.film_titles) {
-        const filmTitles = request.film_titles.split(',').map(t => t.trim())
-        filmTitles.forEach(filmTitle => {
-          expanded.push({
-            ...request,
-            individual_film_title: filmTitle,
-            // Create unique ID for each film row
-            id: `${request.id}-${filmTitle.replace(/\s+/g, '-').toLowerCase()}`
-          })
-        })
-      } else {
-        // Handle requests without films (shouldn't happen but just in case)
-        expanded.push({
-          ...request,
-          individual_film_title: ''
-        })
-      }
-    })
-    
-    return expanded
-  }, [requests])
+  // No expansion needed - each request is now individual per film
 
-  // Filter and search logic on expanded requests
+  // Filter and search logic on requests
   const filteredRequests = useMemo(() => {
-    return expandedRequests.filter(request => {
+    return requests.filter(request => {
       // Search filter
       if (searchTerm) {
         const searchFilter = createAccentInsensitiveFilter<typeof request>(
@@ -158,7 +133,7 @@ export default function PressRequestsPage() {
             req.requester_name,
             req.requester_outlet,
             req.requester_email,
-            req.individual_film_title
+            req.film_titles
           ]
         )
         if (!searchFilter(request)) return false
@@ -172,7 +147,7 @@ export default function PressRequestsPage() {
 
       return true
     })
-  }, [expandedRequests, searchTerm, statusFilter, typeFilter])
+  }, [requests, searchTerm, statusFilter, typeFilter])
 
   // Sort logic
   const sortedRequests = useMemo(() => {
@@ -298,26 +273,22 @@ export default function PressRequestsPage() {
     })
   }
 
-  const deleteRequest = async (compositeId: string) => {
+  const deleteRequest = async (requestId: string) => {
     if (!confirm('Are you sure you want to delete this request?')) {
       return
     }
 
     try {
-      // Extract the original request ID from the composite ID
-      // Composite format: "original-id-film-title-slug"
-      // We need just the original UUID part (first segment before any film title)
-      const originalRequestId = compositeId.split('-').slice(0, 5).join('-') // UUIDs have 5 segments
-      
+      // Since requests are now individual per film, we can delete directly
       const { error } = await supabase
         .from('press_requests')
         .delete()
-        .eq('id', originalRequestId)
+        .eq('id', requestId)
 
       if (error) throw error
 
-      // Update local state - remove all expanded rows for this request
-      setRequests(prev => prev.filter(req => req.id !== originalRequestId))
+      // Update local state - remove only this specific request
+      setRequests(prev => prev.filter(req => req.id !== requestId))
     } catch (error) {
       console.error('Error deleting request:', error)
       alert('Error deleting request. Please try again.')
@@ -543,7 +514,7 @@ export default function PressRequestsPage() {
                       </a>
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['film_titles'] || 300}px` }}>
-                      {request.individual_film_title}
+                      {request.film_titles}
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['screening_date'] || 120}px` }}>
                       {request.screening_date && request.request_type === 'screening_ticket' ? (
@@ -653,7 +624,7 @@ export default function PressRequestsPage() {
       <GenerateRequestsModal
         isOpen={showGenerateModal}
         onClose={() => setShowGenerateModal(false)}
-        newRequests={expandedRequests.filter(r => r.status === 'new')}
+        newRequests={filteredRequests.filter(r => r.status === 'new')}
         filmContacts={filmContacts}
         onMarkRequested={handleMarkMultipleRequested}
       />
