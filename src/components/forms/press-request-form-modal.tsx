@@ -506,6 +506,15 @@ export function PressRequestFormModal({
         const createdRequests = []
         
         for (const film of selectedFilms) {
+          // Create timestamp without timezone functions
+          const now = new Date()
+          const timestamp = now.getFullYear() + '-' + 
+            String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+            String(now.getDate()).padStart(2, '0') + ' ' + 
+            String(now.getHours()).padStart(2, '0') + ':' + 
+            String(now.getMinutes()).padStart(2, '0') + ':' + 
+            String(now.getSeconds()).padStart(2, '0')
+
           const requestData = {
             ...formData,
             film_titles: film.title, // Single film title per request
@@ -514,7 +523,9 @@ export function PressRequestFormModal({
             screening_date: selectedScreening?.screening_date || null,
             screening_time: selectedScreening?.start_time || null,
             venue_short_code: selectedScreening?.venue_short_code || null,
-            created_by: user?.id
+            created_by: user?.id,
+            created_at: timestamp,
+            updated_at: timestamp
           }
           
           const { data, error } = await supabase
