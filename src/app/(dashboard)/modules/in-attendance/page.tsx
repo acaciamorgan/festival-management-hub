@@ -568,7 +568,18 @@ export default function InAttendancePage() {
     try {
       const { error } = await supabase
         .from('guests')
-        .update({ checked_in: !currentStatus, updated_at: new Date().toISOString() })
+        .update({ 
+          checked_in: !currentStatus, 
+          updated_at: (() => {
+            const now = new Date()
+            return now.getFullYear() + '-' + 
+              String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+              String(now.getDate()).padStart(2, '0') + ' ' + 
+              String(now.getHours()).padStart(2, '0') + ':' + 
+              String(now.getMinutes()).padStart(2, '0') + ':' + 
+              String(now.getSeconds()).padStart(2, '0')
+          })()
+        })
         .eq('id', guestId)
 
       if (error) throw error

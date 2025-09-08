@@ -598,7 +598,18 @@ export default function PressManagementPage() {
           // UPDATE existing Card - newest data takes priority
           const { error } = await supabase
             .from('press')
-            .update({ ...pressData, updated_at: new Date().toISOString() })
+            .update({ 
+              ...pressData, 
+              updated_at: (() => {
+                const now = new Date()
+                return now.getFullYear() + '-' + 
+                  String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                  String(now.getDate()).padStart(2, '0') + ' ' + 
+                  String(now.getHours()).padStart(2, '0') + ':' + 
+                  String(now.getMinutes()).padStart(2, '0') + ':' + 
+                  String(now.getSeconds()).padStart(2, '0')
+              })()
+            })
             .eq('id', existingCard.id)
           
           if (!error) updated++
@@ -630,7 +641,15 @@ export default function PressManagementPage() {
         .from('press')
         .update({ 
           picked_up_credentials: !currentValue,
-          updated_at: new Date().toISOString()
+          updated_at: (() => {
+            const now = new Date()
+            return now.getFullYear() + '-' + 
+              String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+              String(now.getDate()).padStart(2, '0') + ' ' + 
+              String(now.getHours()).padStart(2, '0') + ':' + 
+              String(now.getMinutes()).padStart(2, '0') + ':' + 
+              String(now.getSeconds()).padStart(2, '0')
+          })()
         })
         .eq('id', pressId)
       

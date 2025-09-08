@@ -258,11 +258,19 @@ export default function PressRequestsPage() {
     try {
       const updates: any = { status }
       
-      // Add timestamps based on status
+      // Add timestamps based on status using string manipulation only
+      const now = new Date()
+      const timestamp = now.getFullYear() + '-' + 
+        String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(now.getDate()).padStart(2, '0') + ' ' + 
+        String(now.getHours()).padStart(2, '0') + ':' + 
+        String(now.getMinutes()).padStart(2, '0') + ':' + 
+        String(now.getSeconds()).padStart(2, '0')
+      
       if (status === 'requested') {
-        updates.requested_at = new Date().toISOString()
+        updates.requested_at = timestamp
       } else if (status === 'fulfilled') {
-        updates.fulfilled_at = new Date().toISOString()
+        updates.fulfilled_at = timestamp
       }
 
       const { error } = await supabase
@@ -288,6 +296,27 @@ export default function PressRequestsPage() {
     requestIds.forEach(id => {
       updateRequestStatus(id, 'requested')
     })
+  }
+
+  const deleteRequest = async (requestId: string) => {
+    if (!confirm('Are you sure you want to delete this request?')) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('press_requests')
+        .delete()
+        .eq('id', requestId)
+
+      if (error) throw error
+
+      // Update local state
+      setRequests(prev => prev.filter(req => req.id !== requestId))
+    } catch (error) {
+      console.error('Error deleting request:', error)
+      alert('Error deleting request. Please try again.')
+    }
   }
 
   const getStatusBadgeClass = (status: PressRequest['status']) => {
@@ -560,12 +589,20 @@ export default function PressRequestsPage() {
                           </>
                         )}
                         {canEditPressRequests && (
-                          <button
-                            onClick={() => setSelectedRequest(request)}
-                            className="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-700"
-                          >
-                            Edit
-                          </button>
+                          <>
+                            <button
+                              onClick={() => setSelectedRequest(request)}
+                              className="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-700"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => deleteRequest(request.id)}
+                              className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700"
+                            >
+                              Delete
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
