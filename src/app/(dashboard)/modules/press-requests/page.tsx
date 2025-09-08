@@ -298,21 +298,26 @@ export default function PressRequestsPage() {
     })
   }
 
-  const deleteRequest = async (requestId: string) => {
+  const deleteRequest = async (compositeId: string) => {
     if (!confirm('Are you sure you want to delete this request?')) {
       return
     }
 
     try {
+      // Extract the original request ID from the composite ID
+      // Composite format: "original-id-film-title-slug"
+      // We need just the original UUID part (first segment before any film title)
+      const originalRequestId = compositeId.split('-').slice(0, 5).join('-') // UUIDs have 5 segments
+      
       const { error } = await supabase
         .from('press_requests')
         .delete()
-        .eq('id', requestId)
+        .eq('id', originalRequestId)
 
       if (error) throw error
 
-      // Update local state
-      setRequests(prev => prev.filter(req => req.id !== requestId))
+      // Update local state - remove all expanded rows for this request
+      setRequests(prev => prev.filter(req => req.id !== originalRequestId))
     } catch (error) {
       console.error('Error deleting request:', error)
       alert('Error deleting request. Please try again.')
