@@ -274,21 +274,33 @@ export default function PressRequestsPage() {
   }
 
   const deleteRequest = async (requestId: string) => {
+    console.log('DEBUG: Delete function called with ID:', requestId)
+    console.log('DEBUG: Current requests before delete:', requests.map(r => ({ id: r.id, film: r.film_titles })))
+    
     if (!confirm('Are you sure you want to delete this request?')) {
       return
     }
 
     try {
       // Since requests are now individual per film, we can delete directly
+      console.log('DEBUG: About to delete request with ID:', requestId)
       const { error } = await supabase
         .from('press_requests')
         .delete()
         .eq('id', requestId)
 
-      if (error) throw error
+      if (error) {
+        console.error('DEBUG: Database delete error:', error)
+        throw error
+      }
 
+      console.log('DEBUG: Database delete successful, updating local state')
       // Update local state - remove only this specific request
-      setRequests(prev => prev.filter(req => req.id !== requestId))
+      setRequests(prev => {
+        const filtered = prev.filter(req => req.id !== requestId)
+        console.log('DEBUG: Filtered requests:', filtered.map(r => ({ id: r.id, film: r.film_titles })))
+        return filtered
+      })
     } catch (error) {
       console.error('Error deleting request:', error)
       alert('Error deleting request. Please try again.')
