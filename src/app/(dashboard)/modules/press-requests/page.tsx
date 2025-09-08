@@ -65,6 +65,7 @@ export default function PressRequestsPage() {
 
       if (error) throw error
 
+      console.log('DEBUG: Loaded requests from database:', data?.map(r => ({ id: r.id, film: r.film_titles })))
       setRequests(data || [])
     } catch (error) {
       console.error('Error loading press requests:', error)
