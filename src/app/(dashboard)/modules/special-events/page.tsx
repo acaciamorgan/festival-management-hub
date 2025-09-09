@@ -41,7 +41,7 @@ export default function SpecialEventsPage() {
 
   // Export template function for Special Events
   const exportSpecialEventsTemplate = () => {
-    // Define headers with proper display names (21 columns total)
+    // Define headers with proper display names (25 columns total)
     const headerMapping = [
       { field: 'event_date', display: 'Date' },
       { field: 'title', display: 'Event' },
@@ -52,7 +52,11 @@ export default function SpecialEventsPage() {
       { field: 'start_time', display: 'Start Time' },
       { field: 'end_time', display: 'End Time' },
       { field: 'venue_name', display: 'Location' },
+      { field: 'venue_contact_name', display: 'Venue Contact Name' },
+      { field: 'venue_contact_phone', display: 'Venue Contact Phone' },
       { field: 'lead_staff', display: 'Lead Staff' },
+      { field: 'lead_volunteer', display: 'Lead Volunteer' },
+      { field: 'number_of_vols', display: 'Number of Vols' },
       { field: 'invited_tags', display: 'Invited' },
       { field: 'number_expected', display: 'Number Expected' },
       { field: 'beverages', display: 'Beverages' },
@@ -188,7 +192,11 @@ export default function SpecialEventsPage() {
         'Start Time': 'start_time',
         'End Time': 'end_time',
         'Location': 'venue_name',
+        'Venue Contact Name': 'venue_contact_name',
+        'Venue Contact Phone': 'venue_contact_phone',
         'Lead Staff': 'lead_staff',
+        'Lead Volunteer': 'lead_volunteer',
+        'Number of Vols': 'number_of_vols',
         'Invited': 'invited_tags',
         'Number Expected': 'number_expected',
         'Beverages': 'beverages',
@@ -306,7 +314,7 @@ export default function SpecialEventsPage() {
           .from('special_events')
           .select(`
             *,
-            venues(name, address)
+            venues(name, address, contact_names, contact_phones)
           `)
           .order('event_date', { ascending: true }),
         supabase
@@ -321,7 +329,9 @@ export default function SpecialEventsPage() {
       const eventsWithDetails = (eventsResult.data || []).map(event => ({
         ...event,
         venue_name: event.venues?.name || null,
-        venue_address: event.venues?.address || null
+        venue_address: event.venues?.address || null,
+        venue_contact_name: event.venues?.contact_names?.[0] || null,
+        venue_contact_phone: event.venues?.contact_phones?.[0] || null
       }))
 
       setSpecialEvents(eventsWithDetails)
@@ -830,7 +840,11 @@ export default function SpecialEventsPage() {
                     { key: 'start_time', label: 'Start Time', width: 100, sortable: false },
                     { key: 'end_time', label: 'End Time', width: 100, sortable: false },
                     { key: 'venue_name', label: 'Location', width: 150, sortable: true },
+                    { key: 'venue_contact_name', label: 'Venue Contact Name', width: 150, sortable: false },
+                    { key: 'venue_contact_phone', label: 'Venue Contact Phone', width: 150, sortable: false },
                     { key: 'lead_staff', label: 'Lead Staff', width: 120, sortable: true },
+                    { key: 'lead_volunteer', label: 'Lead Volunteer', width: 120, sortable: true },
+                    { key: 'number_of_vols', label: 'Number of Vols', width: 100, sortable: false },
                     { key: 'invited_tags', label: 'Invited', width: 150, sortable: false },
                     { key: 'number_expected', label: 'Number Expected', width: 130, sortable: false },
                     { key: 'beverages', label: 'Beverages', width: 120, sortable: false },
@@ -916,9 +930,29 @@ export default function SpecialEventsPage() {
                       </div>
                     </td>
                     
+                    {/* Venue Contact Name */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['venue_contact_name'] || 150}px` }}>
+                      {event.venue_contact_name || '—'}
+                    </td>
+                    
+                    {/* Venue Contact Phone */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['venue_contact_phone'] || 150}px` }}>
+                      {event.venue_contact_phone || '—'}
+                    </td>
+                    
                     {/* Lead Staff */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['lead_staff'] || 120}px` }}>
                       {event.lead_staff || '—'}
+                    </td>
+                    
+                    {/* Lead Volunteer */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['lead_volunteer'] || 120}px` }}>
+                      {event.lead_volunteer || '—'}
+                    </td>
+                    
+                    {/* Number of Vols */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['number_of_vols'] || 100}px` }}>
+                      {event.number_of_vols || '—'}
                     </td>
                     
                     {/* Invited */}

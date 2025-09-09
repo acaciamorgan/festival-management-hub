@@ -24,6 +24,8 @@ interface SpecialEventFormData {
   films_programs_display: string
   guests_display: string
   lead_staff: string
+  lead_volunteer: string
+  number_of_vols: string
   invited_tags: string
   number_expected: string
   beverages: string
@@ -52,6 +54,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     films_programs_display: '',
     guests_display: '',
     lead_staff: '',
+    lead_volunteer: '',
+    number_of_vols: '',
     invited_tags: '',
     number_expected: '',
     beverages: '',
@@ -75,7 +79,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
   const [availableFilms, setAvailableFilms] = useState<{id: string, title: string, type: 'feature' | 'short'}[]>([])
   const [availablePrograms, setAvailablePrograms] = useState<{id: string, title: string}[]>([])
   const [availableGuests, setAvailableGuests] = useState<{id: string, name: string}[]>([])
-  const [availableVenues, setAvailableVenues] = useState<{id: string, name: string, address: string}[]>([])
+  const [availableVenues, setAvailableVenues] = useState<{id: string, name: string, address: string, contact_names?: string[], contact_phones?: string[]}[]>([])
   const [existingInvitedTags, setExistingInvitedTags] = useState<string[]>([])
   
   // Film/Program suggestions
@@ -135,7 +139,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
           supabase.from('short_films').select('id, title').order('title'),
           supabase.from('programs').select('id, title').order('title'),
           supabase.from('guests').select('id, name').order('name'),
-          supabase.from('venues').select('id, name, address').order('name'),
+          supabase.from('venues').select('id, name, address, contact_names, contact_phones').order('name'),
           supabase.from('special_events').select('invited_tags').not('invited_tags', 'is', null)
         ])
 
@@ -186,6 +190,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         films_programs_display: event.films_programs_display || '',
         guests_display: event.guests_display || '',
         lead_staff: event.lead_staff || '',
+        lead_volunteer: event.lead_volunteer || '',
+        number_of_vols: event.number_of_vols || '',
         invited_tags: event.invited_tags || '',
         number_expected: event.number_expected || '',
         beverages: event.beverages || '',
@@ -364,6 +370,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         films_programs_display: formData.films_programs_display.trim() || null,
         guests_display: formData.guests_display.trim() || null,
         lead_staff: formData.lead_staff.trim() || null,
+        lead_volunteer: formData.lead_volunteer.trim() || null,
+        number_of_vols: formData.number_of_vols.trim() || null,
         invited_tags: formData.invited_tags.trim() || null,
         number_expected: formData.number_expected.trim() || null,
         beverages: formData.beverages.trim() || null,
@@ -651,8 +659,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
               </div>
             </div>
 
-            {/* Row 6: Staff and Invited */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Row 6: Staff and Volunteers */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Lead Staff</label>
                 <input
@@ -661,6 +669,26 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   onChange={(e) => setFormData(prev => ({ ...prev, lead_staff: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Staff member name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Lead Volunteer</label>
+                <input
+                  type="text"
+                  value={formData.lead_volunteer}
+                  onChange={(e) => setFormData(prev => ({ ...prev, lead_volunteer: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Volunteer name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Vols</label>
+                <input
+                  type="text"
+                  value={formData.number_of_vols}
+                  onChange={(e) => setFormData(prev => ({ ...prev, number_of_vols: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., 5"
                 />
               </div>
               <div>
@@ -698,6 +726,10 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Smart tags, separate with commas</p>
               </div>
+            </div>
+
+            {/* Row 7: Number Expected */}
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Number Expected</label>
                 <input
@@ -710,7 +742,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
               </div>
             </div>
 
-            {/* Row 7: F&B */}
+            {/* Row 8: F&B */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Beverages</label>

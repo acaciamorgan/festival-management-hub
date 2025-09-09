@@ -398,6 +398,8 @@ export interface SpecialEventCard {
   venue_id?: string | null
   venue_name?: string | null
   venue_address?: string | null
+  venue_contact_name?: string | null
+  venue_contact_phone?: string | null
   location_details?: string | null
   
   // Associations (display strings)
@@ -406,6 +408,8 @@ export interface SpecialEventCard {
   
   // Staff and logistics
   lead_staff?: string | null
+  lead_volunteer?: string | null
+  number_of_vols?: string | null
   invited_tags?: string | null // Smart tags like "Filmmakers, Sponsors, VIPs"
   number_expected?: string | null
   
