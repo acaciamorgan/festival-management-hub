@@ -51,11 +51,11 @@ export default function InAttendancePage() {
         if (guest.arrival_airline && guest.arrival_flight_number) {
           parts.push(`${guest.arrival_airline} ${guest.arrival_flight_number}`)
         }
-        if (guest.arrival_landing_time) {
-          parts.push(`arrives ${formatTime(guest.arrival_landing_time)}`)
+        if (guest.inbound_arrival_time) {
+          parts.push(`arrives ${formatTime(guest.inbound_arrival_time)}`)
         }
-        if (guest.arrival_origin) {
-          parts.push(`from ${guest.arrival_origin}`)
+        if (guest.arrival_origin_airport) {
+          parts.push(`from ${guest.arrival_origin_airport}`)
         }
         return parts.length > 0 ? parts.join(' ') : '—'
       } else {
@@ -63,11 +63,11 @@ export default function InAttendancePage() {
         if (guest.departure_airline && guest.departure_flight_number) {
           parts.push(`${guest.departure_airline} ${guest.departure_flight_number}`)
         }
-        if (guest.departure_takeoff_time) {
-          parts.push(`departs ${formatTime(guest.departure_takeoff_time)}`)
+        if (guest.outbound_departure_time) {
+          parts.push(`departs ${formatTime(guest.outbound_departure_time)}`)
         }
-        if (guest.departure_destination) {
-          parts.push(`to ${guest.departure_destination}`)
+        if (guest.destination_airport) {
+          parts.push(`to ${guest.destination_airport}`)
         }
         return parts.length > 0 ? parts.join(' ') : '—'
       }
@@ -259,17 +259,17 @@ export default function InAttendancePage() {
       { field: 'arrival_date', display: 'Arrival Date' },
       { field: 'arrival_airline', display: 'Arrival Airline' },
       { field: 'arrival_flight_number', display: 'Inbound Flight #' },
-      { field: 'arrival_takeoff_time', display: 'Inbound Depart Time' },
-      { field: 'arrival_origin', display: 'Origin' },
-      { field: 'arrival_destination', display: 'Arrival Airport' },
-      { field: 'arrival_landing_time', display: 'Inbound Arrive Time' },
+      { field: 'inbound_departure_time', display: 'Inbound Depart Time' },
+      { field: 'arrival_origin_airport', display: 'Origin' },
+      { field: 'arrival_airport', display: 'Arrival Airport' },
+      { field: 'inbound_arrival_time', display: 'Inbound Arrive Time' },
       { field: 'departure_date', display: 'Departure Date' },
-      { field: 'departure_takeoff_time', display: 'Outbound Depart Time' },
+      { field: 'outbound_departure_time', display: 'Outbound Depart Time' },
       { field: 'departure_airline', display: 'Departure Airline' },
       { field: 'departure_flight_number', display: 'Outbound Flight #' },
-      { field: 'departure_origin', display: 'Departure Airport' },
-      { field: 'departure_destination', display: 'Destination' },
-      { field: 'departure_landing_time', display: 'Outbound Arrive Time' },
+      { field: 'departure_airport', display: 'Departure Airport' },
+      { field: 'destination_airport', display: 'Destination' },
+      { field: 'outbound_arrival_time', display: 'Outbound Arrive Time' },
       { field: 'hotel_name', display: 'Hotel' },
       { field: 'notes', display: 'Notes' },
       { field: 'confirmed', display: 'Confirmed' }
@@ -1082,17 +1082,17 @@ export default function InAttendancePage() {
                   { key: 'arrival_date', label: 'Arrival Date', width: 100, sortable: true },
                   { key: 'arrival_airline', label: 'Arrival Airline', width: 100, sortable: false },
                   { key: 'arrival_flight_number', label: 'Flight #', width: 80, sortable: false },
-                  { key: 'arrival_takeoff_time', label: 'Depart Time', width: 100, sortable: false },
-                  { key: 'arrival_origin', label: 'Origin', width: 80, sortable: false },
-                  { key: 'arrival_destination', label: 'Arrival Airport', width: 100, sortable: false },
-                  { key: 'arrival_landing_time', label: 'Arrive Time', width: 100, sortable: false },
+                  { key: 'inbound_departure_time', label: 'Depart Time', width: 100, sortable: false },
+                  { key: 'arrival_origin_airport', label: 'Origin', width: 80, sortable: false },
+                  { key: 'arrival_airport', label: 'Arrival Airport', width: 100, sortable: false },
+                  { key: 'inbound_arrival_time', label: 'Arrive Time', width: 100, sortable: false },
                   { key: 'departure_date', label: 'Departure Date', width: 100, sortable: true },
-                  { key: 'departure_takeoff_time', label: 'Depart Time', width: 100, sortable: false },
+                  { key: 'outbound_departure_time', label: 'Depart Time', width: 100, sortable: false },
                   { key: 'departure_airline', label: 'Departure Airline', width: 100, sortable: false },
                   { key: 'departure_flight_number', label: 'Flight #', width: 80, sortable: false },
-                  { key: 'departure_origin', label: 'Departure Airport', width: 100, sortable: false },
-                  { key: 'departure_destination', label: 'Destination', width: 100, sortable: false },
-                  { key: 'departure_landing_time', label: 'Arrive Time', width: 100, sortable: false },
+                  { key: 'departure_airport', label: 'Departure Airport', width: 100, sortable: false },
+                  { key: 'destination_airport', label: 'Destination', width: 100, sortable: false },
+                  { key: 'outbound_arrival_time', label: 'Arrive Time', width: 100, sortable: false },
                   { key: 'hotel_name', label: 'Hotel', width: 120, sortable: false },
                   { key: 'notes', label: 'Notes', width: 200, sortable: false },
                   { key: 'confirmed', label: 'Confirmed', width: 80, sortable: true }
@@ -1199,23 +1199,23 @@ export default function InAttendancePage() {
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_flight_number'] || 80}px` }}>
                     {guest.arrival_flight_number || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_takeoff_time'] || 100}px` }}>
-                    {formatTime(guest.arrival_takeoff_time)}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['inbound_departure_time'] || 100}px` }}>
+                    {formatTime(guest.inbound_departure_time)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_origin'] || 80}px` }}>
-                    {guest.arrival_origin || '—'}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_origin_airport'] || 80}px` }}>
+                    {guest.arrival_origin_airport || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_destination'] || 100}px` }}>
-                    {guest.arrival_destination || '—'}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_airport'] || 100}px` }}>
+                    {guest.arrival_airport || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_landing_time'] || 100}px` }}>
-                    {formatTime(guest.arrival_landing_time)}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['inbound_arrival_time'] || 100}px` }}>
+                    {formatTime(guest.inbound_arrival_time)}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_date'] || 100}px` }}>
                     {formatDate(guest.departure_date)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_takeoff_time'] || 100}px` }}>
-                    {formatTime(guest.departure_takeoff_time)}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['outbound_departure_time'] || 100}px` }}>
+                    {formatTime(guest.outbound_departure_time)}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_airline'] || 100}px` }}>
                     {guest.departure_airline || '—'}
@@ -1223,14 +1223,14 @@ export default function InAttendancePage() {
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_flight_number'] || 80}px` }}>
                     {guest.departure_flight_number || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_origin'] || 100}px` }}>
-                    {guest.departure_origin || '—'}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_airport'] || 100}px` }}>
+                    {guest.departure_airport || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_destination'] || 100}px` }}>
-                    {guest.departure_destination || '—'}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['destination_airport'] || 100}px` }}>
+                    {guest.destination_airport || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_landing_time'] || 100}px` }}>
-                    {formatTime(guest.departure_landing_time)}
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['outbound_arrival_time'] || 100}px` }}>
+                    {formatTime(guest.outbound_arrival_time)}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['hotel_name'] || 120}px` }}>
                     {guest.hotel_name || '—'}
