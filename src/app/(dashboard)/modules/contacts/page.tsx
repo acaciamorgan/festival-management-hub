@@ -410,6 +410,9 @@ export default function ContactsPage() {
         filmAssignments: Array<{filmTitle: string, role: string}>
       }>()
       
+      console.log('Processing CSV with', rows.length - 1, 'data rows')
+      console.log('CSV Headers:', headers)
+      
       // Process all rows and group by email
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i]
@@ -440,16 +443,19 @@ export default function ContactsPage() {
         // Only process if we have a name and email
         if (contactRecord.contact_name && contactRecord.contact_email) {
           const email = contactRecord.contact_email.toLowerCase()
+          console.log('Processing contact:', contactRecord.contact_name, 'with email:', email)
           
           if (!contactsByEmail.has(email)) {
             // First occurrence of this email - create new contact entry
             contactRecord.created_by = user?.id
+            console.log('New contact for email:', email)
             contactsByEmail.set(email, {
               contactData: contactRecord,
               filmAssignments: []
             })
           } else {
             // Update existing contact data with any new non-empty fields
+            console.log('Updating existing contact for email:', email)
             const existing = contactsByEmail.get(email)!
             Object.keys(contactRecord).forEach(key => {
               if (contactRecord[key] && !existing.contactData[key]) {
@@ -477,6 +483,7 @@ export default function ContactsPage() {
         return
       }
 
+      console.log('Grouped into', contactsByEmail.size, 'unique emails:', Array.from(contactsByEmail.keys()))
       setUploadStatus(`Processing ${contactsByEmail.size} unique contacts...`)
 
       // Check for existing contacts in database
