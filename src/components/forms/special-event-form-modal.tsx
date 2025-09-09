@@ -54,7 +54,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     venue_id: '',
     venue_contact_name: '',
     venue_contact_phone: '',
-    location_details: '','
+    location_details: '',
     films_programs_display: '',
     guests_display: '',
     lead_staff: '',
