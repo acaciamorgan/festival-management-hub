@@ -20,6 +20,8 @@ interface SpecialEventFormData {
   start_time: string
   end_time: string
   venue_id: string
+  venue_contact_name: string
+  venue_contact_phone: string
   location_details: string
   films_programs_display: string
   guests_display: string
@@ -50,7 +52,9 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     start_time: '',
     end_time: '',
     venue_id: '',
-    location_details: '',
+    venue_contact_name: '',
+    venue_contact_phone: '',
+    location_details: '','
     films_programs_display: '',
     guests_display: '',
     lead_staff: '',
@@ -186,6 +190,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         start_time: event.start_time || '',
         end_time: event.end_time || '',
         venue_id: event.venue_id || '',
+        venue_contact_name: event.venue_contact_name || '',
+        venue_contact_phone: event.venue_contact_phone || '',
         location_details: event.location_details || '',
         films_programs_display: event.films_programs_display || '',
         guests_display: event.guests_display || '',
@@ -320,18 +326,19 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     setShowInvitedSuggestions(false)
   }
 
-  // Handle venue selection and auto-populate address
+  // Handle venue selection and auto-populate address and contacts
   const handleVenueChange = (venueId: string) => {
     setFormData(prev => ({ ...prev, venue_id: venueId }))
     
     if (venueId) {
       const selectedVenue = availableVenues.find(v => v.id === venueId)
       if (selectedVenue) {
-        // Auto-populate address when venue is selected
-        // Note: This doesn't overwrite if user has custom location details
-        if (!formData.location_details) {
-          setFormData(prev => ({ ...prev, location_details: selectedVenue.address || '' }))
-        }
+        setFormData(prev => ({ 
+          ...prev, 
+          location_details: prev.location_details || selectedVenue.address || '',
+          venue_contact_name: selectedVenue.contact_names?.[0] || prev.venue_contact_name || '',
+          venue_contact_phone: selectedVenue.contact_phones?.[0] || prev.venue_contact_phone || ''
+        }))
       }
     }
   }
@@ -366,6 +373,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         start_time: formData.start_time || null,
         end_time: formData.end_time || null,
         venue_id: formData.venue_id || null,
+        venue_contact_name: formData.venue_contact_name.trim() || null,
+        venue_contact_phone: formData.venue_contact_phone.trim() || null,
         location_details: formData.location_details.trim() || null,
         films_programs_display: formData.films_programs_display.trim() || null,
         guests_display: formData.guests_display.trim() || null,
@@ -656,6 +665,30 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   onChange={(e) => setFormData(prev => ({ ...prev, location_details: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Room, floor, or additional details"
+                />
+              </div>
+            </div>
+
+            {/* Row 5.5: Venue Contact Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Venue Contact Name</label>
+                <input
+                  type="text"
+                  value={formData.venue_contact_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, venue_contact_name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Contact person at venue"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Venue Contact Phone</label>
+                <input
+                  type="text"
+                  value={formData.venue_contact_phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, venue_contact_phone: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Contact phone number"
                 />
               </div>
             </div>
