@@ -357,8 +357,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     setIsSubmitting(true)
 
     try {
-      // Prepare the event data
-      const eventData = {
+      // Prepare the event data (excluding venue contact fields which are derived)
+      const eventData: any = {
         title: formData.title.trim(),
         event_type: formData.event_type || null,
         event_date: formData.event_date || null,
@@ -428,9 +428,10 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
       // Photography integration removed - to be implemented later
 
       onSave(savedEvent)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving special event:', error)
-      alert('Error saving event. Please try again.')
+      const errorMessage = error?.message || error?.error_description || 'Error saving event. Please try again.'
+      alert(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
