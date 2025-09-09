@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { createClient } from '@/lib/supabase/client'
@@ -53,14 +53,136 @@ export default function AdminPage() {
   const [isAdminUser, setIsAdminUser] = useState(false)
   const [updatingPermissions, setUpdatingPermissions] = useState(false)
   
+  // Sorting and resizing state
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'user_name', direction: 'asc' })
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
+    user: 300,
+    role: 200,
+    access_level: 150,
+    actions: 200
+  })
+  
   const supabase = createClient()
   const modules = getAllModules().filter(m => m.id !== 'admin')
+  
+  // Extract last name from user name for sorting
+  const getLastName = (name: string | undefined): string => {
+    if (!name) return ''
+    const parts = name.trim().split(' ')
+    return parts.length > 1 ? parts[parts.length - 1] : parts[0] || ''
+  }
+  
+  // Sort users function
+  const sortUsers = (usersToSort: UserRecord[], config: {key: string, direction: 'asc' | 'desc'} | null) => {
+    if (!config) return usersToSort
+    
+    return [...usersToSort].sort((a, b) => {
+      let aValue: string
+      let bValue: string
+      
+      switch (config.key) {
+        case 'user_name':
+          aValue = getLastName(a.user_name || a.user_email)
+          bValue = getLastName(b.user_name || b.user_email)
+          break
+        case 'user_email':
+          aValue = a.user_email
+          bValue = b.user_email
+          break
+        case 'user_role':
+          aValue = a.user_role || ''
+          bValue = b.user_role || ''
+          break
+        case 'access_level':
+          aValue = a.is_super_admin ? 'super_admin' : a.is_admin ? 'admin' : 'user'
+          bValue = b.is_super_admin ? 'super_admin' : b.is_admin ? 'admin' : 'user'
+          break
+        default:
+          return 0
+      }
+      
+      const comparison = aValue.toLowerCase().localeCompare(bValue.toLowerCase())
+      return config.direction === 'asc' ? comparison : -comparison
+    })
+  }
+  
+  // Handle sort
+  const handleSort = (key: string) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+      }
+      return { key, direction: 'asc' }
+    })
+  }
+  
+  // Get sort icon
+  const getSortIcon = (key: string) => {
+    if (sortConfig?.key !== key) return '↕️'
+    return sortConfig.direction === 'asc' ? '↑' : '↓'
+  }
+
+  // Handle column resize
+  const handleColumnResize = (columnKey: string, newWidth: number) => {
+    setColumnWidths(prev => ({ ...prev, [columnKey]: Math.max(100, newWidth) }))
+  }
+
+  // Resize handle component
+  const ResizeHandle = ({ columnKey }: { columnKey: string }) => {
+    const [isResizing, setIsResizing] = useState(false)
+    const [startX, setStartX] = useState(0)
+    const [startWidth, setStartWidth] = useState(0)
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setIsResizing(true)
+      setStartX(e.clientX)
+      setStartWidth(columnWidths[columnKey] || 150)
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return
+      const diff = e.clientX - startX
+      const newWidth = Math.max(100, startWidth + diff)
+      handleColumnResize(columnKey, newWidth)
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+    }
+
+    React.useEffect(() => {
+      if (isResizing) {
+        document.addEventListener('mousemove', handleMouseMove)
+        document.addEventListener('mouseup', handleMouseUp)
+        return () => {
+          document.removeEventListener('mousemove', handleMouseMove)
+          document.removeEventListener('mouseup', handleMouseUp)
+        }
+      }
+    }, [isResizing, startX, startWidth])
+
+    return (
+      <div
+        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-300 bg-gray-300"
+        onMouseDown={handleMouseDown}
+      />
+    )
+  }
 
   useEffect(() => {
     if (!authLoading && permissions?.isAdmin) {
       loadUsers()
     }
   }, [authLoading, permissions])
+
+  useEffect(() => {
+    if (users.length > 0) {
+      const sorted = sortUsers(users, sortConfig)
+      setUsers(sorted)
+    }
+  }, [sortConfig])
 
   const loadUsers = async () => {
     setLoadingUsers(true)
@@ -82,7 +204,8 @@ export default function AdminPage() {
           : user.module_permissions || {}
       }))
       
-      setUsers(parsedUsers)
+      const sorted = sortUsers(parsedUsers, sortConfig)
+      setUsers(sorted)
     } catch (err: any) {
       console.error('Error loading users:', err)
       setError(err.message || 'Failed to load users')
@@ -445,16 +568,49 @@ export default function AdminPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
+                <th 
+                  className="relative px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 border-r border-gray-200"
+                  style={{ minWidth: `${columnWidths.user}px` }}
+                  onClick={() => handleSort('user_name')}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>User (by Last Name)</span>
+                    <span className="text-gray-400 ml-1">
+                      {getSortIcon('user_name')}
+                    </span>
+                  </div>
+                  <ResizeHandle columnKey="user" />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
+                <th 
+                  className="relative px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 border-r border-gray-200"
+                  style={{ minWidth: `${columnWidths.role}px` }}
+                  onClick={() => handleSort('user_role')}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>Role</span>
+                    <span className="text-gray-400 ml-1">
+                      {getSortIcon('user_role')}
+                    </span>
+                  </div>
+                  <ResizeHandle columnKey="role" />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Access Level
+                <th 
+                  className="relative px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 border-r border-gray-200"
+                  style={{ minWidth: `${columnWidths.access_level}px` }}
+                  onClick={() => handleSort('access_level')}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>Access Level</span>
+                    <span className="text-gray-400 ml-1">
+                      {getSortIcon('access_level')}
+                    </span>
+                  </div>
+                  <ResizeHandle columnKey="access_level" />
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th 
+                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  style={{ minWidth: `${columnWidths.actions}px` }}
+                >
                   Actions
                 </th>
               </tr>
@@ -466,7 +622,7 @@ export default function AdminPage() {
                 
                 return (
                   <tr key={userRecord.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap border-r border-gray-100" style={{ minWidth: `${columnWidths.user}px` }}>
                       <div>
                         <div className="text-sm font-medium text-gray-900">
                           {userRecord.user_name || 'Unnamed User'}
@@ -474,13 +630,13 @@ export default function AdminPage() {
                         <div className="text-sm text-gray-500">{userRecord.user_email}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap border-r border-gray-100" style={{ minWidth: `${columnWidths.role}px` }}>
                       <div className="text-sm text-gray-900">{userRecord.user_role || '—'}</div>
                       {userRecord.user_phone && (
                         <div className="text-sm text-gray-500">{userRecord.user_phone}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap border-r border-gray-100" style={{ minWidth: `${columnWidths.access_level}px` }}>
                       {isSuperAdmin ? (
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
                           Super Admin
@@ -495,7 +651,7 @@ export default function AdminPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style={{ minWidth: `${columnWidths.actions}px` }}>
                       <div className="flex justify-end gap-2">
                         {!userRecord.user_id && (
                           <button
