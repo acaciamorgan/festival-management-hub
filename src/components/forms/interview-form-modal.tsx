@@ -4,9 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { InterviewCard, InterviewStatus, PressCard, GuestCard } from '@/types'
-import { normalizeDateValue } from '@/lib/date-utils'
 import { getGuestSuggestions } from '@/lib/guest-matching'
-import { parseSmartDateAsync, formatDateForDisplay } from '@/lib/date-utils-smart'
 
 interface InterviewFormModalProps {
   interview: InterviewCard | null
@@ -350,7 +348,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         subject_names: formData.subject_names || null,
         subject_guest_ids: formData.subject_guest_ids.length > 0 ? formData.subject_guest_ids : null,
         status: formData.status,
-        interview_date: normalizeDateValue(formData.interview_date) || null,
+        interview_date: formData.interview_date || null,
         interview_time: formData.interview_time || null,
         location: formData.location || null,
         notes: formData.notes || null,
@@ -615,10 +613,14 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
             </select>
           </div>
 
-          {/* Scheduled Details - only show when status is Scheduled */}
-          {formData.status === 'Scheduled' && (
-            <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Interview Details</h3>
+          {/* Interview Details - always visible */}
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">
+              Interview Details
+              {formData.status === 'Complete' && (
+                <span className="ml-2 text-xs text-green-600 font-normal">(Historical Record)</span>
+              )}
+            </h3>
               
               <div className="grid grid-cols-2 gap-4 mb-4">
                 {/* Date */}
@@ -628,13 +630,11 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                   </label>
                   <input
                     type="text"
-                    value={formData.interview_date ? formatDateForDisplay(formData.interview_date) : ''}
-                    onChange={async (e) => {
-                      const parsed = await parseSmartDateAsync(e.target.value)
-                      handleInputChange('interview_date', parsed || e.target.value)
-                    }}
-                    placeholder="MM/DD or MM/DD/YYYY"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.interview_date}
+                    onChange={(e) => handleInputChange('interview_date', e.target.value)}
+                    placeholder="MM/DD/YYYY or any date format"
+                    readOnly={formData.status === 'Complete'}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formData.status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
                   />
                 </div>
 
@@ -644,10 +644,12 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                     Time
                   </label>
                   <input
-                    type="time"
+                    type="text"
                     value={formData.interview_time}
                     onChange={(e) => handleInputChange('interview_time', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. 3:00 PM"
+                    readOnly={formData.status === 'Complete'}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formData.status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
                   />
                 </div>
               </div>
@@ -662,11 +664,11 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                   value={formData.location}
                   onChange={(e) => handleInputChange('location', e.target.value)}
                   placeholder="Phone, Zoom link, or physical location..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={formData.status === 'Complete'}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formData.status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
                 />
               </div>
             </div>
-          )}
 
           {/* Notes */}
           <div className="mb-6">
