@@ -225,21 +225,21 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
         const departureDate = primaryRow['Departure Date']?.trim()
         const parsedDepartureDate = parseSmartDate(departureDate, festivalYear)
 
-        // Use exact template headers
+        // Use updated header names with unique inbound/outbound prefixes
         const arrivalAirline = primaryRow['Arrival Airline']?.trim() || null
-        const arrivalFlightNumber = primaryRow['Flight #']?.trim() || null  // Template uses 'Flight #'
-        const arrivalTakeoffTime = primaryRow['Depart Time']?.trim() || null  // Template uses 'Depart Time'
-        const arrivalOrigin = primaryRow['Origin']?.trim() || null  // Template uses 'Origin'
+        const arrivalFlightNumber = primaryRow['Inbound Flight #']?.trim() || null
+        const arrivalTakeoffTime = primaryRow['Inbound Depart Time']?.trim() || null
+        const arrivalOrigin = primaryRow['Origin']?.trim() || null
         const arrivalDestination = primaryRow['Arrival Airport']?.trim() || null
-        const arrivalLandingTime = primaryRow['Arrive Time']?.trim() || null  // Template uses 'Arrive Time'
+        const arrivalLandingTime = primaryRow['Inbound Arrive Time']?.trim() || null
         
-        // For departure fields - template reuses same column names but in departure context
-        const departureTakeoffTime = primaryRow['Depart Time']?.trim() || null
+        // For departure fields - use outbound prefixes
+        const departureTakeoffTime = primaryRow['Outbound Depart Time']?.trim() || null
         const departureAirline = primaryRow['Departure Airline']?.trim() || null
-        const departureFlightNumber = primaryRow['Flight #']?.trim() || null
+        const departureFlightNumber = primaryRow['Outbound Flight #']?.trim() || null
         const departureOrigin = primaryRow['Departure Airport']?.trim() || null
         const departureDestination = primaryRow['Destination']?.trim() || null
-        const departureLandingTime = primaryRow['Arrive Time']?.trim() || null
+        const departureLandingTime = primaryRow['Outbound Arrive Time']?.trim() || null
 
         // Create guest record
         const guestData = {
