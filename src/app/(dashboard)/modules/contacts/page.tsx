@@ -373,6 +373,7 @@ export default function ContactsPage() {
 
   // CSV upload handler
   const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('NEW CSV UPLOAD HANDLER CALLED')
     const file = event.target.files?.[0]
     if (!file) return
 
