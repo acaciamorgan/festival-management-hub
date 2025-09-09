@@ -526,14 +526,8 @@ export default function InAttendancePage() {
 
   const formatTime = (timeString: string | undefined): string => {
     if (!timeString) return '—'
-    
-    // Convert 24-hour format to 12-hour AM/PM format
-    const [hours, minutes] = timeString.split(':')
-    const hour24 = parseInt(hours, 10)
-    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
-    const ampm = hour24 >= 12 ? 'PM' : 'AM'
-    
-    return `${hour12}:${minutes} ${ampm}`
+    // Just return the time string as-is - no formatting
+    return timeString
   }
 
   const formatArrivalInfo = (guest: GuestCard): string => {
