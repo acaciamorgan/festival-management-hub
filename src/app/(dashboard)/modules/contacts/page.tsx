@@ -243,80 +243,61 @@ export default function ContactsPage() {
         return
       }
 
-      // Always load film associations for the new contact view
-      const contactsWithFilms = await Promise.all(
-        (contactsData || []).map(async (contact) => {
-          // Get film contacts that match this contact's name
-          const { data: filmContacts } = await supabase
-            .from('film_contacts')
-            .select('film_id, film_type, name')
-            .eq('name', contact.contact_name)
-          
-          if (!filmContacts || filmContacts.length === 0) {
-            return {
-              ...contact,
-              associated_films: [],
-              associated_films_data: []
-            }
-          }
+      // Load all film_contacts associations
+      const { data: allFilmContacts } = await supabase
+        .from('film_contacts')
+        .select('film_id, film_type, contact_id, contact_type')
+      
+      // Load all films to get titles
+      const [featuresResponse, shortsResponse] = await Promise.all([
+        supabase.from('feature_films').select('id, title'),
+        supabase.from('short_films').select('id, title')
+      ])
+      
+      const featureFilmsMap = new Map((featuresResponse.data || []).map(f => [f.id, f]))
+      const shortFilmsMap = new Map((shortsResponse.data || []).map(s => [s.id, s]))
 
-          // Get actual film data from both tables
-          const associatedFilms = []
-          const associatedFilmsData = []
+      // Process contacts with their film associations
+      const contactsWithFilms = (contactsData || []).map(contact => {
+        // Find all film associations for this contact by contact_id
+        const contactFilmAssociations = (allFilmContacts || []).filter(
+          fc => fc.contact_id === contact.id
+        )
+        
+        const associatedFilmsData = []
+        const associatedFilms = []
+        
+        for (const fc of contactFilmAssociations) {
+          let film = null
+          if (fc.film_type === 'feature') {
+            film = featureFilmsMap.get(fc.film_id)
+          } else if (fc.film_type === 'short') {
+            film = shortFilmsMap.get(fc.film_id)
+          }
           
-          for (const fc of filmContacts) {
-            try {
-              if (fc.film_type === 'feature') {
-                const { data: featureFilm } = await supabase
-                  .from('feature_films')
-                  .select('id, title, director, countries, program_1, program_2, program_3, program_4, genre_1, genre_2, genre_3, genre_4')
-                  .eq('id', fc.film_id)
-                  .single()
-                
-                if (featureFilm) {
-                  associatedFilms.push(featureFilm.title)
-                  associatedFilmsData.push({
-                    id: featureFilm.id,
-                    title: featureFilm.title,
-                    film_type: 'feature' as const,
-                    director: featureFilm.director,
-                    countries: featureFilm.countries,
-                    programs: [featureFilm.program_1, featureFilm.program_2, featureFilm.program_3, featureFilm.program_4]
-                      .filter(Boolean).join(', ')
-                  })
-                }
-              } else if (fc.film_type === 'short') {
-                const { data: shortFilm } = await supabase
-                  .from('short_films')
-                  .select('id, title, director, countries, program_1, program_2, program_3, genre_1, genre_2, genre_3')
-                  .eq('id', fc.film_id)
-                  .single()
-                
-                if (shortFilm) {
-                  associatedFilms.push(shortFilm.title)
-                  associatedFilmsData.push({
-                    id: shortFilm.id,
-                    title: shortFilm.title,
-                    film_type: 'short' as const,
-                    director: shortFilm.director,
-                    countries: shortFilm.countries,
-                    programs: [shortFilm.program_1, shortFilm.program_2, shortFilm.program_3]
-                      .filter(Boolean).join(', ')
-                  })
-                }
-              }
-            } catch (error) {
-              console.error('Error loading film title:', error)
-            }
+          if (film) {
+            associatedFilms.push(film.title)
+            associatedFilmsData.push({
+              id: film.id,
+              title: film.title,
+              film_type: fc.film_type,
+              contact_type: fc.contact_type
+            })
           }
+        }
+        
+        // Remove duplicates and sort
+        const uniqueFilms = Array.from(new Set(associatedFilms)).sort()
+        const uniqueFilmsData = associatedFilmsData.filter(
+          (film, index, self) => index === self.findIndex(f => f.id === film.id)
+        ).sort((a, b) => a.title.localeCompare(b.title))
 
-          return {
-            ...contact,
-            associated_films: associatedFilms,
-            associated_films_data: associatedFilmsData
-          }
-        })
-      )
+        return {
+          ...contact,
+          associated_films: uniqueFilms,
+          associated_films_data: uniqueFilmsData
+        }
+      })
 
       setContacts(contactsWithFilms)
       setFilteredContacts(contactsWithFilms)
@@ -422,14 +403,17 @@ export default function ContactsPage() {
         'Contact Role': 'contact_role'
       }
 
-      // Process data rows
-      const contactData = []
-      const filmAssignments: Array<{contact: any, filmTitle: string, role: string}> = []
+      // Group contacts by email to avoid duplicates
+      const contactsByEmail = new Map<string, {
+        contactData: any,
+        filmAssignments: Array<{filmTitle: string, role: string}>
+      }>()
       
+      // Process all rows and group by email
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i]
         
-        // Skip completely empty rows or rows where all cells are empty
+        // Skip completely empty rows
         if (!row || row.length === 0 || row.every(cell => !cell || !cell.trim())) {
           continue
         }
@@ -452,46 +436,121 @@ export default function ContactsPage() {
           }
         })
         
-        // Only add if we have required fields
-        if (contactRecord.contact_name) {
-          // Add user ID for created_by
-          contactRecord.created_by = user?.id
-          contactData.push(contactRecord)
+        // Only process if we have a name and email
+        if (contactRecord.contact_name && contactRecord.contact_email) {
+          const email = contactRecord.contact_email.toLowerCase()
           
-          // Store film assignment if we have a film title
-          if (filmTitle && contactRole) {
-            filmAssignments.push({
-              contact: contactRecord,
-              filmTitle: filmTitle,
-              role: contactRole
+          if (!contactsByEmail.has(email)) {
+            // First occurrence of this email - create new contact entry
+            contactRecord.created_by = user?.id
+            contactsByEmail.set(email, {
+              contactData: contactRecord,
+              filmAssignments: []
             })
+          } else {
+            // Update existing contact data with any new non-empty fields
+            const existing = contactsByEmail.get(email)!
+            Object.keys(contactRecord).forEach(key => {
+              if (contactRecord[key] && !existing.contactData[key]) {
+                existing.contactData[key] = contactRecord[key]
+              }
+            })
+          }
+          
+          // Add film assignment if we have both title and role
+          if (filmTitle && contactRole) {
+            const contactEntry = contactsByEmail.get(email)!
+            // Check if this film assignment already exists
+            const existingAssignment = contactEntry.filmAssignments.find(
+              fa => fa.filmTitle === filmTitle && fa.role === contactRole
+            )
+            if (!existingAssignment) {
+              contactEntry.filmAssignments.push({ filmTitle, role: contactRole })
+            }
           }
         }
       }
 
-      if (contactData.length === 0) {
+      if (contactsByEmail.size === 0) {
         setUploadStatus('Error: No valid contact data found in CSV')
         return
       }
 
-      setUploadStatus(`Uploading ${contactData.length} contacts...`)
+      setUploadStatus(`Processing ${contactsByEmail.size} unique contacts...`)
 
-      // Insert contacts into database
-      const { data: insertedContacts, error } = await supabase
+      // Check for existing contacts in database
+      const emails = Array.from(contactsByEmail.keys())
+      const { data: existingContacts } = await supabase
         .from('contacts')
-        .insert(contactData)
-        .select('id, contact_name')
+        .select('id, contact_email, contact_name')
+        .in('contact_email', emails)
 
-      if (error) {
-        console.error('Upload error:', error)
-        setUploadStatus(`Error: ${error.message}`)
-        return
+      const existingEmailMap = new Map(
+        (existingContacts || []).map(c => [c.contact_email.toLowerCase(), c])
+      )
+
+      // Separate contacts into new and existing
+      const newContacts: any[] = []
+      const updateContacts: any[] = []
+      
+      for (const [email, { contactData }] of contactsByEmail) {
+        if (existingEmailMap.has(email)) {
+          // Update existing contact
+          const existing = existingEmailMap.get(email)!
+          updateContacts.push({
+            id: existing.id,
+            ...contactData
+          })
+        } else {
+          // New contact
+          newContacts.push(contactData)
+        }
       }
 
-      let filmAssignmentCount = 0
+      // Insert new contacts
+      let insertedContactsData: any[] = []
+      if (newContacts.length > 0) {
+        const { data, error } = await supabase
+          .from('contacts')
+          .insert(newContacts)
+          .select('id, contact_email, contact_name')
+        
+        if (error) {
+          console.error('Error inserting new contacts:', error)
+          setUploadStatus(`Error: ${error.message}`)
+          return
+        }
+        insertedContactsData = data || []
+      }
 
-      // Process film assignments if any
-      if (filmAssignments.length > 0) {
+      // Update existing contacts
+      for (const contact of updateContacts) {
+        const { error } = await supabase
+          .from('contacts')
+          .update(contact)
+          .eq('id', contact.id)
+        
+        if (error) {
+          console.error(`Error updating contact ${contact.contact_email}:`, error)
+        }
+      }
+
+      // Create a map of all contacts (new and existing) by email
+      const allContactsMap = new Map<string, any>()
+      
+      // Add newly inserted contacts
+      insertedContactsData.forEach(c => {
+        allContactsMap.set(c.contact_email.toLowerCase(), c)
+      })
+      
+      // Add existing contacts
+      existingEmailMap.forEach((contact, email) => {
+        allContactsMap.set(email, contact)
+      })
+
+      // Process film assignments
+      let filmAssignmentCount = 0
+      if (Array.from(contactsByEmail.values()).some(c => c.filmAssignments.length > 0)) {
         setUploadStatus(`Processing film assignments...`)
         
         // Load all films to match titles
@@ -506,35 +565,41 @@ export default function ContactsPage() {
         ]
 
         // Process each contact's film assignments
-        for (const { contact, filmTitle, role } of filmAssignments) {
-          // Find the inserted contact ID
-          const insertedContact = insertedContacts?.find(c => c.contact_name === contact.contact_name)
-          if (!insertedContact) continue
+        for (const [email, { contactData, filmAssignments }] of contactsByEmail) {
+          const contact = allContactsMap.get(email)
+          if (!contact) continue
 
-          // Find matching film
-          const film = allFilms.find(f => f.title.toLowerCase() === filmTitle.toLowerCase())
-          if (film) {
-            try {
-              await supabase.from('film_contacts').upsert({
-                film_id: film.id,
-                film_type: film.film_type,
-                name: contact.contact_name,
-                company: contact.contact_company,
-                email: contact.contact_email,
-                contact_type: role,
-                contact_id: insertedContact.id
-              }, {
-                onConflict: 'film_id,name,contact_type'
-              })
-              filmAssignmentCount++
-            } catch (error) {
-              console.error(`Error assigning ${contact.contact_name} to ${filmTitle}:`, error)
+          for (const { filmTitle, role } of filmAssignments) {
+            // Find matching film
+            const film = allFilms.find(f => f.title.toLowerCase() === filmTitle.toLowerCase())
+            if (film) {
+              try {
+                await supabase.from('film_contacts').upsert({
+                  film_id: film.id,
+                  film_type: film.film_type,
+                  name: contact.contact_name,
+                  company: contactData.contact_company,
+                  email: contact.contact_email,
+                  contact_type: role,
+                  contact_id: contact.id
+                }, {
+                  onConflict: 'film_id,contact_id,contact_type'
+                })
+                filmAssignmentCount++
+              } catch (error) {
+                console.error(`Error assigning ${contact.contact_name} to ${filmTitle}:`, error)
+              }
             }
           }
         }
       }
 
-      setUploadStatus(`Successfully uploaded ${contactData.length} contacts${filmAssignmentCount > 0 ? ` with ${filmAssignmentCount} film assignments` : ''}!`)
+      const totalProcessed = newContacts.length + updateContacts.length
+      setUploadStatus(
+        `Successfully processed ${totalProcessed} contacts ` +
+        `(${newContacts.length} new, ${updateContacts.length} updated)` +
+        `${filmAssignmentCount > 0 ? ` with ${filmAssignmentCount} film assignments` : ''}!`
+      )
       
       // Reload the contacts
       if (viewMode === 'by-contact') {
