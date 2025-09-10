@@ -607,6 +607,9 @@ export default function ContactsPage() {
           ...(shortsResponse.data || []).map(s => ({ ...s, film_type: 'short' }))
         ]
 
+        console.log(`Loaded ${allFilms.length} films from database for matching`)
+        console.log('Sample films:', allFilms.slice(0, 5).map(f => f.title))
+
         // Process each contact's film assignments
         for (const [email, { contactData, filmAssignments }] of contactsByEmail) {
           const contact = allContactsMap.get(email)
@@ -614,24 +617,59 @@ export default function ContactsPage() {
 
           for (const { filmTitle, role } of filmAssignments) {
             // Find matching film
+            console.log(`Looking for film: "${filmTitle}" in database...`)
             const film = allFilms.find(f => f.title.toLowerCase() === filmTitle.toLowerCase())
             if (film) {
+              console.log(`✓ Found film "${filmTitle}" with ID ${film.id}`)
               try {
-                await supabase.from('film_contacts').upsert({
-                  film_id: film.id,
-                  film_type: film.film_type,
-                  name: contact.contact_name,
-                  company: contactData.contact_company,
-                  email: contact.contact_email,
-                  contact_type: role,
-                  contact_id: contact.id
-                }, {
-                  onConflict: 'film_id,contact_id,contact_type'
-                })
-                filmAssignmentCount++
+                // First check if this exact combination already exists
+                const { data: existing } = await supabase
+                  .from('film_contacts')
+                  .select('id')
+                  .eq('film_id', film.id)
+                  .eq('contact_id', contact.id)
+                  .eq('contact_type', role)
+                  .single()
+
+                if (!existing) {
+                  // Only insert if it doesn't exist
+                  const { data, error } = await supabase.from('film_contacts').insert({
+                    film_id: film.id,
+                    film_type: film.film_type,
+                    name: contact.contact_name,
+                    company: contactData.contact_company,
+                    email: contact.contact_email,
+                    contact_type: role,
+                    contact_id: contact.id
+                  })
+                  .select()
+                  
+                  if (error) {
+                    console.error('Detailed error:', error)
+                    console.error('Attempting to insert:', {
+                      film_id: film.id,
+                      film_type: film.film_type,
+                      name: contact.contact_name,
+                      company: contactData.contact_company,
+                      email: contact.contact_email,
+                      contact_type: role,
+                      contact_id: contact.id
+                    })
+                    throw error
+                  }
+                  console.log('Successfully inserted:', data)
+                  filmAssignmentCount++
+                  console.log(`✓ Successfully linked ${contact.contact_name} to ${filmTitle}`)
+                } else {
+                  console.log('Skipping - association already exists')
+                  filmAssignmentCount++ // Count skipped ones too since they're already linked
+                }
               } catch (error) {
-                console.error(`Error assigning ${contact.contact_name} to ${filmTitle}:`, error)
+                console.error(`ERROR assigning ${contact.contact_name} to ${filmTitle}:`, error)
+                console.error('Full error object:', JSON.stringify(error, null, 2))
               }
+            } else {
+              console.warn(`✗ Film NOT found in database: "${filmTitle}"`)
             }
           }
         }
