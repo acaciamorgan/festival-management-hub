@@ -1261,9 +1261,9 @@ export default function ContactsPage() {
 
             {/* BY FILM VIEW */}
             {viewMode === 'by-film' && (
-              <div className="p-6">
+              <>
                 {/* Film Type Toggle */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
                   <div className="flex items-center space-x-4">
                     <button
                       onClick={() => setFilmViewMode('features')}
@@ -1288,39 +1288,115 @@ export default function ContactsPage() {
                   </div>
                 </div>
 
-                {/* Films Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {sortedFilms.map((film) => (
-                    <div key={film.id} className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4 cursor-pointer hover:text-blue-600"
-                          onClick={() => handleFilmClick(film)}>
-                        {film.title}
-                      </h3>
-                      <div className="space-y-3">
-                        <h4 className="text-sm font-medium text-gray-700">Contacts:</h4>
-                        {film.contacts && film.contacts.length > 0 ? (
-                          film.contacts.map((contact, index) => (
-                            <div key={index} className="border-l-4 border-blue-500 pl-3 py-2">
-                              <div className="font-medium text-gray-900">{contact.name}</div>
-                              {contact.company && (
-                                <div className="text-gray-600 text-sm">{contact.company}</div>
-                              )}
-                              {contact.email && (
-                                <div className="text-blue-600 hover:underline text-sm">
-                                  <a href={`mailto:${contact.email}`}>
-                                    {contact.email}
-                                  </a>
-                                </div>
-                              )}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-sm text-gray-500 italic">No contacts assigned</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {/* Films Table */}
+                <table className="min-w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {[
+                        { key: 'title', label: 'Film Title', width: 300 },
+                        { key: 'director', label: 'Director', width: 200 },
+                        { key: 'contact_name', label: 'Contact Name', width: 200 },
+                        { key: 'contact_company', label: 'Company', width: 200 },
+                        { key: 'contact_email', label: 'Email', width: 250 },
+                        { key: 'contact_type', label: 'Contact Type', width: 150 },
+                        { key: 'countries', label: 'Countries', width: 150 }
+                      ].map((column) => (
+                        <th
+                          key={column.key}
+                          className="sticky top-0 z-10 relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100"
+                          style={{ minWidth: `${columnWidths[column.key] || column.width}px` }}
+                          onClick={() => handleFilmSort(column.key)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{column.label}</span>
+                            <span className="text-gray-400 ml-1">
+                              {getFilmSortIcon(column.key)}
+                            </span>
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {sortedFilms.flatMap((film) => {
+                      // If film has no contacts, show one row with empty contact info
+                      if (!film.contacts || film.contacts.length === 0) {
+                        return [(
+                          <tr key={`${film.id}-no-contacts`} className="hover:bg-gray-50">
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['title'] || 300}px` }}>
+                              <button
+                                onClick={() => handleFilmClick(film)}
+                                className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
+                              >
+                                {film.title}
+                              </button>
+                            </td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['director'] || 200}px` }}>
+                              {film.director}
+                            </td>
+                            <td className="px-3 py-2 text-sm text-gray-400 italic border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_name'] || 200}px` }}>
+                              No contacts
+                            </td>
+                            <td className="px-3 py-2 text-sm text-gray-400 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_company'] || 200}px` }}>
+                              -
+                            </td>
+                            <td className="px-3 py-2 text-sm text-gray-400 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_email'] || 250}px` }}>
+                              -
+                            </td>
+                            <td className="px-3 py-2 text-sm text-gray-400 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_type'] || 150}px` }}>
+                              -
+                            </td>
+                            <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['countries'] || 150}px` }}>
+                              {film.countries}
+                            </td>
+                          </tr>
+                        )]
+                      }
+                      
+                      // If film has contacts, create one row per contact
+                      return film.contacts.map((contact, contactIndex) => (
+                        <tr key={`${film.id}-contact-${contactIndex}`} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['title'] || 300}px` }}>
+                            {contactIndex === 0 && (
+                              <button
+                                onClick={() => handleFilmClick(film)}
+                                className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
+                              >
+                                {film.title}
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['director'] || 200}px` }}>
+                            {contactIndex === 0 && film.director}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_name'] || 200}px` }}>
+                            <span className="font-medium">{contact.name}</span>
+                          </td>
+                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_company'] || 200}px` }}>
+                            {contact.company}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_email'] || 250}px` }}>
+                            {contact.email && (
+                              <a href={`mailto:${contact.email}`} className="text-blue-600 hover:text-blue-800">
+                                {contact.email}
+                              </a>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_type'] || 150}px` }}>
+                            {contact.contact_type && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                {contact.contact_type}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['countries'] || 150}px` }}>
+                            {contactIndex === 0 && film.countries}
+                          </td>
+                        </tr>
+                      ))
+                    })}
+                  </tbody>
+                </table>
 
                 {/* Empty state for by-film view */}
                 {sortedFilms.length === 0 && !loading && (
@@ -1330,7 +1406,7 @@ export default function ContactsPage() {
                     <p className="text-gray-500">No {filmViewMode} are currently loaded in the system.</p>
                   </div>
                 )}
-              </div>
+              </>
             )}
 
           </div>
