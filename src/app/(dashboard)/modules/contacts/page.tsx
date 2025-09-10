@@ -618,14 +618,16 @@ export default function ContactsPage() {
 
         // Define matching functions once at the top level
         const normalizeTitle = (title: string) => {
-          const lower = title.toLowerCase().trim()
+          let normalized = title.toLowerCase().trim()
+          // Normalize different dash characters (en-dash, em-dash, etc. to regular dash)
+          normalized = normalized.replace(/[–—]/g, '-')
           // Handle titles like "Secret Agent, The" -> "The Secret Agent"
           const articlePattern = /^(.+),\s+(the|a|an)$/i
-          const match = lower.match(articlePattern)
+          const match = normalized.match(articlePattern)
           if (match) {
             return `${match[2]} ${match[1]}`.toLowerCase()
           }
-          return lower
+          return normalized
         }
         
         // Enhanced matching function for better title matching
@@ -726,11 +728,46 @@ export default function ContactsPage() {
         }
       }
 
-      // Log summary of unmatched films if any using the same enhanced matching
+      // Log summary of unmatched films if any
       const unmatchedFilms: string[] = []
       for (const [, { filmAssignments }] of contactsByEmail) {
         for (const { filmTitle } of filmAssignments) {
-          const found = findMatchingFilm(filmTitle, allFilms)
+          // Use the same matching logic that was used above
+          const normalizeTitle = (title: string) => {
+            let normalized = title.toLowerCase().trim()
+            normalized = normalized.replace(/[–—]/g, '-')
+            const articlePattern = /^(.+),\s+(the|a|an)$/i
+            const match = normalized.match(articlePattern)
+            if (match) {
+              return `${match[2]} ${match[1]}`.toLowerCase()
+            }
+            return normalized
+          }
+          
+          const normalizedCsvTitle = normalizeTitle(filmTitle)
+          let found = allFilms.find(f => normalizeTitle(f.title) === normalizedCsvTitle)
+          
+          if (!found) {
+            const simplifiedCsvTitle = normalizedCsvTitle
+              .replace(/\s*-\s*the\s+movie\s*/gi, '')
+              .replace(/\s*:\s*the\s+movie\s*/gi, '')
+              .replace(/\s+arc$/gi, '')
+              .trim()
+            
+            found = allFilms.find(f => {
+              const normalizedDbTitle = normalizeTitle(f.title)
+              const simplifiedDbTitle = normalizedDbTitle
+                .replace(/\s*-\s*the\s+movie\s*/gi, '')
+                .replace(/\s*:\s*the\s+movie\s*/gi, '')
+                .replace(/\s+arc$/gi, '')
+                .trim()
+              
+              return simplifiedDbTitle === simplifiedCsvTitle || 
+                     normalizedDbTitle.includes(simplifiedCsvTitle) ||
+                     simplifiedCsvTitle.includes(normalizedDbTitle)
+            })
+          }
+          
           if (!found && !unmatchedFilms.includes(filmTitle)) {
             unmatchedFilms.push(filmTitle)
           }
