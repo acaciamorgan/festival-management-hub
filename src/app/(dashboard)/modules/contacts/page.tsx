@@ -598,8 +598,8 @@ export default function ContactsPage() {
         
         // Load all films to match titles
         const [featuresResponse, shortsResponse] = await Promise.all([
-          supabase.from('feature_films').select('id, title').order('title'),
-          supabase.from('short_films').select('id, title').order('title')
+          supabase.from('feature_films').select('*').order('title'),
+          supabase.from('short_films').select('*').order('title')
         ])
 
         const allFilms = [
