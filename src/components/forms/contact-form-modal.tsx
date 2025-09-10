@@ -21,6 +21,13 @@ interface ContactFormData {
   mailing_address: string
 }
 
+interface Film {
+  id: string
+  title: string
+  film_type: 'feature' | 'short'
+  director?: string
+}
+
 export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFormModalProps) {
   const [formData, setFormData] = useState<ContactFormData>({
     contact_name: '',
@@ -35,8 +42,36 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
   const [position, setPosition] = useState({ x: 100, y: 100 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  
+  // Film attachment state
+  const [availableFilms, setAvailableFilms] = useState<Film[]>([])
+  const [selectedFilmIds, setSelectedFilmIds] = useState<Set<string>>(new Set())
+  const [contactRole, setContactRole] = useState('')
+  const [loadingFilms, setLoadingFilms] = useState(false)
 
   const supabase = createClient()
+
+  // Load available films
+  const loadFilms = async () => {
+    setLoadingFilms(true)
+    try {
+      const [featuresResponse, shortsResponse] = await Promise.all([
+        supabase.from('feature_films').select('id, title, director').order('title'),
+        supabase.from('short_films').select('id, title, director').order('title')
+      ])
+
+      const allFilms = [
+        ...(featuresResponse.data || []).map(f => ({ ...f, film_type: 'feature' as const })),
+        ...(shortsResponse.data || []).map(s => ({ ...s, film_type: 'short' as const }))
+      ]
+
+      setAvailableFilms(allFilms)
+    } catch (error) {
+      console.error('Error loading films:', error)
+    } finally {
+      setLoadingFilms(false)
+    }
+  }
 
   // Phone formatting function
   const formatPhoneNumber = (value: string): string => {
@@ -65,26 +100,38 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
   }
 
   useEffect(() => {
-    if (contact && isOpen) {
-      setFormData({
-        contact_name: contact.contact_name || '',
-        contact_company: contact.contact_company || '',
-        contact_email: contact.contact_email || '',
-        phone: contact.phone || '',
-        notes: contact.notes || '',
-        contact_type: contact.contact_type || '',
-        mailing_address: contact.mailing_address || ''
-      })
-    } else if (isOpen) {
-      setFormData({
-        contact_name: '',
-        contact_company: '',
-        contact_email: '',
-        phone: '',
-        notes: '',
-        contact_type: '',
-        mailing_address: ''
-      })
+    if (isOpen) {
+      // Load films when modal opens
+      loadFilms()
+      
+      // Reset form and film selection
+      setSelectedFilmIds(new Set())
+      setContactRole('')
+      
+      if (contact) {
+        setFormData({
+          contact_name: contact.contact_name || '',
+          contact_company: contact.contact_company || '',
+          contact_email: contact.contact_email || '',
+          phone: contact.phone || '',
+          notes: contact.notes || '',
+          contact_type: contact.contact_type || '',
+          mailing_address: contact.mailing_address || ''
+        })
+        
+        // TODO: Load existing film assignments for this contact
+        
+      } else {
+        setFormData({
+          contact_name: '',
+          contact_company: '',
+          contact_email: '',
+          phone: '',
+          notes: '',
+          contact_type: '',
+          mailing_address: ''
+        })
+      }
     }
   }, [contact, isOpen])
 
@@ -127,6 +174,18 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
     }))
   }
 
+  const handleFilmSelection = (filmId: string, checked: boolean) => {
+    setSelectedFilmIds(prev => {
+      const newSet = new Set(prev)
+      if (checked) {
+        newSet.add(filmId)
+      } else {
+        newSet.delete(filmId)
+      }
+      return newSet
+    })
+  }
+
   const handleSave = async () => {
     if (!formData.contact_name.trim()) {
       alert('Contact name is required')
@@ -144,6 +203,8 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
         contact_type: formData.contact_type.trim() || null,
         mailing_address: formData.mailing_address.trim() || null
       }
+
+      let contactId = contact?.id
 
       if (contact) {
         // Update existing contact
@@ -172,14 +233,46 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
         }
 
         // Create new contact
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('contacts')
           .insert([contactData])
+          .select('id')
 
         if (error) {
           console.error('Error creating contact:', error)
           alert(`Error creating contact: ${error.message}`)
           return
+        }
+        
+        contactId = data?.[0]?.id
+      }
+
+      // Handle film assignments if films are selected and role is provided
+      if (selectedFilmIds.size > 0 && contactRole && contactId) {
+        const assignments = Array.from(selectedFilmIds).map(filmId => {
+          const film = availableFilms.find(f => f.id === filmId)
+          return {
+            film_id: filmId,
+            film_type: film?.film_type || 'feature',
+            name: contactData.contact_name,
+            company: contactData.contact_company,
+            email: contactData.contact_email,
+            contact_type: contactRole,
+            contact_id: contactId
+          }
+        })
+
+        const { error: assignmentError } = await supabase
+          .from('film_contacts')
+          .upsert(assignments, {
+            onConflict: 'film_id,contact_id,contact_type',
+            ignoreDuplicates: false
+          })
+
+        if (assignmentError) {
+          console.error('Error saving film assignments:', assignmentError)
+          // Don't fail the entire operation for assignment errors
+          alert(`Contact saved but error with film assignments: ${assignmentError.message}`)
         }
       }
 
@@ -307,6 +400,78 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+
+          {/* Film Attachment Section */}
+          <div className="mt-6 border-t border-gray-200 pt-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Attach to Films</h3>
+            
+            {/* Contact Role Selection */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Contact Role (required for film attachment)
+              </label>
+              <select
+                value={contactRole}
+                onChange={(e) => setContactRole(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select role...</option>
+                <option value="Distributor/Studio">Distributor/Studio</option>
+                <option value="Production Team">Production Team</option>
+                <option value="Publicity">Publicity</option>
+                <option value="Sales Agent">Sales Agent</option>
+                <option value="Filmmaker">Filmmaker</option>
+                <option value="Producer">Producer</option>
+                <option value="Director">Director</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            {/* Film Selection */}
+            {loadingFilms ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-sm text-gray-600">Loading films...</p>
+              </div>
+            ) : availableFilms.length > 0 ? (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Films ({selectedFilmIds.size} selected)
+                </label>
+                <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md">
+                  {availableFilms.map((film) => (
+                    <label key={film.id} className="flex items-center p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
+                      <input
+                        type="checkbox"
+                        checked={selectedFilmIds.has(film.id)}
+                        onChange={(e) => handleFilmSelection(film.id, e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <div className="ml-3 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-900">{film.title}</span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            film.film_type === 'feature' 
+                              ? 'bg-blue-100 text-blue-800' 
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {film.film_type === 'feature' ? 'Feature' : 'Short'}
+                          </span>
+                        </div>
+                        {film.director && (
+                          <p className="text-xs text-gray-500">{film.director}</p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                No films available
+              </div>
+            )}
           </div>
         </div>
 
