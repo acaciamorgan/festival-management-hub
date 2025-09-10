@@ -440,39 +440,58 @@ export default function ContactsPage() {
           }
         })
         
-        // Only process if we have a name and email
+        // Handle comma-separated names and emails
         if (contactRecord.contact_name && contactRecord.contact_email) {
-          const email = contactRecord.contact_email.toLowerCase()
-          console.log('Processing contact:', contactRecord.contact_name, 'with email:', email)
+          // Split names and emails by comma
+          const names = contactRecord.contact_name.split(',').map((n: string) => n.trim()).filter((n: string) => n)
+          const emails = contactRecord.contact_email.split(',').map((e: string) => e.trim()).filter((e: string) => e)
           
-          if (!contactsByEmail.has(email)) {
-            // First occurrence of this email - create new contact entry
-            contactRecord.created_by = user?.id
-            console.log('New contact for email:', email)
-            contactsByEmail.set(email, {
-              contactData: contactRecord,
-              filmAssignments: []
-            })
-          } else {
-            // Update existing contact data with any new non-empty fields
-            console.log('Updating existing contact for email:', email)
-            const existing = contactsByEmail.get(email)!
-            Object.keys(contactRecord).forEach(key => {
-              if (contactRecord[key] && !existing.contactData[key]) {
-                existing.contactData[key] = contactRecord[key]
+          // Create a contact for each name-email pair
+          const maxCount = Math.max(names.length, emails.length)
+          
+          for (let contactIndex = 0; contactIndex < maxCount; contactIndex++) {
+            const name = names[contactIndex] || names[0] || ''
+            const email = (emails[contactIndex] || emails[0] || '').toLowerCase()
+            
+            if (name && email) {
+              const individualContactRecord = {
+                ...contactRecord,
+                contact_name: name,
+                contact_email: email
               }
-            })
-          }
-          
-          // Add film assignment if we have both title and role
-          if (filmTitle && contactRole) {
-            const contactEntry = contactsByEmail.get(email)!
-            // Check if this film assignment already exists
-            const existingAssignment = contactEntry.filmAssignments.find(
-              fa => fa.filmTitle === filmTitle && fa.role === contactRole
-            )
-            if (!existingAssignment) {
-              contactEntry.filmAssignments.push({ filmTitle, role: contactRole })
+              
+              console.log('Processing contact:', name, 'with email:', email)
+              
+              if (!contactsByEmail.has(email)) {
+                // First occurrence of this email - create new contact entry
+                individualContactRecord.created_by = user?.id
+                console.log('New contact for email:', email)
+                contactsByEmail.set(email, {
+                  contactData: individualContactRecord,
+                  filmAssignments: []
+                })
+              } else {
+                // Update existing contact data with any new non-empty fields
+                console.log('Updating existing contact for email:', email)
+                const existing = contactsByEmail.get(email)!
+                Object.keys(individualContactRecord).forEach(key => {
+                  if (individualContactRecord[key] && !existing.contactData[key]) {
+                    existing.contactData[key] = individualContactRecord[key]
+                  }
+                })
+              }
+              
+              // Add film assignment if we have both title and role
+              if (filmTitle && contactRole) {
+                const contactEntry = contactsByEmail.get(email)!
+                // Check if this film assignment already exists
+                const existingAssignment = contactEntry.filmAssignments.find(
+                  fa => fa.filmTitle === filmTitle && fa.role === contactRole
+                )
+                if (!existingAssignment) {
+                  contactEntry.filmAssignments.push({ filmTitle, role: contactRole })
+                }
+              }
             }
           }
         }
@@ -1035,7 +1054,7 @@ export default function ContactsPage() {
                     ].map((column) => (
                     <th
                       key={column.key}
-                      className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100"
+                      className="sticky top-0 z-10 relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100"
                       style={{ minWidth: `${columnWidths[column.key] || column.width}px` }}
                       onClick={() => column.key !== 'actions' && handleSort(column.key)}
                     >
