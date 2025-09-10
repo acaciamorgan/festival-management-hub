@@ -692,12 +692,42 @@ export default function ContactsPage() {
         }
       }
 
+      // Log summary of unmatched films if any
+      const unmatchedFilms: string[] = []
+      for (const [, { filmAssignments }] of contactsByEmail) {
+        for (const { filmTitle } of filmAssignments) {
+          const normalizeTitle = (title: string) => {
+            const lower = title.toLowerCase().trim()
+            const articlePattern = /^(.+),\s+(the|a|an)$/i
+            const match = lower.match(articlePattern)
+            if (match) {
+              return `${match[2]} ${match[1]}`.toLowerCase()
+            }
+            return lower
+          }
+          
+          const normalizedSearchTitle = normalizeTitle(filmTitle)
+          const found = allFilms.some(f => normalizeTitle(f.title) === normalizedSearchTitle)
+          if (!found && !unmatchedFilms.includes(filmTitle)) {
+            unmatchedFilms.push(filmTitle)
+          }
+        }
+      }
+      
+      if (unmatchedFilms.length > 0) {
+        console.warn(`Films not found in database (${unmatchedFilms.length}):`, unmatchedFilms.sort())
+      }
+      
       const totalProcessed = newContacts.length + updateContacts.length
-      setUploadStatus(
-        `Successfully processed ${totalProcessed} contacts ` +
+      let statusMessage = `Successfully processed ${totalProcessed} contacts ` +
         `(${newContacts.length} new, ${updateContacts.length} updated)` +
         `${filmAssignmentCount > 0 ? ` with ${filmAssignmentCount} film assignments` : ''}!`
-      )
+      
+      if (unmatchedFilms.length > 0) {
+        statusMessage += ` Note: ${unmatchedFilms.length} film titles from CSV were not found in database.`
+      }
+      
+      setUploadStatus(statusMessage)
       
       // Reload the contacts
       if (viewMode === 'by-contact') {
