@@ -1294,12 +1294,10 @@ export default function ContactsPage() {
                     <tr>
                       {[
                         { key: 'title', label: 'Film Title', width: 300 },
-                        { key: 'director', label: 'Director', width: 200 },
                         { key: 'contact_name', label: 'Contact Name', width: 200 },
                         { key: 'contact_company', label: 'Company', width: 200 },
                         { key: 'contact_email', label: 'Email', width: 250 },
-                        { key: 'contact_type', label: 'Contact Type', width: 150 },
-                        { key: 'countries', label: 'Countries', width: 150 }
+                        { key: 'contact_type', label: 'Contact Type', width: 150 }
                       ].map((column) => (
                         <th
                           key={column.key}
@@ -1318,82 +1316,62 @@ export default function ContactsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {sortedFilms.flatMap((film) => {
-                      // If film has no contacts, show one row with empty contact info
-                      if (!film.contacts || film.contacts.length === 0) {
-                        return [(
-                          <tr key={`${film.id}-no-contacts`} className="hover:bg-gray-50">
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['title'] || 300}px` }}>
-                              <button
-                                onClick={() => handleFilmClick(film)}
-                                className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
-                              >
-                                {film.title}
-                              </button>
-                            </td>
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['director'] || 200}px` }}>
-                              {film.director}
-                            </td>
-                            <td className="px-3 py-2 text-sm text-gray-400 italic border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_name'] || 200}px` }}>
-                              No contacts
-                            </td>
-                            <td className="px-3 py-2 text-sm text-gray-400 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_company'] || 200}px` }}>
-                              -
-                            </td>
-                            <td className="px-3 py-2 text-sm text-gray-400 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_email'] || 250}px` }}>
-                              -
-                            </td>
-                            <td className="px-3 py-2 text-sm text-gray-400 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_type'] || 150}px` }}>
-                              -
-                            </td>
-                            <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['countries'] || 150}px` }}>
-                              {film.countries}
-                            </td>
-                          </tr>
-                        )]
-                      }
-                      
-                      // If film has contacts, create one row per contact
-                      return film.contacts.map((contact, contactIndex) => (
-                        <tr key={`${film.id}-contact-${contactIndex}`} className="hover:bg-gray-50">
+                    {sortedFilms.map((film) => {
+                      // Consolidate all contacts into comma-separated values
+                      const contactNames = film.contacts?.map(c => c.name).filter(Boolean).join(', ') || 'No contacts'
+                      const contactCompanies = film.contacts?.map(c => c.company).filter(Boolean).join(', ') || '-'
+                      const contactEmails = film.contacts?.map(c => c.email).filter(Boolean).join(', ') || '-'
+                      const contactTypes = film.contacts?.map(c => c.contact_type).filter(Boolean).join(', ') || '-'
+
+                      return (
+                        <tr key={film.id} className="hover:bg-gray-50">
                           <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['title'] || 300}px` }}>
-                            {contactIndex === 0 && (
-                              <button
-                                onClick={() => handleFilmClick(film)}
-                                className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
-                              >
-                                {film.title}
-                              </button>
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['director'] || 200}px` }}>
-                            {contactIndex === 0 && film.director}
+                            <button
+                              onClick={() => handleFilmClick(film)}
+                              className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
+                            >
+                              {film.title}
+                            </button>
                           </td>
                           <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_name'] || 200}px` }}>
-                            <span className="font-medium">{contact.name}</span>
+                            <span className={contactNames === 'No contacts' ? 'text-gray-400 italic' : 'font-medium'}>
+                              {contactNames}
+                            </span>
                           </td>
                           <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_company'] || 200}px` }}>
-                            {contact.company}
+                            <span className={contactCompanies === '-' ? 'text-gray-400' : ''}>
+                              {contactCompanies}
+                            </span>
                           </td>
                           <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_email'] || 250}px` }}>
-                            {contact.email && (
-                              <a href={`mailto:${contact.email}`} className="text-blue-600 hover:text-blue-800">
-                                {contact.email}
-                              </a>
+                            {contactEmails !== '-' ? (
+                              contactEmails.split(', ').map((email, index) => (
+                                <span key={email}>
+                                  <a href={`mailto:${email.trim()}`} className="text-blue-600 hover:text-blue-800">
+                                    {email.trim()}
+                                  </a>
+                                  {index < contactEmails.split(', ').length - 1 && ', '}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-gray-400">-</span>
                             )}
                           </td>
-                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_type'] || 150}px` }}>
-                            {contact.contact_type && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                {contact.contact_type}
-                              </span>
+                          <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['contact_type'] || 150}px` }}>
+                            {contactTypes !== '-' ? (
+                              contactTypes.split(', ').map((type, index) => (
+                                <span key={index}>
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 mr-1">
+                                    {type.trim()}
+                                  </span>
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-gray-400">-</span>
                             )}
-                          </td>
-                          <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['countries'] || 150}px` }}>
-                            {contactIndex === 0 && film.countries}
                           </td>
                         </tr>
-                      ))
+                      )
                     })}
                   </tbody>
                 </table>
