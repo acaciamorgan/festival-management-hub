@@ -618,7 +618,24 @@ export default function ContactsPage() {
           for (const { filmTitle, role } of filmAssignments) {
             // Find matching film
             console.log(`Looking for film: "${filmTitle}" in database...`)
-            const film = allFilms.find(f => f.title.toLowerCase() === filmTitle.toLowerCase())
+            
+            // Normalize title for matching - handle articles at the end
+            const normalizeTitle = (title: string) => {
+              const lower = title.toLowerCase().trim()
+              // Handle titles like "Secret Agent, The" -> "The Secret Agent"
+              const articlePattern = /^(.+),\s+(the|a|an)$/i
+              const match = lower.match(articlePattern)
+              if (match) {
+                return `${match[2]} ${match[1]}`.toLowerCase()
+              }
+              return lower
+            }
+            
+            const normalizedSearchTitle = normalizeTitle(filmTitle)
+            const film = allFilms.find(f => {
+              const normalizedDbTitle = normalizeTitle(f.title)
+              return normalizedDbTitle === normalizedSearchTitle
+            })
             if (film) {
               console.log(`✓ Found film "${filmTitle}" with ID ${film.id}`)
               try {
