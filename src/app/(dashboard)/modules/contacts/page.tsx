@@ -609,6 +609,12 @@ export default function ContactsPage() {
 
         console.log(`Loaded ${allFilms.length} films from database for matching`)
         console.log('Sample films:', allFilms.slice(0, 5).map(f => f.title))
+        
+        // Debug: Log any films that might match chainsaw or marama
+        const chainsawFilms = allFilms.filter(f => f.title.toLowerCase().includes('chainsaw'))
+        const maramaFilms = allFilms.filter(f => f.title.toLowerCase().includes('marama'))
+        console.log('Films containing "chainsaw":', chainsawFilms.map(f => f.title))
+        console.log('Films containing "marama":', maramaFilms.map(f => f.title))
 
         // Define matching functions once at the top level
         const normalizeTitle = (title: string) => {
@@ -756,7 +762,13 @@ export default function ContactsPage() {
 
     } catch (error) {
       console.error('CSV processing error:', error)
-      setUploadStatus('Error: Failed to process CSV file')
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack available')
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : 'Unknown',
+        line: error instanceof Error && 'lineNumber' in error ? error.lineNumber : 'Unknown'
+      })
+      setUploadStatus(`Error: Failed to process CSV file - ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setUploading(false)
       // Clear the file input
