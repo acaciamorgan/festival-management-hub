@@ -450,8 +450,20 @@ export default function ContactsPage() {
           const maxCount = Math.max(names.length, emails.length)
           
           for (let contactIndex = 0; contactIndex < maxCount; contactIndex++) {
-            const name = names[contactIndex] || names[0] || ''
+            let name = names[contactIndex] || ''
             const email = (emails[contactIndex] || emails[0] || '').toLowerCase()
+            
+            // If no name for this index, try to extract name from email
+            if (!name && email) {
+              const emailPrefix = email.split('@')[0]
+              // Convert email prefix to proper name (e.g., "agagliano" -> "A Gagliano")
+              name = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1)
+            }
+            
+            // If still no name, use the first name as fallback
+            if (!name) {
+              name = names[0] || ''
+            }
             
             if (name && email) {
               const individualContactRecord = {
