@@ -917,43 +917,8 @@ export default function ContactsPage() {
           >
             By Contact
           </button>
-          <button
-            onClick={() => setViewMode('by-film')}
-            className={`px-4 py-2 rounded-t-lg font-medium ${
-              viewMode === 'by-film'
-                ? 'bg-white border-t border-l border-r border-gray-300 text-blue-600'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            By Film
-          </button>
         </div>
 
-        {/* Film sub-tabs (only show when in by-film mode) */}
-        {viewMode === 'by-film' && (
-          <div className="flex space-x-1 mb-4">
-            <button
-              onClick={() => setFilmViewMode('features')}
-              className={`px-3 py-1 rounded text-sm font-medium ${
-                filmViewMode === 'features'
-                  ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Features
-            </button>
-            <button
-              onClick={() => setFilmViewMode('shorts')}
-              className={`px-3 py-1 rounded text-sm font-medium ${
-                filmViewMode === 'shorts'
-                  ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Shorts
-            </button>
-          </div>
-        )}
 
         {/* Action buttons */}
         <div className="flex items-center justify-between">
@@ -1164,165 +1129,6 @@ export default function ContactsPage() {
               </table>
             )}
 
-            {/* BY FILM VIEW */}
-            {viewMode === 'by-film' && (
-              <table className="min-w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {[
-                      { key: 'title', label: 'Film Title', width: 300, sortable: true },
-                      { key: 'contact_companies', label: 'Company', width: 200, sortable: false },
-                      { key: 'contact_names', label: 'Names', width: 200, sortable: false },
-                      { key: 'contact_emails', label: 'Emails', width: 250, sortable: false },
-                      { key: 'contact_phones', label: 'Phone', width: 150, sortable: false },
-                      { key: 'contact_mailing_addresses', label: 'Mailing Address', width: 200, sortable: false }
-                    ].map((column) => (
-                      <th
-                        key={column.key}
-                        className={`relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 ${
-                          column.sortable ? 'cursor-pointer hover:bg-gray-100 select-none' : ''
-                        }`}
-                        style={{ 
-                          minWidth: `${columnWidths[column.key] || column.width}px`,
-                          width: columnWidths[column.key] || column.width
-                        }}
-                        onClick={column.sortable ? () => handleFilmSort(column.key) : undefined}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span>{column.label}</span>
-                          {column.sortable && (
-                            <span className="ml-1 text-gray-400">{getFilmSortIcon(column.key)}</span>
-                          )}
-                        </div>
-                        {/* Resize handle */}
-                        <div 
-                          className="absolute right-0 top-0 bottom-0 w-1 bg-transparent hover:bg-blue-500 cursor-col-resize"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            const startX = e.clientX;
-                            const startWidth = columnWidths[column.key] || column.width;
-                            
-                            const handleMouseMove = (e: MouseEvent) => {
-                              const diff = e.clientX - startX;
-                              const newWidth = Math.max(80, startWidth + diff);
-                              setColumnWidths(prev => ({ ...prev, [column.key]: newWidth }));
-                            };
-                            
-                            const handleMouseUp = () => {
-                              document.removeEventListener('mousemove', handleMouseMove);
-                              document.removeEventListener('mouseup', handleMouseUp);
-                            };
-                            
-                            document.addEventListener('mousemove', handleMouseMove);
-                            document.addEventListener('mouseup', handleMouseUp);
-                          }}
-                        />
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {sortedFilms.map((film) => (
-                    <tr key={film.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
-                        <button
-                          onClick={() => handleFilmClick(film)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                        >
-                          {film.title}
-                        </button>
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
-                        {film.contacts && film.contacts.length > 0 ? (
-                          <div className="space-y-1">
-                            {film.contacts.map((contact: any, index: number) => (
-                              <div key={index} className="text-xs">
-                                {contact.company || <span className="text-gray-400 italic">No company</span>}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">No contacts</span>
-                        )}
-                      </td>
-                      {/* Company Column */}
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
-                        {film.contacts && film.contacts.length > 0 ? (
-                          <div className="space-y-1">
-                            {film.contacts.map((contact: any, index: number) => (
-                              <div key={index} className="text-xs">
-                                {contact.company || <span className="text-gray-400 italic">No company</span>}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">No contacts</span>
-                        )}
-                      </td>
-                      {/* Names Column */}
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
-                        {film.contacts && film.contacts.length > 0 ? (
-                          <div className="space-y-1">
-                            {film.contacts.map((contact: any, index: number) => (
-                              <div key={index} className="text-xs">
-                                <span className="font-medium">{contact.name}</span>
-                                {contact.company && <span className="text-gray-500 block text-xs">({contact.company})</span>}
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 mt-0.5">
-                                  {contact.contact_type}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">No contacts</span>
-                        )}
-                      </td>
-                      {/* Emails Column */}
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
-                        {film.contacts && film.contacts.length > 0 ? (
-                          <div className="text-xs break-all">
-                            {film.contacts
-                              .filter((contact: any) => contact.email)
-                              .map((contact: any) => contact.email)
-                              .join(', ')}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">No emails</span>
-                        )}
-                      </td>
-                      {/* Phone Column */}
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
-                        {film.contacts && film.contacts.length > 0 ? (
-                          <div className="space-y-1">
-                            {film.contacts.map((contact: any, index: number) => (
-                              <div key={index} className="text-xs">
-                                {contact.phone || <span className="text-gray-400 italic">No phone</span>}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">No contacts</span>
-                        )}
-                      </td>
-                      {/* Mailing Address Column */}
-                      <td className="px-3 py-2 text-sm text-gray-900">
-                        {film.contacts && film.contacts.length > 0 ? (
-                          <div className="space-y-1">
-                            {film.contacts.map((contact: any, index: number) => (
-                              <div key={index} className="text-xs">
-                                {contact.mailing_address || <span className="text-gray-400 italic">No address</span>}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">No contacts</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
 
           </div>
         </div>
@@ -1346,15 +1152,6 @@ export default function ContactsPage() {
           </div>
         )}
 
-        {viewMode === 'by-film' && sortedFilms.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-lg mb-4">🎬</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No {filmViewMode} found</h3>
-            <p className="text-gray-500 mb-4">
-              No {filmViewMode} have been uploaded yet
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Contact Form Modal */}
