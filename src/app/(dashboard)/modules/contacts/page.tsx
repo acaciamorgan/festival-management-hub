@@ -494,6 +494,7 @@ export default function ContactsPage() {
               }
               
               // Add film assignment if we have both title and role
+              console.log('Film assignment check:', { filmTitle, contactRole, name, email })
               if (filmTitle && contactRole) {
                 const contactEntry = contactsByEmail.get(email)!
                 // Check if this film assignment already exists
@@ -502,7 +503,10 @@ export default function ContactsPage() {
                 )
                 if (!existingAssignment) {
                   contactEntry.filmAssignments.push({ filmTitle, role: contactRole })
+                  console.log('Added film assignment:', { filmTitle, contactRole, contactName: name })
                 }
+              } else {
+                console.log('Missing film title or role - filmTitle:', filmTitle, 'contactRole:', contactRole)
               }
             }
           }
