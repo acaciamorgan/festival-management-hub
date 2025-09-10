@@ -728,48 +728,17 @@ export default function ContactsPage() {
         }
       }
 
-      // Log summary of unmatched films if any
+      // Log summary of unmatched films if any (using the same allFilms data)
       const unmatchedFilms: string[] = []
-      for (const [, { filmAssignments }] of contactsByEmail) {
-        for (const { filmTitle } of filmAssignments) {
-          // Use the same matching logic that was used above
-          const normalizeTitle = (title: string) => {
-            let normalized = title.toLowerCase().trim()
-            normalized = normalized.replace(/[–—]/g, '-')
-            const articlePattern = /^(.+),\s+(the|a|an)$/i
-            const match = normalized.match(articlePattern)
-            if (match) {
-              return `${match[2]} ${match[1]}`.toLowerCase()
-            }
-            return normalized
-          }
-          
-          const normalizedCsvTitle = normalizeTitle(filmTitle)
-          let found = allFilms.find(f => normalizeTitle(f.title) === normalizedCsvTitle)
-          
-          if (!found) {
-            const simplifiedCsvTitle = normalizedCsvTitle
-              .replace(/\s*-\s*the\s+movie\s*/gi, '')
-              .replace(/\s*:\s*the\s+movie\s*/gi, '')
-              .replace(/\s+arc$/gi, '')
-              .trim()
+      if (allFilms && allFilms.length > 0) {
+        for (const [, { filmAssignments }] of contactsByEmail) {
+          for (const { filmTitle } of filmAssignments) {
+            // Use the same matching function that was used above
+            const found = findMatchingFilm(filmTitle, allFilms)
             
-            found = allFilms.find(f => {
-              const normalizedDbTitle = normalizeTitle(f.title)
-              const simplifiedDbTitle = normalizedDbTitle
-                .replace(/\s*-\s*the\s+movie\s*/gi, '')
-                .replace(/\s*:\s*the\s+movie\s*/gi, '')
-                .replace(/\s+arc$/gi, '')
-                .trim()
-              
-              return simplifiedDbTitle === simplifiedCsvTitle || 
-                     normalizedDbTitle.includes(simplifiedCsvTitle) ||
-                     simplifiedCsvTitle.includes(normalizedDbTitle)
-            })
-          }
-          
-          if (!found && !unmatchedFilms.includes(filmTitle)) {
-            unmatchedFilms.push(filmTitle)
+            if (!found && !unmatchedFilms.includes(filmTitle)) {
+              unmatchedFilms.push(filmTitle)
+            }
           }
         }
       }
