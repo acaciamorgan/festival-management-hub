@@ -20,6 +20,7 @@ export default function InterviewManagementPage() {
 
   const canEditInterviews = permissions?.modulePermissions?.['interviewManagement']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('All')
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'film_title', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [showAddModal, setShowAddModal] = useState(false)
@@ -74,6 +75,12 @@ export default function InterviewManagementPage() {
   // Filter and search logic
   const filteredInterviews = useMemo(() => {
     return interviews.filter(interview => {
+      // Status filter
+      if (statusFilter !== 'All' && interview.status !== statusFilter) {
+        return false
+      }
+      
+      // Search filter
       if (searchTerm) {
         const searchFilter = createAccentInsensitiveFilter<InterviewCard>(
           searchTerm,
@@ -92,7 +99,7 @@ export default function InterviewManagementPage() {
       }
       return true
     })
-  }, [interviews, searchTerm])
+  }, [interviews, searchTerm, statusFilter])
 
   // Sort logic
   const sortedInterviews = useMemo(() => {
@@ -543,10 +550,30 @@ export default function InterviewManagementPage() {
             />
           </div>
 
+          {/* Status Filter */}
+          <div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="All">All Statuses</option>
+              <option value="TBD">TBD</option>
+              <option value="Pitching">Pitching</option>
+              <option value="Subject Pending">Subject Pending</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="Complete">Complete</option>
+              <option value="Declined">Declined</option>
+            </select>
+          </div>
+
           {/* Clear Filters */}
-          {searchTerm && (
+          {(searchTerm || statusFilter !== 'All') && (
             <button
-              onClick={() => setSearchTerm('')}
+              onClick={() => {
+                setSearchTerm('')
+                setStatusFilter('All')
+              }}
               className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
             >
               Clear
