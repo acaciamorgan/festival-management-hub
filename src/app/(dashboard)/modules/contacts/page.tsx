@@ -502,8 +502,8 @@ export default function ContactsPage() {
                   fa => fa.filmTitle === filmTitle && fa.role === contactRole
                 )
                 if (!existingAssignment) {
-                  contactEntry.filmAssignments.push({ filmTitle, role: contactRole || 'Contact' })
-                  console.log('Added film assignment:', { filmTitle, contactRole: contactRole || 'Contact', contactName: name })
+                  contactEntry.filmAssignments.push({ filmTitle, role: contactRole || 'Other' })
+                  console.log('Added film assignment:', { filmTitle, contactRole: contactRole || 'Other', contactName: name })
                 }
               } else {
                 console.log('Missing film title or role - filmTitle:', filmTitle, 'contactRole:', contactRole)
