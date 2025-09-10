@@ -4,6 +4,111 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ContactCard } from '@/types'
 
+// Film Search Select Component
+interface FilmSearchSelectProps {
+  films: Film[]
+  selectedFilmIds: Set<string>
+  onSelectionChange: (selected: Set<string>) => void
+}
+
+function FilmSearchSelect({ films, selectedFilmIds, onSelectionChange }: FilmSearchSelectProps) {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [filteredFilms, setFilteredFilms] = useState<Film[]>([])
+
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      const filtered = films.filter(film => 
+        film.title.toLowerCase().includes(searchTerm.toLowerCase())
+      ).slice(0, 10) // Limit to 10 suggestions
+      setFilteredFilms(filtered)
+    } else {
+      setFilteredFilms([])
+    }
+  }, [searchTerm, films])
+
+  const handleFilmToggle = (filmId: string) => {
+    const newSelected = new Set(selectedFilmIds)
+    if (newSelected.has(filmId)) {
+      newSelected.delete(filmId)
+    } else {
+      newSelected.add(filmId)
+    }
+    onSelectionChange(newSelected)
+  }
+
+  const selectedFilms = films.filter(film => selectedFilmIds.has(film.id))
+
+  return (
+    <div className="space-y-3">
+      {/* Search Input */}
+      <div className="relative">
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onFocus={() => setShowSuggestions(true)}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+          placeholder="Type to search films..."
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        
+        {/* Auto-suggestions */}
+        {showSuggestions && searchTerm && filteredFilms.length > 0 && (
+          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+            {filteredFilms.map((film) => (
+              <button
+                key={film.id}
+                type="button"
+                onClick={() => handleFilmToggle(film.id)}
+                className="w-full px-3 py-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-center justify-between"
+              >
+                <span className="text-sm">{film.title}</span>
+                <div className="flex items-center space-x-2">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                    film.film_type === 'feature' 
+                      ? 'bg-blue-100 text-blue-800' 
+                      : 'bg-green-100 text-green-800'
+                  }`}>
+                    {film.film_type === 'feature' ? 'Feature' : 'Short'}
+                  </span>
+                  {selectedFilmIds.has(film.id) && (
+                    <span className="text-green-600">✓</span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Selected Films */}
+      {selectedFilms.length > 0 && (
+        <div>
+          <p className="text-sm text-gray-600 mb-2">Selected Films:</p>
+          <div className="flex flex-wrap gap-2">
+            {selectedFilms.map((film) => (
+              <span
+                key={film.id}
+                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
+              >
+                {film.title}
+                <button
+                  type="button"
+                  onClick={() => handleFilmToggle(film.id)}
+                  className="ml-2 text-blue-600 hover:text-blue-800"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface ContactFormModalProps {
   contact?: ContactCard | null
   isOpen: boolean
@@ -46,7 +151,6 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
   // Film attachment state
   const [availableFilms, setAvailableFilms] = useState<Film[]>([])
   const [selectedFilmIds, setSelectedFilmIds] = useState<Set<string>>(new Set())
-  const [contactRole, setContactRole] = useState('')
   const [loadingFilms, setLoadingFilms] = useState(false)
 
   const supabase = createClient()
@@ -106,7 +210,6 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
       
       // Reset form and film selection
       setSelectedFilmIds(new Set())
-      setContactRole('')
       
       if (contact) {
         setFormData({
@@ -247,8 +350,8 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
         contactId = data?.[0]?.id
       }
 
-      // Handle film assignments if films are selected and role is provided
-      if (selectedFilmIds.size > 0 && contactRole && contactId) {
+      // Handle film assignments if films are selected
+      if (selectedFilmIds.size > 0 && contactId) {
         const assignments = Array.from(selectedFilmIds).map(filmId => {
           const film = availableFilms.find(f => f.id === filmId)
           return {
@@ -257,7 +360,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
             name: contactData.contact_name,
             company: contactData.contact_company,
             email: contactData.contact_email,
-            contact_type: contactRole,
+            contact_type: 'Other',
             contact_id: contactId
           }
         })
@@ -406,29 +509,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
           <div className="mt-6 border-t border-gray-200 pt-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Attach to Films</h3>
             
-            {/* Contact Role Selection */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contact Role (required for film attachment)
-              </label>
-              <select
-                value={contactRole}
-                onChange={(e) => setContactRole(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select role...</option>
-                <option value="Distributor/Studio">Distributor/Studio</option>
-                <option value="Production Team">Production Team</option>
-                <option value="Publicity">Publicity</option>
-                <option value="Sales Agent">Sales Agent</option>
-                <option value="Filmmaker">Filmmaker</option>
-                <option value="Producer">Producer</option>
-                <option value="Director">Director</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            {/* Film Selection */}
+            {/* Film Search and Selection */}
             {loadingFilms ? (
               <div className="text-center py-4">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
@@ -437,35 +518,13 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
             ) : availableFilms.length > 0 ? (
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Films ({selectedFilmIds.size} selected)
+                  Search and Select Films ({selectedFilmIds.size} selected)
                 </label>
-                <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md">
-                  {availableFilms.map((film) => (
-                    <label key={film.id} className="flex items-center p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
-                      <input
-                        type="checkbox"
-                        checked={selectedFilmIds.has(film.id)}
-                        onChange={(e) => handleFilmSelection(film.id, e.target.checked)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <div className="ml-3 flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-900">{film.title}</span>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            film.film_type === 'feature' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : 'bg-green-100 text-green-800'
-                          }`}>
-                            {film.film_type === 'feature' ? 'Feature' : 'Short'}
-                          </span>
-                        </div>
-                        {film.director && (
-                          <p className="text-xs text-gray-500">{film.director}</p>
-                        )}
-                      </div>
-                    </label>
-                  ))}
-                </div>
+                <FilmSearchSelect
+                  films={availableFilms}
+                  selectedFilmIds={selectedFilmIds}
+                  onSelectionChange={setSelectedFilmIds}
+                />
               </div>
             ) : (
               <div className="text-center py-4 text-gray-500">
