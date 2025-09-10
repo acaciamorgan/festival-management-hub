@@ -1269,12 +1269,6 @@ export default function ContactsPage() {
                           Edit
                         </button>
                         <button
-                          onClick={() => handleAssignFilms(contact)}
-                          className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs font-medium"
-                        >
-                          Assign Films
-                        </button>
-                        <button
                           onClick={() => handleDeleteContact(contact)}
                           className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-medium"
                         >
