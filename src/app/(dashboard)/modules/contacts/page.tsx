@@ -1233,7 +1233,17 @@ export default function ContactsPage() {
                         </button>
                       </td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
-                        {film.director}
+                        {film.contacts && film.contacts.length > 0 ? (
+                          <div className="space-y-1">
+                            {film.contacts.map((contact: any, index: number) => (
+                              <div key={index} className="text-xs">
+                                {contact.company || <span className="text-gray-400 italic">No company</span>}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">No contacts</span>
+                        )}
                       </td>
                       {/* Company Column */}
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
