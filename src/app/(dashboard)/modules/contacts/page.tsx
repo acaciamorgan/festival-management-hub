@@ -16,7 +16,7 @@ type FilmViewMode = 'features' | 'shorts'
 export default function ContactsPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
-  const [viewMode, setViewMode] = useState<ViewMode>('by-contact')
+  const [viewMode, setViewMode] = useState<ViewMode>('by-film')
   const [filmViewMode, setFilmViewMode] = useState<FilmViewMode>('features')
   
   // Contact-related state
@@ -1028,6 +1028,16 @@ export default function ContactsPage() {
         {/* Tab Navigation */}
         <div className="flex space-x-1 mb-4">
           <button
+            onClick={() => setViewMode('by-film')}
+            className={`px-4 py-2 rounded-t-lg font-medium ${
+              viewMode === 'by-film'
+                ? 'bg-white border-t border-l border-r border-gray-300 text-blue-600'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            By Film
+          </button>
+          <button
             onClick={() => setViewMode('by-contact')}
             className={`px-4 py-2 rounded-t-lg font-medium ${
               viewMode === 'by-contact'
@@ -1249,6 +1259,79 @@ export default function ContactsPage() {
               </table>
             )}
 
+            {/* BY FILM VIEW */}
+            {viewMode === 'by-film' && (
+              <div className="p-6">
+                {/* Film Type Toggle */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={() => setFilmViewMode('features')}
+                      className={`px-4 py-2 rounded-md font-medium ${
+                        filmViewMode === 'features'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      Features ({films.filter(f => f.film_type === 'feature').length})
+                    </button>
+                    <button
+                      onClick={() => setFilmViewMode('shorts')}
+                      className={`px-4 py-2 rounded-md font-medium ${
+                        filmViewMode === 'shorts'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      Shorts ({films.filter(f => f.film_type === 'short').length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Films Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {sortedFilms.map((film) => (
+                    <div key={film.id} className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 cursor-pointer hover:text-blue-600"
+                          onClick={() => handleFilmClick(film)}>
+                        {film.title}
+                      </h3>
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-medium text-gray-700">Contacts:</h4>
+                        {film.contacts && film.contacts.length > 0 ? (
+                          film.contacts.map((contact, index) => (
+                            <div key={index} className="border-l-4 border-blue-500 pl-3 py-2">
+                              <div className="font-medium text-gray-900">{contact.name}</div>
+                              {contact.company && (
+                                <div className="text-gray-600 text-sm">{contact.company}</div>
+                              )}
+                              {contact.email && (
+                                <div className="text-blue-600 hover:underline text-sm">
+                                  <a href={`mailto:${contact.email}`}>
+                                    {contact.email}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-gray-500 italic">No contacts assigned</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Empty state for by-film view */}
+                {sortedFilms.length === 0 && !loading && (
+                  <div className="text-center py-12">
+                    <div className="text-gray-400 text-lg mb-4">🎬</div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No {filmViewMode} found</h3>
+                    <p className="text-gray-500">No {filmViewMode} are currently loaded in the system.</p>
+                  </div>
+                )}
+              </div>
+            )}
 
           </div>
         </div>
