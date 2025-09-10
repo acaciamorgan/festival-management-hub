@@ -726,11 +726,9 @@ export default function ContactsPage() {
             }
           }
         }
-      }
 
-      // Log summary of unmatched films if any (using the same allFilms data)
-      const unmatchedFilms: string[] = []
-      if (allFilms && allFilms.length > 0) {
+        // Log summary of unmatched films if any (using the same allFilms data)
+        const unmatchedFilms: string[] = []
         for (const [, { filmAssignments }] of contactsByEmail) {
           for (const { filmTitle } of filmAssignments) {
             // Use the same matching function that was used above
@@ -741,21 +739,16 @@ export default function ContactsPage() {
             }
           }
         }
-      }
-      
-      
-      if (unmatchedFilms.length > 0) {
-        console.warn(`Films not found in database (${unmatchedFilms.length}):`, unmatchedFilms.sort())
+
+        if (unmatchedFilms.length > 0) {
+          console.warn(`Films not found in database (${unmatchedFilms.length}):`, unmatchedFilms.sort())
+        }
       }
       
       const totalProcessed = newContacts.length + updateContacts.length
       let statusMessage = `Successfully processed ${totalProcessed} contacts ` +
         `(${newContacts.length} new, ${updateContacts.length} updated)` +
         `${filmAssignmentCount > 0 ? ` with ${filmAssignmentCount} film assignments` : ''}!`
-      
-      if (unmatchedFilms.length > 0) {
-        statusMessage += ` Note: ${unmatchedFilms.length} film titles from CSV were not found in database.`
-      }
       
       setUploadStatus(statusMessage)
       
