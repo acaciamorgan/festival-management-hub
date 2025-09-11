@@ -1395,6 +1395,27 @@ export default function TicketingPage() {
           // Convert date from "10/15" to "2025-10-15" format (using 2025 for the festival year)
           const [month, day_num] = dateStr.split('/')
           const year = 2025 // Festival year
+          
+          // Debug the problematic rows
+          if (i + 1 === 46 || i + 1 === 88 || i + 1 === 129 || i + 1 === 158) {
+            console.log(`DEBUG Row ${i + 1}:`, {
+              rawRow: rows[i],
+              title,
+              dateStr,
+              month,
+              day_num,
+              splitResult: dateStr.split('/')
+            })
+          }
+
+          // Validate month and day_num exist before calling padStart
+          if (!month || !day_num) {
+            console.error(`Invalid date format in row ${i + 1}:`, dateStr, 'Raw row:', rows[i])
+            errors.push(`Row ${i + 1}: Invalid date format - ${dateStr}`)
+            errorCount++
+            continue
+          }
+          
           const formattedDate = `${year}-${month.padStart(2, '0')}-${day_num.padStart(2, '0')}`
 
           // Convert time from "6:30 PM" to "18:30" format
@@ -1414,7 +1435,30 @@ export default function TicketingPage() {
           
           const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes}`
 
-          // Step 1: Create record in ticketing_screenings first
+          // Step 1: Check for duplicate screening (same date/time/venue)
+          const { data: existingScreening, error: duplicateCheckError } = await supabase
+            .from('ticketing_screenings')
+            .select('id, film_title')
+            .eq('screening_date', formattedDate)
+            .eq('start_time', formattedTime)
+            .eq('venue_short_code', location || '')
+            .single()
+
+          if (duplicateCheckError && duplicateCheckError.code !== 'PGRST116') {
+            console.error('Duplicate check error:', duplicateCheckError)
+            errors.push(`Row ${i + 1} (${title}): Duplicate check failed - ${duplicateCheckError.message}`)
+            errorCount++
+            continue
+          }
+
+          if (existingScreening) {
+            console.log(`Skipping duplicate screening: ${title} at ${location} on ${formattedDate} ${formattedTime}`)
+            errors.push(`Row ${i + 1} (${title}): Duplicate screening skipped - ${existingScreening.film_title} already scheduled at ${location} on ${formattedDate} ${formattedTime}`)
+            errorCount++
+            continue
+          }
+
+          // Step 2: Create record in ticketing_screenings
           const ticketingData = {
             film_title: title,
             screening_date: formattedDate,
@@ -1427,7 +1471,7 @@ export default function TicketingPage() {
             is_published: true
           }
 
-          // Insert into ticketing_screenings first
+          // Insert into ticketing_screenings
           const { data: ticketingResult, error: ticketingError } = await supabase
             .from('ticketing_screenings')
             .insert(ticketingData)
@@ -1443,7 +1487,7 @@ export default function TicketingPage() {
 
           console.log('Ticketing record created successfully:', ticketingResult)
 
-          // Step 2: Create record in published_screenings with reference
+          // Step 3: Create record in published_screenings with reference
           const publishedData = {
             film_title: title,
             screening_date: formattedDate,
