@@ -2577,10 +2577,7 @@ export default function TitlesPage() {
             setEditingProgram(null)
             loadShorts() // Reload shorts to show updated program assignments
           }}
-          availableShorts={shorts.filter(short => 
-            !short.shorts_program_id || 
-            (editingProgram && short.shorts_program_id === editingProgram.id)
-          )}
+          availableShorts={shorts}
           editingProgram={editingProgram}
           supabase={supabase}
         />
@@ -3592,7 +3589,13 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
     
     setDeleting(true)
     try {
-      // Delete all associations in junction table first
+      // First, remove the foreign key constraint by setting shorts_program_id to NULL for all films in this program
+      await supabase
+        .from('short_films')
+        .update({ shorts_program_id: null, program_order: null })
+        .eq('shorts_program_id', editingProgram.id)
+      
+      // Delete all associations in junction table
       await supabase
         .from('short_film_programs')
         .delete()
@@ -3608,6 +3611,7 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
         console.error('Error deleting program:', error)
         alert(`Error deleting program: ${error.message}`)
       } else {
+        onClose() // Close the modal
         onSave() // Refresh the list
       }
     } catch (error) {
@@ -3713,16 +3717,36 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
                 />
               </div>
               <div className="border border-gray-300 rounded-md max-h-96 overflow-y-auto">
-                {filteredAvailableShorts.map((short) => (
-                  <div
-                    key={short.id}
-                    className="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-                    onClick={() => addShort(short)}
-                  >
-                    <div className="font-medium text-sm">{short.title}</div>
-                    <div className="text-xs text-gray-600">{renderPersonName(short.director)} • {short.run_time}min</div>
-                  </div>
-                ))}
+                {filteredAvailableShorts.map((short) => {
+                  const isInCurrentProgram = selectedShorts.some(s => s.id === short.id)
+                  const currentProgram = short.shorts_program?.program_name
+                  const isInOtherProgram = currentProgram && (!editingProgram || currentProgram !== editingProgram.program_name)
+                  
+                  return (
+                    <div
+                      key={short.id}
+                      className={`p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${isInCurrentProgram ? 'bg-blue-100' : ''}`}
+                      onClick={() => addShort(short)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{short.title}</div>
+                          <div className="text-xs text-gray-600">{renderPersonName(short.director)} • {short.run_time}min</div>
+                        </div>
+                        <div className="text-xs">
+                          {isInCurrentProgram && (
+                            <span className="bg-blue-500 text-white px-2 py-1 rounded">In Program</span>
+                          )}
+                          {isInOtherProgram && (
+                            <span className="bg-yellow-500 text-white px-2 py-1 rounded" title={`Currently in: ${currentProgram}`}>
+                              {currentProgram}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}}
                 {filteredAvailableShorts.length === 0 && (
                   <div className="p-4 text-center text-gray-500">
                     {searchTerm ? 'No shorts match your search' : 'No unassigned shorts available'}
