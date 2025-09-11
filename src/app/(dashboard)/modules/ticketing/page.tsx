@@ -828,7 +828,7 @@ interface PublishedScreening {
   capacity: number | null
   notes: string | null
   is_cancelled: boolean
-  published_by: string
+  // published_by: string
   created_at: string
   updated_at: string
 }
@@ -1455,7 +1455,7 @@ export default function TicketingPage() {
             notes: notes,
             ticketing_screening_id: ticketingResult.id,
             film_card_id: null,
-            published_by: 'CSV Import'
+            // No published_by tracking needed
           }
 
           // Insert into published_screenings
