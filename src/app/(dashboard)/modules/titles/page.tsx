@@ -530,6 +530,8 @@ export default function TitlesPage() {
         }
       })
       
+      console.log('Loaded shorts:', processedShorts.length, 'shorts')
+      console.log('Sample short:', processedShorts[0])
       setShorts(processedShorts)
       setFilteredShorts(processedShorts)
     } catch (error) {
@@ -862,9 +864,14 @@ export default function TitlesPage() {
 
     // Apply sorting
     if (sortConfig) {
+      console.log('Applying sort:', sortConfig.key, sortConfig.direction)
       filtered.sort((a, b) => {
         const aVal = a[sortConfig.key as keyof (FeatureFilm | ShortFilm)]
         const bVal = b[sortConfig.key as keyof (FeatureFilm | ShortFilm)]
+        
+        if (sortConfig.key === 'title') {
+          console.log('Sorting titles:', aVal, 'vs', bVal)
+        }
         
         const aNorm = normalizeForSort(aVal?.toString())
         const bNorm = normalizeForSort(bVal?.toString())
@@ -873,6 +880,7 @@ export default function TitlesPage() {
         if (aNorm > bNorm) return sortConfig.direction === 'asc' ? 1 : -1
         return 0
       })
+      console.log('Sorted result sample:', filtered.slice(0, 3).map(f => f.title))
     }
 
     return filtered
