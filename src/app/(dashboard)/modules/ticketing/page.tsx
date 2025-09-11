@@ -288,7 +288,7 @@ function ScreeningBoard({
             </button>
             
             {canEditTicketing && (
-              <button 
+              <button
                 onClick={() => setShowSetViewModal(true)}
                 className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
               >
@@ -911,11 +911,8 @@ export default function TicketingPage() {
         .eq('id', 1)
         .single()
       
-      console.log('Loading view mode - data:', data, 'error:', error)
-      
       if (data?.view_mode) {
         setViewMode(data.view_mode)
-        console.log('Set view mode to:', data.view_mode)
       }
     }
     
