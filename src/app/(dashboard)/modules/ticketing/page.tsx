@@ -1443,7 +1443,9 @@ export default function TicketingPage() {
           // Step 2: Create record in published_screenings with reference
           const publishedData = {
             ...ticketingData,
-            ticketing_screening_id: ticketingResult.id
+            ticketing_screening_id: ticketingResult.id,
+            film_card_id: null, // Set to null if no film card mapping
+            published_by: 'CSV Import'
           }
 
           // Insert into published_screenings
