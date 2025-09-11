@@ -898,6 +898,11 @@ export default function TicketingPage() {
         .select('view_mode')
         .single()
       
+      if (error) {
+        console.log('ticketing_settings table not found, using default view mode')
+        return
+      }
+      
       if (data?.view_mode) {
         setViewMode(data.view_mode)
       }
@@ -916,7 +921,7 @@ export default function TicketingPage() {
         .upsert({ id: 1, view_mode: newViewMode })
       
       if (error) {
-        console.error('Error updating view mode:', error)
+        console.log('Could not save view mode to database, table may not exist yet')
       }
     }
   }
