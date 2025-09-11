@@ -902,35 +902,10 @@ export default function TicketingPage() {
   const canEditTicketing = permissions?.modulePermissions?.['ticketing']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   const [viewMode, setViewMode] = useState<ViewMode>('ticketing')
   
-  // Load global view mode on component mount
-  useEffect(() => {
-    const loadViewMode = async () => {
-      const { data, error } = await supabase
-        .from('ticketing_settings')
-        .select('view_mode')
-        .eq('id', 1)
-        .single()
-      
-      if (data?.view_mode) {
-        setViewMode(data.view_mode)
-      }
-    }
-    
-    loadViewMode()
-  }, [])
   
   // Update view mode globally
   const updateViewMode = async (newViewMode: ViewMode) => {
     setViewMode(newViewMode)
-    
-    if (canEditTicketing) {
-      const { error } = await supabase
-        .from('ticketing_settings')
-        .update({ view_mode: newViewMode })
-        .eq('id', 1)
-      
-      console.log('Updating view mode to:', newViewMode, 'error:', error)
-    }
   }
   
   // Data states
