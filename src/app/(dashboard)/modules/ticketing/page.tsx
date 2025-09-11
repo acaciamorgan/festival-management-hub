@@ -1349,7 +1349,30 @@ export default function TicketingPage() {
 
     try {
       const text = await file.text()
-      const rows = text.split('\n').map(row => row.split(','))
+      // Parse CSV properly handling quoted fields with commas
+      const parseCSVRow = (row: string): string[] => {
+        const result: string[] = []
+        let current = ''
+        let inQuotes = false
+        
+        for (let i = 0; i < row.length; i++) {
+          const char = row[i]
+          
+          if (char === '"') {
+            inQuotes = !inQuotes
+          } else if (char === ',' && !inQuotes) {
+            result.push(current.trim())
+            current = ''
+          } else {
+            current += char
+          }
+        }
+        
+        result.push(current.trim())
+        return result
+      }
+      
+      const rows = text.split('\n').map(row => parseCSVRow(row))
       const headers = rows[0]
       
       if (!headers.includes('Title') || !headers.includes('Date') || !headers.includes('Start Time')) {
