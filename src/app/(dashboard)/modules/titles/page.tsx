@@ -1042,9 +1042,20 @@ export default function TitlesPage() {
 
   // Fixed header mapping for the exact CSV format
   const getColumnIndex = (headers: string[], targetHeader: string): number => {
-    return headers.findIndex(header => 
+    // First try exact match
+    let index = headers.findIndex(header => 
       header && header.trim() === targetHeader
     )
+    
+    // If exact match fails, try flexible matching for known problematic headers
+    if (index === -1 && targetHeader === 'Countries') {
+      // Look for any header that starts with "Country" to handle malformed CSV
+      index = headers.findIndex(header => 
+        header && header.toLowerCase().trim().startsWith('country')
+      )
+    }
+    
+    return index
   }
 
   const processFeatureFilmsCSV = async (rows: string[][], headers: string[]) => {
@@ -1372,7 +1383,13 @@ export default function TitlesPage() {
       // Map each header to its value
       headers.forEach((header, index) => {
         const cleanHeader = header.trim()
-        const dbField = fieldMap[cleanHeader]
+        let dbField = fieldMap[cleanHeader]
+        
+        // Add flexible matching for problematic headers
+        if (!dbField && cleanHeader.toLowerCase().startsWith('country')) {
+          dbField = 'countries'
+        }
+        
         if (dbField && row[index]) {
           const value = row[index].trim()
           if (value) {
