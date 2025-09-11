@@ -37,6 +37,7 @@ interface ScreeningBoardProps {
   currentDate: string
   setCurrentDate: (date: string) => void
   festivalSettings: any
+  canEditTicketing: boolean
   publishedScreenings: PublishedScreening[]
   piJuryScreenings: PIJuryScreening[]
   techCheckScreenings: TechCheckScreening[]
@@ -53,6 +54,7 @@ function ScreeningBoard({
   currentDate, 
   setCurrentDate, 
   festivalSettings, 
+  canEditTicketing,
   publishedScreenings, 
   piJuryScreenings, 
   techCheckScreenings, 
@@ -2189,6 +2191,7 @@ export default function TicketingPage() {
           currentDate={currentBoardDate}
           setCurrentDate={setCurrentBoardDate}
           festivalSettings={festivalSettings}
+          canEditTicketing={canEditTicketing}
           publishedScreenings={publishedScreenings}
           piJuryScreenings={piJuryScreenings}
           techCheckScreenings={techCheckScreenings}
