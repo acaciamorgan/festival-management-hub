@@ -63,19 +63,22 @@ interface ShortsProgramWithScreenerData extends ShortsProgram {
   screener_data: ScreenerData | null
 }
 
-type ViewMode = 'features' | 'shorts'
+interface UnifiedFilm {
+  id: string
+  title: string
+  contacts: FilmContact[]
+  screener_data: ScreenerData | null
+  isProgram?: boolean
+}
 
 export default function ScreenerAccessPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
-  const [viewMode, setViewMode] = useState<ViewMode>('features')
-  const [films, setFilms] = useState<FilmWithScreenerData[]>([])
-  const [shortsPrograms, setShortsPrograms] = useState<ShortsProgramWithScreenerData[]>([])
-  const [filteredFilms, setFilteredFilms] = useState<FilmWithScreenerData[]>([])
-  const [filteredShortsPrograms, setFilteredShortsPrograms] = useState<ShortsProgramWithScreenerData[]>([])
+  const [allFilms, setAllFilms] = useState<UnifiedFilm[]>([])
+  const [filteredFilms, setFilteredFilms] = useState<UnifiedFilm[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedFilm, setSelectedFilm] = useState<FeatureFilm | ShortsProgram | null>(null)
+  const [selectedFilm, setSelectedFilm] = useState<UnifiedFilm | null>(null)
   const [showFilmCard, setShowFilmCard] = useState(false)
   const [showFilmCardsMode, setShowFilmCardsMode] = useState(false)
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'title', direction: 'asc' })
@@ -191,158 +194,140 @@ export default function ScreenerAccessPage() {
     XLSX.writeFile(wb, 'shorts_screener_access_template.xlsx')
   }
 
-  const loadFeatures = useCallback(async () => {
+  const loadAllFilms = useCallback(async () => {
     setLoading(true)
     try {
-      // Load all feature films
+      const allFilmsData: UnifiedFilm[] = []
+      
+      // Load feature films
       const { data: filmsData, error: filmsError } = await supabase
         .from('feature_films')
         .select('id, title')
         .order('title')
 
-      if (filmsError) {
-        console.error('Error loading films:', filmsError)
-        setFilms([])
-        setFilteredFilms([])
-        return
+      if (!filmsError && filmsData) {
+        // Load contacts and screener data for each feature film
+        const featuresWithData = await Promise.all(
+          filmsData.map(async (film) => {
+            // Load film contacts
+            const { data: contactsData } = await supabase
+              .from('film_contacts')
+              .select('id, name, company, email, contact_type')
+              .eq('film_id', film.id)
+              .eq('film_type', 'feature')
+              .order('contact_type, name')
+
+            // Load screener data
+            const { data: screenerData } = await supabase
+              .from('screener_access')
+              .select('*')
+              .eq('film_id', film.id)
+              .single()
+
+            return {
+              id: film.id,
+              title: film.title,
+              contacts: contactsData || [],
+              screener_data: screenerData || null,
+              isProgram: false
+            }
+          })
+        )
+        allFilmsData.push(...featuresWithData)
       }
 
-      // Load contacts and screener data for each film
-      const filmsWithData = await Promise.all(
-        (filmsData || []).map(async (film) => {
-          // Load film contacts
-          const { data: contactsData } = await supabase
-            .from('film_contacts')
-            .select('id, name, company, email, contact_type')
-            .eq('film_id', film.id)
-            .eq('film_type', 'feature')
-            .order('contact_type, name')
+      // Load shorts programs
+      const { data: programsData, error: programsError } = await supabase
+        .from('shorts_programs')
+        .select('*')
+        .order('program_number')
+      
+      if (!programsError && programsData && programsData.length > 0) {
+        // Load contacts and screener data for each program
+        const programsWithData = await Promise.all(
+          programsData.map(async (program) => {
+            // Get the first short from this program to use its contacts
+            const { data: firstShort } = await supabase
+              .from('short_films')
+              .select('id')
+              .eq('shorts_program_id', program.id)
+              .limit(1)
+              .single()
+            
+            let contacts = []
+            if (firstShort) {
+              const { data: contactsData } = await supabase
+                .from('film_contacts')
+                .select('id, name, company, email, contact_type')
+                .eq('film_id', firstShort.id)
+                .eq('film_type', 'short')
+                .order('contact_type, name')
+              
+              contacts = contactsData || []
+            }
 
-          // Load screener data
-          const { data: screenerData } = await supabase
-            .from('screener_access')
-            .select('*')
-            .eq('film_id', film.id)
-            .single()
+            // Load screener data for the program (using program id as film_id)
+            const { data: screenerData } = await supabase
+              .from('screener_access')
+              .select('*')
+              .eq('film_id', program.id)
+              .single()
 
-          return {
-            ...film,
-            contacts: contactsData || [],
-            screener_data: screenerData || null
-          }
-        })
-      )
+            return {
+              id: program.id,
+              title: program.program_name,
+              contacts,
+              screener_data: screenerData || null,
+              isProgram: true
+            }
+          })
+        )
+        allFilmsData.push(...programsWithData)
+      }
 
-      setFilms(filmsWithData)
-      setFilteredFilms(filmsWithData)
+      // Sort all films by title
+      allFilmsData.sort((a, b) => a.title.localeCompare(b.title))
+      
+      setAllFilms(allFilmsData)
+      setFilteredFilms(allFilmsData)
     } catch (error) {
       console.error('Error loading films:', error)
-      setFilms([])
+      setAllFilms([])
       setFilteredFilms([])
     } finally {
       setLoading(false)
     }
   }, [supabase])
 
-  const loadShortsPrograms = useCallback(async () => {
-    setLoading(true)
-    try {
-      // Load all shorts programs
-      const { data: programsData, error: programsError } = await supabase
-        .from('shorts_programs')
-        .select('*')
-        .order('program_number')
-      
-      if (programsError) {
-        console.error('Error loading programs:', programsError)
-        setShortsPrograms([])
-        setFilteredShortsPrograms([])
-        return
-      }
-      
-      if (!programsData || programsData.length === 0) {
-        setShortsPrograms([])
-        setFilteredShortsPrograms([])
-        setLoading(false)
-        return
-      }
-      
-      // Load contacts and screener data for each program
-      const programsWithData = await Promise.all(
-        programsData.map(async (program) => {
-          // Get the first short from this program to use its contacts
-          const { data: firstShort } = await supabase
-            .from('short_films')
-            .select('id')
-            .eq('shorts_program_id', program.id)
-            .limit(1)
-            .single()
-          
-          let contacts = []
-          if (firstShort) {
-            const { data: contactsData } = await supabase
-              .from('film_contacts')
-              .select('id, name, company, email, contact_type')
-              .eq('film_id', firstShort.id)
-              .eq('film_type', 'short')
-              .order('contact_type, name')
-            
-            contacts = contactsData || []
-          }
-
-          // Load screener data for the program (using program id as film_id)
-          const { data: screenerData } = await supabase
-            .from('screener_access')
-            .select('*')
-            .eq('film_id', program.id)
-            .single()
-
-          return {
-            ...program,
-            title: program.program_name, // Add title field for compatibility
-            contacts,
-            screener_data: screenerData || null
-          }
-        })
-      )
-
-      setShortsPrograms(programsWithData)
-      setFilteredShortsPrograms(programsWithData)
-    } catch (error) {
-      console.error('Error loading shorts programs:', error)
-      setShortsPrograms([])
-      setFilteredShortsPrograms([])
-    } finally {
-      setLoading(false)
-    }
-  }, [supabase])
-
   useEffect(() => {
-    if (viewMode === 'features') {
-      loadFeatures()
-    } else {
-      loadShortsPrograms()
-    }
-  }, [viewMode, loadFeatures, loadShortsPrograms])
+    loadAllFilms()
+  }, [loadAllFilms])
 
-  // Filter and search for features
+  // Filter and search for all films
   useEffect(() => {
-    if (viewMode !== 'features') return
-    
-    let filtered = films
+    let filtered = allFilms
 
     // Access type filter
     if (accessTypeFilter !== 'all') {
       if (accessTypeFilter === 'TBD') {
         filtered = filtered.filter(film => !film.screener_data || film.screener_data.access_type === 'TBD')
+      } else if (accessTypeFilter === 'cinesend' || accessTypeFilter === 'request_link') {
+        // Only apply these filters to non-program films (features)
+        filtered = filtered.filter(film => {
+          if (film.isProgram) {
+            return false // Shorts programs don't use cinesend/request_link
+          }
+          return film.screener_data?.access_type === accessTypeFilter
+        })
       } else {
+        // link_available and no_links apply to both
         filtered = filtered.filter(film => film.screener_data?.access_type === accessTypeFilter)
       }
     }
 
     // Search filter with accent-insensitive search
     if (searchTerm) {
-      const searchFilter = createAccentInsensitiveFilter<FilmWithScreenerData>(
+      const searchFilter = createAccentInsensitiveFilter<UnifiedFilm>(
         searchTerm,
         (film) => [
           film.title,
@@ -355,72 +340,30 @@ export default function ScreenerAccessPage() {
     }
 
     setFilteredFilms(filtered)
-  }, [films, searchTerm, accessTypeFilter, viewMode])
-
-  // Filter and search for shorts programs
-  useEffect(() => {
-    if (viewMode !== 'shorts') return
-    
-    let filtered = shortsPrograms
-
-    // For shorts programs, only filter by link_available, no_links, and TBD
-    if (accessTypeFilter !== 'all') {
-      if (accessTypeFilter === 'TBD') {
-        filtered = filtered.filter(program => !program.screener_data || program.screener_data.access_type === 'TBD')
-      } else if (accessTypeFilter === 'link_available' || accessTypeFilter === 'no_links') {
-        filtered = filtered.filter(program => program.screener_data?.access_type === accessTypeFilter)
-      } else {
-        // For shorts programs, ignore cinesend and request_link filters
-        filtered = shortsPrograms
-      }
-    }
-
-    // Search filter with accent-insensitive search
-    if (searchTerm) {
-      const searchFilter = createAccentInsensitiveFilter<ShortsProgramWithScreenerData>(
-        searchTerm,
-        (program) => [
-          program.program_name,
-          ...program.contacts.map(c => c.name),
-          ...program.contacts.map(c => c.company),
-          ...program.contacts.map(c => c.email)
-        ]
-      )
-      filtered = filtered.filter(searchFilter)
-    }
-
-    setFilteredShortsPrograms(filtered)
-  }, [shortsPrograms, searchTerm, accessTypeFilter, viewMode])
+  }, [allFilms, searchTerm, accessTypeFilter])
 
   // Sort films
   const sortedFilms = useMemo(() => {
-    if (viewMode === 'features') {
-      if (!sortConfig) return filteredFilms
+    if (!sortConfig) return filteredFilms
 
-      return [...filteredFilms].sort((a, b) => {
-        const aVal = a[sortConfig.key as keyof FilmWithScreenerData]
-        const bVal = b[sortConfig.key as keyof FilmWithScreenerData]
+    return [...filteredFilms].sort((a, b) => {
+      const aVal = a[sortConfig.key as keyof UnifiedFilm]
+      const bVal = b[sortConfig.key as keyof UnifiedFilm]
 
-        if (aVal == null && bVal == null) return 0
-        if (aVal == null) return 1
-        if (bVal == null) return -1
+      if (aVal == null && bVal == null) return 0
+      if (aVal == null) return 1
+      if (bVal == null) return -1
 
-        if (typeof aVal === 'string' && typeof bVal === 'string') {
-          const result = aVal.localeCompare(bVal)
-          return sortConfig.direction === 'asc' ? result : -result
-        }
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        const result = aVal.localeCompare(bVal)
+        return sortConfig.direction === 'asc' ? result : -result
+      }
 
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1
-        return 0
-      })
-    } else {
-      // For shorts programs, sort by program number
-      return [...filteredShortsPrograms].sort((a, b) => {
-        return a.program_number - b.program_number
-      })
-    }
-  }, [filteredFilms, filteredShortsPrograms, sortConfig, viewMode])
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1
+      return 0
+    })
+  }, [filteredFilms, sortConfig])
 
   const handleSort = (key: string) => {
     setSortConfig(current => {
@@ -436,7 +379,7 @@ export default function ScreenerAccessPage() {
     return sortConfig.direction === 'asc' ? '↑' : '↓'
   }
 
-  const handleFilmClick = (film: FeatureFilm | ShortFilm) => {
+  const handleFilmClick = (film: UnifiedFilm) => {
     if (!showFilmCardsMode) return
     setSelectedFilm(film)
     setShowFilmCard(true)
@@ -469,17 +412,13 @@ export default function ScreenerAccessPage() {
       }
 
       // Refresh the data
-      if (viewMode === 'features') {
-        loadFeatures()
-      } else {
-        loadShortsPrograms()
-      }
+      loadAllFilms()
     } catch (error) {
       console.error('Error updating screener data:', error)
     }
   }
 
-  const renderAccessTypeCell = (film: FilmWithScreenerData | ShortFilmWithScreenerData) => {
+  const renderAccessTypeCell = (film: UnifiedFilm) => {
     const currentType = film.screener_data?.access_type || 'tbd'
     
     return (
@@ -492,7 +431,7 @@ export default function ScreenerAccessPage() {
         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
       >
         <option value="tbd">TBD</option>
-        {viewMode === 'features' && (
+        {!film.isProgram && (
           <>
             <option value="cinesend">CineSend</option>
             <option value="request_link">Request Link</option>
@@ -504,7 +443,7 @@ export default function ScreenerAccessPage() {
     )
   }
 
-  const renderLinkColumns = (film: FilmWithScreenerData | ShortFilmWithScreenerData) => {
+  const renderLinkColumns = (film: UnifiedFilm) => {
     const isVisible = film.screener_data?.access_type === 'link_available'
     
     if (!isVisible) {
@@ -574,8 +513,8 @@ export default function ScreenerAccessPage() {
     )
   }
 
-  const renderCineSendColumns = (film: FilmWithScreenerData) => {
-    if (viewMode === 'shorts') return null // No CineSend columns for shorts
+  const renderCineSendColumns = (film: UnifiedFilm) => {
+    if (film.isProgram) return null // No CineSend columns for shorts programs
     
     const isVisible = film.screener_data?.access_type === 'cinesend'
     
@@ -676,7 +615,7 @@ export default function ScreenerAccessPage() {
     )
   }
 
-  const getRowBackgroundColor = (film: FilmWithScreenerData | ShortFilmWithScreenerData) => {
+  const getRowBackgroundColor = (film: UnifiedFilm) => {
     const accessType = film.screener_data?.access_type || 'TBD'
     switch (accessType) {
       case 'TBD': return 'bg-white'
@@ -689,14 +628,13 @@ export default function ScreenerAccessPage() {
   }
 
   const getFilterCounts = () => {
-    const currentData = viewMode === 'features' ? films : shortsPrograms
     const counts = {
-      all: currentData.length,
-      TBD: currentData.filter(f => !f.screener_data || f.screener_data.access_type === 'TBD').length,
-      cinesend: viewMode === 'features' ? films.filter(f => f.screener_data?.access_type === 'cinesend').length : 0,
-      link_available: currentData.filter(f => f.screener_data?.access_type === 'link_available').length,
-      request_link: viewMode === 'features' ? films.filter(f => f.screener_data?.access_type === 'request_link').length : 0,
-      no_links: currentData.filter(f => f.screener_data?.access_type === 'no_links').length
+      all: allFilms.length,
+      TBD: allFilms.filter(f => !f.screener_data || f.screener_data.access_type === 'TBD').length,
+      cinesend: allFilms.filter(f => !f.isProgram && f.screener_data?.access_type === 'cinesend').length,
+      link_available: allFilms.filter(f => f.screener_data?.access_type === 'link_available').length,
+      request_link: allFilms.filter(f => !f.isProgram && f.screener_data?.access_type === 'request_link').length,
+      no_links: allFilms.filter(f => f.screener_data?.access_type === 'no_links').length
     }
     return counts
   }
@@ -727,10 +665,10 @@ export default function ScreenerAccessPage() {
           <div className="flex items-center space-x-4">
             {canEditScreenerAccess && (
               <button
-                onClick={viewMode === 'features' ? exportFeaturesTemplate : exportShortsTemplate}
+                onClick={exportFeaturesTemplate}
                 className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
               >
-                📄 Create {viewMode === 'features' ? 'Features' : 'Shorts'} Template
+                📄 Create Template
               </button>
             )}
             <button
@@ -742,34 +680,6 @@ export default function ScreenerAccessPage() {
               }`}
             >
               🎞️ {showFilmCardsMode ? 'Hide' : 'Show'} Film Cards
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* View Mode Tabs */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="px-6 py-4">
-          <div className="flex space-x-1">
-            <button
-              onClick={() => setViewMode('features')}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                viewMode === 'features'
-                  ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-500'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Features
-            </button>
-            <button
-              onClick={() => setViewMode('shorts')}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                viewMode === 'shorts'
-                  ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-500'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Shorts
             </button>
           </div>
         </div>
@@ -789,18 +699,16 @@ export default function ScreenerAccessPage() {
             >
               All ({filterCounts.all})
             </button>
-            {viewMode === 'features' && (
-              <button
-                onClick={() => setAccessTypeFilter('cinesend')}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  accessTypeFilter === 'cinesend'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-blue-200 text-blue-700 hover:bg-blue-300'
-                }`}
-              >
-                CineSend ({filterCounts.cinesend})
-              </button>
-            )}
+            <button
+              onClick={() => setAccessTypeFilter('cinesend')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                accessTypeFilter === 'cinesend'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-blue-200 text-blue-700 hover:bg-blue-300'
+              }`}
+            >
+              CineSend ({filterCounts.cinesend})
+            </button>
             <button
               onClick={() => setAccessTypeFilter('link_available')}
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
@@ -811,18 +719,16 @@ export default function ScreenerAccessPage() {
             >
               Link Available ({filterCounts.link_available})
             </button>
-            {viewMode === 'features' && (
-              <button
-                onClick={() => setAccessTypeFilter('request_link')}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  accessTypeFilter === 'request_link'
-                    ? 'bg-yellow-600 text-white'
-                    : 'bg-yellow-200 text-yellow-700 hover:bg-yellow-300'
-                }`}
-              >
-                Request Link ({filterCounts.request_link})
-              </button>
-            )}
+            <button
+              onClick={() => setAccessTypeFilter('request_link')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                accessTypeFilter === 'request_link'
+                  ? 'bg-yellow-600 text-white'
+                  : 'bg-yellow-200 text-yellow-700 hover:bg-yellow-300'
+              }`}
+            >
+              Request Link ({filterCounts.request_link})
+            </button>
             <button
               onClick={() => setAccessTypeFilter('no_links')}
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
@@ -870,247 +776,133 @@ export default function ScreenerAccessPage() {
 
       {/* Films Grid */}
       <div className="flex-1 p-6">
-        {viewMode === 'features' ? (
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
-              <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  {[
-                    { key: 'title', label: viewMode === 'features' ? 'Film Title' : 'Shorts Program', width: 180, sortable: viewMode === 'features' },
-                    { key: 'contacts', label: 'Contacts', width: 160, sortable: false },
-                    { key: 'all_emails', label: 'All Emails', width: 200, sortable: false },
-                    { key: 'access_type', label: 'Access Type', width: 120, sortable: false },
-                    { key: 'link', label: 'Link', width: 180, sortable: false },
-                    { key: 'password', label: 'Password', width: 100, sortable: false },
-                    ...(viewMode === 'features' ? [
-                      { key: 'instructions_sent', label: 'Instructions Sent', width: 110, sortable: false },
-                      { key: 'uploaded', label: 'Uploaded', width: 90, sortable: false }
-                    ] : [])
-                  ].map((column) => (
-                    <th
-                      key={column.key}
-                      className={`relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 ${
-                        column.sortable ? 'cursor-pointer hover:bg-gray-100' : 'cursor-default'
-                      }`}
-                      style={{ 
-                        minWidth: `${columnWidths[column.key] || column.width}px`,
-                        width: `${columnWidths[column.key] || column.width}px`
-                      }}
-                      onClick={() => column.sortable && handleSort(column.key)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>{column.label}</span>
-                        {column.sortable && (
-                          <span className="text-gray-400 ml-1">
-                            {getSortIcon(column.key)}
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Resize Handle */}
-                      <div
-                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 opacity-0 hover:opacity-100"
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                          const startX = e.clientX
-                          const startWidth = columnWidths[column.key] || column.width
-                          
-                          const handleMouseMove = (e: MouseEvent) => {
-                            const newWidth = Math.max(50, startWidth + (e.clientX - startX))
-                            setColumnWidths(prev => ({ ...prev, [column.key]: newWidth }))
-                          }
-                          
-                          const handleMouseUp = () => {
-                            document.removeEventListener('mousemove', handleMouseMove)
-                            document.removeEventListener('mouseup', handleMouseUp)
-                          }
-                          
-                          document.addEventListener('mousemove', handleMouseMove)
-                          document.addEventListener('mouseup', handleMouseUp)
-                        }}
-                      />
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sortedFilms.map((film) => (
-                  <tr key={film.id} className={`hover:bg-gray-100 ${getRowBackgroundColor(film)}`}>
-                    <td 
-                      className="px-3 py-2 border-r border-gray-100"
-                      style={{ 
-                        minWidth: `${columnWidths['title'] || 200}px`,
-                        width: `${columnWidths['title'] || 200}px`
-                      }}
-                    >
-                      {showFilmCardsMode ? (
-                        <button
-                          onClick={() => handleFilmClick(film)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline text-left font-medium"
-                        >
-                          {film.title}
-                        </button>
-                      ) : (
-                        <span className="text-gray-900 font-medium">{film.title}</span>
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
+            <table className="min-w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                {[
+                  { key: 'title', label: 'Film Title', width: 180, sortable: true },
+                  { key: 'contacts', label: 'Contacts', width: 160, sortable: false },
+                  { key: 'all_emails', label: 'All Emails', width: 200, sortable: false },
+                  { key: 'access_type', label: 'Access Type', width: 120, sortable: false },
+                  { key: 'link', label: 'Link', width: 180, sortable: false },
+                  { key: 'password', label: 'Password', width: 100, sortable: false },
+                  { key: 'instructions_sent', label: 'Instructions Sent', width: 110, sortable: false },
+                  { key: 'uploaded', label: 'Uploaded', width: 90, sortable: false }
+                ].map((column) => (
+                  <th
+                    key={column.key}
+                    className={`relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 ${
+                      column.sortable ? 'cursor-pointer hover:bg-gray-100' : 'cursor-default'
+                    }`}
+                    style={{ 
+                      minWidth: `${columnWidths[column.key] || column.width}px`,
+                      width: `${columnWidths[column.key] || column.width}px`
+                    }}
+                    onClick={() => column.sortable && handleSort(column.key)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>{column.label}</span>
+                      {column.sortable && (
+                        <span className="text-gray-400 ml-1">
+                          {getSortIcon(column.key)}
+                        </span>
                       )}
-                    </td>
-                    <td 
-                      className="px-3 py-2 text-sm border-r border-gray-100"
-                      style={{ 
-                        minWidth: `${columnWidths['contacts'] || 250}px`,
-                        width: `${columnWidths['contacts'] || 250}px`
+                    </div>
+                    
+                    {/* Resize Handle */}
+                    <div
+                      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 opacity-0 hover:opacity-100"
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        const startX = e.clientX
+                        const startWidth = columnWidths[column.key] || column.width
+                        
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const newWidth = Math.max(50, startWidth + (e.clientX - startX))
+                          setColumnWidths(prev => ({ ...prev, [column.key]: newWidth }))
+                        }
+                        
+                        const handleMouseUp = () => {
+                          document.removeEventListener('mousemove', handleMouseMove)
+                          document.removeEventListener('mouseup', handleMouseUp)
+                        }
+                        
+                        document.addEventListener('mousemove', handleMouseMove)
+                        document.addEventListener('mouseup', handleMouseUp)
                       }}
-                    >
-                      {renderContactsCell(film.contacts)}
-                    </td>
-                    <td 
-                      className="px-3 py-2 text-sm border-r border-gray-100"
-                      style={{ 
-                        minWidth: `${columnWidths['all_emails'] || 300}px`,
-                        width: `${columnWidths['all_emails'] || 300}px`
-                      }}
-                    >
-                      {renderAllEmailsCell(film.contacts)}
-                    </td>
-                    <td 
-                      className="px-3 py-2 border-r border-gray-100"
-                      style={{ 
-                        minWidth: `${columnWidths['access_type'] || 150}px`,
-                        width: `${columnWidths['access_type'] || 150}px`
-                      }}
-                    >
-                      {renderAccessTypeCell(film)}
-                    </td>
-                    {renderLinkColumns(film)}
-                    {viewMode === 'features' && renderCineSendColumns(film as FilmWithScreenerData)}
-                  </tr>
+                    />
+                  </th>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        ) : (
-          /* Shorts Programs View */
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
-              <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  {[
-                    { key: 'title', label: 'Shorts Program', width: 180, sortable: false },
-                    { key: 'contacts', label: 'Contacts', width: 160, sortable: false },
-                    { key: 'all_emails', label: 'All Emails', width: 200, sortable: false },
-                    { key: 'access_type', label: 'Access Type', width: 120, sortable: false },
-                    { key: 'link', label: 'Link', width: 180, sortable: false },
-                    { key: 'password', label: 'Password', width: 100, sortable: false }
-                  ].map((column) => (
-                    <th
-                      key={column.key}
-                      className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50"
-                      style={{ 
-                        minWidth: `${columnWidths[column.key] || column.width}px`,
-                        width: `${columnWidths[column.key] || column.width}px`
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>{column.label}</span>
-                      </div>
-                      
-                      {/* Resize Handle */}
-                      <div
-                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 opacity-0 hover:opacity-100"
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                          const startX = e.clientX
-                          const startWidth = columnWidths[column.key] || column.width
-                          
-                          const handleMouseMove = (e: MouseEvent) => {
-                            const newWidth = Math.max(50, startWidth + (e.clientX - startX))
-                            setColumnWidths(prev => ({ ...prev, [column.key]: newWidth }))
-                          }
-                          
-                          const handleMouseUp = () => {
-                            document.removeEventListener('mousemove', handleMouseMove)
-                            document.removeEventListener('mouseup', handleMouseUp)
-                          }
-                          
-                          document.addEventListener('mousemove', handleMouseMove)
-                          document.addEventListener('mouseup', handleMouseUp)
-                        }}
-                      />
-                    </th>
-                  ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {sortedFilms.map((film) => (
+                <tr key={film.id} className={`hover:bg-gray-100 ${getRowBackgroundColor(film)}`}>
+                  <td 
+                    className="px-3 py-2 border-r border-gray-100"
+                    style={{ 
+                      minWidth: `${columnWidths['title'] || 200}px`,
+                      width: `${columnWidths['title'] || 200}px`
+                    }}
+                  >
+                    {showFilmCardsMode ? (
+                      <button
+                        onClick={() => handleFilmClick(film)}
+                        className="text-blue-600 hover:text-blue-800 hover:underline text-left font-medium"
+                      >
+                        {film.title}
+                      </button>
+                    ) : (
+                      <span className="text-gray-900 font-medium">{film.title}</span>
+                    )}
+                  </td>
+                  <td 
+                    className="px-3 py-2 text-sm border-r border-gray-100"
+                    style={{ 
+                      minWidth: `${columnWidths['contacts'] || 250}px`,
+                      width: `${columnWidths['contacts'] || 250}px`
+                    }}
+                  >
+                    {renderContactsCell(film.contacts)}
+                  </td>
+                  <td 
+                    className="px-3 py-2 text-sm border-r border-gray-100"
+                    style={{ 
+                      minWidth: `${columnWidths['all_emails'] || 300}px`,
+                      width: `${columnWidths['all_emails'] || 300}px`
+                    }}
+                  >
+                    {renderAllEmailsCell(film.contacts)}
+                  </td>
+                  <td 
+                    className="px-3 py-2 border-r border-gray-100"
+                    style={{ 
+                      minWidth: `${columnWidths['access_type'] || 150}px`,
+                      width: `${columnWidths['access_type'] || 150}px`
+                    }}
+                  >
+                    {renderAccessTypeCell(film)}
+                  </td>
+                  {renderLinkColumns(film)}
+                  {renderCineSendColumns(film)}
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {(sortedFilms as ShortsProgramWithScreenerData[]).map((program) => (
-                  <tr key={program.id} className={`hover:bg-gray-100 ${getRowBackgroundColor(program)}`}>
-                    <td 
-                      className="px-3 py-2 border-r border-gray-100"
-                      style={{ 
-                        minWidth: `${columnWidths['title'] || 200}px`,
-                        width: `${columnWidths['title'] || 200}px`
-                      }}
-                    >
-                      {showFilmCardsMode ? (
-                        <button
-                          onClick={() => handleFilmClick(program)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline text-left font-medium"
-                        >
-                          {program.program_name}
-                        </button>
-                      ) : (
-                        <span className="text-gray-900 font-medium">{program.program_name}</span>
-                      )}
-                    </td>
-                    <td 
-                      className="px-3 py-2 text-sm border-r border-gray-100"
-                      style={{ 
-                        minWidth: `${columnWidths['contacts'] || 250}px`,
-                        width: `${columnWidths['contacts'] || 250}px`
-                      }}
-                    >
-                      {renderContactsCell(program.contacts)}
-                    </td>
-                    <td 
-                      className="px-3 py-2 text-sm border-r border-gray-100"
-                      style={{ 
-                        minWidth: `${columnWidths['all_emails'] || 300}px`,
-                        width: `${columnWidths['all_emails'] || 300}px`
-                      }}
-                    >
-                      {renderAllEmailsCell(program.contacts)}
-                    </td>
-                    <td 
-                      className="px-3 py-2 border-r border-gray-100"
-                      style={{ 
-                        minWidth: `${columnWidths['access_type'] || 150}px`,
-                        width: `${columnWidths['access_type'] || 150}px`
-                      }}
-                    >
-                      {renderAccessTypeCell(program)}
-                    </td>
-                    {renderLinkColumns(program)}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
-        )}
-
-        {sortedFilms.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-lg mb-4">🎬</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No {viewMode} found</h3>
-            <p className="text-gray-500">
-              {searchTerm || accessTypeFilter !== 'all' ? 'Try adjusting your filters' : `No ${viewMode} available`}
-            </p>
-          </div>
-        )}
       </div>
 
+      {sortedFilms.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <div className="text-gray-400 text-lg mb-4">🎬</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No films found</h3>
+          <p className="text-gray-500">
+            {searchTerm || accessTypeFilter !== 'all' ? 'Try adjusting your filters' : 'No films available'}
+          </p>
+        </div>
+      )}
       {/* Film Card Popup */}
       {showFilmCard && selectedFilm && (
         <FilmCardPopup
