@@ -104,7 +104,7 @@ function ScreeningBoard({
 
   // Find Screening search effect
   useEffect(() => {
-    if (!debouncedScreeningSearchTerm) {
+    if (!screeningSearchTerm) {
       setSearchResults([])
       setCurrentSearchIndex(0)
       return
@@ -118,9 +118,9 @@ function ScreeningBoard({
     ]
 
     const results = allScreenings.filter(screening => 
-      screening.film_title.toLowerCase().includes(debouncedScreeningSearchTerm.toLowerCase()) ||
-      screening.venue_short_code.toLowerCase().includes(debouncedScreeningSearchTerm.toLowerCase()) ||
-      screening.notes?.toLowerCase().includes(debouncedScreeningSearchTerm.toLowerCase())
+      screening.film_title.toLowerCase().includes(screeningSearchTerm.toLowerCase()) ||
+      screening.venue_short_code.toLowerCase().includes(screeningSearchTerm.toLowerCase()) ||
+      screening.notes?.toLowerCase().includes(screeningSearchTerm.toLowerCase())
     )
 
     setSearchResults(results)
@@ -130,7 +130,7 @@ function ScreeningBoard({
     if (results.length > 0) {
       setCurrentDate(results[0].screening_date)
     }
-  }, [debouncedScreeningSearchTerm, publishedScreenings, piJuryScreenings, techCheckScreenings, setSearchResults, setCurrentSearchIndex, setCurrentDate])
+  }, [screeningSearchTerm, publishedScreenings, piJuryScreenings, techCheckScreenings, setSearchResults, setCurrentSearchIndex, setCurrentDate])
 
   // Navigate through search results
   useEffect(() => {
@@ -962,7 +962,6 @@ export default function TicketingPage() {
   const [currentBoardDate, setCurrentBoardDate] = useState('')
   const [festivalSettings, setFestivalSettings] = useState<any>(null)
   const [screeningSearchTerm, setScreeningSearchTerm] = useState('')
-  const [debouncedScreeningSearchTerm, setDebouncedScreeningSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0)
   
