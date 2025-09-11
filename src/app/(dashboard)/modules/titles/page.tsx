@@ -1132,7 +1132,9 @@ export default function TitlesPage() {
         filmData.director = cleanText(row[indices.director])
       }
       if (indices.countries !== -1 && row[indices.countries]?.trim()) {
-        filmData.countries = cleanText(row[indices.countries])
+        // Convert pipe-separated countries to comma-separated for consistency
+        const countries = cleanText(row[indices.countries])
+        filmData.countries = countries.replace(/\s*\|\s*/g, ', ')
       }
       if (indices.program_1 !== -1 && row[indices.program_1]?.trim()) {
         filmData.program_1 = cleanText(row[indices.program_1])
@@ -1354,8 +1356,12 @@ export default function TitlesPage() {
         }
         
         if (dbField && row[index]) {
-          const value = row[index].trim()
+          let value = row[index].trim()
           if (value) {
+            // Convert pipe-separated countries to comma-separated for consistency
+            if (dbField === 'countries') {
+              value = value.replace(/\s*\|\s*/g, ', ')
+            }
             rowData[dbField] = value
           }
         }
@@ -1558,7 +1564,7 @@ export default function TitlesPage() {
         language: row[indices.language]?.trim() || null,
         subtitles: row[indices.subtitles]?.trim() || null,
         director: row[indices.director]?.trim() || null,
-        countries: row[indices.countries]?.trim() || null,
+        countries: row[indices.countries]?.trim().replace(/\s*\|\s*/g, ', ') || null,
         program_1: row[indices.program_1]?.trim() || null,
         program_2: row[indices.program_2]?.trim() || null,
         genre_1: row[indices.genre_1]?.trim() || null,
