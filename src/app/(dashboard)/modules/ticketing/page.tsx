@@ -905,14 +905,17 @@ export default function TicketingPage() {
   // Load global view mode on component mount
   useEffect(() => {
     const loadViewMode = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('ticketing_settings')
         .select('view_mode')
         .eq('id', 1)
         .single()
       
+      console.log('Loading view mode - data:', data, 'error:', error)
+      
       if (data?.view_mode) {
         setViewMode(data.view_mode)
+        console.log('Set view mode to:', data.view_mode)
       }
     }
     
@@ -924,10 +927,12 @@ export default function TicketingPage() {
     setViewMode(newViewMode)
     
     if (canEditTicketing) {
-      await supabase
+      const { error } = await supabase
         .from('ticketing_settings')
         .update({ view_mode: newViewMode })
         .eq('id', 1)
+      
+      console.log('Updating view mode to:', newViewMode, 'error:', error)
     }
   }
   
