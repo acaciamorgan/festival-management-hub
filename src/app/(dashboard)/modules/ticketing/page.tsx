@@ -1445,9 +1445,16 @@ export default function TicketingPage() {
 
           // Step 2: Create record in published_screenings with reference
           const publishedData = {
-            ...ticketingData,
+            film_title: title,
+            screening_date: formattedDate,
+            day_of_week: day || getStringDayOfWeek(formattedDate),
+            start_time: formattedTime,
+            run_time: runningTime ? parseInt(runningTime) : null,
+            venue_short_code: location || '',
+            capacity: capacity ? parseInt(capacity) : null,
+            notes: notes,
             ticketing_screening_id: ticketingResult.id,
-            film_card_id: null, // Set to null if no film card mapping
+            film_card_id: null,
             published_by: 'CSV Import'
           }
 
