@@ -1343,6 +1343,133 @@ export default function TicketingPage() {
     setShowVenueSuggestions(false)
   }
 
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      const text = await file.text()
+      const rows = text.split('\n').map(row => row.split(','))
+      const headers = rows[0]
+      
+      if (!headers.includes('Title') || !headers.includes('Date') || !headers.includes('Start Time')) {
+        alert('CSV must contain Title, Date, and Start Time columns')
+        return
+      }
+
+      let successCount = 0
+      let errorCount = 0
+      const errors: string[] = []
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i]
+        if (!row[0] || row[0].trim() === '') continue // Skip empty rows
+
+        try {
+          // Map CSV columns to screening data
+          let title = row[headers.indexOf('Title')]?.trim()
+          const day = row[headers.indexOf('Day')]?.trim()
+          const dateStr = row[headers.indexOf('Date')]?.trim()
+          let location = row[headers.indexOf('Location')]?.trim()
+          const startTimeStr = row[headers.indexOf('Start Time')]?.trim()
+          const runningTime = row[headers.indexOf('Running Time')]?.trim()
+          const capacity = row[headers.indexOf('Capacity')]?.trim()
+          const notes = row[headers.indexOf('Notes')]?.trim() || ''
+
+          if (!title || !dateStr || !startTimeStr) {
+            errors.push(`Row ${i + 1}: Missing required fields`)
+            errorCount++
+            continue
+          }
+
+          // Fix shorts program titles: "Shorts 5: Comedy" -> "Shorts Program 5: Comedy"
+          if (title.toLowerCase().startsWith('shorts ') && !title.toLowerCase().includes('program')) {
+            title = title.replace(/^shorts\s+(\d+)/i, 'Shorts Program $1')
+          }
+
+          // Remove # from location/venue codes: "AMC #13" -> "AMC 13"
+          if (location) {
+            location = location.replace('#', '')
+          }
+
+          // Convert date from "10/15" to "2025-10-15" format (using 2025 for the festival year)
+          const [month, day_num] = dateStr.split('/')
+          const year = 2025 // Festival year
+          const formattedDate = `${year}-${month.padStart(2, '0')}-${day_num.padStart(2, '0')}`
+
+          // Convert time from "6:30 PM" to "18:30" format
+          const timeMatch = startTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+          if (!timeMatch) {
+            errors.push(`Row ${i + 1}: Invalid time format: ${startTimeStr}`)
+            errorCount++
+            continue
+          }
+          
+          let hours = parseInt(timeMatch[1])
+          const minutes = timeMatch[2]
+          const ampm = timeMatch[3].toUpperCase()
+          
+          if (ampm === 'PM' && hours !== 12) hours += 12
+          if (ampm === 'AM' && hours === 12) hours = 0
+          
+          const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes}`
+
+          // Create screening record
+          const screeningData = {
+            film_title: title,
+            screening_date: formattedDate,
+            day_of_week: day || getStringDayOfWeek(formattedDate),
+            start_time: formattedTime,
+            run_time: runningTime ? parseInt(runningTime) : null,
+            venue_short_code: location || '',
+            capacity: capacity ? parseInt(capacity) : null,
+            notes: notes
+          }
+
+          // Insert into database
+          const { error } = await supabase
+            .from('published_screenings')
+            .insert(screeningData)
+
+          if (error) {
+            errors.push(`Row ${i + 1} (${title}): ${error.message}`)
+            errorCount++
+          } else {
+            successCount++
+          }
+
+        } catch (rowError: any) {
+          errors.push(`Row ${i + 1}: ${rowError.message || rowError}`)
+          errorCount++
+        }
+      }
+
+      // Show results
+      let message = `Upload completed: ${successCount} screenings added successfully`
+      if (errorCount > 0) {
+        message += `, ${errorCount} errors occurred`
+        if (errors.length > 0) {
+          message += `:\n${errors.slice(0, 5).join('\n')}`
+          if (errors.length > 5) {
+            message += `\n... and ${errors.length - 5} more errors`
+          }
+        }
+      }
+      
+      alert(message)
+      
+      // Refresh data
+      loadData()
+      
+      // Reset file input
+      event.target.value = ''
+
+    } catch (error: any) {
+      console.error('CSV upload error:', error)
+      alert('Error reading CSV file: ' + (error.message || error))
+    }
+  }
+
   const handleAddScreening = () => {
     resetForm()
     setShowAddModal(true)
@@ -1786,6 +1913,28 @@ export default function TicketingPage() {
               </button>
             )}
             
+            {/* CSV Upload */}
+            {canEditTicketing && viewMode === 'ticketing' && (
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVUpload}
+                  className="hidden"
+                  id="csv-upload"
+                />
+                <label
+                  htmlFor="csv-upload"
+                  className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 font-medium cursor-pointer flex items-center space-x-2"
+                >
+                  <span>Upload CSV</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                </label>
+              </div>
+            )}
+
             {/* Export Dropdown */}
             {canEditTicketing && (
               <div className="relative export-dropdown">
