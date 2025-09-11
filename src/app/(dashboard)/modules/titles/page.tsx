@@ -448,15 +448,6 @@ export default function TitlesPage() {
       if (error) {
         console.error('Error loading title cards:', error)
       } else {
-        // Debug: Check for Mistress Dispeller specifically
-        const mistressFilm = (data || []).find(film => film.title === 'Mistress Dispeller')
-        if (mistressFilm) {
-          console.log('DEBUG: Mistress Dispeller found in database:', mistressFilm)
-        } else {
-          console.log('DEBUG: Mistress Dispeller NOT found in database')
-          console.log('DEBUG: Total films in database:', (data || []).length)
-          console.log('DEBUG: Films starting with M:', (data || []).filter(f => f.title?.startsWith('M')).map(f => f.title))
-        }
         // Combine program and genre fields for display
         const filmsWithCombined = (data || []).map(film => ({
           ...film,
@@ -1120,13 +1111,7 @@ export default function TitlesPage() {
         continue
       }
       
-      // Debug specific film
       const titleValue = row[indices.title]?.trim()
-      if (titleValue === 'Mistress Dispeller') {
-        console.log(`DEBUG: Found Mistress Dispeller at row ${i + 1}`)
-        console.log('Raw row data:', row)
-        console.log('Title value:', titleValue)
-      }
       
       const filmData: any = {}
       
@@ -1236,12 +1221,6 @@ export default function TitlesPage() {
       // Only add if we have at least a title
       if (filmData.title) {
         filmsToInsert.push(filmData)
-        // Debug specific film
-        if (filmData.title === 'Mistress Dispeller') {
-          console.log('DEBUG: Mistress Dispeller added to filmsToInsert:', filmData)
-        }
-      } else if (titleValue === 'Mistress Dispeller') {
-        console.log('DEBUG: Mistress Dispeller EXCLUDED - no title in filmData')
       }
     }
     
@@ -1270,10 +1249,6 @@ export default function TitlesPage() {
     for (const filmData of filmsToInsert) {
       if (!filmData.title) continue
       
-      // Debug specific film
-      if (filmData.title === 'Mistress Dispeller') {
-        console.log('DEBUG: Processing Mistress Dispeller for database insert')
-      }
       
       // Check if Card with this exact title already exists
       const existingCard = (existingCards || []).find(card => card.title === filmData.title)
@@ -1287,14 +1262,8 @@ export default function TitlesPage() {
         
         if (error) {
           console.error(`Error updating card "${filmData.title}":`, error)
-          if (filmData.title === 'Mistress Dispeller') {
-            console.log('DEBUG: Mistress Dispeller update error details:', error)
-          }
         } else {
           updated++
-          if (filmData.title === 'Mistress Dispeller') {
-            console.log('DEBUG: Mistress Dispeller updated successfully')
-          }
         }
       } else {
         // CREATE new Card
@@ -1304,14 +1273,8 @@ export default function TitlesPage() {
         
         if (error) {
           console.error(`Error creating card "${filmData.title}":`, error)
-          if (filmData.title === 'Mistress Dispeller') {
-            console.log('DEBUG: Mistress Dispeller insert error details:', error)
-          }
         } else {
           created++
-          if (filmData.title === 'Mistress Dispeller') {
-            console.log('DEBUG: Mistress Dispeller created successfully')
-          }
         }
       }
     }
