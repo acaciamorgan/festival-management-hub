@@ -698,6 +698,10 @@ export default function TitlesPage() {
   // Get unique values for filters
   const uniquePrograms = useMemo(() => {
     const programs = new Set<string>()
+    
+    // Add predefined program options
+    programs.add('Shorts')
+    
     if (viewMode === 'features') {
       films.forEach(film => {
         [film.program_1, film.program_2, film.program_3, film.program_4]
