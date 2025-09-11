@@ -3521,7 +3521,8 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
           return
         }
 
-        // First, remove all shorts from this program in the junction table
+        // When editing, we only update this program's assignments
+        // First, remove existing assignments for this program only
         await supabase
           .from('short_film_programs')
           .delete()
@@ -3746,7 +3747,7 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
                       </div>
                     </div>
                   )
-                })}}
+                })}
                 {filteredAvailableShorts.length === 0 && (
                   <div className="p-4 text-center text-gray-500">
                     {searchTerm ? 'No shorts match your search' : 'No unassigned shorts available'}
