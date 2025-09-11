@@ -888,6 +888,7 @@ type ViewMode = 'ticketing' | 'pi-jury' | 'tech-checks' | 'screening-board'
 export default function TicketingPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
+  const canEditTicketing = permissions?.modulePermissions?.['ticketing']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   const [viewMode, setViewMode] = useState<ViewMode>('ticketing')
   
   // Load global view mode on component mount
@@ -925,8 +926,6 @@ export default function TicketingPage() {
       }
     }
   }
-
-  const canEditTicketing = permissions?.modulePermissions?.['ticketing']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   
   // Data states
   const [publishedScreenings, setPublishedScreenings] = useState<PublishedScreening[]>([])
