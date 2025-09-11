@@ -93,9 +93,18 @@ function ScreeningBoard({
 }) {
   const supabase = createClient()
   
+  // Debounce screening search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedScreeningSearchTerm(screeningSearchTerm)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [screeningSearchTerm])
+
   // Find Screening search effect
   useEffect(() => {
-    if (!screeningSearchTerm) {
+    if (!debouncedScreeningSearchTerm) {
       setSearchResults([])
       setCurrentSearchIndex(0)
       return
@@ -109,9 +118,9 @@ function ScreeningBoard({
     ]
 
     const results = allScreenings.filter(screening => 
-      screening.film_title.toLowerCase().includes(screeningSearchTerm.toLowerCase()) ||
-      screening.venue_short_code.toLowerCase().includes(screeningSearchTerm.toLowerCase()) ||
-      screening.notes?.toLowerCase().includes(screeningSearchTerm.toLowerCase())
+      screening.film_title.toLowerCase().includes(debouncedScreeningSearchTerm.toLowerCase()) ||
+      screening.venue_short_code.toLowerCase().includes(debouncedScreeningSearchTerm.toLowerCase()) ||
+      screening.notes?.toLowerCase().includes(debouncedScreeningSearchTerm.toLowerCase())
     )
 
     setSearchResults(results)
@@ -121,7 +130,7 @@ function ScreeningBoard({
     if (results.length > 0) {
       setCurrentDate(results[0].screening_date)
     }
-  }, [screeningSearchTerm, publishedScreenings, piJuryScreenings, techCheckScreenings, setSearchResults, setCurrentSearchIndex, setCurrentDate])
+  }, [debouncedScreeningSearchTerm, publishedScreenings, piJuryScreenings, techCheckScreenings, setSearchResults, setCurrentSearchIndex, setCurrentDate])
 
   // Navigate through search results
   useEffect(() => {
@@ -896,8 +905,10 @@ export default function TicketingPage() {
   // Load global view mode on component mount
   useEffect(() => {
     const savedViewMode = localStorage.getItem('ticketing-view-mode')
+    console.log('Loading saved view mode:', savedViewMode)
     if (savedViewMode && ['ticketing', 'pi-jury', 'tech-checks', 'screening-board'].includes(savedViewMode)) {
       setViewMode(savedViewMode as ViewMode)
+      console.log('Set view mode to:', savedViewMode)
     }
   }, [])
   
@@ -907,6 +918,9 @@ export default function TicketingPage() {
     
     if (canEditTicketing) {
       localStorage.setItem('ticketing-view-mode', newViewMode)
+      console.log('Saved view mode to localStorage:', newViewMode)
+    } else {
+      console.log('Cannot save view mode - no edit permissions')
     }
   }
   
@@ -964,6 +978,7 @@ export default function TicketingPage() {
   const [currentBoardDate, setCurrentBoardDate] = useState('')
   const [festivalSettings, setFestivalSettings] = useState<any>(null)
   const [screeningSearchTerm, setScreeningSearchTerm] = useState('')
+  const [debouncedScreeningSearchTerm, setDebouncedScreeningSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0)
   
