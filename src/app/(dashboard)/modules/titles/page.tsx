@@ -3665,6 +3665,12 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
   const filteredAvailableShorts = availableShorts.filter(
     createAccentInsensitiveFilter(searchTerm, (short) => [short.title, short.director])
   )
+  
+  // Debug: log the shorts
+  console.log('Available shorts:', availableShorts.length)
+  console.log('Search term:', searchTerm)
+  console.log('Filtered shorts:', filteredAvailableShorts.length)
+  console.log('Hoops short:', availableShorts.find(s => s.title?.toLowerCase().includes('hoops')))
 
   return (
     <div 
