@@ -105,6 +105,8 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
   const [availableContacts, setAvailableContacts] = useState<Contact[]>([])
   const [contactSuggestions, setContactSuggestions] = useState<{ [key: number]: Contact[] }>({})
   const [showSuggestions, setShowSuggestions] = useState<{ [key: number]: boolean }>({})
+  const [availableShortsPrograms, setAvailableShortsPrograms] = useState<any[]>([])
+  const [selectedShortsPrograms, setSelectedShortsPrograms] = useState<{ [key: string]: { selected: boolean, order: number } }>({})
   
   const supabase = createClient()
 
@@ -113,6 +115,10 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
       setFormData({ ...film })
       loadFilmContacts()
       loadAvailableContacts()
+      if (filmType === 'short') {
+        loadShortsPrograms()
+        loadFilmProgramAssignments()
+      }
     }
   }, [film, isOpen])
 
@@ -134,6 +140,45 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
       }
     } catch (error) {
       console.error('Error loading film contacts:', error)
+    }
+  }
+
+  const loadShortsPrograms = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shorts_programs')
+        .select('id, program_name, program_number')
+        .order('program_number')
+      
+      if (!error && data) {
+        setAvailableShortsPrograms(data)
+      }
+    } catch (error) {
+      console.error('Error loading shorts programs:', error)
+    }
+  }
+
+  const loadFilmProgramAssignments = async () => {
+    if (!film) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('short_film_programs')
+        .select('shorts_program_id, program_order')
+        .eq('short_film_id', film.id)
+      
+      if (!error && data) {
+        const assignments: { [key: string]: { selected: boolean, order: number } } = {}
+        data.forEach(item => {
+          assignments[item.shorts_program_id] = {
+            selected: true,
+            order: item.program_order || 0
+          }
+        })
+        setSelectedShortsPrograms(assignments)
+      }
+    } catch (error) {
+      console.error('Error loading film program assignments:', error)
     }
   }
 
@@ -207,10 +252,10 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
         updateData.premiere_status = (formData as FeatureFilm).premiere_status
         updateData.program_4 = (formData as FeatureFilm).program_4
         updateData.genre_4 = (formData as FeatureFilm).genre_4
-      } else if (filmType === 'short') {
-        updateData.shorts_program_id = (formData as ShortFilm).shorts_program_id
-        updateData.program_order = (formData as ShortFilm).program_order
       }
+      
+      // Note: We're keeping shorts_program_id for backward compatibility temporarily
+      // The new junction table will be the source of truth
       
       const { error } = await supabase
         .from(tableName)
@@ -222,6 +267,34 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
         console.error('Update data:', updateData)
         alert(`Error updating film: ${error.message}`)
       } else {
+        // If this is a short film, update the program assignments in junction table
+        if (filmType === 'short') {
+          // Delete existing assignments
+          await supabase
+            .from('short_film_programs')
+            .delete()
+            .eq('short_film_id', film.id)
+          
+          // Insert new assignments
+          const newAssignments = Object.entries(selectedShortsPrograms)
+            .filter(([_, value]) => value.selected)
+            .map(([programId, value]) => ({
+              short_film_id: film.id,
+              shorts_program_id: programId,
+              program_order: value.order || 0
+            }))
+          
+          if (newAssignments.length > 0) {
+            const { error: assignError } = await supabase
+              .from('short_film_programs')
+              .insert(newAssignments)
+            
+            if (assignError) {
+              console.error('Error updating program assignments:', assignError)
+            }
+          }
+        }
+        
         console.log('Film updated successfully')
         onSave()
       }
@@ -683,6 +756,60 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
               )}
             </div>
           </div>
+
+          {/* Shorts Programs - Only for short films */}
+          {filmType === 'short' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900">Shorts Programs</h3>
+              <p className="text-sm text-gray-600">Select which Shorts Programs this film belongs to</p>
+              <div className="space-y-3 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
+                {availableShortsPrograms.length === 0 ? (
+                  <p className="text-sm text-gray-500">No shorts programs available. Create one first.</p>
+                ) : (
+                  availableShortsPrograms.map(program => (
+                    <div key={program.id} className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id={`program-${program.id}`}
+                        checked={selectedShortsPrograms[program.id]?.selected || false}
+                        onChange={(e) => {
+                          setSelectedShortsPrograms(prev => ({
+                            ...prev,
+                            [program.id]: {
+                              selected: e.target.checked,
+                              order: prev[program.id]?.order || 0
+                            }
+                          }))
+                        }}
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label htmlFor={`program-${program.id}`} className="flex-1 text-sm text-gray-700">
+                        {program.program_name}
+                      </label>
+                      {selectedShortsPrograms[program.id]?.selected && (
+                        <input
+                          type="number"
+                          placeholder="Order"
+                          value={selectedShortsPrograms[program.id]?.order || 0}
+                          onChange={(e) => {
+                            const order = parseInt(e.target.value) || 0
+                            setSelectedShortsPrograms(prev => ({
+                              ...prev,
+                              [program.id]: {
+                                ...prev[program.id],
+                                order
+                              }
+                            }))
+                          }}
+                          className="w-20 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Crew Information */}
           <div className="space-y-4">

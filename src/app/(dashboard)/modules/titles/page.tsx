@@ -479,32 +479,57 @@ export default function TitlesPage() {
   const loadShorts = useCallback(async () => {
     setLoading(true)
     try {
-      // Query with shorts program relationship
-      const { data, error } = await supabase
+      // First get all short films
+      const { data: shortsData, error: shortsError } = await supabase
         .from('short_films')
+        .select('*')
+      
+      if (shortsError) {
+        console.error('Error loading shorts:', shortsError)
+        setShorts([])
+        setFilteredShorts([])
+        return
+      }
+      
+      // Then get all program assignments from junction table
+      const { data: assignmentsData, error: assignmentsError } = await supabase
+        .from('short_film_programs')
         .select(`
-          *,
+          short_film_id,
+          program_order,
           shorts_programs(id, program_name, program_number)
         `)
         .order('shorts_program_id, program_order')
       
-      if (error) {
-        console.error('Error loading shorts:', error)
-        setShorts([])
-        setFilteredShorts([])
-      } else {
-        const processedShorts = (data || []).map(short => ({
+      if (assignmentsError) {
+        console.error('Error loading program assignments:', assignmentsError)
+      }
+      
+      // Process shorts with their program assignments
+      const processedShorts = (shortsData || []).map(short => {
+        // Find all program assignments for this short
+        const programAssignments = assignmentsData?.filter(a => a.short_film_id === short.id) || []
+        
+        // For backward compatibility, use first program assignment as primary
+        const primaryAssignment = programAssignments[0]
+        
+        return {
           ...short,
           programs: [short.program_1, short.program_2, short.program_3]
             .filter(Boolean).join(', '),
           genres: [short.genre_1, short.genre_2, short.genre_3]
             .filter(Boolean).join(', '),
-          shorts_program: short.shorts_programs
-        }))
-        
-        setShorts(processedShorts)
-        setFilteredShorts(processedShorts)
-      }
+          // Keep backward compatibility with single program
+          shorts_program: primaryAssignment?.shorts_programs || null,
+          shorts_program_id: primaryAssignment?.shorts_programs?.id || short.shorts_program_id,
+          program_order: primaryAssignment?.program_order || short.program_order,
+          // New: all program assignments
+          all_programs: programAssignments.map(a => a.shorts_programs)
+        }
+      })
+      
+      setShorts(processedShorts)
+      setFilteredShorts(processedShorts)
     } catch (error) {
       console.error('Error loading shorts:', error)
       setShorts([])
@@ -2266,13 +2291,25 @@ export default function TitlesPage() {
           /* Shorts Grouped View */
           <div className="overflow-auto max-h-[calc(100vh-350px)] space-y-6">
             {(() => {
-              // Group shorts by Shorts Program
+              // Group shorts by Shorts Program - now supporting multiple programs per short
               const groupedShorts = filteredShorts.reduce((groups, short) => {
-                const programName = short.shorts_program?.program_name || 'Unassigned Shorts'
-                if (!groups[programName]) {
-                  groups[programName] = []
+                // If the short has multiple programs, add it to each
+                if (short.all_programs && short.all_programs.length > 0) {
+                  short.all_programs.forEach(program => {
+                    const programName = program?.program_name || 'Unassigned Shorts'
+                    if (!groups[programName]) {
+                      groups[programName] = []
+                    }
+                    groups[programName].push(short)
+                  })
+                } else {
+                  // Fallback to old single program for backward compatibility
+                  const programName = short.shorts_program?.program_name || 'Unassigned Shorts'
+                  if (!groups[programName]) {
+                    groups[programName] = []
+                  }
+                  groups[programName].push(short)
                 }
-                groups[programName].push(short)
                 return groups
               }, {} as Record<string, ShortFilm[]>)
 
@@ -2414,9 +2451,16 @@ export default function TitlesPage() {
                               style={{ minWidth: `${columnWidths['title'] || 200}px` }}
                               onClick={() => setSelectedFilm(short)}
                             >
-                              <span className="text-blue-600 hover:text-blue-800 hover:underline">
-                                {short.title}
-                              </span>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-blue-600 hover:text-blue-800 hover:underline">
+                                  {short.title}
+                                </span>
+                                {short.all_programs && short.all_programs.length > 1 && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title={`In ${short.all_programs.length} programs`}>
+                                    {short.all_programs.length}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['source'] || 100}px` }}>{short.source}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['original_language_title'] || 180}px` }}>{short.original_language_title}</td>
@@ -3417,6 +3461,8 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
   const [programName, setProgramName] = useState('')
   const [selectedShorts, setSelectedShorts] = useState<ShortFilm[]>([])
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
@@ -3462,13 +3508,10 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
           return
         }
 
-        // First, remove all shorts from this program
+        // First, remove all shorts from this program in the junction table
         await supabase
-          .from('short_films')
-          .update({
-            shorts_program_id: null,
-            program_order: null
-          })
+          .from('short_film_programs')
+          .delete()
           .eq('shorts_program_id', editingProgram.id)
       } else {
         // Get the next program number
@@ -3501,16 +3544,23 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
         programId = newProgram.id
       }
 
-      // Assign selected shorts to this program
-      for (let i = 0; i < selectedShorts.length; i++) {
-        const short = selectedShorts[i]
-        await supabase
-          .from('short_films')
-          .update({
-            shorts_program_id: programId,
-            program_order: i + 1
-          })
-          .eq('id', short.id)
+      // Assign selected shorts to this program using junction table
+      if (selectedShorts.length > 0) {
+        const assignments = selectedShorts.map((short, index) => ({
+          short_film_id: short.id,
+          shorts_program_id: programId,
+          program_order: index + 1
+        }))
+        
+        const { error: assignError } = await supabase
+          .from('short_film_programs')
+          .insert(assignments)
+        
+        if (assignError) {
+          console.error('Error assigning shorts to program:', assignError)
+          alert(`Error assigning shorts: ${assignError.message}`)
+          return
+        }
       }
 
       onSave()
@@ -3518,6 +3568,38 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
       console.error('Error saving program:', error)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!editingProgram?.id) return
+    
+    setDeleting(true)
+    try {
+      // Delete all associations in junction table first
+      await supabase
+        .from('short_film_programs')
+        .delete()
+        .eq('shorts_program_id', editingProgram.id)
+      
+      // Then delete the program itself
+      const { error } = await supabase
+        .from('shorts_programs')
+        .delete()
+        .eq('id', editingProgram.id)
+      
+      if (error) {
+        console.error('Error deleting program:', error)
+        alert(`Error deleting program: ${error.message}`)
+      } else {
+        onSave() // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error deleting program:', error)
+      alert('Error deleting program')
+    } finally {
+      setDeleting(false)
+      setShowDeleteConfirm(false)
     }
   }
 
@@ -3683,22 +3765,65 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!programName.trim() || selectedShorts.length === 0 || saving}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? 'Creating...' : 'Create Program'}
-          </button>
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
+          {editingProgram && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={deleting}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50"
+            >
+              Delete Program
+            </button>
+          )}
+          <div className={`flex space-x-3 ${!editingProgram ? 'ml-auto' : ''}`}>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!programName.trim() || saving}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? (editingProgram ? 'Saving...' : 'Creating...') : (editingProgram ? 'Save Program' : 'Create Program')}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 pointer-events-auto shadow-xl">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Shorts Program</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Are you sure you want to delete "{programName}"? 
+              {selectedShorts.length > 0 && (
+                <span className="block mt-2 font-medium">
+                  The {selectedShorts.length} short{selectedShorts.length !== 1 ? 's' : ''} in this program will become unassigned.
+                </span>
+              )}
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
