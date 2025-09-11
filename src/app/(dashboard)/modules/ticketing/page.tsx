@@ -895,37 +895,18 @@ export default function TicketingPage() {
   
   // Load global view mode on component mount
   useEffect(() => {
-    const loadViewMode = async () => {
-      const { data, error } = await supabase
-        .from('ticketing_settings')
-        .select('view_mode')
-        .single()
-      
-      if (error) {
-        console.log('ticketing_settings table not found, using default view mode')
-        return
-      }
-      
-      if (data?.view_mode) {
-        setViewMode(data.view_mode)
-      }
+    const savedViewMode = localStorage.getItem('ticketing-view-mode')
+    if (savedViewMode && ['ticketing', 'pi-jury', 'tech-checks', 'screening-board'].includes(savedViewMode)) {
+      setViewMode(savedViewMode as ViewMode)
     }
-    
-    loadViewMode()
   }, [])
   
   // Update view mode globally
-  const updateViewMode = async (newViewMode: ViewMode) => {
+  const updateViewMode = (newViewMode: ViewMode) => {
     setViewMode(newViewMode)
     
     if (canEditTicketing) {
-      const { error } = await supabase
-        .from('ticketing_settings')
-        .upsert({ id: 1, view_mode: newViewMode })
-      
-      if (error) {
-        console.log('Could not save view mode to database, table may not exist yet')
-      }
+      localStorage.setItem('ticketing-view-mode', newViewMode)
     }
   }
   
@@ -2173,15 +2154,13 @@ export default function TicketingPage() {
       {/* Search - only show for table views */}
       {viewMode !== 'screening-board' && (
         <div className="bg-white px-6 py-4 border-b border-gray-200">
-          <div className="max-w-md">
-            <input
-              type="text"
-              placeholder="Search screenings..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="Search screenings..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-md px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
         </div>
       )}
 
