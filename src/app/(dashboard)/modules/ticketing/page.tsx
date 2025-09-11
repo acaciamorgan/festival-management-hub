@@ -223,23 +223,6 @@ function ScreeningBoard({
       <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <button
-              onClick={goToPreviousDay}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-md"
-            >
-              ← Previous Day
-            </button>
-            <div className="text-2xl font-semibold text-gray-900">
-              {formatCurrentDate()}
-            </div>
-            <button
-              onClick={goToNextDay}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-md"
-            >
-              Next Day →
-            </button>
-          </div>
-          <div className="flex items-center space-x-4">
             {/* Find Screening Search */}
             <div className="relative">
               <input
@@ -277,6 +260,23 @@ function ScreeningBoard({
                 </div>
               )}
             </div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={goToPreviousDay}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-md"
+            >
+              ← Previous Day
+            </button>
+            <div className="text-2xl font-semibold text-gray-900">
+              {formatCurrentDate()}
+            </div>
+            <button
+              onClick={goToNextDay}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-md"
+            >
+              Next Day →
+            </button>
             
             {canEditTicketing && (
               <button 
