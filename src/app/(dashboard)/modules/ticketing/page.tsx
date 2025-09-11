@@ -904,23 +904,30 @@ export default function TicketingPage() {
   
   // Load global view mode on component mount
   useEffect(() => {
-    const savedViewMode = localStorage.getItem('ticketing-view-mode')
-    console.log('Loading saved view mode:', savedViewMode)
-    if (savedViewMode && ['ticketing', 'pi-jury', 'tech-checks', 'screening-board'].includes(savedViewMode)) {
-      setViewMode(savedViewMode as ViewMode)
-      console.log('Set view mode to:', savedViewMode)
+    const loadViewMode = async () => {
+      const { data } = await supabase
+        .from('ticketing_settings')
+        .select('view_mode')
+        .eq('id', 1)
+        .single()
+      
+      if (data?.view_mode) {
+        setViewMode(data.view_mode)
+      }
     }
+    
+    loadViewMode()
   }, [])
   
   // Update view mode globally
-  const updateViewMode = (newViewMode: ViewMode) => {
+  const updateViewMode = async (newViewMode: ViewMode) => {
     setViewMode(newViewMode)
     
     if (canEditTicketing) {
-      localStorage.setItem('ticketing-view-mode', newViewMode)
-      console.log('Saved view mode to localStorage:', newViewMode)
-    } else {
-      console.log('Cannot save view mode - no edit permissions')
+      await supabase
+        .from('ticketing_settings')
+        .update({ view_mode: newViewMode })
+        .eq('id', 1)
     }
   }
   
