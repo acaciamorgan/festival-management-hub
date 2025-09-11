@@ -209,10 +209,10 @@ export default function ScreenerAccessPage() {
         console.error('Error loading films:', filmsError)
       }
 
-      // Load all shorts programs
+      // Load all shorts programs - using exact field names
       const { data: programsData, error: programsError } = await supabase
         .from('shorts_programs')
-        .select('*')
+        .select('id, program_name, program_number')
         .order('program_number')
       
       if (programsError) {
