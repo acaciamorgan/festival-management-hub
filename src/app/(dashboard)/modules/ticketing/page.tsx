@@ -1414,8 +1414,8 @@ export default function TicketingPage() {
           
           const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes}`
 
-          // Create screening record
-          const screeningData = {
+          // Step 1: Create record in ticketing_screenings first
+          const ticketingData = {
             film_title: title,
             screening_date: formattedDate,
             day_of_week: day || getStringDayOfWeek(formattedDate),
@@ -1423,13 +1423,33 @@ export default function TicketingPage() {
             run_time: runningTime ? parseInt(runningTime) : null,
             venue_short_code: location || '',
             capacity: capacity ? parseInt(capacity) : null,
-            notes: notes
+            notes: notes,
+            is_published: true
           }
 
-          // Insert into database
+          // Insert into ticketing_screenings first
+          const { data: ticketingResult, error: ticketingError } = await supabase
+            .from('ticketing_screenings')
+            .insert(ticketingData)
+            .select('id')
+            .single()
+
+          if (ticketingError) {
+            errors.push(`Row ${i + 1} (${title}): Failed to create ticketing record - ${ticketingError.message}`)
+            errorCount++
+            continue
+          }
+
+          // Step 2: Create record in published_screenings with reference
+          const publishedData = {
+            ...ticketingData,
+            ticketing_screening_id: ticketingResult.id
+          }
+
+          // Insert into published_screenings
           const { error } = await supabase
             .from('published_screenings')
-            .insert(screeningData)
+            .insert(publishedData)
 
           if (error) {
             errors.push(`Row ${i + 1} (${title}): ${error.message}`)
