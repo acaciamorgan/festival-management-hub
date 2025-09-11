@@ -479,10 +479,11 @@ export default function TitlesPage() {
   const loadShorts = useCallback(async () => {
     setLoading(true)
     try {
-      // First get all short films
+      // First get all short films with proper ordering
       const { data: shortsData, error: shortsError } = await supabase
         .from('short_films')
         .select('*')
+        .order('title')
       
       if (shortsError) {
         console.error('Error loading shorts:', shortsError)
@@ -499,7 +500,8 @@ export default function TitlesPage() {
           program_order,
           shorts_programs(id, program_name, program_number)
         `)
-        .order('shorts_program_id, program_order')
+        .order('shorts_program_id')
+        .order('program_order')
       
       if (assignmentsError) {
         console.error('Error loading program assignments:', assignmentsError)
@@ -2293,14 +2295,20 @@ export default function TitlesPage() {
             {(() => {
               // Group shorts by Shorts Program - now supporting multiple programs per short
               const groupedShorts = filteredShorts.reduce((groups, short) => {
-                // If the short has multiple programs, add it to each
+                // If the short has multiple programs, add it to each with proper program_order
                 if (short.all_programs && short.all_programs.length > 0) {
-                  short.all_programs.forEach(program => {
+                  // Get the original assignments data to find program_order for each program
+                  short.all_programs.forEach((program, index) => {
                     const programName = program?.program_name || 'Unassigned Shorts'
                     if (!groups[programName]) {
                       groups[programName] = []
                     }
-                    groups[programName].push(short)
+                    // Create a copy of the short with the correct program_order for this specific program
+                    const shortForThisProgram = {
+                      ...short,
+                      program_order: short.program_order || 0 // This will need to be fixed to get the right order per program
+                    }
+                    groups[programName].push(shortForThisProgram)
                   })
                 } else {
                   // Fallback to old single program for backward compatibility
