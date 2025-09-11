@@ -1435,10 +1435,13 @@ export default function TicketingPage() {
             .single()
 
           if (ticketingError) {
+            console.error('Ticketing insert error:', ticketingError)
             errors.push(`Row ${i + 1} (${title}): Failed to create ticketing record - ${ticketingError.message}`)
             errorCount++
             continue
           }
+
+          console.log('Ticketing record created successfully:', ticketingResult)
 
           // Step 2: Create record in published_screenings with reference
           const publishedData = {
