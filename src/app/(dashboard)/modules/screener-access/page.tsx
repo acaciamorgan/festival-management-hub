@@ -24,6 +24,13 @@ interface ShortFilm {
   }
 }
 
+interface ShortsProgram {
+  id: string
+  program_name: string
+  program_number: number
+  shorts?: ShortFilm[]
+}
+
 interface FilmContact {
   id: string
   name: string
@@ -51,6 +58,11 @@ interface ShortFilmWithScreenerData extends ShortFilm {
   screener_data: ScreenerData | null
 }
 
+interface ShortsProgramWithScreenerData extends ShortsProgram {
+  contacts: FilmContact[]
+  screener_data: ScreenerData | null
+}
+
 type ViewMode = 'features' | 'shorts'
 
 export default function ScreenerAccessPage() {
@@ -58,12 +70,12 @@ export default function ScreenerAccessPage() {
   const { permissions } = usePermissions()
   const [viewMode, setViewMode] = useState<ViewMode>('features')
   const [films, setFilms] = useState<FilmWithScreenerData[]>([])
-  const [shorts, setShorts] = useState<ShortFilmWithScreenerData[]>([])
+  const [shortsPrograms, setShortsPrograms] = useState<ShortsProgramWithScreenerData[]>([])
   const [filteredFilms, setFilteredFilms] = useState<FilmWithScreenerData[]>([])
-  const [filteredShorts, setFilteredShorts] = useState<ShortFilmWithScreenerData[]>([])
+  const [filteredShortsPrograms, setFilteredShortsPrograms] = useState<ShortsProgramWithScreenerData[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedFilm, setSelectedFilm] = useState<FeatureFilm | ShortFilm | null>(null)
+  const [selectedFilm, setSelectedFilm] = useState<FeatureFilm | ShortsProgram | null>(null)
   const [showFilmCard, setShowFilmCard] = useState(false)
   const [showFilmCardsMode, setShowFilmCardsMode] = useState(false)
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'title', direction: 'asc' })
@@ -132,7 +144,7 @@ export default function ScreenerAccessPage() {
   const exportShortsTemplate = () => {
     // Define headers with proper display names
     const headerMapping = [
-      { field: 'title', display: 'Short Film (Program)' },
+      { field: 'title', display: 'Shorts Program' },
       { field: 'contacts', display: 'Contacts' },
       { field: 'all_emails', display: 'All Emails' },
       { field: 'access_type', display: 'Access Type' },
@@ -232,58 +244,74 @@ export default function ScreenerAccessPage() {
     }
   }, [supabase])
 
-  const loadShorts = useCallback(async () => {
+  const loadShortsPrograms = useCallback(async () => {
     setLoading(true)
     try {
-      // Load all short films with their shorts programs - match working Titles pattern
-      const { data: shortsData, error: shortsError } = await supabase
-        .from('short_films')
-        .select(`
-          *,
-          shorts_programs(id, program_name, program_number)
-        `)
-        .order('shorts_program_id, program_order')
-
-      if (shortsError) {
-        console.error('Error loading shorts:', shortsError)
-        setShorts([])
-        setFilteredShorts([])
+      // Load all shorts programs
+      const { data: programsData, error: programsError } = await supabase
+        .from('shorts_programs')
+        .select('*')
+        .order('program_number')
+      
+      if (programsError) {
+        console.error('Error loading programs:', programsError)
+        setShortsPrograms([])
+        setFilteredShortsPrograms([])
         return
       }
+      
+      if (!programsData || programsData.length === 0) {
+        setShortsPrograms([])
+        setFilteredShortsPrograms([])
+        setLoading(false)
+        return
+      }
+      
+      // Load contacts and screener data for each program
+      const programsWithData = await Promise.all(
+        programsData.map(async (program) => {
+          // Get the first short from this program to use its contacts
+          const { data: firstShort } = await supabase
+            .from('short_films')
+            .select('id')
+            .eq('shorts_program_id', program.id)
+            .limit(1)
+            .single()
+          
+          let contacts = []
+          if (firstShort) {
+            const { data: contactsData } = await supabase
+              .from('film_contacts')
+              .select('id, name, company, email, contact_type')
+              .eq('film_id', firstShort.id)
+              .eq('film_type', 'short')
+              .order('contact_type, name')
+            
+            contacts = contactsData || []
+          }
 
-      // Load contacts and screener data for each short film
-      const shortsWithData = await Promise.all(
-        (shortsData || []).map(async (short) => {
-          // Load film contacts
-          const { data: contactsData } = await supabase
-            .from('film_contacts')
-            .select('id, name, company, email, contact_type')
-            .eq('film_id', short.id)
-            .eq('film_type', 'short')
-            .order('contact_type, name')
-
-          // Load screener data
+          // Load screener data for the program (using program id as film_id)
           const { data: screenerData } = await supabase
             .from('screener_access')
             .select('*')
-            .eq('film_id', short.id)
+            .eq('film_id', program.id)
             .single()
 
           return {
-            ...short,
-            contacts: contactsData || [],
-            screener_data: screenerData || null,
-            shorts_program: short.shorts_programs
+            ...program,
+            title: program.program_name, // Add title field for compatibility
+            contacts,
+            screener_data: screenerData || null
           }
         })
       )
 
-      setShorts(shortsWithData)
-      setFilteredShorts(shortsWithData)
+      setShortsPrograms(programsWithData)
+      setFilteredShortsPrograms(programsWithData)
     } catch (error) {
-      console.error('Error loading shorts:', error)
-      setShorts([])
-      setFilteredShorts([])
+      console.error('Error loading shorts programs:', error)
+      setShortsPrograms([])
+      setFilteredShortsPrograms([])
     } finally {
       setLoading(false)
     }
@@ -293,9 +321,9 @@ export default function ScreenerAccessPage() {
     if (viewMode === 'features') {
       loadFeatures()
     } else {
-      loadShorts()
+      loadShortsPrograms()
     }
-  }, [viewMode, loadFeatures, loadShorts])
+  }, [viewMode, loadFeatures, loadShortsPrograms])
 
   // Filter and search for features
   useEffect(() => {
@@ -329,41 +357,40 @@ export default function ScreenerAccessPage() {
     setFilteredFilms(filtered)
   }, [films, searchTerm, accessTypeFilter, viewMode])
 
-  // Filter and search for shorts
+  // Filter and search for shorts programs
   useEffect(() => {
     if (viewMode !== 'shorts') return
     
-    let filtered = shorts
+    let filtered = shortsPrograms
 
-    // For shorts, only filter by link_available, no_links, and TBD
+    // For shorts programs, only filter by link_available, no_links, and TBD
     if (accessTypeFilter !== 'all') {
       if (accessTypeFilter === 'TBD') {
-        filtered = filtered.filter(short => !short.screener_data || short.screener_data.access_type === 'TBD')
+        filtered = filtered.filter(program => !program.screener_data || program.screener_data.access_type === 'TBD')
       } else if (accessTypeFilter === 'link_available' || accessTypeFilter === 'no_links') {
-        filtered = filtered.filter(short => short.screener_data?.access_type === accessTypeFilter)
+        filtered = filtered.filter(program => program.screener_data?.access_type === accessTypeFilter)
       } else {
-        // For shorts, ignore cinesend and request_link filters
-        filtered = shorts
+        // For shorts programs, ignore cinesend and request_link filters
+        filtered = shortsPrograms
       }
     }
 
     // Search filter with accent-insensitive search
     if (searchTerm) {
-      const searchFilter = createAccentInsensitiveFilter<ShortFilmWithScreenerData>(
+      const searchFilter = createAccentInsensitiveFilter<ShortsProgramWithScreenerData>(
         searchTerm,
-        (short) => [
-          short.title,
-          short.shorts_program?.program_name || '',
-          ...short.contacts.map(c => c.name),
-          ...short.contacts.map(c => c.company),
-          ...short.contacts.map(c => c.email)
+        (program) => [
+          program.program_name,
+          ...program.contacts.map(c => c.name),
+          ...program.contacts.map(c => c.company),
+          ...program.contacts.map(c => c.email)
         ]
       )
       filtered = filtered.filter(searchFilter)
     }
 
-    setFilteredShorts(filtered)
-  }, [shorts, searchTerm, accessTypeFilter, viewMode])
+    setFilteredShortsPrograms(filtered)
+  }, [shortsPrograms, searchTerm, accessTypeFilter, viewMode])
 
   // Sort films
   const sortedFilms = useMemo(() => {
@@ -388,19 +415,12 @@ export default function ScreenerAccessPage() {
         return 0
       })
     } else {
-      // For shorts, maintain program order
-      return [...filteredShorts].sort((a, b) => {
-        // First sort by shorts program order
-        const programOrderA = a.shorts_program?.program_order || 0
-        const programOrderB = b.shorts_program?.program_order || 0
-        if (programOrderA !== programOrderB) {
-          return programOrderA - programOrderB
-        }
-        // Then sort by program order within the shorts program
-        return a.program_order - b.program_order
+      // For shorts programs, sort by program number
+      return [...filteredShortsPrograms].sort((a, b) => {
+        return a.program_number - b.program_number
       })
     }
-  }, [filteredFilms, filteredShorts, sortConfig, viewMode])
+  }, [filteredFilms, filteredShortsPrograms, sortConfig, viewMode])
 
   const handleSort = (key: string) => {
     setSortConfig(current => {
@@ -452,7 +472,7 @@ export default function ScreenerAccessPage() {
       if (viewMode === 'features') {
         loadFeatures()
       } else {
-        loadShorts()
+        loadShortsPrograms()
       }
     } catch (error) {
       console.error('Error updating screener data:', error)
@@ -669,7 +689,7 @@ export default function ScreenerAccessPage() {
   }
 
   const getFilterCounts = () => {
-    const currentData = viewMode === 'features' ? films : shorts
+    const currentData = viewMode === 'features' ? films : shortsPrograms
     const counts = {
       all: currentData.length,
       TBD: currentData.filter(f => !f.screener_data || f.screener_data.access_type === 'TBD').length,
@@ -857,7 +877,7 @@ export default function ScreenerAccessPage() {
               <thead className="bg-gray-50">
                 <tr>
                   {[
-                    { key: 'title', label: viewMode === 'features' ? 'Film Title' : 'Short Film (Program)', width: 180, sortable: viewMode === 'features' },
+                    { key: 'title', label: viewMode === 'features' ? 'Film Title' : 'Shorts Program', width: 180, sortable: viewMode === 'features' },
                     { key: 'contacts', label: 'Contacts', width: 160, sortable: false },
                     { key: 'all_emails', label: 'All Emails', width: 200, sortable: false },
                     { key: 'access_type', label: 'Access Type', width: 120, sortable: false },
@@ -934,11 +954,6 @@ export default function ScreenerAccessPage() {
                       ) : (
                         <span className="text-gray-900 font-medium">{film.title}</span>
                       )}
-                      {viewMode === 'shorts' && 'shorts_program' in film && film.shorts_program && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {film.shorts_program.program_name}
-                        </div>
-                      )}
                     </td>
                     <td 
                       className="px-3 py-2 text-sm border-r border-gray-100"
@@ -976,154 +991,113 @@ export default function ScreenerAccessPage() {
           </div>
         </div>
         ) : (
-          /* Shorts Grouped View */
-          <div className="overflow-auto max-h-[calc(100vh-350px)] space-y-6">
-            {(() => {
-              // Group shorts by Shorts Program
-              const groupedShorts = (sortedFilms as ShortFilmWithScreenerData[]).reduce((groups, short) => {
-                const programName = short.shorts_program?.program_name || 'Unassigned Shorts'
-                if (!groups[programName]) {
-                  groups[programName] = []
-                }
-                groups[programName].push(short)
-                return groups
-              }, {} as Record<string, ShortFilmWithScreenerData[]>)
-
-              // Sort programs by program number (extract number from program name)
-              const sortedPrograms = Object.entries(groupedShorts).sort(([nameA], [nameB]) => {
-                // Put 'Unassigned Shorts' at the end
-                if (nameA === 'Unassigned Shorts') return 1
-                if (nameB === 'Unassigned Shorts') return -1
-                
-                // Extract program numbers for sorting
-                const numberA = parseInt(nameA.match(/\d+/)?.[0] || '999')
-                const numberB = parseInt(nameB.match(/\d+/)?.[0] || '999')
-                
-                return numberA - numberB
-              })
-
-              // Filter out Unassigned Shorts for now
-              const filteredPrograms = sortedPrograms.filter(([programName]) => programName !== 'Unassigned Shorts')
-
-              return filteredPrograms.map(([programName, programShorts]) => (
-                <div key={programName} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                  {/* Program Header */}
-                  <div className="bg-gray-800 text-white px-6 py-4 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold">{programName}</h3>
-                      <p className="text-sm text-gray-300">{programShorts.length} shorts</p>
-                    </div>
-                  </div>
-                  
-                  {/* Shorts Table */}
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          {[
-                            { key: 'title', label: 'Short Film', width: 180, sortable: false },
-                            { key: 'contacts', label: 'Contacts', width: 160, sortable: false },
-                            { key: 'all_emails', label: 'All Emails', width: 200, sortable: false },
-                            { key: 'access_type', label: 'Access Type', width: 120, sortable: false },
-                            { key: 'link', label: 'Link', width: 180, sortable: false },
-                            { key: 'password', label: 'Password', width: 100, sortable: false }
-                          ].map((column) => (
-                            <th
-                              key={column.key}
-                              className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50"
-                              style={{ 
-                                minWidth: `${columnWidths[column.key] || column.width}px`,
-                                width: `${columnWidths[column.key] || column.width}px`
-                              }}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span>{column.label}</span>
-                              </div>
-                              
-                              {/* Resize Handle */}
-                              <div
-                                className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 opacity-0 hover:opacity-100"
-                                onMouseDown={(e) => {
-                                  e.preventDefault()
-                                  const startX = e.clientX
-                                  const startWidth = columnWidths[column.key] || column.width
-                                  
-                                  const handleMouseMove = (e: MouseEvent) => {
-                                    const newWidth = Math.max(50, startWidth + (e.clientX - startX))
-                                    setColumnWidths(prev => ({ ...prev, [column.key]: newWidth }))
-                                  }
-                                  
-                                  const handleMouseUp = () => {
-                                    document.removeEventListener('mousemove', handleMouseMove)
-                                    document.removeEventListener('mouseup', handleMouseUp)
-                                  }
-                                  
-                                  document.addEventListener('mousemove', handleMouseMove)
-                                  document.addEventListener('mouseup', handleMouseUp)
-                                }}
-                              />
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {programShorts.map((short) => (
-                          <tr key={short.id} className={`hover:bg-gray-100 ${getRowBackgroundColor(short)}`}>
-                            <td 
-                              className="px-3 py-2 border-r border-gray-100"
-                              style={{ 
-                                minWidth: `${columnWidths['title'] || 200}px`,
-                                width: `${columnWidths['title'] || 200}px`
-                              }}
-                            >
-                              {showFilmCardsMode ? (
-                                <button
-                                  onClick={() => handleFilmClick(short)}
-                                  className="text-blue-600 hover:text-blue-800 hover:underline text-left font-medium"
-                                >
-                                  {short.title}
-                                </button>
-                              ) : (
-                                <span className="text-gray-900 font-medium">{short.title}</span>
-                              )}
-                            </td>
-                            <td 
-                              className="px-3 py-2 text-sm border-r border-gray-100"
-                              style={{ 
-                                minWidth: `${columnWidths['contacts'] || 250}px`,
-                                width: `${columnWidths['contacts'] || 250}px`
-                              }}
-                            >
-                              {renderContactsCell(short.contacts)}
-                            </td>
-                            <td 
-                              className="px-3 py-2 text-sm border-r border-gray-100"
-                              style={{ 
-                                minWidth: `${columnWidths['all_emails'] || 300}px`,
-                                width: `${columnWidths['all_emails'] || 300}px`
-                              }}
-                            >
-                              {renderAllEmailsCell(short.contacts)}
-                            </td>
-                            <td 
-                              className="px-3 py-2 border-r border-gray-100"
-                              style={{ 
-                                minWidth: `${columnWidths['access_type'] || 150}px`,
-                                width: `${columnWidths['access_type'] || 150}px`
-                              }}
-                            >
-                              {renderAccessTypeCell(short)}
-                            </td>
-                            {renderLinkColumns(short)}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))
-            })()}
+          /* Shorts Programs View */
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
+              <table className="min-w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  {[
+                    { key: 'title', label: 'Shorts Program', width: 180, sortable: false },
+                    { key: 'contacts', label: 'Contacts', width: 160, sortable: false },
+                    { key: 'all_emails', label: 'All Emails', width: 200, sortable: false },
+                    { key: 'access_type', label: 'Access Type', width: 120, sortable: false },
+                    { key: 'link', label: 'Link', width: 180, sortable: false },
+                    { key: 'password', label: 'Password', width: 100, sortable: false }
+                  ].map((column) => (
+                    <th
+                      key={column.key}
+                      className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50"
+                      style={{ 
+                        minWidth: `${columnWidths[column.key] || column.width}px`,
+                        width: `${columnWidths[column.key] || column.width}px`
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{column.label}</span>
+                      </div>
+                      
+                      {/* Resize Handle */}
+                      <div
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 opacity-0 hover:opacity-100"
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          const startX = e.clientX
+                          const startWidth = columnWidths[column.key] || column.width
+                          
+                          const handleMouseMove = (e: MouseEvent) => {
+                            const newWidth = Math.max(50, startWidth + (e.clientX - startX))
+                            setColumnWidths(prev => ({ ...prev, [column.key]: newWidth }))
+                          }
+                          
+                          const handleMouseUp = () => {
+                            document.removeEventListener('mousemove', handleMouseMove)
+                            document.removeEventListener('mouseup', handleMouseUp)
+                          }
+                          
+                          document.addEventListener('mousemove', handleMouseMove)
+                          document.addEventListener('mouseup', handleMouseUp)
+                        }}
+                      />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {(sortedFilms as ShortsProgramWithScreenerData[]).map((program) => (
+                  <tr key={program.id} className={`hover:bg-gray-100 ${getRowBackgroundColor(program)}`}>
+                    <td 
+                      className="px-3 py-2 border-r border-gray-100"
+                      style={{ 
+                        minWidth: `${columnWidths['title'] || 200}px`,
+                        width: `${columnWidths['title'] || 200}px`
+                      }}
+                    >
+                      {showFilmCardsMode ? (
+                        <button
+                          onClick={() => handleFilmClick(program)}
+                          className="text-blue-600 hover:text-blue-800 hover:underline text-left font-medium"
+                        >
+                          {program.program_name}
+                        </button>
+                      ) : (
+                        <span className="text-gray-900 font-medium">{program.program_name}</span>
+                      )}
+                    </td>
+                    <td 
+                      className="px-3 py-2 text-sm border-r border-gray-100"
+                      style={{ 
+                        minWidth: `${columnWidths['contacts'] || 250}px`,
+                        width: `${columnWidths['contacts'] || 250}px`
+                      }}
+                    >
+                      {renderContactsCell(program.contacts)}
+                    </td>
+                    <td 
+                      className="px-3 py-2 text-sm border-r border-gray-100"
+                      style={{ 
+                        minWidth: `${columnWidths['all_emails'] || 300}px`,
+                        width: `${columnWidths['all_emails'] || 300}px`
+                      }}
+                    >
+                      {renderAllEmailsCell(program.contacts)}
+                    </td>
+                    <td 
+                      className="px-3 py-2 border-r border-gray-100"
+                      style={{ 
+                        minWidth: `${columnWidths['access_type'] || 150}px`,
+                        width: `${columnWidths['access_type'] || 150}px`
+                      }}
+                    >
+                      {renderAccessTypeCell(program)}
+                    </td>
+                    {renderLinkColumns(program)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        </div>
         )}
 
         {sortedFilms.length === 0 && !loading && (

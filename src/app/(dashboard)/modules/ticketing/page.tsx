@@ -1192,15 +1192,36 @@ export default function TicketingPage() {
     }
   }, [supabase])
 
-  // Load shorts programs
+  // Load shorts programs with runtime
   const loadShortsPrograms = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data: programs, error } = await supabase
         .from('shorts_programs')
-        .select('id, program_name')
+        .select('id, program_name, program_number')
+        .order('program_number')
         
       if (error) throw error
-      setShortsPrograms(data || [])
+      
+      // Calculate total runtime for each program by summing shorts
+      const programsWithRuntime = await Promise.all(
+        (programs || []).map(async (program) => {
+          const { data: shorts } = await supabase
+            .from('short_films')
+            .select('runtime_minutes')
+            .eq('shorts_program_id', program.id)
+          
+          const totalRuntime = shorts?.reduce((sum, short) => {
+            return sum + (short.runtime_minutes || 0)
+          }, 0) || 0
+          
+          return {
+            ...program,
+            total_runtime: totalRuntime
+          }
+        })
+      )
+      
+      setShortsPrograms(programsWithRuntime)
     } catch (error) {
       console.error('Error loading shorts programs:', error)
     }

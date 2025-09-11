@@ -92,9 +92,16 @@ export default function PressRequestsPage() {
           )
         `)
 
+      // Load shorts programs with contacts
+      const { data: shortsPrograms } = await supabase
+        .from('shorts_programs')
+        .select('*')
+        .order('program_number')
+
       // Filter for films that are "request_link" type and format the data
       const contactsList: FilmContact[] = []
       
+      // Process features
       features?.forEach(film => {
         if (film.screener_access?.[0]?.access_type === 'request_link' && film.film_contacts) {
           film.film_contacts.forEach((contact: any) => {
@@ -109,6 +116,46 @@ export default function PressRequestsPage() {
           })
         }
       })
+
+      // Process shorts programs
+      if (shortsPrograms && shortsPrograms.length > 0) {
+        for (const program of shortsPrograms) {
+          // Check if this program has screener data marked for request_link
+          const { data: screenerData } = await supabase
+            .from('screener_access')
+            .select('access_type')
+            .eq('film_id', program.id)
+            .single()
+
+          if (screenerData?.access_type === 'request_link') {
+            // Get contacts from the first short in this program
+            const { data: firstShort } = await supabase
+              .from('short_films')
+              .select('id')
+              .eq('shorts_program_id', program.id)
+              .limit(1)
+              .single()
+            
+            if (firstShort) {
+              const { data: contacts } = await supabase
+                .from('film_contacts')
+                .select('name, email, company, contact_type')
+                .eq('film_id', firstShort.id)
+                .eq('film_type', 'short')
+                .eq('contact_type', 'Screening Link')
+              
+              contacts?.forEach(contact => {
+                contactsList.push({
+                  film_title: program.program_name,
+                  contact_name: contact.name,
+                  contact_email: contact.email,
+                  contact_company: contact.company
+                })
+              })
+            }
+          }
+        }
+      }
 
       setFilmContacts(contactsList)
     } catch (error) {
