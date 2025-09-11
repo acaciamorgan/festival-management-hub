@@ -276,12 +276,14 @@ function ScreeningBoard({
               )}
             </div>
             
-            <button 
-              onClick={() => setShowSetViewModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
-            >
-              Set View
-            </button>
+            {canEditTicketing && (
+              <button 
+                onClick={() => setShowSetViewModal(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+              >
+                Set View
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -887,6 +889,37 @@ export default function TicketingPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
   const [viewMode, setViewMode] = useState<ViewMode>('ticketing')
+  
+  // Load global view mode on component mount
+  useEffect(() => {
+    const loadViewMode = async () => {
+      const { data, error } = await supabase
+        .from('ticketing_settings')
+        .select('view_mode')
+        .single()
+      
+      if (data?.view_mode) {
+        setViewMode(data.view_mode)
+      }
+    }
+    
+    loadViewMode()
+  }, [])
+  
+  // Update view mode globally
+  const updateViewMode = async (newViewMode: ViewMode) => {
+    setViewMode(newViewMode)
+    
+    if (canEditTicketing) {
+      const { error } = await supabase
+        .from('ticketing_settings')
+        .upsert({ id: 1, view_mode: newViewMode })
+      
+      if (error) {
+        console.error('Error updating view mode:', error)
+      }
+    }
+  }
 
   const canEditTicketing = permissions?.modulePermissions?.['ticketing']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   
@@ -906,7 +939,17 @@ export default function TicketingPage() {
   // UI states
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
+  
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [searchTerm])
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingScreening, setEditingScreening] = useState<any>(null)
   const [showExportDropdown, setShowExportDropdown] = useState(false)
@@ -1893,18 +1936,18 @@ export default function TicketingPage() {
     }
   }
 
-  // Filter data based on search term
+  // Filter data based on debounced search term
   const filteredData = useMemo(() => {
     const currentData = getCurrentData()
-    if (!searchTerm) return currentData
+    if (!debouncedSearchTerm) return currentData
 
     return currentData.filter(screening =>
-      screening.film_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      screening.venue_short_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      screening.day_of_week.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      screening.notes?.toLowerCase().includes(searchTerm.toLowerCase())
+      screening.film_title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      screening.venue_short_code.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      screening.day_of_week.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      screening.notes?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
     )
-  }, [searchTerm, publishedScreenings, piJuryScreenings, techCheckScreenings, viewMode])
+  }, [debouncedSearchTerm, publishedScreenings, piJuryScreenings, techCheckScreenings, viewMode])
 
   // Filter film suggestions - make it dynamic to catch newly synced shorts
   const filteredFilms = useMemo(() => {
@@ -2073,7 +2116,7 @@ export default function TicketingPage() {
         {/* Screening Board Toggle */}
         <div className="mt-4">
           <button
-            onClick={() => setViewMode('screening-board')}
+            onClick={() => canEditTicketing && updateViewMode('screening-board')}
             className={`px-6 py-3 rounded-lg text-sm font-semibold transition-colors ${
               viewMode === 'screening-board'
                 ? 'bg-blue-600 text-white shadow-lg'
@@ -2088,7 +2131,7 @@ export default function TicketingPage() {
         <div className="mt-3">
           <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
             <button
-              onClick={() => setViewMode('ticketing')}
+              onClick={() => canEditTicketing && updateViewMode('ticketing')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 viewMode === 'ticketing'
                   ? 'bg-white text-gray-900 shadow-sm'
@@ -2098,7 +2141,7 @@ export default function TicketingPage() {
               Ticketing
             </button>
             <button
-              onClick={() => setViewMode('pi-jury')}
+              onClick={() => canEditTicketing && updateViewMode('pi-jury')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 viewMode === 'pi-jury'
                   ? 'bg-white text-gray-900 shadow-sm'
@@ -2108,7 +2151,7 @@ export default function TicketingPage() {
               P&I / Jury
             </button>
             <button
-              onClick={() => setViewMode('tech-checks')}
+              onClick={() => canEditTicketing && updateViewMode('tech-checks')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 viewMode === 'tech-checks'
                   ? 'bg-white text-gray-900 shadow-sm'
@@ -2124,13 +2167,15 @@ export default function TicketingPage() {
       {/* Search - only show for table views */}
       {viewMode !== 'screening-board' && (
         <div className="bg-white px-6 py-4 border-b border-gray-200">
-          <input
-            type="text"
-            placeholder="Search screenings..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+          <div className="max-w-md">
+            <input
+              type="text"
+              placeholder="Search screenings..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
         </div>
       )}
 
@@ -2307,7 +2352,7 @@ export default function TicketingPage() {
               {filteredData.length === 0 && (
                 <tr>
                   <td colSpan={getTableColumns().length + 1 + (viewMode === 'ticketing' ? 1 : 0)} className="px-6 py-12 text-center text-gray-500">
-                    {searchTerm
+                    {debouncedSearchTerm
                       ? 'No screenings match your search.'
                       : `No ${viewMode === 'ticketing' ? 'published' : viewMode === 'pi-jury' ? 'P&I/Jury' : 'tech check'} screenings found. Click "Add Screening" to create your first screening.`
                     }
