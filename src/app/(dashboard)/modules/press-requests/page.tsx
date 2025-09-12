@@ -394,22 +394,33 @@ export default function PressRequestsPage() {
         return
       }
 
-      // Load films with request_link access type
-      const { data: features } = await supabase
+      // Load films with request_link access type - separate queries to avoid nested join issues
+      const { data: features, error: featuresError } = await supabase
         .from('feature_films')
-        .select(`
-          id,
-          title,
-          film_contacts (
-            name,
-            email,
-            company,
-            contact_type
-          ),
-          screener_access (
-            access_type
-          )
-        `)
+        .select('id, title')
+      
+      if (featuresError) {
+        console.log('DEBUG: Features query error:', featuresError)
+      }
+      
+      // Load all screener access data
+      const { data: screenerAccessData, error: screenerError } = await supabase
+        .from('screener_access')
+        .select('film_id, access_type')
+        
+      if (screenerError) {
+        console.log('DEBUG: Screener access query error:', screenerError)
+      }
+      
+      // Load all film contacts
+      const { data: filmContactsData, error: contactsError } = await supabase
+        .from('film_contacts')
+        .select('film_id, film_type, name, email, company, contact_type')
+        .eq('film_type', 'feature')
+        
+      if (contactsError) {
+        console.log('DEBUG: Film contacts query error:', contactsError)
+      }
 
       const { data: shortsPrograms } = await supabase
         .from('shorts_programs')
@@ -423,13 +434,20 @@ export default function PressRequestsPage() {
       
       // Add features with request_link
       features?.forEach(film => {
-        console.log('DEBUG: Checking film:', film.title, 'screener_access:', film.screener_access)
-        if (film.screener_access?.[0]?.access_type === 'request_link') {
+        // Find screener access for this film
+        const screenerAccess = screenerAccessData?.find(sa => sa.film_id === film.id)
+        console.log('DEBUG: Checking film:', film.title, 'screener_access:', screenerAccess)
+        
+        if (screenerAccess?.access_type === 'request_link') {
           console.log('DEBUG: Added request_link film:', film.title)
+          
+          // Find contacts for this film
+          const contacts = filmContactsData?.filter(fc => fc.film_id === film.id) || []
+          
           requestLinkFilms.push({
             id: film.id,
             title: film.title,
-            contacts: film.film_contacts || [],
+            contacts: contacts,
             isProgram: false
           })
         }
@@ -437,31 +455,28 @@ export default function PressRequestsPage() {
 
       // Check shorts programs for request_link
       if (shortsPrograms) {
+        // Load all short films to get contacts
+        const { data: shortFilms } = await supabase
+          .from('short_films')
+          .select('id, shorts_program_id')
+          
+        // Load contacts for shorts
+        const { data: shortContactsData } = await supabase
+          .from('film_contacts')
+          .select('film_id, film_type, name, email, company, contact_type')
+          .eq('film_type', 'short')
+        
         for (const program of shortsPrograms) {
-          const { data: screenerData } = await supabase
-            .from('screener_access')
-            .select('access_type')
-            .eq('film_id', program.id)
-            .single()
-
-          if (screenerData?.access_type === 'request_link') {
+          // Find screener access for this program
+          const screenerAccess = screenerAccessData?.find(sa => sa.film_id === program.id)
+          
+          if (screenerAccess?.access_type === 'request_link') {
             // Get contacts from first short in program
-            const { data: firstShort } = await supabase
-              .from('short_films')
-              .select('id')
-              .eq('shorts_program_id', program.id)
-              .limit(1)
-              .single()
+            const firstShort = shortFilms?.find(sf => sf.shorts_program_id === program.id)
             
             let contacts: any[] = []
             if (firstShort) {
-              const { data: contactsData } = await supabase
-                .from('film_contacts')
-                .select('name, email, company, contact_type')
-                .eq('film_id', firstShort.id)
-                .eq('film_type', 'short')
-              
-              contacts = contactsData || []
+              contacts = shortContactsData?.filter(fc => fc.film_id === firstShort.id) || []
             }
 
             requestLinkFilms.push({
