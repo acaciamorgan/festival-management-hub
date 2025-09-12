@@ -65,11 +65,10 @@ export default function FestivalOverviewPage() {
         .from('short_films')
         .select('*', { count: 'exact', head: true })
 
-      // Get public screenings (exclude P&I and Tech Checks)
+      // Get public screenings from published_screenings table
       const { count: screeningsCount } = await supabase
-        .from('screenings')
+        .from('published_screenings')
         .select('*', { count: 'exact', head: true })
-        .not('screening_type', 'in', '(P&I,Tech Check)')
 
       // Get movie theater venues
       const { count: venuesCount } = await supabase
