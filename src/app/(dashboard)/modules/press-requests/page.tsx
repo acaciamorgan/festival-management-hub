@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PressRequestFormModal } from '@/components/forms/press-request-form-modal'
-import { GenerateRequestsModal } from '@/components/modals/generate-requests-modal'
+import { Document, Packer, Paragraph, TextRun } from 'docx'
+import { saveAs } from 'file-saver'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 
 interface PressRequest {
@@ -48,7 +49,6 @@ export default function PressRequestsPage() {
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'created_at', direction: 'desc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [filmContacts, setFilmContacts] = useState<FilmContact[]>([])
-  const [showGenerateModal, setShowGenerateModal] = useState(false)
 
   const supabase = createClient()
 
@@ -379,6 +379,236 @@ export default function PressRequestsPage() {
     }
   }
 
+  // Generate Daily Requests Report
+  const generateDailyReport = async () => {
+    try {
+      // Filter requests for screener_link type only, excluding fulfilled
+      const screenerRequests = requests.filter(
+        r => r.request_type === 'screener_link' && r.status !== 'fulfilled'
+      )
+
+      if (screenerRequests.length === 0) {
+        alert('No screener link requests to report')
+        return
+      }
+
+      // Load films with request_link access type
+      const { data: features } = await supabase
+        .from('feature_films')
+        .select(`
+          id,
+          title,
+          film_contacts (
+            name,
+            email,
+            company,
+            contact_type
+          ),
+          screener_access (
+            access_type
+          )
+        `)
+
+      const { data: shortsPrograms } = await supabase
+        .from('shorts_programs')
+        .select('id, program_name')
+
+      // Filter for request_link films only
+      const requestLinkFilms: any[] = []
+      
+      // Add features with request_link
+      features?.forEach(film => {
+        if (film.screener_access?.[0]?.access_type === 'request_link') {
+          requestLinkFilms.push({
+            id: film.id,
+            title: film.title,
+            contacts: film.film_contacts || [],
+            isProgram: false
+          })
+        }
+      })
+
+      // Check shorts programs for request_link
+      if (shortsPrograms) {
+        for (const program of shortsPrograms) {
+          const { data: screenerData } = await supabase
+            .from('screener_access')
+            .select('access_type')
+            .eq('film_id', program.id)
+            .single()
+
+          if (screenerData?.access_type === 'request_link') {
+            // Get contacts from first short in program
+            const { data: firstShort } = await supabase
+              .from('short_films')
+              .select('id')
+              .eq('shorts_program_id', program.id)
+              .limit(1)
+              .single()
+            
+            let contacts: any[] = []
+            if (firstShort) {
+              const { data: contactsData } = await supabase
+                .from('film_contacts')
+                .select('name, email, company, contact_type')
+                .eq('film_id', firstShort.id)
+                .eq('film_type', 'short')
+              
+              contacts = contactsData || []
+            }
+
+            requestLinkFilms.push({
+              id: program.id,
+              title: program.program_name,
+              contacts,
+              isProgram: true
+            })
+          }
+        }
+      }
+
+      // Group requests by film
+      const filmRequestsMap = new Map<string, any[]>()
+      
+      screenerRequests.forEach(request => {
+        const filmTitle = request.film_titles
+        if (!filmRequestsMap.has(filmTitle)) {
+          filmRequestsMap.set(filmTitle, [])
+        }
+        filmRequestsMap.get(filmTitle)!.push(request)
+      })
+
+      // Create Word document
+      const doc = new Document({
+        sections: [{
+          children: []
+        }]
+      })
+
+      const filmEntries: any[] = []
+      
+      // Process each film that has requests
+      filmRequestsMap.forEach((filmRequests, filmTitle) => {
+        // Find matching film data
+        const filmData = requestLinkFilms.find(f => 
+          f.title.toLowerCase() === filmTitle.toLowerCase()
+        )
+        
+        if (!filmData) return // Skip if not a request_link film
+
+        // Sort requests: requested first, then new
+        const sortedRequests = filmRequests.sort((a, b) => {
+          if (a.status === 'requested' && b.status !== 'requested') return -1
+          if (a.status !== 'requested' && b.status === 'requested') return 1
+          return 0
+        })
+
+        // Format contacts
+        const contactsText = filmData.contacts.length > 0
+          ? filmData.contacts.map((c: any) => `${c.name} - ${c.email}`).join(', ')
+          : 'No contacts found'
+
+        filmEntries.push({
+          title: filmTitle,
+          contacts: contactsText,
+          requests: sortedRequests
+        })
+      })
+
+      // Sort films alphabetically
+      filmEntries.sort((a, b) => a.title.localeCompare(b.title))
+
+      // Build document content
+      const children: Paragraph[] = []
+      
+      filmEntries.forEach((entry, index) => {
+        // Film title (18pt)
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: entry.title,
+                bold: true,
+                size: 36 // size is in half-points, so 36 = 18pt
+              })
+            ]
+          })
+        )
+
+        // Contacts line (12pt)
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'Contacts: ',
+                bold: true,
+                size: 24 // 12pt
+              }),
+              new TextRun({
+                text: entry.contacts,
+                size: 24
+              })
+            ]
+          })
+        )
+
+        // Requests header (12pt)
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'Requests:',
+                bold: true,
+                size: 24
+              })
+            ]
+          })
+        )
+
+        // Each request (12pt)
+        entry.requests.forEach((request: PressRequest) => {
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `${request.requester_name} / ${request.requester_outlet} / ${request.film_titles}`,
+                  size: 24
+                })
+              ]
+            })
+          )
+        })
+
+        // Add 4 line breaks between films (except after last)
+        if (index < filmEntries.length - 1) {
+          for (let i = 0; i < 4; i++) {
+            children.push(new Paragraph({ children: [] }))
+          }
+        }
+      })
+
+      // Create document with all content
+      const finalDoc = new Document({
+        sections: [{
+          children
+        }]
+      })
+
+      // Generate and save the document
+      const blob = await Packer.toBlob(finalDoc)
+      const date = new Date().toLocaleDateString('en-US', { 
+        month: '2-digit', 
+        day: '2-digit', 
+        year: 'numeric' 
+      }).replace(/\//g, '-')
+      saveAs(blob, `Daily_Requests_Report_${date}.docx`)
+
+    } catch (error) {
+      console.error('Error generating report:', error)
+      alert('Error generating report. Please try again.')
+    }
+  }
+
   // Count new requests
   const newRequestsCount = requests.filter(r => r.status === 'new').length
 
@@ -395,11 +625,10 @@ export default function PressRequestsPage() {
           </div>
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => setShowGenerateModal(true)}
+              onClick={generateDailyReport}
               className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 font-medium"
-              disabled={newRequestsCount === 0}
             >
-              Generate Requests ({newRequestsCount} new)
+              Daily Requests Report
             </button>
             {canEditPressRequests && (
               <button
@@ -680,14 +909,6 @@ export default function PressRequestsPage() {
         }}
       />
 
-      {/* Generate Requests Modal */}
-      <GenerateRequestsModal
-        isOpen={showGenerateModal}
-        onClose={() => setShowGenerateModal(false)}
-        newRequests={filteredRequests.filter(r => r.status === 'new')}
-        filmContacts={filmContacts}
-        onMarkRequested={handleMarkMultipleRequested}
-      />
     </div>
   )
 }
