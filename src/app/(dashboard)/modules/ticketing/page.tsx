@@ -2264,7 +2264,9 @@ export default function TicketingPage() {
                     />
                   </th>
                 ))}
-                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Actions</th>
+                {canEditTicketing && (
+                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -2313,29 +2315,31 @@ export default function TicketingPage() {
                       </td>
                     );
                   })}
-                  <td className="px-3 py-2 text-center text-sm font-medium">
-                    <div className="flex space-x-1 justify-center">
-                      <button
-                        onClick={() => handleEditScreening(screening)}
-                        className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-blue-700"
-                      >
-                        Edit
-                      </button>
-                      {viewMode === 'ticketing' && (
+                  {canEditTicketing && (
+                    <td className="px-3 py-2 text-center text-sm font-medium">
+                      <div className="flex space-x-1 justify-center">
                         <button
-                          onClick={() => unpublishScreening(screening).then(() => loadData())}
-                          className="bg-orange-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-orange-700"
+                          onClick={() => handleEditScreening(screening)}
+                          className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-blue-700"
                         >
-                          Unpublish
+                          Edit
                         </button>
-                      )}
-                    </div>
-                  </td>
+                        {viewMode === 'ticketing' && (
+                          <button
+                            onClick={() => unpublishScreening(screening).then(() => loadData())}
+                            className="bg-orange-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-orange-700"
+                          >
+                            Unpublish
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {filteredData.length === 0 && (
                 <tr>
-                  <td colSpan={getTableColumns().length + 1 + (viewMode === 'ticketing' ? 1 : 0)} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={getTableColumns().length + (canEditTicketing ? 1 : 0)} className="px-6 py-12 text-center text-gray-500">
                     {debouncedSearchTerm
                       ? 'No screenings match your search.'
                       : `No ${viewMode === 'ticketing' ? 'published' : viewMode === 'pi-jury' ? 'P&I/Jury' : 'tech check'} screenings found. Click "Add Screening" to create your first screening.`

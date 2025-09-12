@@ -272,9 +272,11 @@ export default function VenueManagementPage() {
                   />
                 </th>
               ))}
-              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                Actions
-              </th>
+              {canEditVenues && (
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -302,18 +304,20 @@ export default function VenueManagementPage() {
                 <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_phones'] || 150}px` }}>
                   {venue.contact_phones?.[0] ? formatPhoneNumber(venue.contact_phones[0]) : '—'}
                 </td>
-                <td className="px-3 py-2 text-center text-sm font-medium">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      console.log('Edit button clicked for venue:', venue.name)
-                      setSelectedVenue(venue)
-                    }}
-                    className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-xs font-medium"
-                  >
-                    Edit
-                  </button>
-                </td>
+                {canEditVenues && (
+                  <td className="px-3 py-2 text-center text-sm font-medium">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        console.log('Edit button clicked for venue:', venue.name)
+                        setSelectedVenue(venue)
+                      }}
+                      className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-xs font-medium"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
