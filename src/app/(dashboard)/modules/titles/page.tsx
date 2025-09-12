@@ -1992,7 +1992,7 @@ export default function TitlesPage() {
                       { key: 'participants', label: 'Participants', width: 200 },
                       { key: 'description', label: 'Description', width: 300 },
                       { key: 'is_industry_days', label: 'Industry Days', width: 120 },
-                      { key: 'actions', label: 'Actions', width: 100 }
+                      ...(canEditTitles ? [{ key: 'actions', label: 'Actions', width: 100 }] : [])
                     ].map((column) => (
                       <th
                         key={column.key}
@@ -2083,8 +2083,8 @@ export default function TitlesPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 100}px` }}>
-                        {canEditTitles && (
+                      {canEditTitles && (
+                        <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 100}px` }}>
                           <button
                             onClick={() => {
                               setEditingEvent(program)
@@ -2094,8 +2094,8 @@ export default function TitlesPage() {
                           >
                             Edit
                           </button>
-                        )}
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -2171,7 +2171,7 @@ export default function TitlesPage() {
                       { key: 'trailer_url', label: 'Trailer URL', width: 150 },
                       { key: 'premiere_status', label: 'Premiere Status', width: 120 },
                       { key: 'content_considerations', label: 'Content Considerations', width: 150 },
-                      { key: 'actions', label: 'Actions', width: 80 }
+                      ...(canEditTitles ? [{ key: 'actions', label: 'Actions', width: 80 }] : [])
                     ].map((column) => (
                       <th
                         key={column.key}
@@ -2396,7 +2396,7 @@ export default function TitlesPage() {
                             { key: 'trailer_url', label: 'Trailer URL', width: 150 },
                             { key: 'premiere_status', label: 'Premiere Status', width: 120 },
                             { key: 'content_considerations', label: 'Content Considerations', width: 150 },
-                            { key: 'actions', label: 'Actions', width: 80 }
+                            ...(canEditTitles ? [{ key: 'actions', label: 'Actions', width: 80 }] : [])
                           ].map((column) => (
                             <th
                               key={column.key}

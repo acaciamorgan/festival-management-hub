@@ -522,7 +522,7 @@ export default function PressScreeningsPage() {
                     { key: 'invites_out', label: 'Invites Out', width: 120 },
                     { key: 'staffer', label: 'Staffer', width: 150 },
                     { key: 'notes', label: 'Notes', width: 200 },
-                    { key: 'actions', label: 'Actions', width: 160 }
+                    ...(canEditPressScreenings ? [{ key: 'actions', label: 'Actions', width: 160 }] : [])
                   ].map((column) => (
                     <th
                       key={column.key}
@@ -647,32 +647,34 @@ export default function PressScreeningsPage() {
                     </td>
                     
                     {/* Actions */}
-                    <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 160}px` }}>
-                      <div className="flex space-x-1">
-                        <button
-                          onClick={() => handleEditScreening(screening)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleCancelToggle(screening)}
-                          className={`${
-                            screening.canceled 
-                              ? 'bg-green-600 hover:bg-green-700' 
-                              : 'bg-orange-600 hover:bg-orange-700'
-                          } text-white px-2 py-1 rounded text-xs font-medium`}
-                        >
-                          {screening.canceled ? 'Uncancel' : 'Cancel'}
-                        </button>
-                        <button
-                          onClick={() => handleDeleteScreening(screening)}
-                          className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-medium"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                    {canEditPressScreenings && (
+                      <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 160}px` }}>
+                        <div className="flex space-x-1">
+                          <button
+                            onClick={() => handleEditScreening(screening)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleCancelToggle(screening)}
+                            className={`${
+                              screening.canceled 
+                                ? 'bg-green-600 hover:bg-green-700' 
+                                : 'bg-orange-600 hover:bg-orange-700'
+                            } text-white px-2 py-1 rounded text-xs font-medium`}
+                          >
+                            {screening.canceled ? 'Uncancel' : 'Cancel'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteScreening(screening)}
+                            className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-medium"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

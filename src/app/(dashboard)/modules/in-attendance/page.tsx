@@ -1142,9 +1142,11 @@ export default function InAttendancePage() {
                     />
                   </th>
                 ))}
-                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                  Actions
-                </th>
+                {canEditInAttendance && (
+                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -1241,17 +1243,19 @@ export default function InAttendancePage() {
                       {guest.confirmed ? 'Yes' : 'No'}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-center text-sm font-medium">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedGuest(guest)
-                      }}
-                      className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-xs font-medium"
-                    >
-                      Edit
-                    </button>
-                  </td>
+                  {canEditInAttendance && (
+                    <td className="px-3 py-2 text-center text-sm font-medium">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedGuest(guest)
+                        }}
+                        className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-xs font-medium"
+                      >
+                        Edit
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
