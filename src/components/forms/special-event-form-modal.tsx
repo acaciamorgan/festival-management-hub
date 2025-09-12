@@ -513,6 +513,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   <option value="Mixer">Mixer</option>
                   <option value="Party">Party</option>
                   <option value="Awards">Awards</option>
+                  <option value="Other">Other</option>
+                  <option value="Media Filing">Media Filing</option>
                 </select>
               </div>
             </div>
