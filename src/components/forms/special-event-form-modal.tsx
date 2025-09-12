@@ -245,7 +245,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
   const handleFilmProgramInput = (value: string) => {
     setFormData(prev => ({ ...prev, films_programs_display: value }))
     
-    const terms = value.split(',').map(t => t.trim())
+    const terms = value.split(',').map(t => t?.trim?.() || '')
     const lastTerm = terms[terms.length - 1]
     
     if (lastTerm.length >= 1) {
@@ -267,7 +267,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
 
   // Handle Films/Programs suggestion selection
   const handleFilmSuggestionSelect = (suggestion: {id: string, title: string, type: 'feature' | 'short' | 'program'}) => {
-    const terms = formData.films_programs_display.split(',').map(t => t.trim())
+    const terms = (formData.films_programs_display || '').split(',').map(t => t?.trim?.() || '')
     terms[terms.length - 1] = suggestion.title
     setFormData(prev => ({ ...prev, films_programs_display: terms.filter(t => t).join(', ') }))
     setShowFilmSuggestions(false)
@@ -277,7 +277,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
   const handleGuestsInput = (value: string) => {
     setFormData(prev => ({ ...prev, guests_display: value }))
     
-    const terms = value.split(',').map(t => t.trim())
+    const terms = value.split(',').map(t => t?.trim?.() || '')
     const lastTerm = terms[terms.length - 1]
     
     if (lastTerm.length >= 1) {
@@ -293,7 +293,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
 
   // Handle Guests suggestion selection
   const handleGuestSuggestionSelect = (suggestion: {id: string, name: string}) => {
-    const terms = formData.guests_display.split(',').map(t => t.trim())
+    const terms = (formData.guests_display || '').split(',').map(t => t?.trim?.() || '')
     terms[terms.length - 1] = suggestion.name
     setFormData(prev => ({ ...prev, guests_display: terms.filter(t => t).join(', ') }))
     setShowGuestSuggestions(false)
@@ -303,7 +303,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
   const handleInvitedTagsInput = (value: string) => {
     setFormData(prev => ({ ...prev, invited_tags: value }))
     
-    const terms = value.split(',').map(t => t.trim())
+    const terms = value.split(',').map(t => t?.trim?.() || '')
     const lastTerm = terms[terms.length - 1]
     
     if (lastTerm.length >= 1) {
@@ -320,7 +320,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
 
   // Handle Invited tags suggestion selection
   const handleInvitedTagSuggestionSelect = (tag: string) => {
-    const terms = formData.invited_tags.split(',').map(t => t.trim())
+    const terms = (formData.invited_tags || '').split(',').map(t => t?.trim?.() || '')
     terms[terms.length - 1] = tag
     setFormData(prev => ({ ...prev, invited_tags: terms.filter(t => t).join(', ') }))
     setShowInvitedSuggestions(false)
@@ -346,7 +346,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
 
-    if (!formData.title.trim()) {
+    if (!formData.title?.trim?.()) {
       newErrors.title = 'Event name is required'
     }
 
@@ -366,33 +366,33 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     try {
       // Prepare the event data (excluding venue contact fields which are derived)
       const eventData: any = {
-        title: formData.title.trim(),
+        title: formData.title?.trim?.() || '',
         event_type: formData.event_type || null,
         event_date: formData.event_date || null,
         access_time: formData.access_time || null,
         start_time: formData.start_time || null,
         end_time: formData.end_time || null,
         venue_id: formData.venue_id || null,
-        venue_contact_name: formData.venue_contact_name.trim() || null,
-        venue_contact_phone: formData.venue_contact_phone.trim() || null,
-        location_details: formData.location_details.trim() || null,
-        films_programs_display: formData.films_programs_display.trim() || null,
-        guests_display: formData.guests_display.trim() || null,
-        lead_staff: formData.lead_staff.trim() || null,
-        lead_volunteer: formData.lead_volunteer.trim() || null,
-        number_of_vols: formData.number_of_vols.trim() || null,
-        invited_tags: formData.invited_tags.trim() || null,
-        number_expected: formData.number_expected.trim() || null,
-        beverages: formData.beverages.trim() || null,
-        bartender: formData.bartender.trim() || null,
-        food: formData.food.trim() || null,
-        caterer: formData.caterer.trim() || null,
-        photography: formData.photography.trim() || null,
+        venue_contact_name: formData.venue_contact_name?.trim?.() || null,
+        venue_contact_phone: formData.venue_contact_phone?.trim?.() || null,
+        location_details: formData.location_details?.trim?.() || null,
+        films_programs_display: formData.films_programs_display?.trim?.() || null,
+        guests_display: formData.guests_display?.trim?.() || null,
+        lead_staff: formData.lead_staff?.trim?.() || null,
+        lead_volunteer: formData.lead_volunteer?.trim?.() || null,
+        number_of_vols: formData.number_of_vols?.trim?.() || null,
+        invited_tags: formData.invited_tags?.trim?.() || null,
+        number_expected: formData.number_expected?.trim?.() || null,
+        beverages: formData.beverages?.trim?.() || null,
+        bartender: formData.bartender?.trim?.() || null,
+        food: formData.food?.trim?.() || null,
+        caterer: formData.caterer?.trim?.() || null,
+        photography: formData.photography?.trim?.() || null,
         open_press: formData.open_press,
-        rsvp_responder_link: formData.rsvp_responder_link.trim() || null,
-        rsvp_response_link: formData.rsvp_response_link.trim() || null,
-        actual_attendance: formData.actual_attendance.trim() || null,
-        notes: formData.notes.trim() || null,
+        rsvp_responder_link: formData.rsvp_responder_link?.trim?.() || null,
+        rsvp_response_link: formData.rsvp_response_link?.trim?.() || null,
+        actual_attendance: formData.actual_attendance?.trim?.() || null,
+        notes: formData.notes?.trim?.() || null,
         updated_at: new Date().toISOString()
       }
 
