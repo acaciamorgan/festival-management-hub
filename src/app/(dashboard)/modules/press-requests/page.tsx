@@ -387,6 +387,8 @@ export default function PressRequestsPage() {
         r => r.request_type === 'screener_link' && r.status !== 'fulfilled'
       )
 
+      console.log('DEBUG: Screener requests found:', screenerRequests.length, screenerRequests)
+      
       if (screenerRequests.length === 0) {
         alert('No screener link requests to report')
         return
@@ -413,12 +415,17 @@ export default function PressRequestsPage() {
         .from('shorts_programs')
         .select('id, program_name')
 
+      console.log('DEBUG: Features data:', features)
+      console.log('DEBUG: Shorts programs data:', shortsPrograms)
+      
       // Filter for request_link films only
       const requestLinkFilms: any[] = []
       
       // Add features with request_link
       features?.forEach(film => {
+        console.log('DEBUG: Checking film:', film.title, 'screener_access:', film.screener_access)
         if (film.screener_access?.[0]?.access_type === 'request_link') {
+          console.log('DEBUG: Added request_link film:', film.title)
           requestLinkFilms.push({
             id: film.id,
             title: film.title,
@@ -467,6 +474,8 @@ export default function PressRequestsPage() {
         }
       }
 
+      console.log('DEBUG: Request link films found:', requestLinkFilms)
+      
       // Group requests by film
       const filmRequestsMap = new Map<string, any[]>()
       
@@ -477,6 +486,9 @@ export default function PressRequestsPage() {
         }
         filmRequestsMap.get(filmTitle)!.push(request)
       })
+      
+      console.log('DEBUG: Film requests map:', Array.from(filmRequestsMap.entries()))
+      
 
       // Create Word document
       const doc = new Document({
@@ -494,7 +506,12 @@ export default function PressRequestsPage() {
           f.title.toLowerCase() === filmTitle.toLowerCase()
         )
         
-        if (!filmData) return // Skip if not a request_link film
+        if (!filmData) {
+          console.log('DEBUG: Film not found in request_link films:', filmTitle)
+          return // Skip if not a request_link film
+        }
+        
+        console.log('DEBUG: Processing film:', filmTitle, 'with', filmRequests.length, 'requests')
 
         // Sort requests: requested first, then new
         const sortedRequests = filmRequests.sort((a, b) => {
