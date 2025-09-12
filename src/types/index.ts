@@ -382,7 +382,7 @@ export interface StickyNote {
 }
 
 // Special Events Types
-export type EventType = 'Reception' | 'Mixer' | 'Party' | 'Awards'
+export type EventType = 'Reception' | 'Mixer' | 'Party' | 'Awards' | 'Other' | 'Media Filing'
 export type OpenPressType = 'Yes' | 'No' | 'Limited'
 
 export interface SpecialEventCard {

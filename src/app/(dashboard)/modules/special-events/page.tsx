@@ -575,7 +575,7 @@ export default function SpecialEventsPage() {
     try {
       const { error } = await supabase
         .from('special_events')
-        .update({ [field]: value, updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0') })
+        .update({ [field]: value, updated_at: new Date().toISOString() })
         .eq('id', eventId)
 
       if (error) throw error
