@@ -1445,8 +1445,7 @@ export default function ContactsPage() {
                         { key: 'title', label: 'Film Title', width: 300 },
                         { key: 'contact_name', label: 'Contact Name', width: 200 },
                         { key: 'contact_company', label: 'Company', width: 200 },
-                        { key: 'contact_email', label: 'Email', width: 250 },
-                        { key: 'contact_type', label: 'Contact Type', width: 150 }
+                        { key: 'contact_email', label: 'Email', width: 250 }
                       ].map((column) => (
                         <th
                           key={column.key}
@@ -1511,19 +1510,6 @@ export default function ContactsPage() {
                                     {email.trim()}
                                   </a>
                                   {index < contactEmails.split(', ').length - 1 && ', '}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['contact_type'] || 150}px`, width: `${columnWidths['contact_type'] || 150}px` }}>
-                            {contactTypes !== '-' ? (
-                              contactTypes.split(', ').map((type, index) => (
-                                <span key={index}>
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 mr-1">
-                                    {type.trim()}
-                                  </span>
                                 </span>
                               ))
                             ) : (
