@@ -2101,7 +2101,7 @@ export default function TicketingPage() {
         {/* Screening Board Toggle */}
         <div className="mt-4">
           <button
-            onClick={() => canEditTicketing && updateViewMode('screening-board')}
+            onClick={() => updateViewMode('screening-board')}
             className={`px-6 py-3 rounded-lg text-sm font-semibold transition-colors ${
               viewMode === 'screening-board'
                 ? 'bg-blue-600 text-white shadow-lg'
@@ -2116,7 +2116,7 @@ export default function TicketingPage() {
         <div className="mt-3">
           <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
             <button
-              onClick={() => canEditTicketing && updateViewMode('ticketing')}
+              onClick={() => updateViewMode('ticketing')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 viewMode === 'ticketing'
                   ? 'bg-white text-gray-900 shadow-sm'
@@ -2126,7 +2126,7 @@ export default function TicketingPage() {
               Ticketing
             </button>
             <button
-              onClick={() => canEditTicketing && updateViewMode('pi-jury')}
+              onClick={() => updateViewMode('pi-jury')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 viewMode === 'pi-jury'
                   ? 'bg-white text-gray-900 shadow-sm'
@@ -2136,7 +2136,7 @@ export default function TicketingPage() {
               P&I / Jury
             </button>
             <button
-              onClick={() => canEditTicketing && updateViewMode('tech-checks')}
+              onClick={() => updateViewMode('tech-checks')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 viewMode === 'tech-checks'
                   ? 'bg-white text-gray-900 shadow-sm'
