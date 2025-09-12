@@ -34,7 +34,19 @@ export default function ContactsPage() {
   const [selectedContactType, setSelectedContactType] = useState('')
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'last_name', direction: 'asc' })
   const [filmSortConfig, setFilmSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'title', direction: 'asc' })
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
+    last_name: 200,
+    contact_company: 200,
+    contact_email: 250,
+    phone: 150,
+    mailing_address: 200,
+    contact_type: 150,
+    associated_films: 300,
+    actions: 160,
+    // Film view columns
+    title: 300,
+    contact_name: 200
+  })
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingContact, setEditingContact] = useState<ContactCard | null>(null)
   const [selectedFilm, setSelectedFilm] = useState<any>(null)
@@ -794,7 +806,9 @@ export default function ContactsPage() {
           contact.contact_name,
           contact.contact_company,
           contact.contact_email,
-          contact.contact_type
+          contact.contact_type,
+          // Include associated film titles in search
+          ...(contact.associated_films || [])
         ]
       )
       filtered = filtered.filter(searchFilter)
@@ -807,6 +821,33 @@ export default function ContactsPage() {
 
     setFilteredContacts(filtered)
   }, [contacts, searchTerm, selectedContactType])
+
+  // Filter and search for films
+  useEffect(() => {
+    let filtered = films
+
+    // Search filter for films
+    if (searchTerm && viewMode === 'by-film') {
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter(film => {
+        // Search in film title
+        if (film.title?.toLowerCase().includes(searchLower)) return true
+        
+        // Search in contact names
+        if (film.contacts?.some(c => c.name?.toLowerCase().includes(searchLower))) return true
+        
+        // Search in contact companies
+        if (film.contacts?.some(c => c.company?.toLowerCase().includes(searchLower))) return true
+        
+        // Search in contact emails
+        if (film.contacts?.some(c => c.email?.toLowerCase().includes(searchLower))) return true
+        
+        return false
+      })
+    }
+
+    setFilteredFilms(filtered)
+  }, [films, searchTerm, viewMode])
 
   // Sort contacts with special handling for last name
   const sortedContacts = useMemo(() => {
@@ -841,7 +882,7 @@ export default function ContactsPage() {
 
   // Sort and filter films based on film view mode
   const sortedFilms = useMemo(() => {
-    const filtered = films.filter(film => {
+    const filtered = filteredFilms.filter(film => {
       if (viewMode !== 'by-film') return true
       // Convert plural filmViewMode to singular for matching
       const expectedType = filmViewMode === 'features' ? 'feature' : 'short'
@@ -865,6 +906,22 @@ export default function ContactsPage() {
         } else if (filmSortConfig.key === 'shorts_program_name') {
           aVal = a.shorts_program_name || ''
           bVal = b.shorts_program_name || ''
+        } else if (filmSortConfig.key === 'contact_name') {
+          // Aggregate contact names for sorting
+          aVal = a.contacts?.map(c => c.name).filter(Boolean).join(', ') || ''
+          bVal = b.contacts?.map(c => c.name).filter(Boolean).join(', ') || ''
+        } else if (filmSortConfig.key === 'contact_company') {
+          // Aggregate contact companies for sorting
+          aVal = a.contacts?.map(c => c.company).filter(Boolean).join(', ') || ''
+          bVal = b.contacts?.map(c => c.company).filter(Boolean).join(', ') || ''
+        } else if (filmSortConfig.key === 'contact_email') {
+          // Aggregate contact emails for sorting
+          aVal = a.contacts?.map(c => c.email).filter(Boolean).join(', ') || ''
+          bVal = b.contacts?.map(c => c.email).filter(Boolean).join(', ') || ''
+        } else if (filmSortConfig.key === 'contact_type') {
+          // Aggregate contact types for sorting
+          aVal = a.contacts?.map(c => c.contact_type).filter(Boolean).join(', ') || ''
+          bVal = b.contacts?.map(c => c.contact_type).filter(Boolean).join(', ') || ''
         } else {
           aVal = a[filmSortConfig.key] || ''
           bVal = b[filmSortConfig.key] || ''
@@ -882,7 +939,7 @@ export default function ContactsPage() {
     }
     
     return filtered.sort((a, b) => a.title.localeCompare(b.title))
-  }, [films, filmViewMode, viewMode, filmSortConfig])
+  }, [filteredFilms, filmViewMode, viewMode, filmSortConfig])
 
   const handleSort = (key: string) => {
     setSortConfig(current => {
@@ -901,6 +958,54 @@ export default function ContactsPage() {
       return { key, direction: 'asc' }
     })
   }
+
+  // Column resize handlers
+  const [isResizing, setIsResizing] = useState(false)
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null)
+  const [startX, setStartX] = useState(0)
+  const [startWidth, setStartWidth] = useState(0)
+
+  const handleMouseDown = (e: React.MouseEvent, column: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsResizing(true)
+    setResizingColumn(column)
+    setStartX(e.clientX)
+    setStartWidth(columnWidths[column] || 200)
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !resizingColumn) return
+      
+      const diff = e.clientX - startX
+      const newWidth = Math.max(100, startWidth + diff)
+      
+      setColumnWidths(prev => ({
+        ...prev,
+        [resizingColumn]: newWidth
+      }))
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+      setResizingColumn(null)
+    }
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isResizing, resizingColumn, startX, startWidth])
 
   const getSortIcon = (key: string) => {
     if (sortConfig?.key !== key) return '↕️'
@@ -1138,7 +1243,7 @@ export default function ContactsPage() {
           <div className="flex-1 max-w-md">
             <input
               type="text"
-              placeholder="Search contacts..."
+              placeholder={viewMode === 'by-film' ? "Search films, contacts, companies..." : "Search contacts, companies, films..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1194,11 +1299,16 @@ export default function ContactsPage() {
                     ].map((column) => (
                     <th
                       key={column.key}
-                      className="sticky top-0 z-10 relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100"
-                      style={{ minWidth: `${columnWidths[column.key] || column.width}px` }}
-                      onClick={() => column.key !== 'actions' && handleSort(column.key)}
+                      className="sticky top-0 z-10 relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50"
+                      style={{ 
+                        minWidth: `${columnWidths[column.key] || column.width}px`,
+                        width: `${columnWidths[column.key] || column.width}px`
+                      }}
                     >
-                      <div className="flex items-center justify-between">
+                      <div 
+                        className="flex items-center justify-between cursor-pointer hover:bg-gray-100 -mx-3 px-3 py-0"
+                        onClick={() => column.key !== 'actions' && handleSort(column.key)}
+                      >
                         <span>{column.label}</span>
                         {column.key !== 'actions' && (
                           <span className="text-gray-400 ml-1">
@@ -1206,6 +1316,12 @@ export default function ContactsPage() {
                           </span>
                         )}
                       </div>
+                      {/* Resize handle */}
+                      <div
+                        className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 bg-gray-300"
+                        onMouseDown={(e) => handleMouseDown(e, column.key)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
                     </th>
                   ))}
                 </tr>
@@ -1213,33 +1329,33 @@ export default function ContactsPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {sortedContacts.map((contact) => (
                   <tr key={contact.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_name'] || 200}px` }}>
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['last_name'] || 200}px`, width: `${columnWidths['last_name'] || 200}px` }}>
                       <span className="font-medium">{contact.contact_name}</span>
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_company'] || 200}px` }}>
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_company'] || 200}px`, width: `${columnWidths['contact_company'] || 200}px` }}>
                       {contact.contact_company}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_email'] || 250}px` }}>
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_email'] || 250}px`, width: `${columnWidths['contact_email'] || 250}px` }}>
                       {contact.contact_email && (
                         <a href={`mailto:${contact.contact_email}`} className="text-blue-600 hover:text-blue-800">
                           {contact.contact_email}
                         </a>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['phone'] || 150}px` }}>
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['phone'] || 150}px`, width: `${columnWidths['phone'] || 150}px` }}>
                       {contact.phone}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['mailing_address'] || 200}px` }}>
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['mailing_address'] || 200}px`, width: `${columnWidths['mailing_address'] || 200}px` }}>
                       {contact.mailing_address}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_type'] || 150}px` }}>
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_type'] || 150}px`, width: `${columnWidths['contact_type'] || 150}px` }}>
                       {contact.contact_type && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                           {contact.contact_type}
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['associated_films'] || 300}px` }}>
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['associated_films'] || 300}px`, width: `${columnWidths['associated_films'] || 300}px` }}>
                       {contact.associated_films_data && contact.associated_films_data.length > 0 ? (
                         <div className="max-w-xs">
                           {contact.associated_films_data.map((film, index) => (
@@ -1260,7 +1376,7 @@ export default function ContactsPage() {
                         <span className="text-xs text-gray-400 italic">No associated films</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 160}px` }}>
+                    <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 160}px`, width: `${columnWidths['actions'] || 160}px` }}>
                       <div className="flex space-x-1 flex-wrap gap-1">
                         <button
                           onClick={() => handleEditContact(contact)}
@@ -1324,16 +1440,27 @@ export default function ContactsPage() {
                       ].map((column) => (
                         <th
                           key={column.key}
-                          className="sticky top-0 z-10 relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100"
-                          style={{ minWidth: `${columnWidths[column.key] || column.width}px` }}
-                          onClick={() => handleFilmSort(column.key)}
+                          className="sticky top-0 z-10 relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-50"
+                          style={{ 
+                            minWidth: `${columnWidths[column.key] || column.width}px`,
+                            width: `${columnWidths[column.key] || column.width}px`
+                          }}
                         >
-                          <div className="flex items-center justify-between">
+                          <div 
+                            className="flex items-center justify-between cursor-pointer hover:bg-gray-100 -mx-3 px-3 py-0"
+                            onClick={() => handleFilmSort(column.key)}
+                          >
                             <span>{column.label}</span>
                             <span className="text-gray-400 ml-1">
                               {getFilmSortIcon(column.key)}
                             </span>
                           </div>
+                          {/* Resize handle */}
+                          <div
+                            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 bg-gray-300"
+                            onMouseDown={(e) => handleMouseDown(e, column.key)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
                         </th>
                       ))}
                     </tr>
@@ -1348,7 +1475,7 @@ export default function ContactsPage() {
 
                       return (
                         <tr key={film.id} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['title'] || 300}px` }}>
+                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['title'] || 300}px`, width: `${columnWidths['title'] || 300}px` }}>
                             <button
                               onClick={() => handleFilmClick(film)}
                               className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
@@ -1356,17 +1483,17 @@ export default function ContactsPage() {
                               {film.title}
                             </button>
                           </td>
-                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_name'] || 200}px` }}>
-                            <span className={contactNames === 'No contacts' ? 'text-gray-400 italic' : 'font-medium'}>
+                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_name'] || 200}px`, width: `${columnWidths['contact_name'] || 200}px` }}>
+                            <span className={contactNames === 'No contacts' ? 'text-gray-400 italic' : 'font-medium text-gray-900'}>
                               {contactNames}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_company'] || 200}px` }}>
-                            <span className={contactCompanies === '-' ? 'text-gray-400' : ''}>
+                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_company'] || 200}px`, width: `${columnWidths['contact_company'] || 200}px` }}>
+                            <span className={contactCompanies === '-' ? 'text-gray-400' : 'text-gray-900'}>
                               {contactCompanies}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_email'] || 250}px` }}>
+                          <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_email'] || 250}px`, width: `${columnWidths['contact_email'] || 250}px` }}>
                             {contactEmails !== '-' ? (
                               contactEmails.split(', ').map((email, index) => (
                                 <span key={email}>
@@ -1380,7 +1507,7 @@ export default function ContactsPage() {
                               <span className="text-gray-400">-</span>
                             )}
                           </td>
-                          <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['contact_type'] || 150}px` }}>
+                          <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['contact_type'] || 150}px`, width: `${columnWidths['contact_type'] || 150}px` }}>
                             {contactTypes !== '-' ? (
                               contactTypes.split(', ').map((type, index) => (
                                 <span key={index}>
@@ -1494,6 +1621,8 @@ export default function ContactsPage() {
                     <option value="Filmmaker">Filmmaker</option>
                     <option value="Producer">Producer</option>
                     <option value="Director">Director</option>
+                    <option value="Print Traffic">Print Traffic</option>
+                    <option value="Festival">Festival</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>

@@ -396,7 +396,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
     'Filmmaker',
     'Producer',
     'Director',
-    'Press/Media',
+    'Print Traffic',
     'Festival',
     'Other'
   ]
