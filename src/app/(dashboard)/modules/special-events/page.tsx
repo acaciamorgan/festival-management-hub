@@ -856,7 +856,7 @@ export default function SpecialEventsPage() {
                     { key: 'open_press', label: 'Open Press', width: 100, sortable: false },
                     { key: 'actual_attendance', label: 'Actual Attendance', width: 130, sortable: false },
                     { key: 'rsvps', label: 'RSVPs', width: 120, sortable: false },
-                    { key: 'actions', label: 'Actions', width: 100, sortable: false }
+                    ...(canEditSpecialEvents ? [{ key: 'actions', label: 'Actions', width: 100, sortable: false }] : [])
                   ].map((column) => (
                     <th
                       key={column.key}
@@ -1051,22 +1051,24 @@ export default function SpecialEventsPage() {
                     </td>
                     
                     {/* Actions */}
-                    <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 100}px` }}>
-                      <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => handleEditEvent(event)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteEvent(event)}
-                          className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-medium"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                    {canEditSpecialEvents && (
+                      <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 100}px` }}>
+                        <div className="flex flex-col gap-1">
+                          <button
+                            onClick={() => handleEditEvent(event)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteEvent(event)}
+                            className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-medium"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

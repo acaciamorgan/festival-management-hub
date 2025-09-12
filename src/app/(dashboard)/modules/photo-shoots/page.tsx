@@ -602,9 +602,11 @@ export default function PhotoShootsPage() {
                       />
                     </th>
                   ))}
-                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                    Actions
-                  </th>
+                  {canEditPhotoShoots && (
+                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                      Actions
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -717,19 +719,21 @@ export default function PhotoShootsPage() {
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:cursor-not-allowed"
                       />
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 text-center">
-                      <button
-                        onClick={() => setSelectedShoot(shoot)}
-                        className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm font-medium"
-                      >
-                        Edit
-                      </button>
-                    </td>
+                    {canEditPhotoShoots && (
+                      <td className="px-3 py-2 text-sm text-gray-900 text-center">
+                        <button
+                          onClick={() => setSelectedShoot(shoot)}
+                          className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm font-medium"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {sortedPhotoShoots.length === 0 && (
                   <tr>
-                    <td colSpan={13} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={canEditPhotoShoots ? 13 : 12} className="px-6 py-12 text-center text-gray-500">
                       {searchTerm || selectsFilter !== 'all' || prFilter !== 'all' 
                         ? 'No photo shoots match your filters.'
                         : 'No photo shoots found. Click "Add Shoot" to create your first photo shoot.'

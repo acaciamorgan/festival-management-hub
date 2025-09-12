@@ -806,9 +806,11 @@ export default function PressRequestsPage() {
                       />
                     </th>
                   ))}
-                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                    Actions
-                  </th>
+                  {canEditPressRequests && (
+                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                      Actions
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -868,47 +870,45 @@ export default function PressRequestsPage() {
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['requested_at'] || 120}px` }}>
                       {formatDateTime(request.requested_at)}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 text-center">
-                      <div className="flex justify-center space-x-2">
-                        {request.status === 'new' && canEditPressRequests && (
-                          <>
-                            <button
-                              onClick={() => updateRequestStatus(request.id, 'requested')}
-                              className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
-                            >
-                              Requested
-                            </button>
-                            <button
-                              onClick={() => updateRequestStatus(request.id, 'fulfilled')}
-                              className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700"
-                            >
-                              Fulfilled
-                            </button>
-                          </>
-                        )}
-                        {canEditPressRequests && (
-                          <>
-                            <button
-                              onClick={() => setSelectedRequest(request)}
-                              className="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-700"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => deleteRequest(request.id)}
-                              className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700"
-                            >
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
+                    {canEditPressRequests && (
+                      <td className="px-3 py-2 text-sm text-gray-900 text-center">
+                        <div className="flex justify-center space-x-2">
+                          {request.status === 'new' && (
+                            <>
+                              <button
+                                onClick={() => updateRequestStatus(request.id, 'requested')}
+                                className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
+                              >
+                                Requested
+                              </button>
+                              <button
+                                onClick={() => updateRequestStatus(request.id, 'fulfilled')}
+                                className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700"
+                              >
+                                Fulfilled
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => setSelectedRequest(request)}
+                            className="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-700"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => deleteRequest(request.id)}
+                            className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {sortedRequests.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={canEditPressRequests ? 10 : 9} className="px-6 py-12 text-center text-gray-500">
                       {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
                         ? 'No screener requests match your filters.'
                         : 'No screener requests found. Click "Add Request" to create your first screener request.'}

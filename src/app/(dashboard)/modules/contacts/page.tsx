@@ -1303,7 +1303,7 @@ export default function ContactsPage() {
                       { key: 'mailing_address', label: 'Mailing Address', width: 200 },
                       { key: 'contact_type', label: 'Type', width: 150 },
                       { key: 'associated_films', label: 'Film Title', width: 300 },
-                      { key: 'actions', label: 'Actions', width: 160 }
+                      ...(canEditContacts ? [{ key: 'actions', label: 'Actions', width: 160 }] : [])
                     ].map((column) => (
                     <th
                       key={column.key}
@@ -1384,22 +1384,24 @@ export default function ContactsPage() {
                         <span className="text-xs text-gray-400 italic">No associated films</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 160}px`, width: `${columnWidths['actions'] || 160}px` }}>
-                      <div className="flex space-x-1 flex-wrap gap-1">
-                        <button
-                          onClick={() => handleEditContact(contact)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteContact(contact)}
-                          className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-medium"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                    {canEditContacts && (
+                      <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 160}px`, width: `${columnWidths['actions'] || 160}px` }}>
+                        <div className="flex space-x-1 flex-wrap gap-1">
+                          <button
+                            onClick={() => handleEditContact(contact)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteContact(contact)}
+                            className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-medium"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 </tbody>

@@ -597,9 +597,11 @@ export default function RedCarpetsPage() {
                       />
                     </th>
                   ))}
-                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                    Actions
-                  </th>
+                  {canEditRedCarpets && (
+                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                      Actions
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -716,14 +718,16 @@ export default function RedCarpetsPage() {
                         {!event.rsvp_responses_url && !event.rsvp_form_url && '—'}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 text-center">
-                      <button
-                        onClick={() => setSelectedCarpet(event.rawEvents[0])}
-                        className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm font-medium"
-                      >
-                        Edit
-                      </button>
-                    </td>
+                    {canEditRedCarpets && (
+                      <td className="px-3 py-2 text-sm text-gray-900 text-center">
+                        <button
+                          onClick={() => setSelectedCarpet(event.rawEvents[0])}
+                          className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm font-medium"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {sortedEvents.length === 0 && (
