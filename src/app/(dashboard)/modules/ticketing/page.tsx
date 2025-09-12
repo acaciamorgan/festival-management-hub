@@ -1389,14 +1389,14 @@ export default function TicketingPage() {
           if (char === '"') {
             inQuotes = !inQuotes
           } else if (char === ',' && !inQuotes) {
-            result.push(current.trim())
+            result.push(current.trim().replace(/^"(.+)"$/, '$1'))
             current = ''
           } else {
             current += char
           }
         }
         
-        result.push(current.trim())
+        result.push(current.trim().replace(/^"(.+)"$/, '$1'))
         return result
       }
       
