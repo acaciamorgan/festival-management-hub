@@ -880,6 +880,12 @@ export default function ContactsPage() {
     })
   }, [filteredContacts, sortConfig])
 
+  // Helper function to remove articles for sorting
+  const removeArticles = (title: string): string => {
+    const articles = /^(the |a |an )/i
+    return title.replace(articles, '').trim()
+  }
+
   // Sort and filter films based on film view mode
   const sortedFilms = useMemo(() => {
     const filtered = filteredFilms.filter(film => {
@@ -898,8 +904,9 @@ export default function ContactsPage() {
         
         // Handle different sortable fields
         if (filmSortConfig.key === 'title') {
-          aVal = a.title || ''
-          bVal = b.title || ''
+          // Remove articles for title sorting
+          aVal = removeArticles(a.title || '')
+          bVal = removeArticles(b.title || '')
         } else if (filmSortConfig.key === 'director') {
           aVal = a.director || ''
           bVal = b.director || ''
@@ -938,7 +945,8 @@ export default function ContactsPage() {
       })
     }
     
-    return filtered.sort((a, b) => a.title.localeCompare(b.title))
+    // Default sort by title (ignoring articles)
+    return filtered.sort((a, b) => removeArticles(a.title).localeCompare(removeArticles(b.title)))
   }, [filteredFilms, filmViewMode, viewMode, filmSortConfig])
 
   const handleSort = (key: string) => {
