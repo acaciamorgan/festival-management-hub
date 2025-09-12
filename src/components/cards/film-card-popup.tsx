@@ -615,39 +615,18 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               {filmScreenings.length > 0 ? (
                 <div className="space-y-2">
                   {filmScreenings.map((screening) => {
-                    // Format date as "Mon, Oct 23" without timezone conversion
-                    const date = screening.screening_date ? (() => {
+                    // Format date using the day_of_week from database
+                    const date = screening.screening_date && screening.day_of_week ? (() => {
                       const parts = screening.screening_date.split('-')
                       if (parts.length !== 3) return screening.screening_date
-                      const year = parseInt(parts[0])
                       const month = parseInt(parts[1])
                       const day = parseInt(parts[2])
                       
-                      // Calculate day of week using Zeller's congruence
-                      let q = day
-                      let m = month
-                      let k = year % 100
-                      let j = Math.floor(year / 100)
-                      
-                      if (m < 3) {
-                        m += 12
-                        if (k === 0) {
-                          k = 99
-                          j--
-                        } else {
-                          k--
-                        }
-                      }
-                      
-                      const h = (q + Math.floor((13 * (m + 1)) / 5) + k + Math.floor(k / 4) + Math.floor(j / 4) - 2 * j) % 7
-                      const dayIndex = (h + 5) % 7
-                      
-                      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                      // Use the day_of_week directly from database
+                      const dayName = screening.day_of_week.substring(0, 3) // Get first 3 chars of day name
                       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-                      const dayName = dayNames[dayIndex]
                       const monthName = monthNames[month - 1]
-                      const dayNum = day
-                      return `${dayName}, ${monthName} ${dayNum}`
+                      return `${dayName}, ${monthName} ${day}`
                     })() : 'TBD'
                     
                     // Format time as "7:00 PM"
