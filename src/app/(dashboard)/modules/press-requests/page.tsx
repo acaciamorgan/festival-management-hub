@@ -599,11 +599,12 @@ export default function PressRequestsPage() {
 
         // Each request (12pt)
         entry.requests.forEach((request: PressRequest) => {
+          const statusText = request.status === 'requested' ? ' (REQUESTED)' : ''
           children.push(
             new Paragraph({
               children: [
                 new TextRun({
-                  text: `${request.requester_name} / ${request.requester_outlet} / ${request.film_titles}`,
+                  text: `${request.requester_name} / ${request.requester_outlet} / ${request.film_titles}${statusText}`,
                   size: 24
                 })
               ]
