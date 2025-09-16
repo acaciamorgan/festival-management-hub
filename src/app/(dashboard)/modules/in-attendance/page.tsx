@@ -353,11 +353,12 @@ export default function InAttendancePage() {
   const loadGuests = useCallback(async () => {
     setLoading(true)
     try {
-      // Load guests with their films
+      // Load guests with their films - explicitly fetch all records
       const { data: guestsData, error: guestsError } = await supabase
         .from('guests')
         .select('*')
         .order('name', { ascending: true })
+        .limit(1000) // Explicitly set a high limit to fetch all records
 
       if (guestsError) throw guestsError
 
