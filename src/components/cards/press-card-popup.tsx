@@ -74,7 +74,12 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
     accreditation_level: press.accreditation_level || 'Unassigned'
   })
   const [pressInterviews, setPressInterviews] = useState<InterviewCard[]>([])
-  
+
+  // Edit modal dragging state
+  const [editModalPosition, setEditModalPosition] = useState({ x: window.innerWidth / 2 - 320, y: 100 })
+  const [isEditModalDragging, setIsEditModalDragging] = useState(false)
+  const [editModalDragStart, setEditModalDragStart] = useState({ x: 0, y: 0 })
+
   const supabase = createClient()
 
   // Phone number formatting helper
@@ -117,6 +122,20 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
     setIsDragging(false)
   }
 
+  // Edit modal drag handlers
+  const handleEditModalMouseMove = useCallback((e: MouseEvent) => {
+    if (isEditModalDragging) {
+      setEditModalPosition({
+        x: e.clientX - editModalDragStart.x,
+        y: e.clientY - editModalDragStart.y
+      })
+    }
+  }, [isEditModalDragging, editModalDragStart.x, editModalDragStart.y])
+
+  const handleEditModalMouseUp = () => {
+    setIsEditModalDragging(false)
+  }
+
   useEffect(() => {
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove)
@@ -128,6 +147,19 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
       document.removeEventListener('mouseup', handleMouseUp)
     }
   }, [isDragging, dragStart])
+
+  // Handle edit modal dragging
+  useEffect(() => {
+    if (isEditModalDragging) {
+      document.addEventListener('mousemove', handleEditModalMouseMove)
+      document.addEventListener('mouseup', handleEditModalMouseUp)
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleEditModalMouseMove)
+      document.removeEventListener('mouseup', handleEditModalMouseUp)
+    }
+  }, [isEditModalDragging, editModalDragStart])
 
   const handleCredentialPickupToggle = async () => {
     try {
@@ -488,10 +520,25 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
       
       {/* Edit Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Edit Journalist</h2>
+        <div className="fixed inset-0 bg-transparent z-[60]">
+          <div
+            className="absolute bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
+            style={{
+              left: `${editModalPosition.x}px`,
+              top: `${editModalPosition.y}px`,
+            }}
+          >
+            <div
+              className="flex justify-between items-center mb-4 p-6 pb-0 cursor-move bg-gray-50 border-b"
+              onMouseDown={(e) => {
+                setIsEditModalDragging(true)
+                setEditModalDragStart({
+                  x: e.clientX - editModalPosition.x,
+                  y: e.clientY - editModalPosition.y
+                })
+              }}
+            >
+              <h2 className="text-xl font-semibold select-none">Edit Journalist</h2>
               <button
                 onClick={() => setShowEditModal(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -499,6 +546,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                 ✕
               </button>
             </div>
+            <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 80px)' }}>
             
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -652,6 +700,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                 </div>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
