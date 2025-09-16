@@ -367,7 +367,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                     <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Accreditation Level</span>
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${getAccreditationBadge(press.accreditation_level)}`}>
                       {press.accreditation_level === 'G' ? 'G - General Press' :
-                       press.accreditation_level === 'P' ? 'P - Premium Press' :
+                       press.accreditation_level === 'P' ? 'P - Priority Press' :
                        press.accreditation_level === 'S' ? 'S - Social' :
                        press.accreditation_level}
                     </span>
@@ -619,7 +619,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                   >
                     <option value="Unassigned">Unassigned</option>
                     <option value="G">G - General Press</option>
-                    <option value="P">P - Premium Press</option>
+                    <option value="P">P - Priority Press</option>
                     <option value="S">S - Social</option>
                   </select>
                 </div>

@@ -491,20 +491,15 @@ export default function PressManagementPage() {
             }
             // Handle accreditation parsing from both formats
             else if (dbField === 'accreditation_raw') {
-              console.log('Processing accreditation_raw:', value)
-              // Handle new format: "G - General Press", "P - Premium Press", "S - Social"
+              // Handle new format: "G - General Press", "P - Priority Press", "S - Social"
               if (value.includes('G - General Press') || value.includes('Accredited - G')) {
                 pressData.accreditation_level = 'G'
-                console.log('Set accreditation_level to G')
-              } else if (value.includes('P - Premium Press') || value.includes('Accredited - P')) {
+              } else if (value.includes('P - Priority Press') || value.includes('P - Premium Press') || value.includes('Accredited - P')) {
                 pressData.accreditation_level = 'P'
-                console.log('Set accreditation_level to P')
               } else if (value.includes('S - Social') || value.includes('Accredited - S')) {
                 pressData.accreditation_level = 'S'
-                console.log('Set accreditation_level to S')
               } else {
                 pressData.accreditation_level = 'Unassigned'
-                console.log('Set accreditation_level to Unassigned')
               }
             }
             // Handle social media fields
@@ -605,11 +600,6 @@ export default function PressManagementPage() {
         
         // Check if Card with this exact name already exists
         const existingCard = (existingCards || []).find(card => card.name === pressData.name)
-
-        console.log('Final pressData for', pressData.name, ':', {
-          ...pressData,
-          accreditation_level: pressData.accreditation_level
-        })
 
         if (existingCard) {
           // UPDATE existing Card - newest data takes priority
@@ -823,7 +813,7 @@ export default function PressManagementPage() {
                 <option value="">All Levels</option>
                 {uniqueAccreditationLevels.map(level => (
                   <option key={level} value={level}>
-                    {level === 'G' ? 'G - General Press' : level === 'P' ? 'P - Premium Press' : level === 'S' ? 'S - Social' : level}
+                    {level === 'G' ? 'G - General Press' : level === 'P' ? 'P - Priority Press' : level === 'S' ? 'S - Social' : level}
                   </option>
                 ))}
               </select>
@@ -1046,7 +1036,7 @@ export default function PressManagementPage() {
                               ? 'bg-blue-100 text-blue-800'
                               : 'bg-gray-100 text-gray-800'
                           }`}>
-                            {pressCard.accreditation_level === 'G' ? 'G - General Press' : pressCard.accreditation_level === 'P' ? 'P - Premium Press' : pressCard.accreditation_level === 'S' ? 'S - Social' : pressCard.accreditation_level}
+                            {pressCard.accreditation_level === 'G' ? 'G - General Press' : pressCard.accreditation_level === 'P' ? 'P - Priority Press' : pressCard.accreditation_level === 'S' ? 'S - Social' : pressCard.accreditation_level}
                           </span>
                         )}
                       </td>
@@ -1144,7 +1134,7 @@ export default function PressManagementPage() {
                   >
                     <option value="Unassigned">Unassigned</option>
                     <option value="G">G - General Press</option>
-                    <option value="P">P - Premium Press</option>
+                    <option value="P">P - Priority Press</option>
                     <option value="S">S - Social</option>
                   </select>
                 </div>
