@@ -431,7 +431,8 @@ export default function PressManagementPage() {
         'If you are a member of a Film Critics organization, please specify all memberships.': 'critics_groups',
         
         // Accreditation from form
-        'Accreditation:': 'accreditation_raw'
+        'Accreditation:': 'accreditation_raw',
+        'Level': 'accreditation_raw'  // New format from CSV
       }
 
       // Debug: Log the headers and mapping results
@@ -488,13 +489,14 @@ export default function PressManagementPage() {
             } else if (dbField === 'name') {
               pressData.name = value
             }
-            // Handle accreditation parsing from "Accredited - G" format
+            // Handle accreditation parsing from both formats
             else if (dbField === 'accreditation_raw') {
-              if (value.includes('Accredited - G')) {
+              // Handle new format: "G - General Press", "P - Premium Press", "S - Social"
+              if (value.includes('G - General Press') || value.includes('Accredited - G')) {
                 pressData.accreditation_level = 'G'
-              } else if (value.includes('Accredited - P')) {
+              } else if (value.includes('P - Premium Press') || value.includes('Accredited - P')) {
                 pressData.accreditation_level = 'P'
-              } else if (value.includes('Accredited - S')) {
+              } else if (value.includes('S - Social') || value.includes('Accredited - S')) {
                 pressData.accreditation_level = 'S'
               } else {
                 pressData.accreditation_level = 'Unassigned'
