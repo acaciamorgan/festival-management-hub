@@ -491,20 +491,15 @@ export default function PressManagementPage() {
             }
             // Handle accreditation parsing from both formats
             else if (dbField === 'accreditation_raw') {
-              console.log('LEVEL DEBUG - Processing:', value)
               // Handle new format: "G - General Press", "P - Priority Press", "S - Social"
               if (value.includes('G - General Press') || value.includes('Accredited - G')) {
                 pressData.accreditation_level = 'G'
-                console.log('LEVEL DEBUG - Set to G')
               } else if (value.includes('P - Priority Press') || value.includes('P - Premium Press') || value.includes('Accredited - P')) {
                 pressData.accreditation_level = 'P'
-                console.log('LEVEL DEBUG - Set to P for:', value)
               } else if (value.includes('S - Social') || value.includes('Accredited - S')) {
                 pressData.accreditation_level = 'S'
-                console.log('LEVEL DEBUG - Set to S')
               } else {
                 pressData.accreditation_level = 'Unassigned'
-                console.log('LEVEL DEBUG - Set to Unassigned for:', value)
               }
             }
             // Handle social media fields
@@ -607,7 +602,6 @@ export default function PressManagementPage() {
         const existingCard = (existingCards || []).find(card => card.name === pressData.name)
 
         if (existingCard) {
-          console.log('LEVEL DEBUG - Updating existing card:', pressData.name, 'with accreditation_level:', pressData.accreditation_level)
           // UPDATE existing Card - newest data takes priority
           const { error } = await supabase
             .from('press')
