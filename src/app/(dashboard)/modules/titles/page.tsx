@@ -117,7 +117,7 @@ export default function TitlesPage() {
   const [selectedProgram, setSelectedProgram] = useState('')
   const [selectedGenre, setSelectedGenre] = useState('')
   const [selectedPremiereStatus, setSelectedPremiereStatus] = useState('')
-  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>(null)
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'title', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [selectedFilm, setSelectedFilm] = useState<FeatureFilm | ShortFilm | null>(null)
   const [showCreateProgramModal, setShowCreateProgramModal] = useState(false)
@@ -888,6 +888,11 @@ export default function TitlesPage() {
       }
       return { key, direction: 'asc' }
     })
+  }
+
+  const getSortIcon = (key: string) => {
+    if (sortConfig?.key !== key) return '↕️'
+    return sortConfig.direction === 'asc' ? '↑' : '↓'
   }
 
   useEffect(() => {
@@ -2007,11 +2012,9 @@ export default function TitlesPage() {
                             className="flex items-center space-x-1 hover:text-gray-700"
                           >
                             <span>{column.label}</span>
-                            {sortConfig?.key === column.key && (
-                              <span className="text-blue-600">
-                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                              </span>
-                            )}
+                            <span className={sortConfig?.key === column.key ? 'text-blue-600' : 'text-gray-400'}>
+                              {getSortIcon(column.key)}
+                            </span>
                           </button>
                         </div>
                         <div
@@ -2186,11 +2189,9 @@ export default function TitlesPage() {
                             className="flex items-center space-x-1 hover:text-gray-700"
                           >
                             <span>{column.label}</span>
-                            {sortConfig?.key === column.key && (
-                              <span className="text-blue-600">
-                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                              </span>
-                            )}
+                            <span className={sortConfig?.key === column.key ? 'text-blue-600' : 'text-gray-400'}>
+                              {getSortIcon(column.key)}
+                            </span>
                           </button>
                         </div>
                         {/* Resize Handle */}
@@ -2411,11 +2412,9 @@ export default function TitlesPage() {
                                   className="flex items-center space-x-1 hover:text-gray-700"
                                 >
                                   <span>{column.label}</span>
-                                  {sortConfig?.key === column.key && (
-                                    <span className="text-blue-600">
-                                      {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                                    </span>
-                                  )}
+                                  <span className={sortConfig?.key === column.key ? 'text-blue-600' : 'text-gray-400'}>
+                                    {getSortIcon(column.key)}
+                                  </span>
                                 </button>
                               </div>
                               {/* Resize Handle */}
