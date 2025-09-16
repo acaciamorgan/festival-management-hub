@@ -411,12 +411,21 @@ export default function InAttendancePage() {
     return Array.from(options).sort()
   }, [guests])
 
-  // Smart sorting function (ignores articles and special characters)
-  const normalizeForSort = (str: string | undefined | null): string => {
-    if (!str) return ''
-    return str
-      .replace(/^(the|a|an)\\s+/i, '')
-      .replace(/[^\\w\\s]/g, '')
+  // Smart sorting function with last name support
+  const normalizeForSort = (text: string | undefined | null, field?: string): string => {
+    if (!text) return ''
+
+    // For names, extract last name for sorting
+    if (field === 'name') {
+      const nameParts = text.trim().split(/\s+/)
+      const lastName = nameParts[nameParts.length - 1] || ''
+      return lastName.toLowerCase().replace(/[^a-z0-9]/g, '')
+    }
+
+    // For other fields, use standard normalization
+    return text
+      .replace(/^(the|a|an)\s+/i, '')
+      .replace(/[^\w\s]/g, '')
       .toLowerCase()
       .trim()
   }
@@ -479,8 +488,8 @@ export default function InAttendancePage() {
         const aVal = a[sortConfig.key as keyof GuestCard]
         const bVal = b[sortConfig.key as keyof GuestCard]
         
-        const aNorm = normalizeForSort(aVal?.toString())
-        const bNorm = normalizeForSort(bVal?.toString())
+        const aNorm = normalizeForSort(aVal?.toString(), sortConfig.key)
+        const bNorm = normalizeForSort(bVal?.toString(), sortConfig.key)
         
         if (aNorm < bNorm) return sortConfig.direction === 'asc' ? -1 : 1
         if (aNorm > bNorm) return sortConfig.direction === 'asc' ? 1 : -1
