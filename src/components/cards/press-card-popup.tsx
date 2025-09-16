@@ -227,8 +227,10 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
         return 'bg-purple-50 border-purple-200'
       case 'G':
         return 'bg-green-50 border-green-200'
+      case 'S':
+        return 'bg-blue-50 border-blue-200'
       default:
-        return 'bg-blue-50 border-gray-200'
+        return 'bg-gray-50 border-gray-200'
     }
   }
 
@@ -238,6 +240,8 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
         return 'bg-purple-100 text-purple-800'
       case 'G':
         return 'bg-green-100 text-green-800'
+      case 'S':
+        return 'bg-blue-100 text-blue-800'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -330,8 +334,9 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                   <div className="flex items-center space-x-2">
                     <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Accreditation Level</span>
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${getAccreditationBadge(press.accreditation_level)}`}>
-                      {press.accreditation_level === 'P' ? 'Premium (P)' : 
-                       press.accreditation_level === 'G' ? 'General (G)' : 
+                      {press.accreditation_level === 'G' ? 'G - General Press' :
+                       press.accreditation_level === 'P' ? 'P - Premium Press' :
+                       press.accreditation_level === 'S' ? 'S - Social' :
                        press.accreditation_level}
                     </span>
                   </div>
@@ -565,8 +570,9 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="Unassigned">Unassigned</option>
-                    <option value="P">Premium (P)</option>
-                    <option value="G">General (G)</option>
+                    <option value="G">G - General Press</option>
+                    <option value="P">P - Premium Press</option>
+                    <option value="S">S - Social</option>
                   </select>
                 </div>
               </div>

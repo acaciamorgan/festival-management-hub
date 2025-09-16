@@ -282,6 +282,11 @@ export default function PressManagementPage() {
     })
   }
 
+  const getSortIcon = (key: string) => {
+    if (sortConfig?.key !== key) return '↕️'
+    return sortConfig.direction === 'asc' ? '↑' : '↓'
+  }
+
   useEffect(() => {
     setFilteredPress(applyFiltersAndSort)
   }, [applyFiltersAndSort])
@@ -806,7 +811,7 @@ export default function PressManagementPage() {
                 <option value="">All Levels</option>
                 {uniqueAccreditationLevels.map(level => (
                   <option key={level} value={level}>
-                    {level === 'P' ? 'Premium (P)' : level === 'G' ? 'General (G)' : level === 'S' ? 'Social (S)' : level}
+                    {level === 'G' ? 'G - General Press' : level === 'P' ? 'P - Premium Press' : level === 'S' ? 'S - Social' : level}
                   </option>
                 ))}
               </select>
@@ -939,11 +944,9 @@ export default function PressManagementPage() {
                               className="flex items-center space-x-1 hover:text-gray-700"
                             >
                               <span>{column.label}</span>
-                              {sortConfig?.key === column.key && (
-                                <span className="text-blue-600">
-                                  {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                                </span>
-                              )}
+                              <span className={sortConfig?.key === column.key ? 'text-blue-600' : 'text-gray-400'}>
+                                {getSortIcon(column.key)}
+                              </span>
                             </button>
                           ) : (
                             <span>{column.label}</span>
@@ -1031,7 +1034,7 @@ export default function PressManagementPage() {
                               ? 'bg-blue-100 text-blue-800'
                               : 'bg-gray-100 text-gray-800'
                           }`}>
-                            {pressCard.accreditation_level === 'P' ? 'Premium' : pressCard.accreditation_level === 'G' ? 'General' : pressCard.accreditation_level === 'S' ? 'Social' : pressCard.accreditation_level}
+                            {pressCard.accreditation_level === 'G' ? 'G - General Press' : pressCard.accreditation_level === 'P' ? 'P - Premium Press' : pressCard.accreditation_level === 'S' ? 'S - Social' : pressCard.accreditation_level}
                           </span>
                         )}
                       </td>
@@ -1128,9 +1131,9 @@ export default function PressManagementPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="Unassigned">Unassigned</option>
-                    <option value="P">Premium (P)</option>
-                    <option value="G">General (G)</option>
-                    <option value="S">Social (S)</option>
+                    <option value="G">G - General Press</option>
+                    <option value="P">P - Premium Press</option>
+                    <option value="S">S - Social</option>
                   </select>
                 </div>
               </div>
