@@ -1065,8 +1065,7 @@ export default function InAttendancePage() {
       </div>
 
       {/* Data Grid */}
-      <div className="flex-1 overflow-hidden bg-white">
-        <div className="overflow-x-auto overflow-y-auto" style={{ height: 'calc(100vh - 200px)' }}>
+      <div className="flex-1 bg-white" style={{ overflow: 'auto', height: 'calc(100vh - 200px)' }}>
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-lg text-gray-500">Loading guests...</div>
@@ -1277,7 +1276,6 @@ export default function InAttendancePage() {
             {guests.length === 0 ? 'No guests found. Add your first guest or import from CSV!' : 'No guests match your search criteria.'}
           </div>
         )}
-        </div>
       </div>
 
       {/* Guest Form Modal */}
