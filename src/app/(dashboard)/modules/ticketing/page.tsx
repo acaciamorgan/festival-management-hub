@@ -104,16 +104,6 @@ function ScreeningBoard({
     typeOfOpenFilmCard: typeof openFilmCard
   })
 
-  // Create a stable callback that wraps the prop function
-  const handleFilmClick = useCallback((filmTitle: string) => {
-    console.log('handleFilmClick called with:', filmTitle, 'openFilmCard available:', !!openFilmCard)
-    if (openFilmCard && typeof openFilmCard === 'function') {
-      openFilmCard(filmTitle)
-    } else {
-      console.error('openFilmCard not available in handleFilmClick')
-    }
-  }, [openFilmCard])
-
 
   // Find Screening search effect
   useEffect(() => {
@@ -820,14 +810,14 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                     const leftPosition = minutesToPosition(startMinutes)
                     const widthPercent = getScreeningWidthPercent(screening.run_time)
                     const colorInfo = getScreeningColor(screening)
-                    
+
                     // Check if this screening is in search results
                     const searchMatchIndex = searchResults.findIndex(
                       r => r.id === screening.id && r.type === screening.type
                     )
                     const isCurrentSearchResult = searchMatchIndex === currentSearchIndex
                     const isSearchMatch = searchMatchIndex !== -1
-                    
+
                     // Determine text color based on background
                     const getTextColor = (bgColor: string | null) => {
                       if (!bgColor) return ''
@@ -839,37 +829,22 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                       const brightness = (r * 299 + g * 587 + b * 114) / 1000
                       return brightness > 128 ? 'text-gray-900' : 'text-white'
                     }
-                    
-                    const baseStyle = {
-                      left: `${leftPosition}%`,
-                      width: `${widthPercent}%`,
-                      minWidth: '60px',
-                      ...(colorInfo.backgroundColor && { backgroundColor: colorInfo.backgroundColor })
-                    }
-                    
+
                     const textColorClass = colorInfo.backgroundColor ? getTextColor(colorInfo.backgroundColor) : ''
-                    
+
                     return (
-                      <div
+                      <ScreeningItem
                         key={`${screening.type}-${screening.id}`}
-                        className={`absolute top-1 bottom-1 rounded px-2 py-1 text-xs font-medium border cursor-pointer hover:shadow-md transition-all ${
-                          isCurrentSearchResult
-                            ? 'border-2 border-yellow-400 shadow-lg bg-yellow-100 text-yellow-900 z-10'
-                            : isSearchMatch
-                              ? 'border-yellow-300 bg-yellow-50 text-yellow-800'
-                              : `${colorInfo.className} ${textColorClass}`
-                        }`}
-                        style={baseStyle}
-                        title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
-                        onClick={() => handleFilmClick(screening.film_title)}
-                      >
-                        <div className="truncate font-medium text-xs leading-tight hover:underline">
-                          {screening.film_title}
-                        </div>
-                        <div className="truncate text-xs opacity-75">
-                          {screening.run_time ? `${screening.run_time}min` : 'TBD'}
-                        </div>
-                      </div>
+                        screening={screening}
+                        leftPosition={leftPosition}
+                        widthPercent={widthPercent}
+                        colorInfo={colorInfo}
+                        textColorClass={textColorClass}
+                        isCurrentSearchResult={isCurrentSearchResult}
+                        isSearchMatch={isSearchMatch}
+                        formatStringTime={formatStringTime}
+                        onFilmClick={openFilmCard}
+                      />
                     )
                   })}
                 </div>
@@ -893,6 +868,68 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
             <span className="text-gray-600">Tech Check</span>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ScreeningItem Component - handles individual screening rendering
+interface ScreeningItemProps {
+  screening: any
+  leftPosition: number
+  widthPercent: number
+  colorInfo: { className: string; backgroundColor?: string }
+  textColorClass: string
+  isCurrentSearchResult: boolean
+  isSearchMatch: boolean
+  formatStringTime: (time: string) => string
+  onFilmClick: (filmTitle: string) => void
+}
+
+function ScreeningItem({
+  screening,
+  leftPosition,
+  widthPercent,
+  colorInfo,
+  textColorClass,
+  isCurrentSearchResult,
+  isSearchMatch,
+  formatStringTime,
+  onFilmClick
+}: ScreeningItemProps) {
+  const baseStyle = {
+    left: `${leftPosition}%`,
+    width: `${widthPercent}%`,
+    minWidth: '60px',
+    ...(colorInfo.backgroundColor && { backgroundColor: colorInfo.backgroundColor })
+  }
+
+  return (
+    <div
+      key={`${screening.type}-${screening.id}`}
+      className={`absolute top-1 bottom-1 rounded px-2 py-1 text-xs font-medium border cursor-pointer hover:shadow-md transition-all ${
+        isCurrentSearchResult
+          ? 'border-2 border-yellow-400 shadow-lg bg-yellow-100 text-yellow-900 z-10'
+          : isSearchMatch
+            ? 'border-yellow-300 bg-yellow-50 text-yellow-800'
+            : `${colorInfo.className} ${textColorClass}`
+      }`}
+      style={baseStyle}
+      title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
+      onClick={() => {
+        console.log('ScreeningItem onClick, onFilmClick:', typeof onFilmClick)
+        if (onFilmClick && typeof onFilmClick === 'function') {
+          onFilmClick(screening.film_title)
+        } else {
+          console.error('onFilmClick is not a function in ScreeningItem')
+        }
+      }}
+    >
+      <div className="truncate font-medium text-xs leading-tight hover:underline">
+        {screening.film_title}
+      </div>
+      <div className="truncate text-xs opacity-75">
+        {screening.run_time ? `${screening.run_time}min` : 'TBD'}
       </div>
     </div>
   )
