@@ -7,7 +7,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
 import { loadScreeningBoardSettings, saveScreeningBoardSettings } from '@/lib/screening-board-settings'
-import FilmDetailModal from '@/components/modals/film-detail-modal'
+import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import * as XLSX from 'xlsx-js-style'
 
 // Helper functions for calendar calculations without Date objects
@@ -50,8 +50,6 @@ interface ScreeningBoardProps {
   setSearchResults: (results: any[]) => void
   currentSearchIndex: number
   setCurrentSearchIndex: (index: number) => void
-  setSelectedFilmTitle: (title: string) => void
-  setShowFilmModal: (show: boolean) => void
 }
 
 function ScreeningBoard({
@@ -69,8 +67,6 @@ function ScreeningBoard({
   setSearchResults,
   currentSearchIndex,
   setCurrentSearchIndex,
-  setSelectedFilmTitle,
-  setShowFilmModal,
   showSetViewModal,
   setShowSetViewModal,
   selectedVenues,
@@ -96,12 +92,57 @@ function ScreeningBoard({
   shortFilms: any[]
   shortsPrograms: any[]
   getAllPrograms: () => string[]
-  setSelectedFilmTitle: (title: string) => void
-  setShowFilmModal: (show: boolean) => void
 }) {
   const supabase = createClient()
   const { user } = useAuth()
-  
+
+  // Film card modal state (following In Attendance pattern)
+  const [showFilmCard, setShowFilmCard] = useState<any>(null)
+
+  const openFilmCard = async (filmTitle: string) => {
+    try {
+      // Try to find the film in feature_films first
+      let { data: filmData, error } = await supabase
+        .from('feature_films')
+        .select('*')
+        .eq('title', filmTitle)
+        .maybeSingle()
+
+      if (!filmData || error) {
+        // If not found in feature films, try short films
+        const { data: shortFilmData, error: shortError } = await supabase
+          .from('short_films')
+          .select('*')
+          .eq('title', filmTitle)
+          .maybeSingle()
+
+        if (shortFilmData && !shortError) {
+          filmData = shortFilmData
+        } else {
+          // If not found in films, try programs
+          const { data: programData, error: programError } = await supabase
+            .from('programs')
+            .select('*')
+            .eq('title', filmTitle)
+            .maybeSingle()
+
+          if (programData && !programError) {
+            filmData = programData
+          }
+        }
+      }
+
+      if (filmData) {
+        setShowFilmCard(filmData)
+      } else {
+        alert(`"${filmTitle}" not found in database`)
+      }
+    } catch (error) {
+      console.error('Error fetching title:', error)
+      alert('Error loading details')
+    }
+  }
+
   // Debounce screening search term
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -555,6 +596,14 @@ function ScreeningBoard({
           </div>
         </div>
       )}
+
+      {/* Film Card Popup */}
+      {showFilmCard && (
+        <FilmCardPopup
+          film={showFilmCard}
+          onClose={() => setShowFilmCard(null)}
+        />
+      )}
     </>
   )
 }
@@ -858,8 +907,7 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                         style={baseStyle}
                         title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
                         onClick={() => {
-                          setSelectedFilmTitle(screening.film_title)
-                          setShowFilmModal(true)
+                          openFilmCard(screening.film_title)
                         }}
                       >
                         <div className="truncate font-medium text-xs leading-tight hover:underline">
@@ -1010,8 +1058,6 @@ export default function TicketingPage() {
   const [showExportDropdown, setShowExportDropdown] = useState(false)
 
   // Film detail modal state
-  const [showFilmModal, setShowFilmModal] = useState(false)
-  const [selectedFilmTitle, setSelectedFilmTitle] = useState('')
   
   // Form state
   const [formData, setFormData] = useState<ScreeningFormData>({
@@ -2279,8 +2325,6 @@ export default function TicketingPage() {
           shortFilms={shortFilms}
           shortsPrograms={shortsPrograms}
           getAllPrograms={getAllPrograms}
-          setSelectedFilmTitle={setSelectedFilmTitle}
-          setShowFilmModal={setShowFilmModal}
         />
       ) : (
         <div className="flex-1 overflow-hidden bg-white">
@@ -2895,15 +2939,6 @@ export default function TicketingPage() {
         </div>
       )}
 
-      {/* Film Detail Modal */}
-      <FilmDetailModal
-        filmTitle={selectedFilmTitle}
-        isOpen={showFilmModal}
-        onClose={() => {
-          setShowFilmModal(false)
-          setSelectedFilmTitle('')
-        }}
-      />
 
     </div>
   )
