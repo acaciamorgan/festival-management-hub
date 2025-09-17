@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -103,6 +103,12 @@ function ScreeningBoard({
     hasOpenFilmCard: !!openFilmCard,
     typeOfOpenFilmCard: typeof openFilmCard
   })
+
+  // Store openFilmCard in a ref to ensure it's available in nested contexts
+  const openFilmCardRef = useRef(openFilmCard)
+  useEffect(() => {
+    openFilmCardRef.current = openFilmCard
+  }, [openFilmCard])
 
 
   // Find Screening search effect
@@ -852,10 +858,16 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                         style={baseStyle}
                         title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
                         onClick={() => {
-                          if (openFilmCard && typeof openFilmCard === 'function') {
+                          console.log('Click handler - openFilmCard:', typeof openFilmCard, 'ref:', typeof openFilmCardRef.current)
+                          if (openFilmCardRef.current && typeof openFilmCardRef.current === 'function') {
+                            openFilmCardRef.current(screening.film_title)
+                          } else if (openFilmCard && typeof openFilmCard === 'function') {
                             openFilmCard(screening.film_title)
                           } else {
-                            console.error('openFilmCard is not defined or not a function')
+                            console.error('openFilmCard is not defined or not a function', {
+                              direct: openFilmCard,
+                              ref: openFilmCardRef.current
+                            })
                           }
                         }}
                       >
