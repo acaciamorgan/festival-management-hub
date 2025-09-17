@@ -98,6 +98,12 @@ function ScreeningBoard({
   const supabase = createClient()
   const { user } = useAuth()
 
+  // Debug logging
+  console.log('ScreeningBoard props received:', {
+    hasOpenFilmCard: !!openFilmCard,
+    typeOfOpenFilmCard: typeof openFilmCard
+  })
+
 
   // Find Screening search effect
   useEffect(() => {
@@ -1050,6 +1056,7 @@ export default function TicketingPage() {
 
   // Open film card handler
   const openFilmCard = useCallback(async (filmTitle: string) => {
+    console.log('openFilmCard called with:', filmTitle)
     try {
       // Try to find the film in feature_films first
       let { data: filmData, error } = await supabase
@@ -2289,7 +2296,9 @@ export default function TicketingPage() {
 
       {/* Data Grid or Screening Board */}
       {viewMode === 'screening-board' ? (
-        <ScreeningBoard 
+        <>
+          {console.log('About to render ScreeningBoard, openFilmCard is:', typeof openFilmCard, !!openFilmCard)}
+          <ScreeningBoard 
           currentDate={currentBoardDate}
           setCurrentDate={setCurrentBoardDate}
           festivalSettings={festivalSettings}
@@ -2318,6 +2327,7 @@ export default function TicketingPage() {
           getAllPrograms={getAllPrograms}
           openFilmCard={openFilmCard}
         />
+        </>
       ) : (
         <div className="flex-1 overflow-hidden bg-white">
           {loading ? (
