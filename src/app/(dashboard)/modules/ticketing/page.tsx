@@ -104,10 +104,14 @@ function ScreeningBoard({
     typeOfOpenFilmCard: typeof openFilmCard
   })
 
-  // Store openFilmCard in a ref to ensure it's available in nested contexts
-  const openFilmCardRef = useRef(openFilmCard)
-  useEffect(() => {
-    openFilmCardRef.current = openFilmCard
+  // Create a stable callback that wraps the prop function
+  const handleFilmClick = useCallback((filmTitle: string) => {
+    console.log('handleFilmClick called with:', filmTitle, 'openFilmCard available:', !!openFilmCard)
+    if (openFilmCard && typeof openFilmCard === 'function') {
+      openFilmCard(filmTitle)
+    } else {
+      console.error('openFilmCard not available in handleFilmClick')
+    }
   }, [openFilmCard])
 
 
@@ -857,19 +861,7 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                         }`}
                         style={baseStyle}
                         title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
-                        onClick={() => {
-                          console.log('Click handler - openFilmCard:', typeof openFilmCard, 'ref:', typeof openFilmCardRef.current)
-                          if (openFilmCardRef.current && typeof openFilmCardRef.current === 'function') {
-                            openFilmCardRef.current(screening.film_title)
-                          } else if (openFilmCard && typeof openFilmCard === 'function') {
-                            openFilmCard(screening.film_title)
-                          } else {
-                            console.error('openFilmCard is not defined or not a function', {
-                              direct: openFilmCard,
-                              ref: openFilmCardRef.current
-                            })
-                          }
-                        }}
+                        onClick={() => handleFilmClick(screening.film_title)}
                       >
                         <div className="truncate font-medium text-xs leading-tight hover:underline">
                           {screening.film_title}
