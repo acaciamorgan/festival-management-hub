@@ -7,6 +7,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
 import { loadScreeningBoardSettings, saveScreeningBoardSettings } from '@/lib/screening-board-settings'
+import FilmDetailModal from '@/components/modals/film-detail-modal'
 import * as XLSX from 'xlsx-js-style'
 
 // Helper functions for calendar calculations without Date objects
@@ -678,6 +679,14 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
     if (screening.type === 'tech-check') return 'Tech Check'
     if (screening.type === 'pi-jury') return 'P&I/Jury'
 
+    // Check if this is a shorts program by looking at the title
+    const isShortsProgramScreening = shortsPrograms.some(sp =>
+      sp.program_name === screening.film_title
+    )
+    if (isShortsProgramScreening) {
+      return 'Shorts'
+    }
+
     // For published screenings, look up the film in feature films and short films
     const featureFilm = featureFilms.find(f => f.title === screening.film_title)
     if (featureFilm && featureFilm.program_1) {
@@ -834,16 +843,20 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                       <div
                         key={`${screening.type}-${screening.id}`}
                         className={`absolute top-1 bottom-1 rounded px-2 py-1 text-xs font-medium border cursor-pointer hover:shadow-md transition-all ${
-                          isCurrentSearchResult 
-                            ? 'border-2 border-yellow-400 shadow-lg bg-yellow-100 text-yellow-900 z-10' 
-                            : isSearchMatch 
-                              ? 'border-yellow-300 bg-yellow-50 text-yellow-800' 
+                          isCurrentSearchResult
+                            ? 'border-2 border-yellow-400 shadow-lg bg-yellow-100 text-yellow-900 z-10'
+                            : isSearchMatch
+                              ? 'border-yellow-300 bg-yellow-50 text-yellow-800'
                               : `${colorInfo.className} ${textColorClass}`
                         }`}
                         style={baseStyle}
                         title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
+                        onClick={() => {
+                          setSelectedFilmTitle(screening.film_title)
+                          setShowFilmModal(true)
+                        }}
                       >
-                        <div className="truncate font-medium text-xs leading-tight">
+                        <div className="truncate font-medium text-xs leading-tight hover:underline">
                           {screening.film_title}
                         </div>
                         <div className="truncate text-xs opacity-75">
@@ -989,6 +1002,10 @@ export default function TicketingPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingScreening, setEditingScreening] = useState<any>(null)
   const [showExportDropdown, setShowExportDropdown] = useState(false)
+
+  // Film detail modal state
+  const [showFilmModal, setShowFilmModal] = useState(false)
+  const [selectedFilmTitle, setSelectedFilmTitle] = useState('')
   
   // Form state
   const [formData, setFormData] = useState<ScreeningFormData>({
@@ -2869,6 +2886,16 @@ export default function TicketingPage() {
           </DraggableModal>
         </div>
       )}
+
+      {/* Film Detail Modal */}
+      <FilmDetailModal
+        filmTitle={selectedFilmTitle}
+        isOpen={showFilmModal}
+        onClose={() => {
+          setShowFilmModal(false)
+          setSelectedFilmTitle('')
+        }}
+      />
 
     </div>
   )
