@@ -50,6 +50,7 @@ interface ScreeningBoardProps {
   setSearchResults: (results: any[]) => void
   currentSearchIndex: number
   setCurrentSearchIndex: (index: number) => void
+  openFilmCard: (filmTitle: string) => void
 }
 
 function ScreeningBoard({
@@ -67,6 +68,7 @@ function ScreeningBoard({
   setSearchResults,
   currentSearchIndex,
   setCurrentSearchIndex,
+  openFilmCard,
   showSetViewModal,
   setShowSetViewModal,
   selectedVenues,
@@ -95,53 +97,6 @@ function ScreeningBoard({
 }) {
   const supabase = createClient()
   const { user } = useAuth()
-
-  // Film card modal state (following In Attendance pattern)
-  const [showFilmCard, setShowFilmCard] = useState<any>(null)
-
-  const openFilmCard = useCallback(async (filmTitle: string) => {
-    try {
-      // Try to find the film in feature_films first
-      let { data: filmData, error } = await supabase
-        .from('feature_films')
-        .select('*')
-        .eq('title', filmTitle)
-        .maybeSingle()
-
-      if (!filmData || error) {
-        // If not found in feature films, try short films
-        const { data: shortFilmData, error: shortError } = await supabase
-          .from('short_films')
-          .select('*')
-          .eq('title', filmTitle)
-          .maybeSingle()
-
-        if (shortFilmData && !shortError) {
-          filmData = shortFilmData
-        } else {
-          // If not found in films, try programs
-          const { data: programData, error: programError } = await supabase
-            .from('programs')
-            .select('*')
-            .eq('title', filmTitle)
-            .maybeSingle()
-
-          if (programData && !programError) {
-            filmData = programData
-          }
-        }
-      }
-
-      if (filmData) {
-        setShowFilmCard(filmData)
-      } else {
-        alert(`"${filmTitle}" not found in database`)
-      }
-    } catch (error) {
-      console.error('Error fetching title:', error)
-      alert('Error loading details')
-    }
-  }, [supabase])
 
   // Debounce screening search term
   useEffect(() => {
@@ -595,14 +550,6 @@ function ScreeningBoard({
             </div>
           </div>
         </div>
-      )}
-
-      {/* Film Card Popup */}
-      {showFilmCard && (
-        <FilmCardPopup
-          film={showFilmCard}
-          onClose={() => setShowFilmCard(null)}
-        />
       )}
     </>
   )
@@ -1100,7 +1047,55 @@ export default function TicketingPage() {
   const [shortFilms, setShortFilms] = useState<any[]>([])
   const [shortsPrograms, setShortsPrograms] = useState<any[]>([])
 
+  // Film card modal state
+  const [showFilmCard, setShowFilmCard] = useState<any>(null)
+
   const supabase = createClient()
+
+  // Open film card handler
+  const openFilmCard = useCallback(async (filmTitle: string) => {
+    try {
+      // Try to find the film in feature_films first
+      let { data: filmData, error } = await supabase
+        .from('feature_films')
+        .select('*')
+        .eq('title', filmTitle)
+        .maybeSingle()
+
+      if (!filmData || error) {
+        // If not found in feature films, try short films
+        const { data: shortFilmData, error: shortError } = await supabase
+          .from('short_films')
+          .select('*')
+          .eq('title', filmTitle)
+          .maybeSingle()
+
+        if (shortFilmData && !shortError) {
+          filmData = shortFilmData
+        } else {
+          // If not found in films, try programs
+          const { data: programData, error: programError } = await supabase
+            .from('programs')
+            .select('*')
+            .eq('title', filmTitle)
+            .maybeSingle()
+
+          if (programData && !programError) {
+            filmData = programData
+          }
+        }
+      }
+
+      if (filmData) {
+        setShowFilmCard(filmData)
+      } else {
+        alert(`"${filmTitle}" not found in database`)
+      }
+    } catch (error) {
+      console.error('Error fetching title:', error)
+      alert('Error loading details')
+    }
+  }, [supabase])
 
   // Load saved settings on component mount
   useEffect(() => {
@@ -2325,6 +2320,7 @@ export default function TicketingPage() {
           shortFilms={shortFilms}
           shortsPrograms={shortsPrograms}
           getAllPrograms={getAllPrograms}
+          openFilmCard={openFilmCard}
         />
       ) : (
         <div className="flex-1 overflow-hidden bg-white">
@@ -2939,6 +2935,13 @@ export default function TicketingPage() {
         </div>
       )}
 
+      {/* Film Card Popup */}
+      {showFilmCard && (
+        <FilmCardPopup
+          film={showFilmCard}
+          onClose={() => setShowFilmCard(null)}
+        />
+      )}
 
     </div>
   )
