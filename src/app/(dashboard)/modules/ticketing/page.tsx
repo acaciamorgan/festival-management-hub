@@ -99,7 +99,7 @@ function ScreeningBoard({
   // Film card modal state (following In Attendance pattern)
   const [showFilmCard, setShowFilmCard] = useState<any>(null)
 
-  const openFilmCard = async (filmTitle: string) => {
+  const openFilmCard = useCallback(async (filmTitle: string) => {
     try {
       // Try to find the film in feature_films first
       let { data: filmData, error } = await supabase
@@ -141,7 +141,7 @@ function ScreeningBoard({
       console.error('Error fetching title:', error)
       alert('Error loading details')
     }
-  }
+  }, [supabase])
 
   // Debounce screening search term
   useEffect(() => {
