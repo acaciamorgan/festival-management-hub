@@ -50,7 +50,6 @@ interface ScreeningBoardProps {
   setSearchResults: (results: any[]) => void
   currentSearchIndex: number
   setCurrentSearchIndex: (index: number) => void
-  openFilmCard: (filmTitle: string) => void
 }
 
 function ScreeningBoard({
@@ -68,7 +67,6 @@ function ScreeningBoard({
   setSearchResults,
   currentSearchIndex,
   setCurrentSearchIndex,
-  openFilmCard,
   showSetViewModal,
   setShowSetViewModal,
   selectedVenues,
@@ -837,7 +835,7 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                     return (
                       <div
                         key={`${screening.type}-${screening.id}`}
-                        className={`absolute top-1 bottom-1 rounded px-2 py-1 text-xs font-medium border cursor-pointer hover:shadow-md transition-all ${
+                        className={`absolute top-1 bottom-1 rounded px-2 py-1 text-xs font-medium border hover:shadow-md transition-all ${
                           isCurrentSearchResult
                             ? 'border-2 border-yellow-400 shadow-lg bg-yellow-100 text-yellow-900 z-10'
                             : isSearchMatch
@@ -846,9 +844,8 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                         }`}
                         style={baseStyle}
                         title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
-                        onClick={() => openFilmCard && openFilmCard(screening.film_title)}
                       >
-                        <div className="truncate font-medium text-xs leading-tight hover:underline">
+                        <div className="truncate font-medium text-xs leading-tight">
                           {screening.film_title}
                         </div>
                         <div className="truncate text-xs opacity-75">
@@ -1038,55 +1035,7 @@ export default function TicketingPage() {
   const [shortFilms, setShortFilms] = useState<any[]>([])
   const [shortsPrograms, setShortsPrograms] = useState<any[]>([])
 
-  // Film card modal state
-  const [showFilmCard, setShowFilmCard] = useState<any>(null)
-
   const supabase = createClient()
-
-  // Open film card handler
-  const openFilmCard = useCallback(async (filmTitle: string) => {
-    try {
-      // Try to find the film in feature_films first
-      let { data: filmData, error } = await supabase
-        .from('feature_films')
-        .select('*')
-        .eq('title', filmTitle)
-        .maybeSingle()
-
-      if (!filmData || error) {
-        // If not found in feature films, try short films
-        const { data: shortFilmData, error: shortError } = await supabase
-          .from('short_films')
-          .select('*')
-          .eq('title', filmTitle)
-          .maybeSingle()
-
-        if (shortFilmData && !shortError) {
-          filmData = shortFilmData
-        } else {
-          // If not found in films, try programs
-          const { data: programData, error: programError } = await supabase
-            .from('programs')
-            .select('*')
-            .eq('title', filmTitle)
-            .maybeSingle()
-
-          if (programData && !programError) {
-            filmData = programData
-          }
-        }
-      }
-
-      if (filmData) {
-        setShowFilmCard(filmData)
-      } else {
-        alert(`"${filmTitle}" not found in database`)
-      }
-    } catch (error) {
-      console.error('Error fetching title:', error)
-      alert('Error loading details')
-    }
-  }, [supabase])
 
   // Load saved settings on component mount
   useEffect(() => {
@@ -2311,7 +2260,6 @@ export default function TicketingPage() {
           shortFilms={shortFilms}
           shortsPrograms={shortsPrograms}
           getAllPrograms={getAllPrograms}
-          openFilmCard={openFilmCard}
         />
       ) : (
         <div className="flex-1 overflow-hidden bg-white">
@@ -2924,14 +2872,6 @@ export default function TicketingPage() {
             </div>
           </DraggableModal>
         </div>
-      )}
-
-      {/* Film Card Popup */}
-      {showFilmCard && (
-        <FilmCardPopup
-          film={showFilmCard}
-          onClose={() => setShowFilmCard(null)}
-        />
       )}
 
     </div>
