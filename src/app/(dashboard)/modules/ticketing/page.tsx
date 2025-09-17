@@ -98,14 +98,6 @@ function ScreeningBoard({
   const supabase = createClient()
   const { user } = useAuth()
 
-  // Debounce screening search term
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedScreeningSearchTerm(screeningSearchTerm)
-    }, 300)
-
-    return () => clearTimeout(timer)
-  }, [screeningSearchTerm])
 
   // Find Screening search effect
   useEffect(() => {
