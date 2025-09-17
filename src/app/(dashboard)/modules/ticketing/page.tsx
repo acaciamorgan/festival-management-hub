@@ -96,6 +96,8 @@ function ScreeningBoard({
   shortFilms: any[]
   shortsPrograms: any[]
   getAllPrograms: () => string[]
+  setSelectedFilmTitle: (title: string) => void
+  setShowFilmModal: (show: boolean) => void
 }) {
   const supabase = createClient()
   const { user } = useAuth()
@@ -856,10 +858,8 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                         style={baseStyle}
                         title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
                         onClick={() => {
-                          console.log('Film clicked:', screening.film_title)
                           setSelectedFilmTitle(screening.film_title)
                           setShowFilmModal(true)
-                          console.log('Modal state set to true')
                         }}
                       >
                         <div className="truncate font-medium text-xs leading-tight hover:underline">
