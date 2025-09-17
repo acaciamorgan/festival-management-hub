@@ -98,21 +98,6 @@ function ScreeningBoard({
   const supabase = createClient()
   const { user } = useAuth()
 
-  // Debug logging
-  console.log('ScreeningBoard props received:', {
-    hasOpenFilmCard: !!openFilmCard,
-    typeOfOpenFilmCard: typeof openFilmCard
-  })
-
-  // Create a stable callback that wraps the prop function
-  const handleFilmClick = useCallback((filmTitle: string) => {
-    console.log('handleFilmClick called with:', filmTitle, 'openFilmCard available:', !!openFilmCard)
-    if (openFilmCard && typeof openFilmCard === 'function') {
-      openFilmCard(filmTitle)
-    } else {
-      console.error('openFilmCard not available in handleFilmClick')
-    }
-  }, [openFilmCard])
 
 
   // Find Screening search effect
@@ -861,7 +846,7 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                         }`}
                         style={baseStyle}
                         title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
-                        onClick={() => handleFilmClick(screening.film_title)}
+                        onClick={() => openFilmCard && openFilmCard(screening.film_title)}
                       >
                         <div className="truncate font-medium text-xs leading-tight hover:underline">
                           {screening.film_title}
@@ -1060,7 +1045,6 @@ export default function TicketingPage() {
 
   // Open film card handler
   const openFilmCard = useCallback(async (filmTitle: string) => {
-    console.log('openFilmCard called with:', filmTitle)
     try {
       // Try to find the film in feature_films first
       let { data: filmData, error } = await supabase
@@ -2300,9 +2284,7 @@ export default function TicketingPage() {
 
       {/* Data Grid or Screening Board */}
       {viewMode === 'screening-board' ? (
-        <>
-          {console.log('About to render ScreeningBoard, openFilmCard is:', typeof openFilmCard, !!openFilmCard)}
-          <ScreeningBoard 
+        <ScreeningBoard 
           currentDate={currentBoardDate}
           setCurrentDate={setCurrentBoardDate}
           festivalSettings={festivalSettings}
@@ -2331,7 +2313,6 @@ export default function TicketingPage() {
           getAllPrograms={getAllPrograms}
           openFilmCard={openFilmCard}
         />
-        </>
       ) : (
         <div className="flex-1 overflow-hidden bg-white">
           {loading ? (
