@@ -347,7 +347,7 @@ export default function FestivalOverviewPage() {
 
         {/* Settings Tab */}
         {activeTab === 'settings' && canEditFestivalOverview && (
-          <div className="bg-white rounded-lg border border-gray-300 p-8 h-[calc(100vh-200px)] overflow-auto">
+          <div className="bg-white rounded-lg border border-gray-300 p-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-8">Festival Settings</h2>
             
             <div className="max-w-2xl">
