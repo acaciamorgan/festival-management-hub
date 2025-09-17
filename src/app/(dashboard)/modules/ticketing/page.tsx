@@ -854,7 +854,11 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                         style={baseStyle}
                         title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
                         onClick={() => {
-                          openFilmCard(screening.film_title)
+                          if (openFilmCard && typeof openFilmCard === 'function') {
+                            openFilmCard(screening.film_title)
+                          } else {
+                            console.error('openFilmCard is not defined or not a function')
+                          }
                         }}
                       >
                         <div className="truncate font-medium text-xs leading-tight hover:underline">
