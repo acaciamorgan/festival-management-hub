@@ -64,6 +64,8 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
   const [isShortsProgramModal, setIsShortsProgramModal] = useState(false)
   const supabase = createClient()
 
+  console.log('FilmDetailModal props:', { filmTitle, isOpen })
+
   useEffect(() => {
     if (isOpen && filmTitle) {
       loadFilmDetails()
