@@ -50,16 +50,18 @@ interface ScreeningBoardProps {
   setSearchResults: (results: any[]) => void
   currentSearchIndex: number
   setCurrentSearchIndex: (index: number) => void
+  setSelectedFilmTitle: (title: string) => void
+  setShowFilmModal: (show: boolean) => void
 }
 
-function ScreeningBoard({ 
-  currentDate, 
-  setCurrentDate, 
-  festivalSettings, 
+function ScreeningBoard({
+  currentDate,
+  setCurrentDate,
+  festivalSettings,
   canEditTicketing,
-  publishedScreenings, 
-  piJuryScreenings, 
-  techCheckScreenings, 
+  publishedScreenings,
+  piJuryScreenings,
+  techCheckScreenings,
   loading,
   screeningSearchTerm,
   setScreeningSearchTerm,
@@ -67,6 +69,8 @@ function ScreeningBoard({
   setSearchResults,
   currentSearchIndex,
   setCurrentSearchIndex,
+  setSelectedFilmTitle,
+  setShowFilmModal,
   showSetViewModal,
   setShowSetViewModal,
   selectedVenues,
@@ -2275,6 +2279,8 @@ export default function TicketingPage() {
           shortFilms={shortFilms}
           shortsPrograms={shortsPrograms}
           getAllPrograms={getAllPrograms}
+          setSelectedFilmTitle={setSelectedFilmTitle}
+          setShowFilmModal={setShowFilmModal}
         />
       ) : (
         <div className="flex-1 overflow-hidden bg-white">
