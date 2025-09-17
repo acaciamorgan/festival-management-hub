@@ -665,10 +665,7 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
       
       // Check if it's part of a shorts program
       if (shortFilm.shorts_program_id) {
-        const shortsProgram = shortsPrograms.find(sp => sp.id === shortFilm.shorts_program_id)
-        if (shortsProgram) {
-          programs.push(`Shorts: ${shortsProgram.program_name}`)
-        }
+        programs.push('Shorts')
       }
     }
     
@@ -696,10 +693,7 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
 
       // Otherwise check if it's part of a shorts program
       if (shortFilm.shorts_program_id) {
-        const shortsProgram = shortsPrograms.find(sp => sp.id === shortFilm.shorts_program_id)
-        if (shortsProgram) {
-          return `Shorts: ${shortsProgram.program_name}`
-        }
+        return 'Shorts'
       }
     }
 
@@ -1345,10 +1339,10 @@ export default function TicketingPage() {
       if (film.program_3) programs.add(film.program_3)
     })
     
-    // Add shorts programs as their own category
-    shortsPrograms.forEach(sp => {
-      if (sp.program_name) programs.add(`Shorts: ${sp.program_name}`)
-    })
+    // Add one unified shorts category
+    if (shortsPrograms.length > 0) {
+      programs.add('Shorts')
+    }
     
     return Array.from(programs).sort()
   }, [featureFilms, shortFilms, shortsPrograms])
