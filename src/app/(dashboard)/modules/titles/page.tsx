@@ -1257,16 +1257,19 @@ export default function TitlesPage() {
       if (!filmData.title) continue
       
       
-      // Check if Card with this exact title already exists
-      const existingCard = (existingCards || []).find(card => card.title === filmData.title)
-      
+      // Check if Card with this title already exists (case-insensitive)
+      const existingCard = (existingCards || []).find(card =>
+        card.title?.toLowerCase() === filmData.title?.toLowerCase()
+      )
+
       if (existingCard) {
         // UPDATE existing Card - newest data takes priority
+        console.log(`Found existing film "${existingCard.title}" (matched with "${filmData.title}"), updating...`)
         const { error } = await supabase
           .from('feature_films')
           .update({ ...filmData })
           .eq('id', existingCard.id)
-        
+
         if (error) {
           console.error(`Error updating card "${filmData.title}":`, error)
         } else {
@@ -1663,15 +1666,18 @@ export default function TitlesPage() {
 
       console.log(`Processing: ${title} - crew data imported successfully`)
 
-      // Check if record exists (preserve program assignments)
-      const { data: existingRecord } = await supabase
+      // Check if record exists using case-insensitive comparison (preserve program assignments)
+      const { data: allShorts } = await supabase
         .from('short_films')
-        .select('id, shorts_program_id, program_order')
-        .eq('title', title)
-        .single()
+        .select('id, title, shorts_program_id, program_order')
+
+      const existingRecord = allShorts?.find(short =>
+        short.title?.toLowerCase() === title?.toLowerCase()
+      )
 
       if (existingRecord) {
         // Update existing - preserve program assignment
+        console.log(`Found existing short "${existingRecord.title}" (matched with "${title}"), updating...`)
         const { error: updateError } = await supabase
           .from('short_films')
           .update(shortData)

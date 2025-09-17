@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
+import { loadScreeningBoardSettings, saveScreeningBoardSettings } from '@/lib/screening-board-settings'
 import * as XLSX from 'xlsx-js-style'
 
 // Helper functions for calendar calculations without Date objects
@@ -92,6 +93,7 @@ function ScreeningBoard({
   getAllPrograms: () => string[]
 }) {
   const supabase = createClient()
+  const { user } = useAuth()
   
   // Debounce screening search term
   useEffect(() => {
@@ -519,8 +521,23 @@ function ScreeningBoard({
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  // Save settings (for now just close modal - could save to local storage or database)
+                onClick={async () => {
+                  // Save settings to database
+                  const settings = {
+                    selectedVenues,
+                    venueOrder,
+                    programSettings
+                  }
+
+                  if (user) {
+                    const success = await saveScreeningBoardSettings(settings, user.id)
+                    if (success) {
+                      console.log('Settings saved successfully')
+                    } else {
+                      console.error('Failed to save settings')
+                    }
+                  }
+
                   setShowSetViewModal(false)
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
@@ -657,7 +674,38 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
     
     return programs
   }
-  
+
+  // Get the primary program for color coding (program_1 takes priority)
+  const getPrimaryProgram = (screening: any) => {
+    // For tech-check or pi-jury, return their type
+    if (screening.type === 'tech-check') return 'Tech Check'
+    if (screening.type === 'pi-jury') return 'P&I/Jury'
+
+    // For published screenings, look up the film in feature films and short films
+    const featureFilm = featureFilms.find(f => f.title === screening.film_title)
+    if (featureFilm && featureFilm.program_1) {
+      return featureFilm.program_1
+    }
+
+    const shortFilm = shortFilms.find(f => f.title === screening.film_title)
+    if (shortFilm) {
+      // First check if it has program_1
+      if (shortFilm.program_1) {
+        return shortFilm.program_1
+      }
+
+      // Otherwise check if it's part of a shorts program
+      if (shortFilm.shorts_program_id) {
+        const shortsProgram = shortsPrograms.find(sp => sp.id === shortFilm.shorts_program_id)
+        if (shortsProgram) {
+          return `Shorts: ${shortsProgram.program_name}`
+        }
+      }
+    }
+
+    return null
+  }
+
   // Get screening box color based on type and program colors
   const getScreeningColor = (screening: any) => {
     // Tech checks: Always black with white text
@@ -676,15 +724,24 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
       }
     }
     
-    // Other screenings: Use program-based coloring
+    // Other screenings: Use program-based coloring (prioritize program_1)
+    const primaryProgram = getPrimaryProgram(screening)
+
+    // Check if the primary program is enabled and has a color
+    if (primaryProgram && programSettings[primaryProgram]?.enabled) {
+      return {
+        className: 'border-gray-700',
+        backgroundColor: programSettings[primaryProgram].color
+      }
+    }
+
+    // If primary program doesn't have a color, fall back to checking other programs
     const programs = getFilmPrograms(screening)
-    
-    // Find the first enabled program in the list
     for (const program of programs) {
       if (programSettings[program]?.enabled) {
-        return { 
-          className: 'border-gray-700', 
-          backgroundColor: programSettings[program].color 
+        return {
+          className: 'border-gray-700',
+          backgroundColor: programSettings[program].color
         }
       }
     }
@@ -981,8 +1038,22 @@ export default function TicketingPage() {
   const [shortsPrograms, setShortsPrograms] = useState<any[]>([])
 
   const supabase = createClient()
-  
-  // Initialize venue selection when modal opens
+
+  // Load saved settings on component mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      const settings = await loadScreeningBoardSettings()
+      if (settings) {
+        console.log('Loading saved screening board settings')
+        setSelectedVenues(settings.selectedVenues || [])
+        setVenueOrder(settings.venueOrder || [])
+        setProgramSettings(settings.programSettings || {})
+      }
+    }
+    loadSettings()
+  }, [])
+
+  // Initialize venue selection when modal opens (only if no saved settings)
   useEffect(() => {
     if (showSetViewModal && selectedVenues.length === 0) {
       const allVenues = Array.from(new Set([
@@ -990,7 +1061,7 @@ export default function TicketingPage() {
         ...piJuryScreenings.map(s => s.venue_short_code),
         ...techCheckScreenings.map(s => s.venue_short_code)
       ])).filter(Boolean).sort()
-      
+
       setSelectedVenues(allVenues)
       setVenueOrder(allVenues)
     }
