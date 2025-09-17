@@ -99,7 +99,7 @@ function ScreeningBoard({
   // Film card modal state (following In Attendance pattern)
   const [showFilmCard, setShowFilmCard] = useState<any>(null)
 
-  async function openFilmCard(filmTitle: string) {
+  const openFilmCard = async (filmTitle: string) => {
     try {
       // Try to find the film in feature_films first
       let { data: filmData, error } = await supabase
