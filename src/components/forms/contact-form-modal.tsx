@@ -207,10 +207,10 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
     if (isOpen) {
       // Load films when modal opens
       loadFilms()
-      
+
       // Reset form and film selection
       setSelectedFilmIds(new Set())
-      
+
       if (contact) {
         setFormData({
           contact_name: contact.contact_name || '',
@@ -221,9 +221,10 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
           contact_type: contact.contact_type || '',
           mailing_address: contact.mailing_address || ''
         })
-        
-        // TODO: Load existing film assignments for this contact
-        
+
+        // Load existing film assignments for this contact
+        loadExistingFilmAssignments(contact.id)
+
       } else {
         setFormData({
           contact_name: '',
@@ -237,6 +238,23 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
       }
     }
   }, [contact, isOpen])
+
+  // Load existing film assignments for the contact
+  const loadExistingFilmAssignments = async (contactId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('film_contacts')
+        .select('film_id')
+        .eq('contact_id', contactId)
+
+      if (!error && data) {
+        const filmIds = new Set(data.map(fc => fc.film_id))
+        setSelectedFilmIds(filmIds)
+      }
+    } catch (error) {
+      console.error('Error loading existing film assignments:', error)
+    }
+  }
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true)
@@ -350,29 +368,43 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
         contactId = data?.[0]?.id
       }
 
-      // Handle film assignments if films are selected
-      if (selectedFilmIds.size > 0 && contactId) {
-        const assignments = Array.from(selectedFilmIds).map(filmId => {
-          const film = availableFilms.find(f => f.id === filmId)
-          return {
-            film_id: filmId,
-            film_type: film?.film_type || 'feature',
-            name: contactData.contact_name,
-            company: contactData.contact_company,
-            email: contactData.contact_email,
-            contact_type: 'Other',
-            contact_id: contactId
-          }
-        })
-
-        const { error: assignmentError } = await supabase
+      // Handle film assignments - delete all existing and insert current selection
+      if (contactId) {
+        // First, delete all existing film assignments for this contact
+        const { error: deleteError } = await supabase
           .from('film_contacts')
-          .insert(assignments)
+          .delete()
+          .eq('contact_id', contactId)
 
-        if (assignmentError) {
-          console.error('Error saving film assignments:', assignmentError)
-          // Don't fail the entire operation for assignment errors
-          alert(`Contact saved but error with film assignments: ${assignmentError.message}`)
+        if (deleteError) {
+          console.error('Error deleting existing film assignments:', deleteError)
+          alert(`Error updating film assignments: ${deleteError.message}`)
+          return
+        }
+
+        // Then, insert the currently selected films (if any)
+        if (selectedFilmIds.size > 0) {
+          const assignments = Array.from(selectedFilmIds).map(filmId => {
+            const film = availableFilms.find(f => f.id === filmId)
+            return {
+              film_id: filmId,
+              film_type: film?.film_type || 'feature',
+              name: contactData.contact_name,
+              company: contactData.contact_company,
+              email: contactData.contact_email,
+              contact_type: 'Other',
+              contact_id: contactId
+            }
+          })
+
+          const { error: assignmentError } = await supabase
+            .from('film_contacts')
+            .insert(assignments)
+
+          if (assignmentError) {
+            console.error('Error saving film assignments:', assignmentError)
+            alert(`Contact saved but error with film assignments: ${assignmentError.message}`)
+          }
         }
       }
 
