@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { GuestCard, GuestType } from '@/types'
 import { getFestivalYear, parseSmartDate } from '@/lib/smart-date-parser'
+import { findBestTitleMatch } from '@/lib/title-utils'
 
 export interface CSVGuestRow {
   'Type': string
@@ -97,6 +98,61 @@ export async function parseCSVContent(csvContent: string): Promise<CSVGuestRow[]
   }
 
   return rows
+}
+
+/**
+ * Intelligently parse film titles from a films display string
+ * Tries to avoid splitting actual film titles that contain commas
+ */
+function parseFilmTitles(filmsDisplay: string, knownTitles: string[]): string[] {
+  if (!filmsDisplay || filmsDisplay.trim() === '' || filmsDisplay === '—') {
+    return []
+  }
+
+  // First, try to match against known titles to see if the entire string is one title
+  if (knownTitles.some(title => findBestTitleMatch(filmsDisplay.trim(), [title]))) {
+    return [filmsDisplay.trim()]
+  }
+
+  // If not a single known title, try intelligent splitting
+  // Split on commas but try to preserve titles that we know exist
+  const potentialTitles = filmsDisplay.split(',').map(title => title.trim()).filter(title => title)
+  const result: string[] = []
+  let i = 0
+
+  while (i < potentialTitles.length) {
+    const currentTitle = potentialTitles[i]
+
+    // Check if current title matches a known title
+    if (knownTitles.some(title => findBestTitleMatch(currentTitle, [title]))) {
+      result.push(currentTitle)
+      i++
+      continue
+    }
+
+    // Try combining with next title(s) to see if we get a match
+    let combinedTitle = currentTitle
+    let foundMatch = false
+
+    for (let j = i + 1; j < Math.min(i + 3, potentialTitles.length); j++) {
+      combinedTitle += ', ' + potentialTitles[j]
+
+      if (knownTitles.some(title => findBestTitleMatch(combinedTitle, [title]))) {
+        result.push(combinedTitle)
+        i = j + 1
+        foundMatch = true
+        break
+      }
+    }
+
+    if (!foundMatch) {
+      // No match found, keep as individual title
+      result.push(currentTitle)
+      i++
+    }
+  }
+
+  return result
 }
 
 // More robust CSV parser that handles quoted multi-line fields
@@ -350,31 +406,43 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
         
         // Create film associations if films are specified
         if (filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== '') {
-          const filmTitles = filmsDisplay.split(',').map(title => title.trim()).filter(title => title)
-          
+          // Get all available films and programs from database for smart matching
+          const [featureFilms, shortFilms, programs] = await Promise.all([
+            supabase.from('feature_films').select('id, title'),
+            supabase.from('short_films').select('id, title'),
+            supabase.from('programs').select('id, title')
+          ])
+
+          const allFilms = [
+            ...(featureFilms.data || []),
+            ...(shortFilms.data || [])
+          ]
+          const allPrograms = programs.data || []
+
+          // Parse film titles more intelligently - don't just split on commas
+          // as titles like "Wind, Talk to Me" should stay together
+          const filmTitles = parseFilmTitles(filmsDisplay, [
+            ...allFilms.map(f => f.title),
+            ...allPrograms.map(p => p.title)
+          ])
+
           if (filmTitles.length > 0) {
-            // Look up films in database
-            const [featureFilms, shortFilms, programs] = await Promise.all([
-              supabase.from('feature_films').select('id, title').in('title', filmTitles),
-              supabase.from('short_films').select('id, title').in('title', filmTitles),
-              supabase.from('programs').select('id, title').in('title', filmTitles)
-            ])
-            
-            const allMatchedFilms = [
-              ...(featureFilms.data || []),
-              ...(shortFilms.data || [])
-            ]
-            
-            const allMatchedPrograms = programs.data || []
-            
             // Create film associations
             const filmAssociations = []
             const programAssociations = []
-            
-            for (const title of filmTitles) {
-              const matchedFilm = allMatchedFilms.find(f => f.title === title)
-              const matchedProgram = allMatchedPrograms.find(p => p.title === title)
-              
+
+            for (const csvTitle of filmTitles) {
+              // Try to find best match using smart title matching
+              const matchedFilm = allFilms.find(f => {
+                const bestMatch = findBestTitleMatch(csvTitle, [f.title])
+                return bestMatch === f.title
+              })
+
+              const matchedProgram = allPrograms.find(p => {
+                const bestMatch = findBestTitleMatch(csvTitle, [p.title])
+                return bestMatch === p.title
+              })
+
               if (matchedFilm) {
                 filmAssociations.push({
                   guest_id: savedGuest.id,
@@ -387,6 +455,8 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
                   program_id: matchedProgram.id,
                   program_title: matchedProgram.title
                 })
+              } else {
+                warnings.push(`Could not find match for title "${csvTitle}" for guest ${guestName}`)
               }
             }
             
