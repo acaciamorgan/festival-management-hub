@@ -611,8 +611,8 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
   }
   
   // Convert minutes to percentage of day for positioning
-  const minutesToPosition = (minutes: number, startHour = 8) => {
-    const startMinutes = startHour * 60 // 8 AM = 480 minutes
+  const minutesToPosition = (minutes: number, startHour = 9) => {
+    const startMinutes = startHour * 60 // 9 AM = 540 minutes
     const endMinutes = 23 * 60 + 45 // 11:45 PM = 1425 minutes
     const totalMinutes = endMinutes - startMinutes
     return Math.max(0, Math.min(100, ((minutes - startMinutes) / totalMinutes) * 100))
@@ -621,7 +621,7 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
   // Calculate screening box width as percentage based on runtime
   const getScreeningWidthPercent = (runtime: number | null) => {
     if (!runtime) return 2 // Default 2% width for unknown runtime (about 30 minutes)
-    const startHour = 8
+    const startHour = 9
     const endHour = 23.75 // 11:45 PM
     const totalHours = endHour - startHour
     const runtimeHours = runtime / 60
