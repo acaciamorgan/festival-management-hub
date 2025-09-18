@@ -562,10 +562,10 @@ interface ScreeningGridProps {
 function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings, searchResults, currentSearchIndex, featureFilms, shortFilms, shortsPrograms }: ScreeningGridProps) {
   const supabase = createClient()
   
-  // Time slots - 15 minute intervals from 8 AM to 11 PM
+  // Time slots - 15 minute intervals from 9 AM to 11 PM
   const generateTimeSlots = () => {
     const slots = []
-    for (let hour = 8; hour <= 23; hour++) {
+    for (let hour = 9; hour <= 23; hour++) {
       slots.push(`${hour.toString().padStart(2, '0')}:00`)
       slots.push(`${hour.toString().padStart(2, '0')}:15`)
       slots.push(`${hour.toString().padStart(2, '0')}:30`)
