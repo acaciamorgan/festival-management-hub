@@ -37,6 +37,8 @@ export default function InAttendancePage() {
   const [existingFilms, setExistingFilms] = useState<Set<string>>(new Set())
   const [showDailyReportDropdown, setShowDailyReportDropdown] = useState(false)
   const [customReportDate, setCustomReportDate] = useState('')
+  const [searchArrivalDate, setSearchArrivalDate] = useState('')
+  const [searchDepartureDate, setSearchDepartureDate] = useState('')
 
   const supabase = createClient()
 
@@ -480,6 +482,29 @@ export default function InAttendancePage() {
         if (!arrivalMatch && !departureMatch) return false
       }
 
+      // Date range search filters
+      if (searchArrivalDate || searchDepartureDate) {
+        // If only arrival date is set: show guests arriving on that exact date
+        if (searchArrivalDate && !searchDepartureDate) {
+          if (guest.arrival_date !== searchArrivalDate) return false
+        }
+        // If only departure date is set: show guests departing on that exact date
+        else if (searchDepartureDate && !searchArrivalDate) {
+          if (guest.departure_date !== searchDepartureDate) return false
+        }
+        // If both are set: show guests arriving on/after arrival date AND departing on/before departure date
+        else if (searchArrivalDate && searchDepartureDate) {
+          const guestArrival = guest.arrival_date
+          const guestDeparture = guest.departure_date
+
+          // Guest must have both arrival and departure dates to be included in range search
+          if (!guestArrival || !guestDeparture) return false
+
+          // Check if guest arrives on or after search arrival date AND departs on or before search departure date
+          if (guestArrival < searchArrivalDate || guestDeparture > searchDepartureDate) return false
+        }
+      }
+
       return true
     })
 
@@ -499,7 +524,7 @@ export default function InAttendancePage() {
     }
 
     return filtered
-  }, [guests, searchTerm, selectedGuestType, confirmedFilter, checkedInFilter, arrangingTravelFilter, todayDate, sortConfig])
+  }, [guests, searchTerm, selectedGuestType, confirmedFilter, checkedInFilter, arrangingTravelFilter, todayDate, searchArrivalDate, searchDepartureDate, sortConfig])
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
@@ -826,7 +851,7 @@ export default function InAttendancePage() {
   }, [showDailyReportDropdown])
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -900,7 +925,60 @@ export default function InAttendancePage() {
               className="flex-1 border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          
+
+          {/* Date Range Search */}
+          <div className="border border-gray-200 rounded-md p-3 bg-gray-50">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Search by Dates:</label>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <label className="text-sm font-medium text-gray-600">Arrival:</label>
+                <input
+                  type="date"
+                  value={searchArrivalDate}
+                  onChange={(e) => setSearchArrivalDate(e.target.value)}
+                  onBlur={(e) => {
+                    const normalized = normalizeDateValue(e.target.value)
+                    if (normalized !== e.target.value) {
+                      setSearchArrivalDate(normalized)
+                    }
+                  }}
+                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <label className="text-sm font-medium text-gray-600">Departure:</label>
+                <input
+                  type="date"
+                  value={searchDepartureDate}
+                  onChange={(e) => setSearchDepartureDate(e.target.value)}
+                  onBlur={(e) => {
+                    const normalized = normalizeDateValue(e.target.value)
+                    if (normalized !== e.target.value) {
+                      setSearchDepartureDate(normalized)
+                    }
+                  }}
+                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              {(searchArrivalDate || searchDepartureDate) && (
+                <button
+                  onClick={() => {
+                    setSearchArrivalDate('')
+                    setSearchDepartureDate('')
+                  }}
+                  className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 hover:border-gray-300"
+                >
+                  Clear Dates
+                </button>
+              )}
+              <div className="text-xs text-gray-500">
+                {searchArrivalDate && !searchDepartureDate && 'Showing: arriving on selected date'}
+                {!searchArrivalDate && searchDepartureDate && 'Showing: departing on selected date'}
+                {searchArrivalDate && searchDepartureDate && 'Showing: present during date range'}
+              </div>
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-center gap-4">
             {/* Guest Type Filter */}
             <div className="flex items-center space-x-2">
@@ -978,7 +1056,7 @@ export default function InAttendancePage() {
             </div>
             
             {/* Clear Filters */}
-            {(searchTerm || selectedGuestType || confirmedFilter !== 'all' || checkedInFilter !== 'all' || arrangingTravelFilter || todayDate) && (
+            {(searchTerm || selectedGuestType || confirmedFilter !== 'all' || checkedInFilter !== 'all' || arrangingTravelFilter || todayDate || searchArrivalDate || searchDepartureDate) && (
               <button
                 onClick={() => {
                   setSearchTerm('')
@@ -987,6 +1065,8 @@ export default function InAttendancePage() {
                   setCheckedInFilter('all')
                   setArrangingTravelFilter('')
                   setTodayDate('')
+                  setSearchArrivalDate('')
+                  setSearchDepartureDate('')
                 }}
                 className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 hover:border-gray-300"
               >
@@ -1062,12 +1142,16 @@ export default function InAttendancePage() {
         {searchTerm && ` for "${searchTerm}"`}
         {selectedGuestType && ` (${selectedGuestType})`}
         {todayDate && ` on ${formatDate(todayDate)}`}
+        {searchArrivalDate && !searchDepartureDate && ` arriving ${formatDate(searchArrivalDate)}`}
+        {!searchArrivalDate && searchDepartureDate && ` departing ${formatDate(searchDepartureDate)}`}
+        {searchArrivalDate && searchDepartureDate && ` present ${formatDate(searchArrivalDate)} - ${formatDate(searchDepartureDate)}`}
       </div>
 
       {/* Data Grid */}
-      <div className="flex-1 overflow-auto p-6">
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-auto p-6">
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-lg text-gray-500">Loading guests...</div>
@@ -1278,6 +1362,7 @@ export default function InAttendancePage() {
             {guests.length === 0 ? 'No guests found. Add your first guest or import from CSV!' : 'No guests match your search criteria.'}
           </div>
         )}
+            </div>
           </div>
         </div>
       </div>
