@@ -444,8 +444,14 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           savedGuest = newGuest
         }
 
-        // Use exact template header: 'Film/Program Titles'
-        const filmsDisplay = primaryRow['Film/Program Titles']?.trim() || ''
+        // Collect ALL films from ALL rows for this guest
+        const allFilmsForGuest = guestRows
+          .map(row => row['Film/Program Titles']?.trim())
+          .filter(film => film && film !== '' && film !== '—')
+
+        const filmsDisplay = allFilmsForGuest.length > 0 ? allFilmsForGuest.join(', ') : ''
+
+        console.log(`Guest ${guestName} has ${guestRows.length} rows with films: ${allFilmsForGuest.join(', ')}`)
 
         // Get existing film associations if guest already existed
         let existingFilmAssociations: any[] = []
