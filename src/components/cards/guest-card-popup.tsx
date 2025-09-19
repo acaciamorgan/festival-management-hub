@@ -563,10 +563,10 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     <div>
                       <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Times</span>
                       <p className="text-sm text-gray-900 mt-1">
-                        {guest.arrival_takeoff_time && `Takeoff: ${formatTime(guest.arrival_takeoff_time)}`}
-                        {guest.arrival_takeoff_time && guest.arrival_landing_time && ' | '}
-                        {guest.arrival_landing_time && `Landing: ${formatTime(guest.arrival_landing_time)}`}
-                        {!guest.arrival_takeoff_time && !guest.arrival_landing_time && 'Not specified'}
+                        {guest.inbound_departure_time && `Takeoff: ${formatTime(guest.inbound_departure_time)}`}
+                        {guest.inbound_departure_time && guest.inbound_arrival_time && ' | '}
+                        {guest.inbound_arrival_time && `Landing: ${formatTime(guest.inbound_arrival_time)}`}
+                        {!guest.inbound_departure_time && !guest.inbound_arrival_time && 'Not specified'}
                       </p>
                     </div>
                     <div>
@@ -603,10 +603,10 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     <div>
                       <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Times</span>
                       <p className="text-sm text-gray-900 mt-1">
-                        {guest.departure_takeoff_time && `Takeoff: ${formatTime(guest.departure_takeoff_time)}`}
-                        {guest.departure_takeoff_time && guest.departure_landing_time && ' | '}
-                        {guest.departure_landing_time && `Landing: ${formatTime(guest.departure_landing_time)}`}
-                        {!guest.departure_takeoff_time && !guest.departure_landing_time && 'Not specified'}
+                        {guest.outbound_departure_time && `Takeoff: ${formatTime(guest.outbound_departure_time)}`}
+                        {guest.outbound_departure_time && guest.outbound_arrival_time && ' | '}
+                        {guest.outbound_arrival_time && `Landing: ${formatTime(guest.outbound_arrival_time)}`}
+                        {!guest.outbound_departure_time && !guest.outbound_arrival_time && 'Not specified'}
                       </p>
                     </div>
                     <div>
