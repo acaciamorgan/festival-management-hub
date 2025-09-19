@@ -40,6 +40,10 @@ export interface GuestImportResult {
   errors: string[]
   warnings: string[]
   data?: GuestCard[]
+  filmRemovals?: Array<{
+    guestName: string
+    removedFilms: string[]
+  }>
 }
 
 export async function parseCSVContent(csvContent: string): Promise<CSVGuestRow[]> {
@@ -213,11 +217,55 @@ function parseCSVToRecords(csvContent: string): string[][] {
 }
 
 
+// Function to remove confirmed film associations
+export async function removeFilmAssociations(removals: Array<{guestName: string, removedFilms: string[]}>) {
+  const supabase = createClient()
+  const errors: string[] = []
+
+  for (const removal of removals) {
+    // Get guest ID
+    const { data: guest } = await supabase
+      .from('guests')
+      .select('id')
+      .eq('name', removal.guestName)
+      .single()
+
+    if (!guest) {
+      errors.push(`Could not find guest ${removal.guestName}`)
+      continue
+    }
+
+    // Remove film associations
+    for (const filmTitle of removal.removedFilms) {
+      // Try to remove from guest_films
+      const { error: filmError } = await supabase
+        .from('guest_films')
+        .delete()
+        .eq('guest_id', guest.id)
+        .eq('film_title', filmTitle)
+
+      // Try to remove from guest_programs if not in films
+      const { error: programError } = await supabase
+        .from('guest_programs')
+        .delete()
+        .eq('guest_id', guest.id)
+        .eq('program_title', filmTitle)
+
+      if (filmError && programError) {
+        errors.push(`Could not remove ${filmTitle} from ${removal.guestName}`)
+      }
+    }
+  }
+
+  return { success: errors.length === 0, errors }
+}
+
 export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<GuestImportResult> {
   const supabase = createClient()
   const errors: string[] = []
   const warnings: string[] = []
   const importedGuests: GuestCard[] = []
+  const filmRemovals: Array<{guestName: string, removedFilms: string[]}> = []
   
   // Get festival year once for all date parsing
   const festivalYear = await getFestivalYear()
@@ -329,10 +377,10 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
         }
 
-        // Check if guest already exists
+        // Check if guest already exists and get their full data including films
         const { data: existingGuests, error: checkError } = await supabase
           .from('guests')
-          .select('id')
+          .select('*')
           .eq('name', guestName)
 
         if (checkError) {
@@ -345,13 +393,32 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
         let savedGuest: any
 
         if (existingGuest) {
-          // Update existing guest with new data (newest data takes priority)
+          // Smart update: only update fields that have values in CSV
+          const updateData: any = {}
+
+          // Only update fields if they have values in the CSV
+          Object.keys(guestData).forEach(key => {
+            const csvValue = guestData[key as keyof typeof guestData]
+            const existingValue = existingGuest[key as keyof typeof existingGuest]
+
+            // Update if CSV has a value (not null/empty) OR if explicitly clearing
+            if (csvValue !== null && csvValue !== '') {
+              updateData[key] = csvValue
+            } else if (key === 'checked_in') {
+              // Never overwrite checked_in status from CSV
+              // Keep existing value
+            } else if (existingValue !== null && existingValue !== undefined) {
+              // CSV field is empty but we have existing data - keep existing
+              updateData[key] = existingValue
+            }
+          })
+
+          // Always update the timestamp
+          updateData.updated_at = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
+
           const { data: updatedGuest, error: updateError } = await supabase
             .from('guests')
-            .update({
-              ...guestData,
-              updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
-            })
+            .update(updateData)
             .eq('id', existingGuest.id)
             .select()
             .single()
@@ -361,16 +428,6 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
             continue
           }
           savedGuest = updatedGuest
-
-          // Clear existing film associations for this guest
-          const { error: deleteError } = await supabase
-            .from('guest_films')
-            .delete()
-            .eq('guest_id', existingGuest.id)
-
-          if (deleteError) {
-            warnings.push(`Warning: Could not clear existing film associations for ${guestName}: ${deleteError.message}`)
-          }
 
         } else {
           // Create new guest
@@ -388,23 +445,49 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
         }
 
         // Use exact template header: 'Film/Program Titles'
-        const filmsDisplay = primaryRow['Film/Program Titles']?.trim() || '—'
-        
+        const filmsDisplay = primaryRow['Film/Program Titles']?.trim() || ''
+
+        // Get existing film associations if guest already existed
+        let existingFilmAssociations: any[] = []
+        let existingProgramAssociations: any[] = []
+
+        if (existingGuest) {
+          const [existingFilms, existingPrograms] = await Promise.all([
+            supabase.from('guest_films').select('*').eq('guest_id', savedGuest.id),
+            supabase.from('guest_programs').select('*').eq('guest_id', savedGuest.id)
+          ])
+          existingFilmAssociations = existingFilms.data || []
+          existingProgramAssociations = existingPrograms.data || []
+        }
+
+        // Combine existing films_display with new one if updating
+        let finalFilmsDisplay = filmsDisplay
+        if (existingGuest && existingGuest.films_display) {
+          // If CSV has no films but database has films, keep the database films
+          if (!filmsDisplay || filmsDisplay === '—' || filmsDisplay === '') {
+            finalFilmsDisplay = existingGuest.films_display
+          } else {
+            // Otherwise use the CSV films (will be handled by associations below)
+            finalFilmsDisplay = filmsDisplay
+          }
+        }
+
         // Update the saved guest with films_display field
         const { data: displayUpdatedGuest, error: displayError } = await supabase
           .from('guests')
-          .update({ films_display: filmsDisplay })
+          .update({ films_display: finalFilmsDisplay })
           .eq('id', savedGuest.id)
           .select()
           .single()
-        
+
         if (displayError) {
           warnings.push(`Error updating films display for ${guestName}: ${displayError.message}`)
         } else {
           savedGuest = displayUpdatedGuest
         }
         
-        // Create film associations if films are specified
+        // Smart film association handling
+        // Only process if we have films to work with (skip if empty or just "—")
         if (filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== '') {
           // Get all available films and programs from database for smart matching
           const [featureFilms, shortFilms, programs] = await Promise.all([
@@ -419,67 +502,102 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           ]
           const allPrograms = programs.data || []
 
-          // Parse film titles more intelligently - don't just split on commas
-          // as titles like "Wind, Talk to Me" should stay together
-          const filmTitles = parseFilmTitles(filmsDisplay, [
+          // Parse film titles more intelligently
+          const csvFilmTitles = parseFilmTitles(filmsDisplay, [
             ...allFilms.map(f => f.title),
             ...allPrograms.map(p => p.title)
           ])
 
-          if (filmTitles.length > 0) {
-            // Create film associations
-            const filmAssociations = []
-            const programAssociations = []
+          // Determine what needs to be added and removed
+          const existingTitles = new Set([
+            ...existingFilmAssociations.map(f => f.film_title),
+            ...existingProgramAssociations.map(p => p.program_title)
+          ])
 
-            for (const csvTitle of filmTitles) {
-              // Try to find best match using smart title matching
-              const matchedFilm = allFilms.find(f => {
-                const bestMatch = findBestTitleMatch(csvTitle, [f.title])
-                return bestMatch === f.title
-              })
+          const csvTitlesSet = new Set(csvFilmTitles)
 
-              const matchedProgram = allPrograms.find(p => {
-                const bestMatch = findBestTitleMatch(csvTitle, [p.title])
-                return bestMatch === p.title
-              })
+          // Films to add (in CSV but not in existing)
+          const titlesToAdd = csvFilmTitles.filter(title => !existingTitles.has(title))
 
-              if (matchedFilm) {
+          // Films to remove (in existing but not in CSV) - only for existing guests
+          const titlesToRemove = existingGuest
+            ? Array.from(existingTitles).filter(title => !csvTitlesSet.has(title))
+            : []
+
+          // Handle removals if any
+          if (titlesToRemove.length > 0) {
+            // Store removals for later confirmation
+            filmRemovals.push({
+              guestName,
+              removedFilms: titlesToRemove
+            })
+            warnings.push(`Detected film removals for ${guestName}: ${titlesToRemove.join(', ')}`)
+          }
+
+          // Add new associations
+          const filmAssociations = []
+          const programAssociations = []
+
+          for (const csvTitle of titlesToAdd) {
+            // Try to find best match using smart title matching
+            const matchedFilm = allFilms.find(f => {
+              const bestMatch = findBestTitleMatch(csvTitle, [f.title])
+              return bestMatch === f.title
+            })
+
+            const matchedProgram = allPrograms.find(p => {
+              const bestMatch = findBestTitleMatch(csvTitle, [p.title])
+              return bestMatch === p.title
+            })
+
+            if (matchedFilm) {
+              // Check if association doesn't already exist
+              const exists = existingFilmAssociations.some(
+                a => a.film_id === matchedFilm.id
+              )
+              if (!exists) {
                 filmAssociations.push({
                   guest_id: savedGuest.id,
                   film_id: matchedFilm.id,
                   film_title: matchedFilm.title
                 })
-              } else if (matchedProgram) {
+              }
+            } else if (matchedProgram) {
+              // Check if association doesn't already exist
+              const exists = existingProgramAssociations.some(
+                a => a.program_id === matchedProgram.id
+              )
+              if (!exists) {
                 programAssociations.push({
                   guest_id: savedGuest.id,
                   program_id: matchedProgram.id,
                   program_title: matchedProgram.title
                 })
-              } else {
-                warnings.push(`Could not find match for title "${csvTitle}" for guest ${guestName}`)
               }
+            } else {
+              warnings.push(`Could not find match for title "${csvTitle}" for guest ${guestName}`)
             }
-            
-            // Insert film associations
-            if (filmAssociations.length > 0) {
-              const { error: filmAssocError } = await supabase
-                .from('guest_films')
-                .insert(filmAssociations)
-              
-              if (filmAssocError) {
-                warnings.push(`Warning: Could not create film associations for ${guestName}: ${filmAssocError.message}`)
-              }
+          }
+
+          // Insert new film associations only
+          if (filmAssociations.length > 0) {
+            const { error: filmAssocError } = await supabase
+              .from('guest_films')
+              .insert(filmAssociations)
+
+            if (filmAssocError) {
+              warnings.push(`Warning: Could not create film associations for ${guestName}: ${filmAssocError.message}`)
             }
-            
-            // Insert program associations
-            if (programAssociations.length > 0) {
-              const { error: programAssocError } = await supabase
-                .from('guest_programs')
-                .insert(programAssociations)
-              
-              if (programAssocError) {
-                warnings.push(`Warning: Could not create program associations for ${guestName}: ${programAssocError.message}`)
-              }
+          }
+
+          // Insert new program associations only
+          if (programAssociations.length > 0) {
+            const { error: programAssocError } = await supabase
+              .from('guest_programs')
+              .insert(programAssociations)
+
+            if (programAssocError) {
+              warnings.push(`Warning: Could not create program associations for ${guestName}: ${programAssocError.message}`)
             }
           }
         }
@@ -499,7 +617,8 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
       importedGuests: importedGuests.length,
       errors,
       warnings,
-      data: importedGuests
+      data: importedGuests,
+      filmRemovals: filmRemovals.length > 0 ? filmRemovals : undefined
     }
 
   } catch (error) {
@@ -507,7 +626,8 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
       success: false,
       importedGuests: 0,
       errors: [`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
-      warnings: []
+      warnings: [],
+      filmRemovals: undefined
     }
   }
 }

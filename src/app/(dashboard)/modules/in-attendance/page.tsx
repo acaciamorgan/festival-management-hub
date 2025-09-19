@@ -8,7 +8,8 @@ import { GuestCard, GuestType, GuestFilm } from '@/types'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { GuestFormModal } from '@/components/forms/guest-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
-import { parseCSVContent, importGuestsFromCSV } from '@/lib/csv-import'
+import { parseCSVContent, importGuestsFromCSV, removeFilmAssociations } from '@/lib/csv-import'
+import { FilmRemovalDialog } from '@/components/import/film-removal-dialog'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { normalizeDateValue } from '@/lib/date-utils'
 import * as XLSX from 'xlsx-js-style'
@@ -39,6 +40,7 @@ export default function InAttendancePage() {
   const [customReportDate, setCustomReportDate] = useState('')
   const [searchArrivalDate, setSearchArrivalDate] = useState('')
   const [searchDepartureDate, setSearchDepartureDate] = useState('')
+  const [pendingRemovals, setPendingRemovals] = useState<Array<{guestName: string, removedFilms: string[]}> | null>(null)
 
   const supabase = createClient()
 
@@ -801,14 +803,24 @@ export default function InAttendancePage() {
       setUploadStatus(`Processing ${csvRows.length} rows...`)
       
       const result = await importGuestsFromCSV(csvRows)
-      
+
       if (result.success) {
         setUploadStatus(`Successfully imported ${result.importedGuests} guests!`)
-        await loadGuests() // Reload the guests list
-        
+
+        // Check if there are film removals to confirm
+        if (result.filmRemovals && result.filmRemovals.length > 0) {
+          setPendingRemovals(result.filmRemovals)
+          setUploadStatus('Import complete. Please review film removals...')
+        } else {
+          await loadGuests() // Reload the guests list
+        }
+
         if (result.warnings.length > 0) {
           console.warn('Import warnings:', result.warnings)
-          alert(`Import completed with ${result.warnings.length} warnings. Check console for details.`)
+          // Don't show alert for warnings if we have removals to review
+          if (!result.filmRemovals || result.filmRemovals.length === 0) {
+            alert(`Import completed with ${result.warnings.length} warnings. Check console for details.`)
+          }
         }
       } else {
         setUploadStatus('Import failed')
@@ -1417,6 +1429,30 @@ export default function InAttendancePage() {
         <FilmCardPopup
           film={showFilmCard}
           onClose={() => setShowFilmCard(null)}
+        />
+      )}
+
+      {/* Film Removal Dialog */}
+      {pendingRemovals && (
+        <FilmRemovalDialog
+          removals={pendingRemovals}
+          onConfirm={async (confirmedRemovals) => {
+            if (confirmedRemovals.length > 0) {
+              setUploadStatus('Removing film associations...')
+              const result = await removeFilmAssociations(confirmedRemovals)
+              if (!result.success) {
+                alert(`Some removals failed: ${result.errors.join(', ')}`)
+              }
+            }
+            setPendingRemovals(null)
+            await loadGuests() // Reload the guests list
+            setTimeout(() => setUploadStatus(''), 3000)
+          }}
+          onCancel={async () => {
+            setPendingRemovals(null)
+            await loadGuests() // Reload the guests list
+            setTimeout(() => setUploadStatus(''), 3000)
+          }}
         />
       )}
     </div>
