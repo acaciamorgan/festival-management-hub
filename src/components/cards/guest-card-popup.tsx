@@ -581,8 +581,8 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     <div>
                       <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Route</span>
                       <p className="text-sm text-gray-900 mt-1">
-                        {guest.arrival_origin && guest.arrival_destination
-                          ? `${guest.arrival_origin} → ${guest.arrival_destination}`
+                        {guest.arrival_origin_airport && guest.arrival_airport
+                          ? `${guest.arrival_origin_airport} → ${guest.arrival_airport}`
                           : 'Not specified'
                         }
                       </p>
@@ -621,8 +621,8 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     <div>
                       <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Route</span>
                       <p className="text-sm text-gray-900 mt-1">
-                        {guest.departure_origin && guest.departure_destination
-                          ? `${guest.departure_origin} → ${guest.departure_destination}`
+                        {guest.departure_airport && guest.destination_airport
+                          ? `${guest.departure_airport} → ${guest.destination_airport}`
                           : 'Not specified'
                         }
                       </p>
