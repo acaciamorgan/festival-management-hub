@@ -472,7 +472,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
       
       {/* Modal */}
       <div 
-        className="fixed bg-white rounded-lg shadow-2xl border border-gray-300 z-50 max-w-4xl w-[90vw] max-h-[90vh] overflow-hidden"
+        className="fixed bg-white rounded-lg shadow-2xl border border-gray-300 z-50 max-w-4xl w-[90vw] max-h-[calc(100vh-2rem)] overflow-y-auto"
         style={{ 
           left: `${position.x}px`, 
           top: `${position.y}px`,

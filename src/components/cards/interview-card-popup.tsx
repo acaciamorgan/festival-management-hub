@@ -181,7 +181,7 @@ export function InterviewCardPopup({ interview, onClose, onEdit, onDelete }: Int
   return (
     <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 pointer-events-none">
       <div 
-        className="bg-white rounded-lg shadow-2xl border border-gray-300 overflow-hidden pointer-events-auto max-w-4xl w-full mx-4"
+        className="bg-white rounded-lg shadow-2xl border border-gray-300 overflow-y-auto pointer-events-auto max-w-4xl w-full mx-4"
         style={{ 
           left: `${position.x}px`, 
           top: `${position.y}px`,

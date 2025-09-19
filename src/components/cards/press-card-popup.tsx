@@ -320,7 +320,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
   return (
     <>
       <div 
-        className="fixed bg-white rounded-lg shadow-2xl border border-gray-300 z-50 max-w-4xl w-[800px] max-h-[80vh] overflow-hidden"
+        className="fixed bg-white rounded-lg shadow-2xl border border-gray-300 z-50 max-w-4xl w-[800px] max-h-[calc(100vh-2rem)] overflow-y-auto"
         style={{ 
           left: `${position.x}px`, 
           top: `${position.y}px`,
@@ -522,7 +522,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
       {showEditModal && (
         <div className="fixed inset-0 bg-transparent z-[60]">
           <div
-            className="absolute bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
+            className="absolute bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto"
             style={{
               left: `${editModalPosition.x}px`,
               top: `${editModalPosition.y}px`,

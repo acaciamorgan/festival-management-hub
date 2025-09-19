@@ -56,8 +56,8 @@ export function FilmRemovalDialog({ removals, onConfirm, onCancel }: FilmRemoval
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 max-w-3xl w-full my-8 flex flex-col max-h-[calc(100vh-4rem)]">
         <h2 className="text-xl font-bold mb-4">Film Removal Confirmation</h2>
         <p className="text-sm text-gray-600 mb-4">
           The following films will be removed from guests. Check the ones you want to remove:

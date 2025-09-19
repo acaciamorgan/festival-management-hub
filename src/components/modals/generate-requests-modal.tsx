@@ -177,7 +177,7 @@ export function GenerateRequestsModal({
   return (
     <div className="fixed inset-0 z-50 pointer-events-none">
       <div 
-        className="bg-white rounded-lg shadow-xl max-w-4xl max-h-[80vh] overflow-hidden flex flex-col pointer-events-auto"
+        className="bg-white rounded-lg shadow-xl max-w-4xl max-h-[calc(100vh-4rem)] overflow-y-auto flex flex-col pointer-events-auto"
         onClick={(e) => e.stopPropagation()}
         style={{ 
           position: 'fixed',

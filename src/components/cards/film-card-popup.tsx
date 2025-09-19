@@ -530,7 +530,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
       />
       
       <div 
-        className="fixed bg-white rounded-lg shadow-2xl border border-gray-300 max-w-4xl w-[800px] max-h-[80vh] overflow-hidden z-[60] flex flex-col"
+        className="fixed bg-white rounded-lg shadow-2xl border border-gray-300 max-w-4xl w-[800px] max-h-[calc(100vh-2rem)] overflow-y-auto z-[60] flex flex-col"
         onClick={(e) => e.stopPropagation()}
         style={{ 
           left: `${position.x}px`, 
