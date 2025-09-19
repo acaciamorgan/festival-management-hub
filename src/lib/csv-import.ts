@@ -460,31 +460,24 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           existingProgramAssociations = existingPrograms.data || []
         }
 
-        // Combine existing films_display with new one if updating
-        let finalFilmsDisplay = filmsDisplay
-        if (existingGuest && existingGuest.films_display) {
-          // If CSV has no films but database has films, keep the database films
-          if (!filmsDisplay || filmsDisplay === '—' || filmsDisplay === '') {
-            finalFilmsDisplay = existingGuest.films_display
+        // ONLY update films_display if CSV has actual film data
+        // If CSV has empty/blank films, DO NOT touch the existing films
+        if (filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== '') {
+          // CSV has films - update the display
+          const { data: displayUpdatedGuest, error: displayError } = await supabase
+            .from('guests')
+            .update({ films_display: filmsDisplay })
+            .eq('id', savedGuest.id)
+            .select()
+            .single()
+
+          if (displayError) {
+            warnings.push(`Error updating films display for ${guestName}: ${displayError.message}`)
           } else {
-            // Otherwise use the CSV films (will be handled by associations below)
-            finalFilmsDisplay = filmsDisplay
+            savedGuest = displayUpdatedGuest
           }
         }
-
-        // Update the saved guest with films_display field
-        const { data: displayUpdatedGuest, error: displayError } = await supabase
-          .from('guests')
-          .update({ films_display: finalFilmsDisplay })
-          .eq('id', savedGuest.id)
-          .select()
-          .single()
-
-        if (displayError) {
-          warnings.push(`Error updating films display for ${guestName}: ${displayError.message}`)
-        } else {
-          savedGuest = displayUpdatedGuest
-        }
+        // If CSV has no films, we DO NOTHING - keep existing films!
         
         // Smart film association handling
         // Only process if we have films to work with (skip if empty or just "—")
@@ -508,20 +501,32 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
             ...allPrograms.map(p => p.title)
           ])
 
-          // Determine what needs to be added and removed
-          const existingTitles = new Set([
+          // Determine what needs to be added and removed using NORMALIZED comparison
+          const existingTitles = [
             ...existingFilmAssociations.map(f => f.film_title),
             ...existingProgramAssociations.map(p => p.program_title)
-          ])
+          ]
 
-          const csvTitlesSet = new Set(csvFilmTitles)
+          // Films to add - CSV titles that don't match any existing (using normalized comparison)
+          const titlesToAdd = csvFilmTitles.filter(csvTitle => {
+            // Check if this CSV title matches any existing title
+            return !existingTitles.some(existingTitle => {
+              // Use normalized matching to compare
+              const match = findBestTitleMatch(csvTitle, [existingTitle])
+              return match !== null
+            })
+          })
 
-          // Films to add (in CSV but not in existing)
-          const titlesToAdd = csvFilmTitles.filter(title => !existingTitles.has(title))
-
-          // Films to remove (in existing but not in CSV) - only for existing guests
+          // Films to remove - existing titles that don't match any CSV title (using normalized comparison)
           const titlesToRemove = existingGuest
-            ? Array.from(existingTitles).filter(title => !csvTitlesSet.has(title))
+            ? existingTitles.filter(existingTitle => {
+                // Check if this existing title matches any CSV title
+                return !csvFilmTitles.some(csvTitle => {
+                  // Use normalized matching to compare
+                  const match = findBestTitleMatch(existingTitle, [csvTitle])
+                  return match !== null
+                })
+              })
             : []
 
           // Handle removals if any
