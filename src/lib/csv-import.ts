@@ -717,13 +717,12 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
               warnings.push(`Warning: Could not create program associations for ${guestName}: ${programAssocError.message}`)
             }
           }
-        }
-        
+
         savedGuest.films_display = filmsDisplay
         savedGuest.films = []
 
         importedGuests.push(savedGuest)
-        
+
       } catch (error) {
         errors.push(`Error processing guest ${guestName}: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
