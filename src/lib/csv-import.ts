@@ -729,14 +729,19 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
       }
     }
 
-    return {
+    const result: GuestImportResult = {
       success: errors.length === 0,
       importedGuests: importedGuests.length,
       errors,
       warnings,
-      data: importedGuests,
-      filmRemovals: filmRemovals.length > 0 ? filmRemovals : undefined
+      data: importedGuests
     }
+
+    if (filmRemovals.length > 0) {
+      result.filmRemovals = filmRemovals
+    }
+
+    return result
 
   } catch (error) {
     return {
