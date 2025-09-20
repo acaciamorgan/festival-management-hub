@@ -743,8 +743,7 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
       success: false,
       importedGuests: 0,
       errors: [`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
-      warnings: [],
-      filmRemovals: undefined
+      warnings: []
     }
   }
 }
