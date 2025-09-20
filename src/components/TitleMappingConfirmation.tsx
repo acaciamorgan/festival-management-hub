@@ -1,9 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 
 interface TitleMapping {
   csvTitle: string
@@ -33,75 +30,91 @@ export function TitleMappingConfirmation({ mappings, onConfirm, onCancel }: Titl
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-        <CardHeader>
-          <CardTitle>Confirm Film Title Mappings</CardTitle>
-          <p className="text-sm text-muted-foreground">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+        <div className="p-6 border-b">
+          <h2 className="text-xl font-semibold mb-2">Confirm Film Title Mappings</h2>
+          <p className="text-sm text-gray-600">
             We found some film titles in your CSV that don't exactly match titles in the database.
             Please confirm the correct mappings:
           </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        </div>
+        <div className="p-6 space-y-4">
           {mappings.map((mapping) => (
             <div key={mapping.csvTitle} className="border rounded-lg p-4 space-y-2">
               <div>
                 <span className="font-medium">CSV Title: </span>
-                <Badge variant="outline">{mapping.csvTitle}</Badge>
+                <span className="inline-block bg-gray-100 px-2 py-1 rounded text-sm">{mapping.csvTitle}</span>
               </div>
 
               {mapping.suggestedMatch ? (
                 <div className="space-y-2">
                   <div>
-                    <span className="text-sm text-muted-foreground">Suggested match: </span>
-                    <Badge variant="secondary">{mapping.suggestedMatch}</Badge>
+                    <span className="text-sm text-gray-500">Suggested match: </span>
+                    <span className="inline-block bg-blue-100 px-2 py-1 rounded text-sm">{mapping.suggestedMatch}</span>
                     {mapping.confidence && (
-                      <span className="text-xs text-muted-foreground ml-2">
+                      <span className="text-xs text-gray-500 ml-2">
                         ({Math.round(mapping.confidence * 100)}% confidence)
                       </span>
                     )}
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant={confirmedMappings[mapping.csvTitle] === mapping.suggestedMatch ? "default" : "outline"}
+                    <button
+                      className={`px-3 py-1 text-sm rounded ${
+                        confirmedMappings[mapping.csvTitle] === mapping.suggestedMatch
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
                       onClick={() => handleConfirmMapping(mapping.csvTitle, mapping.suggestedMatch!)}
                     >
                       Accept
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={confirmedMappings[mapping.csvTitle] === mapping.csvTitle ? "default" : "outline"}
+                    </button>
+                    <button
+                      className={`px-3 py-1 text-sm rounded ${
+                        confirmedMappings[mapping.csvTitle] === mapping.csvTitle
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
                       onClick={() => handleConfirmMapping(mapping.csvTitle, mapping.csvTitle)}
                     >
                       Keep as-is
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground">No close match found</div>
-                  <Button
-                    size="sm"
-                    variant={confirmedMappings[mapping.csvTitle] === mapping.csvTitle ? "default" : "outline"}
+                  <div className="text-sm text-gray-500">No close match found</div>
+                  <button
+                    className={`px-3 py-1 text-sm rounded ${
+                      confirmedMappings[mapping.csvTitle] === mapping.csvTitle
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
                     onClick={() => handleConfirmMapping(mapping.csvTitle, mapping.csvTitle)}
                   >
                     Keep as-is
-                  </Button>
+                  </button>
                 </div>
               )}
             </div>
           ))}
 
           <div className="flex gap-2 pt-4">
-            <Button onClick={handleSubmit} disabled={mappings.length > Object.keys(confirmedMappings).length}>
+            <button
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              onClick={handleSubmit}
+              disabled={mappings.length > Object.keys(confirmedMappings).length}
+            >
               Confirm All Mappings
-            </Button>
-            <Button variant="outline" onClick={onCancel}>
+            </button>
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={onCancel}
+            >
               Cancel
-            </Button>
+            </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
