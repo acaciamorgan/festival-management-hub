@@ -594,48 +594,12 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           // Now parse film titles with knowledge of what titles exist in the database
           const csvFilmTitles = parseFilmTitles(filmsDisplay, allDbTitles)
 
-          // Get films using smart article-aware database queries for the parsed titles
-          const allFilms = []
-          const allPrograms = []
-
-          // For each CSV title, find matching films directly in database
-          for (const csvTitle of csvFilmTitles) {
-            const normalizedCsvTitle = csvTitle.trim().toLowerCase()
-              .replace(/,\s*(a|an|the)$/i, '')
-              .replace(/^(a|an|the)\s+/i, '')
-              .replace(/[^\w\s\-']/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim()
-
-            // Query films with article-aware matching
-            const [featureResults, shortResults, programResults] = await Promise.all([
-              supabase.from('feature_films').select('id, title').or(
-                `title.ilike.%${normalizedCsvTitle}%,` +
-                `title.ilike.%${normalizedCsvTitle.replace(/\s+/g, '%')}%,` +
-                `title.ilike.a ${normalizedCsvTitle}%,` +
-                `title.ilike.an ${normalizedCsvTitle}%,` +
-                `title.ilike.the ${normalizedCsvTitle}%`
-              ),
-              supabase.from('short_films').select('id, title').or(
-                `title.ilike.%${normalizedCsvTitle}%,` +
-                `title.ilike.%${normalizedCsvTitle.replace(/\s+/g, '%')}%,` +
-                `title.ilike.a ${normalizedCsvTitle}%,` +
-                `title.ilike.an ${normalizedCsvTitle}%,` +
-                `title.ilike.the ${normalizedCsvTitle}%`
-              ),
-              supabase.from('programs').select('id, title').or(
-                `title.ilike.%${normalizedCsvTitle}%,` +
-                `title.ilike.%${normalizedCsvTitle.replace(/\s+/g, '%')}%,` +
-                `title.ilike.a ${normalizedCsvTitle}%,` +
-                `title.ilike.an ${normalizedCsvTitle}%,` +
-                `title.ilike.the ${normalizedCsvTitle}%`
-              )
-            ])
-
-            if (featureResults.data) allFilms.push(...featureResults.data)
-            if (shortResults.data) allFilms.push(...shortResults.data)
-            if (programResults.data) allPrograms.push(...programResults.data)
-          }
+          // Use the already-fetched films and programs for matching
+          const allFilms = [
+            ...(allFeatureFilms.data || []),
+            ...(allShortFilms.data || [])
+          ]
+          const allPrograms = allProgramsFromDb.data || []
 
           console.log(`\n=== PARSING FILMS FOR GUEST "${guestName}" ===`)
           console.log(`Films display: "${filmsDisplay}"`)
