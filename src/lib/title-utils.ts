@@ -42,7 +42,10 @@ export function normalizeTitle(title: string): string {
  * First tries exact match, then normalized match
  */
 export function findBestTitleMatch(csvTitle: string, dbTitles: string[]): string | null {
+  console.log(`DEBUG findBestTitleMatch: CSV="${csvTitle}", DB=[${dbTitles.join(', ')}]`)
+
   if (!csvTitle || !dbTitles || dbTitles.length === 0) {
+    console.log(`DEBUG: returning null - empty inputs`)
     return null
   }
 
@@ -51,20 +54,26 @@ export function findBestTitleMatch(csvTitle: string, dbTitles: string[]): string
     dbTitle.toLowerCase().trim() === csvTitle.toLowerCase().trim()
   )
   if (exactMatch) {
+    console.log(`DEBUG: exact match found: "${exactMatch}"`)
     return exactMatch
   }
 
   // Try normalized matching
   const normalizedCsvTitle = normalizeTitle(csvTitle)
+  console.log(`DEBUG: normalized CSV: "${normalizedCsvTitle}"`)
+
   if (!normalizedCsvTitle) {
+    console.log(`DEBUG: returning null - empty normalized CSV`)
     return null
   }
 
   const normalizedMatch = dbTitles.find(dbTitle => {
     const normalizedDbTitle = normalizeTitle(dbTitle)
+    console.log(`DEBUG: comparing "${normalizedCsvTitle}" vs "${normalizedDbTitle}" = ${normalizedDbTitle === normalizedCsvTitle}`)
     return normalizedDbTitle === normalizedCsvTitle
   })
 
+  console.log(`DEBUG: final result: ${normalizedMatch ? `"${normalizedMatch}"` : 'null'}`)
   return normalizedMatch || null
 }
 

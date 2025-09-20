@@ -106,52 +106,38 @@ export async function parseCSVContent(csvContent: string): Promise<CSVGuestRow[]
 
 /**
  * Intelligently parse film titles from a films display string
- * Tries to avoid splitting actual film titles that contain commas
+ * Handles trailing articles correctly (e.g., "Title, The" is one film, not two)
  */
 function parseFilmTitles(filmsDisplay: string, knownTitles: string[]): string[] {
   if (!filmsDisplay || filmsDisplay.trim() === '' || filmsDisplay === '—') {
     return []
   }
 
-  // First, try to match against known titles to see if the entire string is one title
-  if (knownTitles.some(title => findBestTitleMatch(filmsDisplay.trim(), [title]))) {
+  // Check if this is a single title with trailing article
+  if (/,\s*(a|an|the)$/i.test(filmsDisplay.trim())) {
     return [filmsDisplay.trim()]
   }
 
-  // If not a single known title, try intelligent splitting
-  // Split on commas but try to preserve titles that we know exist
-  const potentialTitles = filmsDisplay.split(',').map(title => title.trim()).filter(title => title)
+  // First, try to match against known titles to see if the entire string is one title
+  if (knownTitles.length > 0 && knownTitles.some(title => findBestTitleMatch(filmsDisplay.trim(), [title]))) {
+    return [filmsDisplay.trim()]
+  }
+
+  // Split on commas but be smart about trailing articles
+  const parts = filmsDisplay.split(',').map(part => part.trim()).filter(part => part)
   const result: string[] = []
   let i = 0
 
-  while (i < potentialTitles.length) {
-    const currentTitle = potentialTitles[i]
+  while (i < parts.length) {
+    const currentPart = parts[i]
+    const nextPart = parts[i + 1]
 
-    // Check if current title matches a known title
-    if (knownTitles.some(title => findBestTitleMatch(currentTitle, [title]))) {
-      result.push(currentTitle)
-      i++
-      continue
-    }
-
-    // Try combining with next title(s) to see if we get a match
-    let combinedTitle = currentTitle
-    let foundMatch = false
-
-    for (let j = i + 1; j < Math.min(i + 3, potentialTitles.length); j++) {
-      combinedTitle += ', ' + potentialTitles[j]
-
-      if (knownTitles.some(title => findBestTitleMatch(combinedTitle, [title]))) {
-        result.push(combinedTitle)
-        i = j + 1
-        foundMatch = true
-        break
-      }
-    }
-
-    if (!foundMatch) {
-      // No match found, keep as individual title
-      result.push(currentTitle)
+    // Check if next part is an article - if so, combine them
+    if (nextPart && /^(a|an|the)$/i.test(nextPart)) {
+      result.push(`${currentPart}, ${nextPart}`)
+      i += 2 // Skip both parts
+    } else {
+      result.push(currentPart)
       i++
     }
   }
@@ -468,6 +454,7 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
 
         // ONLY update films_display if CSV has actual film data
         // If CSV has empty/blank films, DO NOT touch the existing films
+        console.log(`DEBUG: Guest ${guestName} - filmsDisplay: "${filmsDisplay}", condition check: ${filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== ''}`)
         if (filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== '') {
           // CSV has films - update the display
           const { data: displayUpdatedGuest, error: displayError } = await supabase
@@ -487,25 +474,59 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
         
         // Smart film association handling
         // Only process if we have films to work with (skip if empty or just "—")
+        console.log(`DEBUG: Film association check for ${guestName} - filmsDisplay: "${filmsDisplay}", condition: ${filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== ''}`)
         if (filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== '') {
-          // Get all available films and programs from database for smart matching
-          const [featureFilms, shortFilms, programs] = await Promise.all([
-            supabase.from('feature_films').select('id, title'),
-            supabase.from('short_films').select('id, title'),
-            supabase.from('programs').select('id, title')
-          ])
+          // Parse film titles first to get the list
+          const csvFilmTitles = parseFilmTitles(filmsDisplay, [])
 
-          const allFilms = [
-            ...(featureFilms.data || []),
-            ...(shortFilms.data || [])
-          ]
-          const allPrograms = programs.data || []
+          // Get films using smart article-aware database queries
+          const allFilms = []
+          const allPrograms = []
 
-          // Parse film titles more intelligently
-          const csvFilmTitles = parseFilmTitles(filmsDisplay, [
-            ...allFilms.map(f => f.title),
-            ...allPrograms.map(p => p.title)
-          ])
+          // For each CSV title, find matching films directly in database
+          for (const csvTitle of csvFilmTitles) {
+            const normalizedCsvTitle = csvTitle.trim().toLowerCase()
+              .replace(/,\s*(a|an|the)$/i, '')
+              .replace(/^(a|an|the)\s+/i, '')
+              .replace(/[^\w\s\-']/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim()
+
+            // Query films with article-aware matching
+            const [featureResults, shortResults, programResults] = await Promise.all([
+              supabase.from('feature_films').select('id, title').or(
+                `title.ilike.%${normalizedCsvTitle}%,` +
+                `title.ilike.%${normalizedCsvTitle.replace(/\s+/g, '%')}%,` +
+                `title.ilike.a ${normalizedCsvTitle}%,` +
+                `title.ilike.an ${normalizedCsvTitle}%,` +
+                `title.ilike.the ${normalizedCsvTitle}%`
+              ),
+              supabase.from('short_films').select('id, title').or(
+                `title.ilike.%${normalizedCsvTitle}%,` +
+                `title.ilike.%${normalizedCsvTitle.replace(/\s+/g, '%')}%,` +
+                `title.ilike.a ${normalizedCsvTitle}%,` +
+                `title.ilike.an ${normalizedCsvTitle}%,` +
+                `title.ilike.the ${normalizedCsvTitle}%`
+              ),
+              supabase.from('programs').select('id, title').or(
+                `title.ilike.%${normalizedCsvTitle}%,` +
+                `title.ilike.%${normalizedCsvTitle.replace(/\s+/g, '%')}%,` +
+                `title.ilike.a ${normalizedCsvTitle}%,` +
+                `title.ilike.an ${normalizedCsvTitle}%,` +
+                `title.ilike.the ${normalizedCsvTitle}%`
+              )
+            ])
+
+            if (featureResults.data) allFilms.push(...featureResults.data)
+            if (shortResults.data) allFilms.push(...shortResults.data)
+            if (programResults.data) allPrograms.push(...programResults.data)
+          }
+
+          console.log(`\n=== PARSING FILMS FOR GUEST "${guestName}" ===`)
+          console.log(`Films display: "${filmsDisplay}"`)
+          console.log(`Available films: [${allFilms.map(f => `"${f.title}"`).slice(0, 5).join(', ')}${allFilms.length > 5 ? '...' : ''}]`)
+
+          console.log(`Parsed CSV titles: [${csvFilmTitles.map(t => `"${t}"`).join(', ')}]`)
 
           // Determine what needs to be added and removed using NORMALIZED comparison
           const existingTitles = [
@@ -514,14 +535,22 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           ]
 
           // Films to add - CSV titles that don't match any existing (using normalized comparison)
+          console.log(`\nExisting titles: [${existingTitles.map(t => `"${t}"`).join(', ')}]`)
+
           const titlesToAdd = csvFilmTitles.filter(csvTitle => {
+            console.log(`\nChecking if CSV title "${csvTitle}" needs to be added...`)
             // Check if this CSV title matches any existing title
-            return !existingTitles.some(existingTitle => {
+            const hasMatch = existingTitles.some(existingTitle => {
               // Use normalized matching to compare
               const match = findBestTitleMatch(csvTitle, [existingTitle])
+              console.log(`  vs existing "${existingTitle}": ${match ? `MATCH "${match}"` : 'NO MATCH'}`)
               return match !== null
             })
+            console.log(`  Result: ${hasMatch ? 'SKIP (already exists)' : 'ADD (new)'}`)
+            return !hasMatch
           })
+
+          console.log(`\nTitles to add: [${titlesToAdd.map(t => `"${t}"`).join(', ')}]`)
 
           // Films to remove - existing titles that don't match any CSV title (using normalized comparison)
           const titlesToRemove = existingGuest
@@ -550,16 +579,24 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
           const programAssociations = []
 
           for (const csvTitle of titlesToAdd) {
+            console.log(`\n=== DEBUGGING TITLE MATCH FOR "${csvTitle}" ===`)
+
             // Try to find best match using smart title matching
             const matchedFilm = allFilms.find(f => {
+              console.log(`  Checking film: "${f.title}"`)
               const bestMatch = findBestTitleMatch(csvTitle, [f.title])
+              console.log(`  Match result: ${bestMatch ? `"${bestMatch}"` : 'null'}`)
               return bestMatch === f.title
             })
 
             const matchedProgram = allPrograms.find(p => {
+              console.log(`  Checking program: "${p.title}"`)
               const bestMatch = findBestTitleMatch(csvTitle, [p.title])
+              console.log(`  Match result: ${bestMatch ? `"${bestMatch}"` : 'null'}`)
               return bestMatch === p.title
             })
+
+            console.log(`  FINAL: Film match = ${matchedFilm ? `"${matchedFilm.title}"` : 'null'}, Program match = ${matchedProgram ? `"${matchedProgram.title}"` : 'null'}`)
 
             if (matchedFilm) {
               // Check if association doesn't already exist
