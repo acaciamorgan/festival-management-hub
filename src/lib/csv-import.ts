@@ -18,7 +18,8 @@ interface CSVTitleMappingRow {
 
 export interface CSVGuestRow {
   'Type': string
-  'Film Title': string
+  'Film/Program Titles': string
+  'Database Match': string
   'Name': string
   'Country': string
   'Confirmed?': string
@@ -537,6 +538,11 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           .map(row => row['Film/Program Titles']?.trim())
           .filter(film => film && film !== '' && film !== '—')
 
+        // Collect Database Match values for precise matching
+        const databaseMatches = guestRows
+          .map(row => row['Database Match']?.trim())
+          .filter(match => match && match !== '' && match !== '—')
+
         const filmsDisplay = allFilmsForGuest.length > 0 ? allFilmsForGuest.join(', ') : ''
 
         console.log(`Guest ${guestName} has ${guestRows.length} rows with films: ${allFilmsForGuest.join(', ')}`)
@@ -581,7 +587,7 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           // First, get ALL films from database to help with intelligent parsing
           const [allFeatureFilms, allShortFilms, allProgramsFromDb] = await Promise.all([
             supabase.from('feature_films').select('id, title'),
-            supabase.from('short_films').select('id, title'),
+            supabase.from('short_films').select('id, title, shorts_program_id'),
             supabase.from('programs').select('id, title')
           ])
 
@@ -591,8 +597,17 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
             ...(allProgramsFromDb.data || []).map(p => p.title)
           ]
 
-          // Now parse film titles with knowledge of what titles exist in the database
-          const csvFilmTitles = parseFilmTitles(filmsDisplay, allDbTitles)
+          // Use Database Match values if available, otherwise parse Film/Program Titles
+          let csvFilmTitles = []
+          if (databaseMatches.length > 0) {
+            // Use Database Match for exact matching
+            csvFilmTitles = databaseMatches
+            console.log(`Using Database Match values for precise matching: [${csvFilmTitles.join(', ')}]`)
+          } else {
+            // Fallback to parsing Film/Program Titles with normalization
+            csvFilmTitles = parseFilmTitles(filmsDisplay, allDbTitles)
+            console.log(`Using parsed Film/Program Titles: [${csvFilmTitles.join(', ')}]`)
+          }
 
           // Use the already-fetched films and programs for matching
           const allFilms = [
@@ -660,20 +675,33 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           for (const csvTitle of titlesToAdd) {
             console.log(`\n=== DEBUGGING TITLE MATCH FOR "${csvTitle}" ===`)
 
-            // Try to find best match using smart title matching
-            const matchedFilm = allFilms.find(f => {
-              console.log(`  Checking film: "${f.title}"`)
-              const bestMatch = findBestTitleMatch(csvTitle, [f.title])
-              console.log(`  Match result: ${bestMatch ? `"${bestMatch}"` : 'null'}`)
-              return bestMatch === f.title
-            })
+            let matchedFilm, matchedProgram
 
-            const matchedProgram = allPrograms.find(p => {
-              console.log(`  Checking program: "${p.title}"`)
-              const bestMatch = findBestTitleMatch(csvTitle, [p.title])
-              console.log(`  Match result: ${bestMatch ? `"${bestMatch}"` : 'null'}`)
-              return bestMatch === p.title
-            })
+            if (databaseMatches.length > 0) {
+              // Use exact string matching for Database Match values
+              console.log(`  Using exact string matching for Database Match`)
+              matchedFilm = allFilms.find(f => f.title === csvTitle)
+              matchedProgram = allPrograms.find(p => p.title === csvTitle)
+
+              if (matchedFilm) console.log(`  Exact film match: "${matchedFilm.title}"`)
+              if (matchedProgram) console.log(`  Exact program match: "${matchedProgram.title}"`)
+            } else {
+              // Fallback to fuzzy matching for Film/Program Titles
+              console.log(`  Using fuzzy matching for Film/Program Titles`)
+              matchedFilm = allFilms.find(f => {
+                console.log(`  Checking film: "${f.title}"`)
+                const bestMatch = findBestTitleMatch(csvTitle, [f.title])
+                console.log(`  Match result: ${bestMatch ? `"${bestMatch}"` : 'null'}`)
+                return bestMatch === f.title
+              })
+
+              matchedProgram = allPrograms.find(p => {
+                console.log(`  Checking program: "${p.title}"`)
+                const bestMatch = findBestTitleMatch(csvTitle, [p.title])
+                console.log(`  Match result: ${bestMatch ? `"${bestMatch}"` : 'null'}`)
+                return bestMatch === p.title
+              })
+            }
 
             console.log(`  FINAL: Film match = ${matchedFilm ? `"${matchedFilm.title}"` : 'null'}, Program match = ${matchedProgram ? `"${matchedProgram.title}"` : 'null'}`)
 
@@ -688,6 +716,28 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
                   film_id: matchedFilm.id,
                   film_title: matchedFilm.title
                 })
+              }
+
+              // Check if this is a short film - if so, also associate with its program
+              const shortFilm = allShortFilms.data?.find(sf => sf.id === matchedFilm.id)
+              if (shortFilm && shortFilm.shorts_program_id) {
+                console.log(`  Short film "${matchedFilm.title}" belongs to program ID: ${shortFilm.shorts_program_id}`)
+
+                // Find the program in our list
+                const shortsProgram = allProgramsFromDb.data?.find(p => p.id === shortFilm.shorts_program_id)
+                if (shortsProgram) {
+                  console.log(`  Adding program association: "${shortsProgram.title}"`)
+                  const programExists = existingProgramAssociations.some(
+                    a => a.program_id === shortsProgram.id
+                  )
+                  if (!programExists) {
+                    programAssociations.push({
+                      guest_id: savedGuest.id,
+                      program_id: shortsProgram.id,
+                      program_title: shortsProgram.title
+                    })
+                  }
+                }
               }
             } else if (matchedProgram) {
               // Check if association doesn't already exist

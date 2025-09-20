@@ -18,13 +18,10 @@ export function normalizeTitle(title: string): string {
   let normalized = title.trim().toLowerCase()
 
   // Handle trailing articles FIRST - convert "title, a/an/the" to just "title"
-  // This removes the article from the end completely
   normalized = normalized.replace(/,\s*(a|an|the)$/i, '')
 
   // Remove leading articles - this removes them from the beginning
   normalized = normalized.replace(/^(a|an|the)\s+/i, '')
-
-  // Now both "The Reckoning" and "Reckoning, The" become just "reckoning"
 
   // Remove punctuation but keep essential characters
   // Keep: letters, numbers, spaces, hyphens, apostrophes

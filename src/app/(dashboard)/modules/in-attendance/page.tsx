@@ -260,6 +260,7 @@ export default function InAttendancePage() {
       { field: 'name', display: 'Name' },
       { field: 'role', display: 'Role' },
       { field: 'films_display', display: 'Film/Program Titles' },
+      { field: 'database_match', display: 'Database Match' },
       { field: 'checked_in', display: 'Checked In' },
       { field: 'guest_type', display: 'Type' },
       { field: 'arranging_travel', display: 'Arranging Travel' },
@@ -389,7 +390,9 @@ export default function InAttendancePage() {
           films: guestFilms,
           programs: guestPrograms,
           // Use the stored films_display field which includes free text
-          films_display: guest.films_display || '—'
+          films_display: guest.films_display || '—',
+          // Database Match is only used during import, not stored
+          database_match: '—'
         }
       })
 
