@@ -10,6 +10,8 @@ import { GuestFormModal } from '@/components/forms/guest-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { parseCSVContent, importGuestsFromCSV, removeFilmAssociations } from '@/lib/csv-import'
 import { FilmRemovalDialog } from '@/components/import/film-removal-dialog'
+import { TitleMappingConfirmation } from '@/components/TitleMappingConfirmation'
+import { saveTitleMappings } from '@/lib/title-mappings'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { normalizeDateValue } from '@/lib/date-utils'
 import * as XLSX from 'xlsx-js-style'
@@ -41,6 +43,8 @@ export default function InAttendancePage() {
   const [searchArrivalDate, setSearchArrivalDate] = useState('')
   const [searchDepartureDate, setSearchDepartureDate] = useState('')
   const [pendingRemovals, setPendingRemovals] = useState<Array<{guestName: string, removedFilms: string[]}> | null>(null)
+  const [pendingTitleMappings, setPendingTitleMappings] = useState<Array<{csvTitle: string, suggestedMatch?: string, confidence?: number}> | null>(null)
+  const [pendingCSVRows, setPendingCSVRows] = useState<any[] | null>(null)
 
   const supabase = createClient()
 
@@ -804,7 +808,12 @@ export default function InAttendancePage() {
       
       const result = await importGuestsFromCSV(csvRows)
 
-      if (result.success) {
+      if (result.titleMappingsRequired && result.titleMappingsRequired.length > 0) {
+        // Need title confirmation
+        setPendingTitleMappings(result.titleMappingsRequired)
+        setPendingCSVRows(csvRows)
+        setUploadStatus('Please confirm title mappings...')
+      } else if (result.success) {
         setUploadStatus(`Successfully imported ${result.importedGuests} guests!`)
 
         // Check if there are film removals to confirm
@@ -1433,6 +1442,42 @@ export default function InAttendancePage() {
       )}
 
       {/* Film Removal Dialog */}
+      {pendingTitleMappings && pendingCSVRows && (
+        <TitleMappingConfirmation
+          mappings={pendingTitleMappings}
+          onConfirm={async (confirmedMappings) => {
+            setUploadStatus('Saving title mappings...')
+            const saved = await saveTitleMappings(confirmedMappings)
+            if (saved) {
+              setUploadStatus('Re-processing CSV with confirmed mappings...')
+              const result = await importGuestsFromCSV(pendingCSVRows, confirmedMappings)
+              if (result.success) {
+                setUploadStatus(`Successfully imported ${result.importedGuests} guests!`)
+                if (result.filmRemovals && result.filmRemovals.length > 0) {
+                  setPendingRemovals(result.filmRemovals)
+                  setUploadStatus('Import complete. Please review film removals...')
+                } else {
+                  await loadGuests()
+                }
+              } else {
+                setUploadStatus('Import failed')
+                alert(`Import failed with errors:\n${result.errors.join('\n')}`)
+              }
+            } else {
+              setUploadStatus('Failed to save mappings')
+            }
+            setPendingTitleMappings(null)
+            setPendingCSVRows(null)
+            setTimeout(() => setUploadStatus(''), 3000)
+          }}
+          onCancel={() => {
+            setPendingTitleMappings(null)
+            setPendingCSVRows(null)
+            setUploadStatus('')
+          }}
+        />
+      )}
+
       {pendingRemovals && (
         <FilmRemovalDialog
           removals={pendingRemovals}

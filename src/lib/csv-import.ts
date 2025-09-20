@@ -283,7 +283,7 @@ export async function removeFilmAssociations(removals: Array<{guestName: string,
   return { success: errors.length === 0, errors }
 }
 
-export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<GuestImportResult> {
+export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappings?: Record<string, string>): Promise<GuestImportResult> {
   const supabase = createClient()
   const errors: string[] = []
   const warnings: string[] = []
@@ -311,6 +311,71 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
       }
       guestGroups.get(guestName)!.push(row)
     })
+
+    // If no confirmed mappings provided, check if we need title confirmations
+    if (!confirmedMappings) {
+      const { getTitleMappings } = await import('@/lib/title-mappings')
+      const existingMappings = await getTitleMappings()
+      const titleMappingsRequired: TitleMapping[] = []
+
+      // Get all database titles for matching
+      const [allFeatureFilms, allShortFilms, allPrograms] = await Promise.all([
+        supabase.from('feature_films').select('id, title'),
+        supabase.from('short_films').select('id, title'),
+        supabase.from('programs').select('id, title')
+      ])
+      const allDbTitles = [
+        ...(allFeatureFilms.data || []).map(f => f.title),
+        ...(allShortFilms.data || []).map(f => f.title),
+        ...(allPrograms.data || []).map(p => p.title)
+      ]
+
+      // Check all film titles in CSV for matches
+      const uniqueCsvTitles = new Set<string>()
+      for (const [guestName, guestRows] of guestGroups) {
+        const allFilmsForGuest = guestRows
+          .map(row => row['Film Title']?.trim())
+          .filter(film => film && film !== '' && film !== '—')
+
+        for (const filmTitle of allFilmsForGuest) {
+          if (filmTitle) {
+            // Parse individual titles from compound strings like "Film A, Film B"
+            const parsedTitles = parseFilmTitles(filmTitle, allDbTitles)
+            for (const title of parsedTitles) {
+              uniqueCsvTitles.add(title.trim())
+            }
+          }
+        }
+      }
+
+      // Check each unique title
+      for (const csvTitle of uniqueCsvTitles) {
+        // Skip if we already have a mapping
+        const existingMapping = existingMappings.find(m => m.csv_title === csvTitle)
+        if (existingMapping) continue
+
+        // Try to find a match
+        const bestMatch = findBestTitleMatch(csvTitle, allDbTitles)
+        if (bestMatch.confidence < 0.8) { // Need confirmation if confidence is low
+          titleMappingsRequired.push({
+            csvTitle,
+            suggestedMatch: bestMatch.confidence > 0.3 ? bestMatch.title : undefined,
+            confidence: bestMatch.confidence
+          })
+        }
+      }
+
+      // Return early if mappings are needed
+      if (titleMappingsRequired.length > 0) {
+        return {
+          success: false,
+          importedGuests: 0,
+          errors: [],
+          warnings: [],
+          titleMappingsRequired
+        }
+      }
+    }
 
     // Process each unique guest
     for (const [guestName, guestRows] of guestGroups) {
