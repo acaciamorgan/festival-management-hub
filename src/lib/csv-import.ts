@@ -1,7 +1,20 @@
 import { createClient } from '@/lib/supabase/client'
 import { GuestCard, GuestType } from '@/types'
 import { getFestivalYear, parseSmartDate } from '@/lib/smart-date-parser'
-import { findBestTitleMatch } from '@/lib/title-utils'
+import { findBestTitleMatch, normalizeTitle } from '@/lib/title-utils'
+
+interface TitleMapping {
+  csvTitle: string
+  suggestedMatch?: string
+  confidence?: number
+}
+
+interface CSVTitleMappingRow {
+  id: number
+  csv_title: string
+  database_title: string
+  created_at: string
+}
 
 export interface CSVGuestRow {
   'Type': string
@@ -44,6 +57,7 @@ export interface GuestImportResult {
     guestName: string
     removedFilms: string[]
   }>
+  titleMappingsRequired?: TitleMapping[]
 }
 
 export async function parseCSVContent(csvContent: string): Promise<CSVGuestRow[]> {
@@ -113,18 +127,41 @@ function parseFilmTitles(filmsDisplay: string, knownTitles: string[]): string[] 
     return []
   }
 
+  const trimmedDisplay = filmsDisplay.trim()
+
   // Check if this is a single title with trailing article
-  if (/,\s*(a|an|the)$/i.test(filmsDisplay.trim())) {
-    return [filmsDisplay.trim()]
+  if (/,\s*(a|an|the)$/i.test(trimmedDisplay)) {
+    return [trimmedDisplay]
   }
 
   // First, try to match against known titles to see if the entire string is one title
-  if (knownTitles.length > 0 && knownTitles.some(title => findBestTitleMatch(filmsDisplay.trim(), [title]))) {
-    return [filmsDisplay.trim()]
+  if (knownTitles.length > 0 && knownTitles.some(title => findBestTitleMatch(trimmedDisplay, [title]))) {
+    return [trimmedDisplay]
+  }
+
+  // NEW: Check if the whole string (even with commas) matches a known film title exactly or normalized
+  // This handles cases like "Black Rabbit, White Rabbit" and "Wind, Talk To Me"
+  if (knownTitles.length > 0) {
+    const exactMatch = knownTitles.find(title =>
+      title.toLowerCase().trim() === trimmedDisplay.toLowerCase().trim()
+    )
+    if (exactMatch) {
+      return [trimmedDisplay]
+    }
+
+    // Also check normalized matching
+    const normalizedMatch = knownTitles.find(title => {
+      const normalizedCsv = normalizeTitle(trimmedDisplay)
+      const normalizedDb = normalizeTitle(title)
+      return normalizedCsv && normalizedDb && normalizedCsv === normalizedDb
+    })
+    if (normalizedMatch) {
+      return [trimmedDisplay]
+    }
   }
 
   // Split on commas but be smart about trailing articles
-  const parts = filmsDisplay.split(',').map(part => part.trim()).filter(part => part)
+  const parts = trimmedDisplay.split(',').map(part => part.trim()).filter(part => part)
   const result: string[] = []
   let i = 0
 
@@ -476,10 +513,23 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[]): Promise<Guest
         // Only process if we have films to work with (skip if empty or just "—")
         console.log(`DEBUG: Film association check for ${guestName} - filmsDisplay: "${filmsDisplay}", condition: ${filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== ''}`)
         if (filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== '') {
-          // Parse film titles first to get the list
-          const csvFilmTitles = parseFilmTitles(filmsDisplay, [])
+          // First, get ALL films from database to help with intelligent parsing
+          const [allFeatureFilms, allShortFilms, allProgramsFromDb] = await Promise.all([
+            supabase.from('feature_films').select('id, title'),
+            supabase.from('short_films').select('id, title'),
+            supabase.from('programs').select('id, title')
+          ])
 
-          // Get films using smart article-aware database queries
+          const allDbTitles = [
+            ...(allFeatureFilms.data || []).map(f => f.title),
+            ...(allShortFilms.data || []).map(f => f.title),
+            ...(allProgramsFromDb.data || []).map(p => p.title)
+          ]
+
+          // Now parse film titles with knowledge of what titles exist in the database
+          const csvFilmTitles = parseFilmTitles(filmsDisplay, allDbTitles)
+
+          // Get films using smart article-aware database queries for the parsed titles
           const allFilms = []
           const allPrograms = []
 
