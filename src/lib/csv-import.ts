@@ -533,15 +533,10 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           savedGuest = newGuest
         }
 
-        // Collect ALL films from ALL rows for this guest
+        // Build display string from ALL rows for this guest
         const allFilmsForGuest = guestRows
           .map(row => row['Film/Program Titles']?.trim())
           .filter(film => film && film !== '' && film !== '—')
-
-        // Collect Database Match values for precise matching
-        const databaseMatches = guestRows
-          .map(row => row['Database Match']?.trim())
-          .filter(match => match && match !== '' && match !== '—')
 
         const filmsDisplay = allFilmsForGuest.length > 0 ? allFilmsForGuest.join(', ') : ''
 
@@ -560,11 +555,8 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           existingProgramAssociations = existingPrograms.data || []
         }
 
-        // ONLY update films_display if CSV has actual film data
-        // If CSV has empty/blank films, DO NOT touch the existing films
-        console.log(`DEBUG: Guest ${guestName} - filmsDisplay: "${filmsDisplay}", condition check: ${filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== ''}`)
+        // Update films_display if we have film data
         if (filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== '') {
-          // CSV has films - update the display
           const { data: displayUpdatedGuest, error: displayError } = await supabase
             .from('guests')
             .update({ films_display: filmsDisplay })
@@ -578,189 +570,137 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
             savedGuest = displayUpdatedGuest
           }
         }
-        // If CSV has no films, we DO NOTHING - keep existing films!
-        
-        // Smart film association handling
-        // Only process if we have films to work with (skip if empty or just "—")
-        console.log(`DEBUG: Film association check for ${guestName} - filmsDisplay: "${filmsDisplay}", condition: ${filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== ''}`)
-        if (filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== '') {
-          // First, get ALL films from database to help with intelligent parsing
-          const [allFeatureFilms, allShortFilms, allProgramsFromDb] = await Promise.all([
-            supabase.from('feature_films').select('id, title'),
-            supabase.from('short_films').select('id, title, shorts_program_id'),
-            supabase.from('programs').select('id, title')
-          ])
 
-          const allDbTitles = [
-            ...(allFeatureFilms.data || []).map(f => f.title),
-            ...(allShortFilms.data || []).map(f => f.title),
-            ...(allProgramsFromDb.data || []).map(p => p.title)
-          ]
+        // Process film associations - SIMPLIFIED APPROACH
+        // Process EACH ROW individually for this guest
+        const filmAssociations = []
+        const programAssociations = []
 
-          // Use Database Match values if available, otherwise parse Film/Program Titles
-          let csvFilmTitles = []
-          if (databaseMatches.length > 0) {
+        // Get ALL database titles once for matching
+        const [allFeatureFilms, allShortFilms, allProgramsFromDb] = await Promise.all([
+          supabase.from('feature_films').select('id, title'),
+          supabase.from('short_films').select('id, title, shorts_program_id'),
+          supabase.from('programs').select('id, title')
+        ])
+
+        const allFilms = [
+          ...(allFeatureFilms.data || []),
+          ...(allShortFilms.data || [])
+        ]
+        const allPrograms = allProgramsFromDb.data || []
+
+        // Process EACH ROW individually for this guest
+        for (const row of guestRows) {
+          const displayTitle = row['Film/Program Titles']?.trim()
+          const databaseMatch = row['Database Match']?.trim()
+
+          // Skip empty rows
+          if ((!displayTitle || displayTitle === '—') && (!databaseMatch || databaseMatch === '—')) {
+            continue
+          }
+
+          console.log(`\n=== Processing row for ${guestName}: Display="${displayTitle}", DatabaseMatch="${databaseMatch}" ===`)
+
+          // Decide what title to search for
+          let titleToMatch = ''
+          if (databaseMatch && databaseMatch !== '' && databaseMatch !== '—') {
             // Use Database Match for exact matching
-            csvFilmTitles = databaseMatches
-            console.log(`Using Database Match values for precise matching: [${csvFilmTitles.join(', ')}]`)
+            titleToMatch = databaseMatch
+            console.log(`  Using Database Match value: "${titleToMatch}"`)
+          } else if (displayTitle && displayTitle !== '' && displayTitle !== '—') {
+            // Fallback to Film/Program Titles
+            titleToMatch = displayTitle
+            console.log(`  Using Film/Program Titles value: "${titleToMatch}"`)
           } else {
-            // Fallback to parsing Film/Program Titles with normalization
-            csvFilmTitles = parseFilmTitles(filmsDisplay, allDbTitles)
-            console.log(`Using parsed Film/Program Titles: [${csvFilmTitles.join(', ')}]`)
+            continue // Skip if both are empty
           }
 
-          // Use the already-fetched films and programs for matching
-          const allFilms = [
-            ...(allFeatureFilms.data || []),
-            ...(allShortFilms.data || [])
-          ]
-          const allPrograms = allProgramsFromDb.data || []
+          // Try to find exact match in films
+          let matchedFilm = allFilms.find(f => f.title === titleToMatch)
+          let matchedProgram = allPrograms.find(p => p.title === titleToMatch)
 
-          console.log(`\n=== PARSING FILMS FOR GUEST "${guestName}" ===`)
-          console.log(`Films display: "${filmsDisplay}"`)
-          console.log(`Available films: [${allFilms.map(f => `"${f.title}"`).slice(0, 5).join(', ')}${allFilms.length > 5 ? '...' : ''}]`)
+          // If no exact match and using display title, try normalized matching
+          if (!matchedFilm && !matchedProgram && !databaseMatch) {
+            console.log(`  No exact match, trying normalized matching for "${titleToMatch}"`)
 
-          console.log(`Parsed CSV titles: [${csvFilmTitles.map(t => `"${t}"`).join(', ')}]`)
-
-          // Determine what needs to be added and removed using NORMALIZED comparison
-          const existingTitles = [
-            ...existingFilmAssociations.map(f => f.film_title),
-            ...existingProgramAssociations.map(p => p.program_title)
-          ]
-
-          // Films to add - CSV titles that don't match any existing (using normalized comparison)
-          console.log(`\nExisting titles: [${existingTitles.map(t => `"${t}"`).join(', ')}]`)
-
-          const titlesToAdd = csvFilmTitles.filter(csvTitle => {
-            console.log(`\nChecking if CSV title "${csvTitle}" needs to be added...`)
-            // Check if this CSV title matches any existing title
-            const hasMatch = existingTitles.some(existingTitle => {
-              // Use normalized matching to compare
-              const match = findBestTitleMatch(csvTitle, [existingTitle])
-              console.log(`  vs existing "${existingTitle}": ${match ? `MATCH "${match}"` : 'NO MATCH'}`)
-              return match !== null
+            // Try normalized matching
+            matchedFilm = allFilms.find(f => {
+              const match = findBestTitleMatch(titleToMatch, [f.title])
+              if (match) console.log(`    Normalized match found: "${f.title}"`)
+              return match === f.title
             })
-            console.log(`  Result: ${hasMatch ? 'SKIP (already exists)' : 'ADD (new)'}`)
-            return !hasMatch
-          })
 
-          console.log(`\nTitles to add: [${titlesToAdd.map(t => `"${t}"`).join(', ')}]`)
-
-          // Films to remove - existing titles that don't match any CSV title (using normalized comparison)
-          const titlesToRemove = existingGuest
-            ? existingTitles.filter(existingTitle => {
-                // Check if this existing title matches any CSV title
-                return !csvFilmTitles.some(csvTitle => {
-                  // Use normalized matching to compare
-                  const match = findBestTitleMatch(existingTitle, [csvTitle])
-                  return match !== null
-                })
-              })
-            : []
-
-          // Handle removals if any
-          if (titlesToRemove.length > 0) {
-            // Store removals for later confirmation
-            filmRemovals.push({
-              guestName,
-              removedFilms: titlesToRemove
-            })
-            warnings.push(`Detected film removals for ${guestName}: ${titlesToRemove.join(', ')}`)
-          }
-
-          // Add new associations
-          const filmAssociations = []
-          const programAssociations = []
-
-          for (const csvTitle of titlesToAdd) {
-            console.log(`\n=== DEBUGGING TITLE MATCH FOR "${csvTitle}" ===`)
-
-            let matchedFilm, matchedProgram
-
-            if (databaseMatches.length > 0) {
-              // Use exact string matching for Database Match values
-              console.log(`  Using exact string matching for Database Match`)
-              matchedFilm = allFilms.find(f => f.title === csvTitle)
-              matchedProgram = allPrograms.find(p => p.title === csvTitle)
-
-              if (matchedFilm) console.log(`  Exact film match: "${matchedFilm.title}"`)
-              if (matchedProgram) console.log(`  Exact program match: "${matchedProgram.title}"`)
-            } else {
-              // Fallback to fuzzy matching for Film/Program Titles
-              console.log(`  Using fuzzy matching for Film/Program Titles`)
-              matchedFilm = allFilms.find(f => {
-                console.log(`  Checking film: "${f.title}"`)
-                const bestMatch = findBestTitleMatch(csvTitle, [f.title])
-                console.log(`  Match result: ${bestMatch ? `"${bestMatch}"` : 'null'}`)
-                return bestMatch === f.title
-              })
-
+            if (!matchedFilm) {
               matchedProgram = allPrograms.find(p => {
-                console.log(`  Checking program: "${p.title}"`)
-                const bestMatch = findBestTitleMatch(csvTitle, [p.title])
-                console.log(`  Match result: ${bestMatch ? `"${bestMatch}"` : 'null'}`)
-                return bestMatch === p.title
+                const match = findBestTitleMatch(titleToMatch, [p.title])
+                if (match) console.log(`    Normalized match found: "${p.title}"`)
+                return match === p.title
+              })
+            }
+          }
+
+          // Handle matched film
+          if (matchedFilm) {
+            console.log(`  ✓ Matched film: "${matchedFilm.title}"`)
+
+            // Check if association doesn't already exist
+            const exists = existingFilmAssociations.some(
+              a => a.film_id === matchedFilm.id
+            )
+            if (!exists) {
+              filmAssociations.push({
+                guest_id: savedGuest.id,
+                film_id: matchedFilm.id,
+                film_title: matchedFilm.title
               })
             }
 
-            console.log(`  FINAL: Film match = ${matchedFilm ? `"${matchedFilm.title}"` : 'null'}, Program match = ${matchedProgram ? `"${matchedProgram.title}"` : 'null'}`)
+            // Check if this is a short film - if so, also associate with its program
+            const shortFilm = allShortFilms.data?.find(sf => sf.id === matchedFilm.id)
+            if (shortFilm && shortFilm.shorts_program_id) {
+              console.log(`  Short film belongs to program ID: ${shortFilm.shorts_program_id}`)
 
-            if (matchedFilm) {
-              // Check if association doesn't already exist
-              const exists = existingFilmAssociations.some(
-                a => a.film_id === matchedFilm.id
-              )
-              if (!exists) {
-                filmAssociations.push({
-                  guest_id: savedGuest.id,
-                  film_id: matchedFilm.id,
-                  film_title: matchedFilm.title
-                })
-              }
-
-              // Check if this is a short film - if so, also associate with its program
-              const shortFilm = allShortFilms.data?.find(sf => sf.id === matchedFilm.id)
-              if (shortFilm && shortFilm.shorts_program_id) {
-                console.log(`  Short film "${matchedFilm.title}" belongs to program ID: ${shortFilm.shorts_program_id}`)
-
-                // Find the program in our list
-                const shortsProgram = allProgramsFromDb.data?.find(p => p.id === shortFilm.shorts_program_id)
-                if (shortsProgram) {
-                  console.log(`  Adding program association: "${shortsProgram.title}"`)
-                  const programExists = existingProgramAssociations.some(
-                    a => a.program_id === shortsProgram.id
-                  )
-                  if (!programExists) {
-                    programAssociations.push({
-                      guest_id: savedGuest.id,
-                      program_id: shortsProgram.id,
-                      program_title: shortsProgram.title
-                    })
-                  }
+              // Find the program in our list
+              const shortsProgram = allProgramsFromDb.data?.find(p => p.id === shortFilm.shorts_program_id)
+              if (shortsProgram) {
+                console.log(`  ✓ Adding program association: "${shortsProgram.title}"`)
+                const programExists = existingProgramAssociations.some(
+                  a => a.program_id === shortsProgram.id
+                )
+                if (!programExists) {
+                  programAssociations.push({
+                    guest_id: savedGuest.id,
+                    program_id: shortsProgram.id,
+                    program_title: shortsProgram.title
+                  })
                 }
               }
-            } else if (matchedProgram) {
-              // Check if association doesn't already exist
-              const exists = existingProgramAssociations.some(
-                a => a.program_id === matchedProgram.id
-              )
-              if (!exists) {
-                programAssociations.push({
-                  guest_id: savedGuest.id,
-                  program_id: matchedProgram.id,
-                  program_title: matchedProgram.title
-                })
-              }
-            } else {
-              warnings.push(`Could not find match for title "${csvTitle}" for guest ${guestName}`)
             }
-          }
+          } else if (matchedProgram) {
+            console.log(`  ✓ Matched program: "${matchedProgram.title}"`)
 
-          // Insert new film associations only
-          if (filmAssociations.length > 0) {
-            const { error: filmAssocError } = await supabase
-              .from('guest_films')
-              .insert(filmAssociations)
+            // Check if association doesn't already exist
+            const exists = existingProgramAssociations.some(
+              a => a.program_id === matchedProgram.id
+            )
+            if (!exists) {
+              programAssociations.push({
+                guest_id: savedGuest.id,
+                program_id: matchedProgram.id,
+                program_title: matchedProgram.title
+              })
+            }
+          } else {
+            warnings.push(`Could not find match for title "${titleToMatch}" for guest ${guestName}`)
+            console.log(`  ✗ No match found for "${titleToMatch}"`)
+          }
+        } // End of for loop through rows
+
+        // Insert new film associations only
+        if (filmAssociations.length > 0) {
+          const { error: filmAssocError } = await supabase
+            .from('guest_films')
+            .insert(filmAssociations)
 
             if (filmAssocError) {
               warnings.push(`Warning: Could not create film associations for ${guestName}: ${filmAssocError.message}`)
