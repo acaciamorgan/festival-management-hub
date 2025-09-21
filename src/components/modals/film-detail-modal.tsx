@@ -63,10 +63,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
   const [shortFilms, setShortFilms] = useState<ShortFilm[]>([])
   const [loading, setLoading] = useState(false)
   const [isShortsProgramModal, setIsShortsProgramModal] = useState(false)
-  const [isShortFilmModal, setIsShortFilmModal] = useState(false)
-  const [shortFilmData, setShortFilmData] = useState<ShortFilm | null>(null)
   const [inheritedGuests, setInheritedGuests] = useState<any[]>([])
-  const [inheritedScreenings, setInheritedScreenings] = useState<any[]>([])
   const supabase = createClient()
 
   useEffect(() => {
@@ -75,9 +72,6 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
     }
   }, [isOpen, filmTitle])
 
-  useEffect(() => {
-    console.log('DEBUG: State update - isShortFilmModal:', isShortFilmModal, 'shortFilmData:', shortFilmData?.title)
-  }, [isShortFilmModal, shortFilmData])
 
   const loadFilmDetails = async () => {
     console.log('DEBUG: loadFilmDetails called for', filmTitle)
@@ -86,10 +80,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
     setShortsProgram(null)
     setShortFilms([])
     setIsShortsProgramModal(false)
-    setIsShortFilmModal(false)
-    setShortFilmData(null)
     setInheritedGuests([])
-    setInheritedScreenings([])
 
     try {
       // First, check if this is a shorts program
@@ -126,87 +117,61 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
         console.log('DEBUG: Short film check for', filmTitle, shortFilmData, shortFilmError)
 
         if (!shortFilmError && shortFilmData && shortFilmData.shorts_program_id) {
-          console.log('DEBUG: This is a short film, processing...')
-          // This is an individual short film
-          setIsShortFilmModal(true)
-          setShortFilmData(shortFilmData)
-          console.log('DEBUG: Set isShortFilmModal to true, shortFilmData:', shortFilmData)
+          console.log('DEBUG: This is a short film, treating as feature film')
+          // Convert short film to feature film format
+          const filmAsFeature = {
+            id: shortFilmData.id,
+            title: shortFilmData.title,
+            director: shortFilmData.director,
+            countries: shortFilmData.countries,
+            run_time: shortFilmData.run_time,
+            language: shortFilmData.language,
+            subtitles: '',
+            program_1: shortFilmData.program_1,
+            program_2: shortFilmData.program_2,
+            program_3: shortFilmData.program_3,
+            program_4: '',
+            genre_1: '',
+            genre_2: '',
+            genre_3: '',
+            genre_4: '',
+            principal_cast: '',
+            screenwriter: '',
+            cinematographer: '',
+            editor: '',
+            producer: '',
+            executive_producer: '',
+            production_companies: '',
+            premiere_status: '',
+            content_considerations: '',
+            trailer_url: '',
+            film_website: ''
+          }
 
-          // Get the shorts program data
-          const { data: shortsProgram } = await supabase
-            .from('shorts_programs')
-            .select('*')
-            .eq('id', shortFilmData.shorts_program_id)
-            .single()
+          setFilm(filmAsFeature)
 
-          if (shortsProgram) {
-            setShortsProgram(shortsProgram)
+          // Load guests for short film using films_display
+          const { data: shortGuests } = await supabase
+            .from('guests')
+            .select(`
+              id,
+              name,
+              role,
+              arrival_date,
+              departure_date,
+              confirmed,
+              checked_in
+            `)
+            .ilike('films_display', `%${shortFilmData.title}%`)
 
-            // Get guests associated with this specific short film via films_display
-            const { data: guests } = await supabase
-              .from('guests')
-              .select(`
-                id,
-                name,
-                role,
-                arrival_date,
-                departure_date,
-                confirmed,
-                checked_in
-              `)
-              .ilike('films_display', `%${shortFilmData.title}%`)
-
-            if (guests) {
-              setInheritedGuests(guests)
-              console.log('DEBUG: Found short film guests via films_display:', guests)
-            }
-
-            // Get screenings for the shorts program by program name
-            const { data: screenings } = await supabase
-              .from('ticketing_screenings')
-              .select(`
-                id,
-                film_title,
-                screening_date,
-                day_of_week,
-                start_time,
-                venue_short_code,
-                is_cancelled,
-                notes
-              `)
-              .eq('film_title', shortsProgram.program_name)
-              .order('screening_date', { ascending: true })
-              .order('start_time', { ascending: true })
-
-            if (screenings) {
-              // Resolve venue names
-              const screeningsWithVenues = await Promise.all(
-                screenings.map(async (screening) => {
-                  if (screening.venue_short_code) {
-                    const { data: houseData } = await supabase
-                      .from('theater_houses')
-                      .select(`
-                        venue_id,
-                        venues!inner(name)
-                      `)
-                      .eq('short_code', screening.venue_short_code)
-                      .single()
-
-                    if (houseData?.venues?.name) {
-                      return { ...screening, venue_name: houseData.venues.name }
-                    }
-                  }
-                  return { ...screening, venue_name: screening.venue_short_code }
-                })
-              )
-              setInheritedScreenings(screeningsWithVenues)
-            }
+          if (shortGuests) {
+            setInheritedGuests(shortGuests)
+            console.log('DEBUG: Found short film guests:', shortGuests)
           }
         } else {
           console.log('DEBUG: Taking feature film path')
           // This is a feature film
           setIsShortsProgramModal(false)
-          setIsShortFilmModal(false)
           const { data: filmData } = await supabase
             .from('feature_films')
             .select('*')
@@ -247,10 +212,10 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div key={`${filmTitle}-${isShortFilmModal}-${isShortsProgramModal}`} className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div key={`${filmTitle}-${isShortsProgramModal}`} className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">
-            {isShortsProgramModal ? 'Shorts Program Details' : isShortFilmModal ? 'Short Film Details' : 'Film Details'}
+            {isShortsProgramModal ? 'Shorts Program Details' : 'Film Details'}
           </h2>
           <button
             onClick={onClose}
@@ -312,110 +277,6 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
                 ) : (
                   <p className="text-gray-500 italic">No short films found in this program.</p>
                 )}
-              </div>
-            </div>
-          ) : isShortFilmModal && shortFilmData ? (
-            // Individual Short Film Modal Content
-            <div className="space-y-6">
-              {/* Short Film Basic Info */}
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{shortFilmData.title}</h3>
-                {shortFilmData.director && <p className="text-lg text-gray-700">Directed by {shortFilmData.director}</p>}
-                <p className="text-sm text-blue-600 mt-2">
-                  Part of {shortsProgram?.program_name} (Program #{shortsProgram?.program_number})
-                </p>
-              </div>
-
-              {/* Short Film Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Film Information</h4>
-                    <div className="space-y-2 text-sm">
-                      {shortFilmData.countries && <div><strong>Countries:</strong> {shortFilmData.countries}</div>}
-                      {shortFilmData.run_time && <div><strong>Runtime:</strong> {shortFilmData.run_time} minutes</div>}
-                      {shortFilmData.language && <div><strong>Language:</strong> {shortFilmData.language}</div>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Screenings Section */}
-              <div className="border border-gray-200 rounded-lg">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                  <h4 className="font-medium text-gray-900">Screenings</h4>
-                  <p className="text-sm text-gray-600">Inherited from {shortsProgram?.program_name}</p>
-                </div>
-                <div className="p-4">
-                  {inheritedScreenings.length > 0 ? (
-                    <div className="space-y-3">
-                      {inheritedScreenings.map((screening) => (
-                        <div key={screening.id} className="border-l-4 border-blue-400 pl-4 py-2">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                {screening.screening_date} at {screening.start_time}
-                              </p>
-                              <p className="text-sm text-gray-600">{screening.venue_name}</p>
-                              {screening.is_cancelled && (
-                                <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 mt-1">
-                                  Cancelled
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          {screening.notes && (
-                            <p className="text-sm text-gray-500 mt-1">{screening.notes}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm">No screening information available.</p>
-                  )}
-                </div>
-              </div>
-
-              {/* In Attendance Section */}
-              <div className="border border-gray-200 rounded-lg">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                  <h4 className="font-medium text-gray-900">In Attendance</h4>
-                  <p className="text-sm text-gray-600">Inherited from {shortsProgram?.program_name}</p>
-                </div>
-                <div className="p-4">
-                  {inheritedGuests.length > 0 ? (
-                    <div className="space-y-3">
-                      {inheritedGuests.map((guest) => (
-                        <div key={guest.id} className="border-l-4 border-green-400 pl-4 py-2">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2">
-                                <span className="font-medium text-gray-900">{guest.name}</span>
-                                <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
-                                  guest.confirmed
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                  {guest.confirmed ? 'Confirmed' : 'Pending'}
-                                </span>
-                                {guest.checked_in && (
-                                  <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                    Checked In
-                                  </span>
-                                )}
-                              </div>
-                              {guest.role && (
-                                <p className="text-sm text-gray-600 mt-1">{guest.role}</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm">No guests associated with this program.</p>
-                  )}
-                </div>
               </div>
             </div>
           ) : film ? (
