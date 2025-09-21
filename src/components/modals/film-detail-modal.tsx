@@ -75,6 +75,10 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
     }
   }, [isOpen, filmTitle])
 
+  useEffect(() => {
+    console.log('DEBUG: State update - isShortFilmModal:', isShortFilmModal, 'shortFilmData:', shortFilmData?.title)
+  }, [isShortFilmModal, shortFilmData])
+
   const loadFilmDetails = async () => {
     console.log('DEBUG: loadFilmDetails called for', filmTitle)
     setLoading(true)
@@ -243,7 +247,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div key={`${filmTitle}-${isShortFilmModal}-${isShortsProgramModal}`} className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">
             {isShortsProgramModal ? 'Shorts Program Details' : isShortFilmModal ? 'Short Film Details' : 'Film Details'}
@@ -262,7 +266,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
               <p className="mt-2 text-gray-600">Loading details...</p>
             </div>
-          ) : (console.log('DEBUG: Render check - isShortsProgramModal:', isShortsProgramModal), console.log('DEBUG: Render check - isShortFilmModal:', isShortFilmModal), console.log('DEBUG: Render check - shortFilmData:', shortFilmData), console.log('DEBUG: Render check - film:', film), isShortsProgramModal) ? (
+          ) : isShortsProgramModal ? (
             // Shorts Program Modal Content
             <div>
               <div className="mb-6">
@@ -310,7 +314,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
                 )}
               </div>
             </div>
-          ) : (isShortFilmModal && shortFilmData && console.log('DEBUG: Rendering short film modal')) || (isShortFilmModal && shortFilmData) ? (
+          ) : isShortFilmModal && shortFilmData ? (
             // Individual Short Film Modal Content
             <div className="space-y-6">
               {/* Short Film Basic Info */}
