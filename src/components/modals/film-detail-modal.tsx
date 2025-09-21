@@ -115,7 +115,10 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
           .eq('title', filmTitle)
           .single()
 
+        console.log('DEBUG: Short film check for', filmTitle, shortFilmData, shortFilmError)
+
         if (!shortFilmError && shortFilmData && shortFilmData.shorts_program_id) {
+          console.log('DEBUG: This is a short film, processing...')
           // This is an individual short film
           setIsShortFilmModal(true)
           setShortFilmData(shortFilmData)
@@ -130,25 +133,21 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
           if (shortsProgram) {
             setShortsProgram(shortsProgram)
 
-            // Get guests associated with this specific short film
-            const { data: guestFilms } = await supabase
-              .from('guest_films')
+            // Get guests associated with this specific short film via films_display
+            const { data: guests } = await supabase
+              .from('guests')
               .select(`
-                guest_id,
-                guests (
-                  id,
-                  name,
-                  role,
-                  arrival_date,
-                  departure_date,
-                  confirmed,
-                  checked_in
-                )
+                id,
+                name,
+                role,
+                arrival_date,
+                departure_date,
+                confirmed,
+                checked_in
               `)
-              .eq('film_id', shortFilmData.id)
+              .ilike('films_display', `%${shortFilmData.title}%`)
 
-            if (guestFilms) {
-              const guests = guestFilms.map((gf: any) => gf.guests).filter(Boolean)
+            if (guests) {
               setInheritedGuests(guests)
             }
 
