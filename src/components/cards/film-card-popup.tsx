@@ -509,35 +509,26 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                 .single()
 
               if (shortsProgram) {
-                // Find the program card for this shorts program
-                const { data: programCard } = await supabase
-                  .from('programs')
-                  .select('id')
-                  .eq('title', shortsProgram.program_name)
-                  .single()
+                // Get screenings directly from ticketing_screenings using program name
+                const { data: programScreenings } = await supabase
+                  .from('ticketing_screenings')
+                  .select(`
+                    id,
+                    film_title,
+                    screening_date,
+                    day_of_week,
+                    start_time,
+                    venue_short_code,
+                    is_cancelled,
+                    notes
+                  `)
+                  .eq('film_title', shortsProgram.program_name)
+                  .order('screening_date', { ascending: true })
+                  .order('start_time', { ascending: true })
 
-                if (programCard) {
-                  // Get screenings for the shorts program
-                  const { data: programScreenings } = await supabase
-                    .from('published_screenings')
-                    .select(`
-                      id,
-                      film_title,
-                      screening_date,
-                      day_of_week,
-                      start_time,
-                      venue_short_code,
-                      is_cancelled,
-                      notes
-                    `)
-                    .eq('film_card_id', programCard.id)
-                    .order('screening_date', { ascending: true })
-                    .order('start_time', { ascending: true })
-
-                  if (programScreenings) {
-                    allScreenings.push(...programScreenings)
-                    console.log(`DEBUG: Found ${programScreenings.length} shorts program screenings`)
-                  }
+                if (programScreenings) {
+                  allScreenings.push(...programScreenings)
+                  console.log(`DEBUG: Found ${programScreenings.length} shorts program screenings for ${shortsProgram.program_name}`)
                 }
               }
             }
