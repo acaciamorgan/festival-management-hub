@@ -196,6 +196,26 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
     console.log('DEBUG: Film Card useEffect triggered for film:', film.title, 'ID:', film.id)
     const loadEvents = async () => {
       try {
+        // Check if this is a short film and get its program name
+        let shortsProgramName: string | null = null
+        const { data: shortFilm } = await supabase
+          .from('short_films')
+          .select('shorts_program_id')
+          .eq('title', film.title)
+          .single()
+
+        if (shortFilm && shortFilm.shorts_program_id) {
+          const { data: shortsProgram } = await supabase
+            .from('shorts_programs')
+            .select('program_name')
+            .eq('id', shortFilm.shorts_program_id)
+            .single()
+
+          if (shortsProgram) {
+            shortsProgramName = shortsProgram.program_name
+          }
+        }
+
         // Load photo shoots
         const { data: shootsData, error: shootsError } = await supabase
           .from('photo_shoots')
@@ -207,17 +227,17 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             film_program_display,
             venue_id
           `)
-          .or(`film_program_display.ilike.%${film.title}%`)
+          .or(`film_program_display.ilike.%${film.title}%${shortsProgramName ? `,film_program_display.ilike.%${shortsProgramName}%` : ''}`)
           .order('shoot_date', { ascending: false })
 
         if (shootsError) {
           console.error('Error loading photo shoots:', shootsError)
         } else {
-          // Filter to only include shoots where this film is actually mentioned
+          // Filter to only include shoots where this film or its shorts program is actually mentioned
           const relevantShoots = (shootsData || []).filter(shoot => {
             if (!shoot.film_program_display) return false
             const titles = shoot.film_program_display.split(',').map((s: string) => s.trim())
-            return titles.includes(film.title)
+            return titles.includes(film.title) || (shortsProgramName && titles.includes(shortsProgramName))
           })
           
           // Load venue names for the photo shoots
@@ -250,17 +270,17 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             film_program_display,
             venues(name)
           `)
-          .or(`film_program_display.ilike.%${film.title}%`)
+          .or(`film_program_display.ilike.%${film.title}%${shortsProgramName ? `,film_program_display.ilike.%${shortsProgramName}%` : ''}`)
           .order('carpet_date', { ascending: false })
 
         if (carpetsError) {
           console.error('Error loading red carpets:', carpetsError)
         } else {
-          // Filter to only include carpets where this film is actually mentioned
+          // Filter to only include carpets where this film or its shorts program is actually mentioned
           const relevantCarpets = (carpetsData || []).filter(carpet => {
             if (!carpet.film_program_display) return false
             const titles = carpet.film_program_display.split(',').map((s: string) => s.trim())
-            return titles.includes(film.title)
+            return titles.includes(film.title) || (shortsProgramName && titles.includes(shortsProgramName))
           })
           setFilmRedCarpets(relevantCarpets)
         }
@@ -280,7 +300,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             canceled,
             venues(name)
           `)
-          .eq('title', film.title)
+          .or(`title.eq.${film.title}${shortsProgramName ? `,title.eq.${shortsProgramName}` : ''}`)
           .order('screening_date', { ascending: true })
 
         if (screeningsError) {
@@ -479,8 +499,28 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
         // Load interviews for this film
         try {
-          const interviews = await getInterviewsForFilmCard(film.id)
-          setFilmInterviews(interviews)
+          let allInterviews = await getInterviewsForFilmCard(film.id)
+
+          // Check if this is a short film to also get shorts program interviews
+          const { data: shortFilmCheck } = await supabase
+            .from('short_films')
+            .select('shorts_program_id')
+            .eq('title', film.title)
+            .single()
+
+          if (shortFilmCheck && shortFilmCheck.shorts_program_id) {
+            const { getInterviewsForShortsProgram } = await import('@/lib/interviews-client')
+            const programInterviews = await getInterviewsForShortsProgram(shortFilmCheck.shorts_program_id)
+            // Combine and deduplicate interviews
+            const interviewIds = new Set(allInterviews.map(i => i.id))
+            programInterviews.forEach(interview => {
+              if (!interviewIds.has(interview.id)) {
+                allInterviews.push(interview)
+              }
+            })
+          }
+
+          setFilmInterviews(allInterviews)
         } catch (error) {
           console.error('Error loading film interviews:', error)
           setFilmInterviews([])
