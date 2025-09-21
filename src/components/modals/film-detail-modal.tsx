@@ -154,6 +154,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
 
             if (guests) {
               setInheritedGuests(guests)
+              console.log('DEBUG: Found short film guests via films_display:', guests)
             }
 
             // Get screenings for the shorts program by program name
