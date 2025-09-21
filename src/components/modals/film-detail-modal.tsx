@@ -210,6 +210,25 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
 
           console.log('DEBUG: Feature film data:', filmData)
           setFilm(filmData)
+
+          // Load guests for feature film using films_display
+          const { data: featureGuests } = await supabase
+            .from('guests')
+            .select(`
+              id,
+              name,
+              role,
+              arrival_date,
+              departure_date,
+              confirmed,
+              checked_in
+            `)
+            .ilike('films_display', `%${filmTitle}%`)
+
+          if (featureGuests) {
+            setInheritedGuests(featureGuests)
+            console.log('DEBUG: Found feature film guests:', featureGuests)
+          }
         }
       }
     } catch (error) {
@@ -458,6 +477,47 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
                   <p className="text-sm text-red-600">{film.content_considerations}</p>
                 </div>
               )}
+
+              {/* In Attendance Section for Feature Films */}
+              <div className="border border-gray-200 rounded-lg">
+                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                  <h4 className="font-medium text-gray-900">In Attendance</h4>
+                </div>
+                <div className="p-4">
+                  {inheritedGuests.length > 0 ? (
+                    <div className="space-y-3">
+                      {inheritedGuests.map((guest) => (
+                        <div key={guest.id} className="border-l-4 border-green-400 pl-4 py-2">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium text-gray-900">{guest.name}</span>
+                                <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                                  guest.confirmed
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                  {guest.confirmed ? 'Confirmed' : 'Pending'}
+                                </span>
+                                {guest.checked_in && (
+                                  <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                    Checked In
+                                  </span>
+                                )}
+                              </div>
+                              {guest.role && (
+                                <p className="text-sm text-gray-600 mt-1">{guest.role}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">No guests associated with this film.</p>
+                  )}
+                </div>
+              </div>
 
               <div className="flex gap-4 pt-4 border-t border-gray-200">
                 {film.film_website && (
