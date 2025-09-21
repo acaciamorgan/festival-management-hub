@@ -130,9 +130,9 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
           if (shortsProgram) {
             setShortsProgram(shortsProgram)
 
-            // Get guests associated with the shorts program
-            const { data: guestPrograms } = await supabase
-              .from('guest_programs')
+            // Get guests associated with this specific short film
+            const { data: guestFilms } = await supabase
+              .from('guest_films')
               .select(`
                 guest_id,
                 guests (
@@ -145,61 +145,52 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
                   checked_in
                 )
               `)
-              .eq('program_title', shortsProgram.program_name)
+              .eq('film_id', shortFilmData.id)
 
-            if (guestPrograms) {
-              const guests = guestPrograms.map((gp: any) => gp.guests).filter(Boolean)
+            if (guestFilms) {
+              const guests = guestFilms.map((gf: any) => gf.guests).filter(Boolean)
               setInheritedGuests(guests)
             }
 
-            // Get screenings for the shorts program
-            // First find the program card for this shorts program
-            const { data: programCard } = await supabase
-              .from('programs')
-              .select('id')
-              .eq('title', shortsProgram.program_name)
-              .single()
+            // Get screenings for the shorts program by program name
+            const { data: screenings } = await supabase
+              .from('ticketing_screenings')
+              .select(`
+                id,
+                film_title,
+                screening_date,
+                day_of_week,
+                start_time,
+                venue_short_code,
+                is_cancelled,
+                notes
+              `)
+              .eq('film_title', shortsProgram.program_name)
+              .order('screening_date', { ascending: true })
+              .order('start_time', { ascending: true })
 
-            if (programCard) {
-              const { data: screenings } = await supabase
-                .from('published_screenings')
-                .select(`
-                  id,
-                  film_title,
-                  screening_date,
-                  day_of_week,
-                  start_time,
-                  venue_short_code,
-                  is_cancelled,
-                  notes
-                `)
-                .eq('film_card_id', programCard.id)
-                .order('screening_date', { ascending: true })
-                .order('start_time', { ascending: true })
+            if (screenings) {
+              // Resolve venue names
+              const screeningsWithVenues = await Promise.all(
+                screenings.map(async (screening) => {
+                  if (screening.venue_short_code) {
+                    const { data: houseData } = await supabase
+                      .from('theater_houses')
+                      .select(`
+                        venue_id,
+                        venues!inner(name)
+                      `)
+                      .eq('short_code', screening.venue_short_code)
+                      .single()
 
-              if (screenings) {
-                // Resolve venue names
-                const screeningsWithVenues = await Promise.all(
-                  screenings.map(async (screening) => {
-                    if (screening.venue_short_code) {
-                      const { data: houseData } = await supabase
-                        .from('theater_houses')
-                        .select(`
-                          venue_id,
-                          venues!inner(name)
-                        `)
-                        .eq('short_code', screening.venue_short_code)
-                        .single()
-
-                      if (houseData?.venues?.name) {
-                        return { ...screening, venue_name: houseData.venues.name }
-                      }
+                    if (houseData?.venues?.name) {
+                      return { ...screening, venue_name: houseData.venues.name }
                     }
-                    return { ...screening, venue_name: screening.venue_short_code }
-                  })
-                )
-                setInheritedScreenings(screeningsWithVenues)
-              }
+                  }
+                  return { ...screening, venue_name: screening.venue_short_code }
+                })
+              )
+              setInheritedScreenings(screeningsWithVenues)
             }
           }
         } else {
