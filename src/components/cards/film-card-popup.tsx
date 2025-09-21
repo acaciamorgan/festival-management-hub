@@ -398,7 +398,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                     confirmed,
                     checked_in
                   `)
-                  .ilike('films_display', `%${film.title}%`)
+                  .eq('films_display', film.title)
 
                 if (!shortFilmGuestsError && shortFilmGuests) {
                   allGuests = [...allGuests, ...shortFilmGuests]
