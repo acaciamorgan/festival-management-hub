@@ -287,10 +287,10 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                         .single()
 
                       if (houseData?.venues?.name) {
-                        return { ...screening, venue_name: houseData.venues.name, type: 'program_screening' }
+                        return { ...screening, venue_name: houseData.venues.name, type: 'screening' }
                       }
                     }
-                    return { ...screening, venue_name: screening.venue_short_code, type: 'program_screening' }
+                    return { ...screening, venue_name: screening.venue_short_code, type: 'screening' }
                   })
                 )
 
@@ -917,8 +917,6 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     switch (type) {
                       case 'screening':
                         return { label: 'Screening', color: 'border-blue-400' }
-                      case 'program_screening':
-                        return { label: 'Program Screening', color: 'border-green-400' }
                       case 'special_event':
                         return {
                           label: eventType ? `Special Event - ${eventType}` : 'Special Event',
