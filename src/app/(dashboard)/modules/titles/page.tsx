@@ -356,13 +356,13 @@ export default function TitlesPage() {
         const { data: guests, error } = await supabase
           .from('guests')
           .select('name')
-          .eq('confirmed', true)
+          // Remove the confirmed requirement - show all guests in the system
 
         if (!error && guests) {
           setConfirmedGuests(new Set(guests.map(g => g.name)))
         }
       } catch (error) {
-        console.error('Error loading confirmed guest names:', error)
+        console.error('Error loading guest names:', error)
       }
     }
 
@@ -411,12 +411,12 @@ export default function TitlesPage() {
     return (
       <div className="flex flex-wrap gap-1">
         {names.map((personName, index) => {
-          // Only show as clickable if Show Guests mode is on AND person is a confirmed guest
-          const isConfirmedGuest = showGuestMode && confirmedGuests.has(personName)
+          // Only show as clickable if Show Guests mode is on AND person exists as a guest
+          const isGuest = showGuestMode && confirmedGuests.has(personName)
           
           return (
             <span key={index}>
-              {isConfirmedGuest ? (
+              {isGuest ? (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
