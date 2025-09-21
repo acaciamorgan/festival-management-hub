@@ -335,7 +335,12 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
       const uniqueCsvTitles = new Set<string>()
       for (const [guestName, guestRows] of guestGroups) {
         const allFilmsForGuest = guestRows
-          .map(row => row['Film Title']?.trim())
+          .map(row => {
+            const databaseMatch = row['Database Match']?.trim()
+            const displayTitle = row['Film/Program Titles']?.trim()
+            // Prefer Database Match, fallback to display title
+            return (databaseMatch && databaseMatch !== '—') ? databaseMatch : displayTitle
+          })
           .filter(film => film && film !== '' && film !== '—')
 
         for (const filmTitle of allFilmsForGuest) {
@@ -355,14 +360,21 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
         const existingMapping = existingMappings.find(m => m.csv_title === csvTitle)
         if (existingMapping) continue
 
-        // Try to find a match
-        const bestMatch = findBestTitleMatch(csvTitle, allDbTitles)
-        if (bestMatch.confidence < 0.8) { // Need confirmation if confidence is low
-          titleMappingsRequired.push({
-            csvTitle,
-            suggestedMatch: bestMatch.confidence > 0.3 ? bestMatch.title : undefined,
-            confidence: bestMatch.confidence
-          })
+        // For Database Match entries, do exact match first
+        const exactMatch = allDbTitles.find(dbTitle =>
+          dbTitle.toLowerCase().trim() === csvTitle.toLowerCase().trim()
+        )
+
+        if (!exactMatch) {
+          // Try fuzzy matching as fallback
+          const bestMatch = findBestTitleMatch(csvTitle, allDbTitles)
+          if (!bestMatch) { // Need confirmation if no match found
+            titleMappingsRequired.push({
+              csvTitle,
+              suggestedMatch: undefined,
+              confidence: 0
+            })
+          }
         }
       }
 
@@ -533,15 +545,6 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           savedGuest = newGuest
         }
 
-        // Build display string from ALL rows for this guest
-        const allFilmsForGuest = guestRows
-          .map(row => row['Film/Program Titles']?.trim())
-          .filter(film => film && film !== '' && film !== '—')
-
-        const filmsDisplay = allFilmsForGuest.length > 0 ? allFilmsForGuest.join(', ') : ''
-
-        console.log(`Guest ${guestName} has ${guestRows.length} rows with films: ${allFilmsForGuest.join(', ')}`)
-
         // Get existing film associations if guest already existed
         let existingFilmAssociations: any[] = []
         let existingProgramAssociations: any[] = []
@@ -555,26 +558,11 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           existingProgramAssociations = existingPrograms.data || []
         }
 
-        // Update films_display if we have film data
-        if (filmsDisplay && filmsDisplay !== '—' && filmsDisplay.trim() !== '') {
-          const { data: displayUpdatedGuest, error: displayError } = await supabase
-            .from('guests')
-            .update({ films_display: filmsDisplay })
-            .eq('id', savedGuest.id)
-            .select()
-            .single()
-
-          if (displayError) {
-            warnings.push(`Error updating films display for ${guestName}: ${displayError.message}`)
-          } else {
-            savedGuest = displayUpdatedGuest
-          }
-        }
-
         // Process film associations - SIMPLIFIED APPROACH
         // Process EACH ROW individually for this guest
         const filmAssociations = []
         const programAssociations = []
+        const matchedTitlesForDisplay = [] // Collect actual database titles for display
 
         // Get ALL database titles once for matching
         const [allFeatureFilms, allShortFilms, allProgramsFromDb] = await Promise.all([
@@ -583,11 +571,20 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           supabase.from('programs').select('id, title')
         ])
 
+        console.log('Raw program query result:', allProgramsFromDb)
+
         const allFilms = [
           ...(allFeatureFilms.data || []),
           ...(allShortFilms.data || [])
         ]
         const allPrograms = allProgramsFromDb.data || []
+
+        console.log(`Loaded ${allFilms.length} films and ${allPrograms.length} programs`)
+        console.log('ALL PROGRAM TITLES:', allPrograms.map(p => p.title))
+
+        if (allProgramsFromDb.error) {
+          console.log('PROGRAM QUERY ERROR:', allProgramsFromDb.error)
+        }
 
         // Process EACH ROW individually for this guest
         for (const row of guestRows) {
@@ -599,7 +596,17 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
             continue
           }
 
-          console.log(`\n=== Processing row for ${guestName}: Display="${displayTitle}", DatabaseMatch="${databaseMatch}" ===`)
+          console.log(`Processing row for ${guestName}: Display="${displayTitle}", DatabaseMatch="${databaseMatch}"`)
+
+          // Debug CSV parsing for problematic entries
+          if (guestName.includes('Deigo') || displayTitle?.includes('Flamingo') || databaseMatch?.includes('Flamingo')) {
+            console.log(`CSV PARSE DEBUG for ${guestName}:`)
+            console.log(`  Raw row keys:`, Object.keys(row))
+            console.log(`  Raw Film/Program Titles: "${row['Film/Program Titles']}"`)
+            console.log(`  Raw Database Match: "${row['Database Match']}"`)
+            console.log(`  After trim - Display: "${displayTitle}"`)
+            console.log(`  After trim - DatabaseMatch: "${databaseMatch}"`)
+          }
 
           // Decide what title to search for
           let titleToMatch = ''
@@ -618,6 +625,21 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           // Try to find exact match in films
           let matchedFilm = allFilms.find(f => f.title === titleToMatch)
           let matchedProgram = allPrograms.find(p => p.title === titleToMatch)
+
+          // Debug specific failing titles
+          if (titleToMatch?.includes('CIX Lab') || titleToMatch?.includes('International Competition')) {
+            console.log(`\n*** DEBUGGING FAILING TITLE: "${titleToMatch}" ***`)
+            console.log(`  Title length: ${titleToMatch.length}`)
+            console.log(`  Title bytes:`, [...titleToMatch].map(c => c.charCodeAt(0)))
+            console.log(`  Looking in ${allPrograms.length} programs:`)
+            allPrograms.forEach(p => {
+              const isMatch = p.title === titleToMatch
+              console.log(`    "${p.title}" (len:${p.title.length}) === "${titleToMatch}": ${isMatch}`)
+              if (p.title.includes('CIX') || p.title.includes('International')) {
+                console.log(`      Program bytes:`, [...p.title].map(c => c.charCodeAt(0)))
+              }
+            })
+          }
 
           // If no exact match and using display title, try normalized matching
           if (!matchedFilm && !matchedProgram && !databaseMatch) {
@@ -642,6 +664,9 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           // Handle matched film
           if (matchedFilm) {
             console.log(`  ✓ Matched film: "${matchedFilm.title}"`)
+
+            // Add to display titles (always add, even if association exists)
+            matchedTitlesForDisplay.push(matchedFilm.title)
 
             // Check if association doesn't already exist
             const exists = existingFilmAssociations.some(
@@ -679,6 +704,9 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           } else if (matchedProgram) {
             console.log(`  ✓ Matched program: "${matchedProgram.title}"`)
 
+            // Add to display titles (always add, even if association exists)
+            matchedTitlesForDisplay.push(matchedProgram.title)
+
             // Check if association doesn't already exist
             const exists = existingProgramAssociations.some(
               a => a.program_id === matchedProgram.id
@@ -696,27 +724,45 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           }
         } // End of for loop through rows
 
+        // Update films_display with the actual matched database titles
+        const filmsDisplay = matchedTitlesForDisplay.length > 0 ? matchedTitlesForDisplay.join(', ') : ''
+        if (filmsDisplay && filmsDisplay.trim() !== '') {
+          console.log(`Updating films_display for ${guestName}: "${filmsDisplay}"`)
+          const { data: displayUpdatedGuest, error: displayError } = await supabase
+            .from('guests')
+            .update({ films_display: filmsDisplay })
+            .eq('id', savedGuest.id)
+            .select()
+            .single()
+
+          if (displayError) {
+            warnings.push(`Error updating films display for ${guestName}: ${displayError.message}`)
+          } else {
+            savedGuest = displayUpdatedGuest
+          }
+        }
+
         // Insert new film associations only
         if (filmAssociations.length > 0) {
           const { error: filmAssocError } = await supabase
             .from('guest_films')
             .insert(filmAssociations)
 
-            if (filmAssocError) {
-              warnings.push(`Warning: Could not create film associations for ${guestName}: ${filmAssocError.message}`)
-            }
+          if (filmAssocError) {
+            warnings.push(`Warning: Could not create film associations for ${guestName}: ${filmAssocError.message}`)
           }
+        }
 
-          // Insert new program associations only
-          if (programAssociations.length > 0) {
-            const { error: programAssocError } = await supabase
-              .from('guest_programs')
-              .insert(programAssociations)
+        // Insert new program associations only
+        if (programAssociations.length > 0) {
+          const { error: programAssocError } = await supabase
+            .from('guest_programs')
+            .insert(programAssociations)
 
-            if (programAssocError) {
-              warnings.push(`Warning: Could not create program associations for ${guestName}: ${programAssocError.message}`)
-            }
+          if (programAssocError) {
+            warnings.push(`Warning: Could not create program associations for ${guestName}: ${programAssocError.message}`)
           }
+        }
 
         savedGuest.films_display = filmsDisplay
         savedGuest.films = []

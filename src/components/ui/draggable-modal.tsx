@@ -56,7 +56,7 @@ export function DraggableModal({ children, onClose, className = '' }: DraggableM
     <div className="fixed inset-0 flex items-center justify-center p-4 z-50 pointer-events-none">
       <div
         ref={modalRef}
-        className={`bg-white rounded-lg shadow-2xl pointer-events-auto ${className}`}
+        className={`bg-white rounded-lg shadow-2xl pointer-events-auto max-h-[90vh] overflow-y-auto ${className}`}
         style={{
           transform: `translate(${position.x}px, ${position.y}px)`,
           cursor: isDragging ? 'grabbing' : 'default'
