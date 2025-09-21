@@ -63,7 +63,7 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
   const [photoShoots, setPhotoShoots] = useState<any[]>([])
   const [redCarpets, setRedCarpets] = useState<any[]>([])
   const [pressScreenings, setPressScreenings] = useState<any[]>([])
-  const [screenings, setScreenings] = useState<any[]>([])
+  const [scheduleItems, setScheduleItems] = useState<any[]>([])
   const supabase = createClient()
 
   // Load all related data
@@ -110,21 +110,36 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
 
         setRedCarpets(carpetsData || [])
 
-        // Load press screenings
-        const { data: pressData } = await supabase
-          .from('press_screenings')
-          .select('*, venues(name)')
-          .eq('title', program.title)
+        // Load schedule items (ticketing screenings + special events)
+        const [ticketingResponse, specialEventsResponse] = await Promise.all([
+          supabase
+            .from('ticketing_screenings')
+            .select('*, venues(name)')
+            .eq('film_title', program.title),
+          supabase
+            .from('special_events')
+            .select('*, venues(name)')
+            .eq('title', program.title)
+        ])
 
-        setPressScreenings(pressData || [])
+        const ticketingScreenings = (ticketingResponse.data || []).map(item => ({
+          ...item,
+          type: 'screening'
+        }))
 
-        // Load ticketing screenings
-        const { data: screeningsData } = await supabase
-          .from('published_screenings')
-          .select('*')
-          .eq('film_title', program.title)
+        const specialEvents = (specialEventsResponse.data || []).map(item => ({
+          ...item,
+          type: 'special_event'
+        }))
 
-        setScreenings(screeningsData || [])
+        // Combine and sort by date/time
+        const combinedSchedule = [...ticketingScreenings, ...specialEvents].sort((a, b) => {
+          const dateA = new Date(`${a.screening_date || a.event_date} ${a.start_time || a.event_time}`)
+          const dateB = new Date(`${b.screening_date || b.event_date} ${b.start_time || b.event_time}`)
+          return dateA.getTime() - dateB.getTime()
+        })
+
+        setScheduleItems(combinedSchedule)
 
       } catch (error) {
         console.error('Error loading program data:', error)
@@ -172,6 +187,24 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
     setSelectedGuest(guest)
   }
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '—'
+    const date = new Date(dateString + 'T00:00:00')
+    const day = date.getDate().toString().padStart(2, '0')
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const year = date.getFullYear()
+    return `${day}/${month}/${year}`
+  }
+
+  const formatTime = (timeString: string) => {
+    if (!timeString) return '—'
+    const [hours, minutes] = timeString.split(':')
+    const hour24 = parseInt(hours)
+    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+    return `${hour12}:${minutes.padStart(2, '0')} ${ampm}`
+  }
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -205,11 +238,11 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">Date</h4>
-                  <p className="text-gray-900">{program.event_date || '—'}</p>
+                  <p className="text-gray-900">{formatDate(program.event_date)}</p>
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">Time</h4>
-                  <p className="text-gray-900">{program.start_time || '—'}</p>
+                  <p className="text-gray-900">{formatTime(program.start_time)}</p>
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">Venue</h4>
@@ -237,42 +270,35 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
 
             {/* Collapsible Sections */}
             <div className="space-y-0">
-              <CollapsibleSection title="Screenings" isEmpty={screenings.length === 0}>
-                {screenings.length === 0 ? (
-                  <p className="text-sm text-gray-500">No public screenings scheduled.</p>
+              <CollapsibleSection title="Schedule" isEmpty={scheduleItems.length === 0}>
+                {scheduleItems.length === 0 ? (
+                  <p className="text-sm text-gray-500">No scheduled events.</p>
                 ) : (
                   <div className="space-y-3">
-                    {screenings.map((screening) => (
-                      <div key={screening.id} className="border-l-4 border-blue-400 pl-4 py-2">
+                    {scheduleItems.map((item, index) => (
+                      <div key={`${item.type}-${item.id}-${index}`} className={`border-l-4 pl-4 py-2 ${
+                        item.type === 'screening' ? 'border-blue-400' : 'border-purple-400'
+                      }`}>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-medium text-gray-900">
-                              {screening.screening_date} at {screening.start_time}
+                              {item.type === 'screening' ? 'Screening' : 'Special Event'}
+                              {item.type === 'special_event' && item.event_type && ` - ${item.event_type}`}
                             </p>
-                            <p className="text-sm text-gray-600">{screening.venue_name}</p>
+                            <p className="text-sm text-gray-600">
+                              {formatDate(item.screening_date || item.event_date)} at {formatTime(item.start_time || item.event_time)}
+                            </p>
+                            <p className="text-sm text-gray-600">{item.venues?.name || item.venue_name}</p>
+                            {item.is_cancelled && (
+                              <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 mt-1">
+                                Cancelled
+                              </span>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CollapsibleSection>
-
-              <CollapsibleSection title="Press Screenings & Links" isEmpty={pressScreenings.length === 0}>
-                {pressScreenings.length === 0 ? (
-                  <p className="text-sm text-gray-500">No press screenings scheduled for this program.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {pressScreenings.map((screening) => (
-                      <div key={screening.id} className="p-3 bg-gray-50 rounded-md">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {screening.screening_date} at {screening.screening_time}
-                            </p>
-                            <p className="text-sm text-gray-600">{screening.venues?.name}</p>
-                          </div>
-                        </div>
+                        {item.notes && (
+                          <p className="text-sm text-gray-500 mt-1">{item.notes}</p>
+                        )}
                       </div>
                     ))}
                   </div>
