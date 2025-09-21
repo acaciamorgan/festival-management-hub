@@ -385,6 +385,25 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                   allGuests = [...allGuests, ...programGuests]
                   console.log('DEBUG: Found shorts program guests:', programGuests)
                 }
+
+                // ALSO check for guests directly associated with this short film via films_display
+                const { data: shortFilmGuests, error: shortFilmGuestsError } = await supabase
+                  .from('guests')
+                  .select(`
+                    id,
+                    name,
+                    role,
+                    arrival_date,
+                    departure_date,
+                    confirmed,
+                    checked_in
+                  `)
+                  .ilike('films_display', `%${film.title}%`)
+
+                if (!shortFilmGuestsError && shortFilmGuests) {
+                  allGuests = [...allGuests, ...shortFilmGuests]
+                  console.log('DEBUG: Found short film direct guests:', shortFilmGuests)
+                }
               }
             }
 
