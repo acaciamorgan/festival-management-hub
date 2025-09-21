@@ -262,7 +262,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
               <p className="mt-2 text-gray-600">Loading details...</p>
             </div>
-          ) : isShortsProgramModal ? (
+          ) : (console.log('DEBUG: Render check - isShortsProgramModal:', isShortsProgramModal), console.log('DEBUG: Render check - isShortFilmModal:', isShortFilmModal), console.log('DEBUG: Render check - shortFilmData:', shortFilmData), console.log('DEBUG: Render check - film:', film), isShortsProgramModal) ? (
             // Shorts Program Modal Content
             <div>
               <div className="mb-6">
