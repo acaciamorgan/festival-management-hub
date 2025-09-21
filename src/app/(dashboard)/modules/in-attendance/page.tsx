@@ -8,6 +8,7 @@ import { GuestCard, GuestType, GuestFilm } from '@/types'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { GuestFormModal } from '@/components/forms/guest-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
+import { ProgramCardPopup } from '@/components/cards/program-card-popup'
 import { parseCSVContent, importGuestsFromCSV, removeFilmAssociations } from '@/lib/csv-import'
 import { FilmRemovalDialog } from '@/components/import/film-removal-dialog'
 import { TitleMappingConfirmation } from '@/components/TitleMappingConfirmation'
@@ -633,6 +634,7 @@ export default function InAttendancePage() {
   }
 
   const [showFilmCard, setShowFilmCard] = useState<any>(null)
+  const [showProgramCard, setShowProgramCard] = useState<any>(null)
 
   const openFilmCard = async (filmTitle: string) => {
     try {
@@ -662,7 +664,9 @@ export default function InAttendancePage() {
             .maybeSingle()
 
           if (programData && !programError) {
-            filmData = programData
+            // This is a program, show the Program Card instead
+            setShowProgramCard(programData)
+            return
           }
         }
       }
@@ -1441,6 +1445,14 @@ export default function InAttendancePage() {
         <FilmCardPopup
           film={showFilmCard}
           onClose={() => setShowFilmCard(null)}
+        />
+      )}
+
+      {/* Program Card Popup */}
+      {showProgramCard && (
+        <ProgramCardPopup
+          program={showProgramCard}
+          onClose={() => setShowProgramCard(null)}
         />
       )}
 
