@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ProgramCard, FilmCard, InterviewCard } from '@/types'
 import { FilmCardPopup } from './film-card-popup'
+import { GuestCardPopup } from './guest-card-popup'
 
 interface ProgramCardPopupProps {
   program: ProgramCard
@@ -17,25 +18,32 @@ interface CollapsibleSectionProps {
   title: string
   children: React.ReactNode
   isEmpty?: boolean
-  defaultExpanded?: boolean
 }
 
-function CollapsibleSection({ title, children, isEmpty = false, defaultExpanded = false }: CollapsibleSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
+function CollapsibleSection({ title, children, isEmpty = false }: CollapsibleSectionProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
 
   return (
-    <div className="border border-gray-200 rounded-lg mb-4">
+    <div className="border-b border-gray-200 last:border-b-0">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-4 py-3 text-left bg-gray-50 hover:bg-gray-100 rounded-t-lg flex justify-between items-center"
+        className="w-full flex items-center justify-between py-4 px-6 text-left hover:bg-gray-50 transition-colors"
       >
-        <h3 className="font-medium text-gray-900">{title}</h3>
-        <span className="text-gray-400">
-          {isExpanded ? '−' : '+'}
-        </span>
+        <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+        <div className="flex items-center space-x-2">
+          {isEmpty && (
+            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+              No data
+            </span>
+          )}
+          <span className="text-gray-400">
+            {isExpanded ? '−' : '+'}
+          </span>
+        </div>
       </button>
+
       {isExpanded && (
-        <div className="p-4">
+        <div className="p-6 pt-0">
           {children}
         </div>
       )}
@@ -48,38 +56,83 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
   const [position, setPosition] = useState({ x: 100, y: 100 })
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [selectedFilm, setSelectedFilm] = useState<FilmCard | null>(null)
+  const [selectedGuest, setSelectedGuest] = useState<any | null>(null)
   const [films, setFilms] = useState<FilmCard[]>([])
   const [interviews, setInterviews] = useState<InterviewCard[]>([])
+  const [guests, setGuests] = useState<any[]>([])
+  const [photoShoots, setPhotoShoots] = useState<any[]>([])
+  const [redCarpets, setRedCarpets] = useState<any[]>([])
+  const [pressScreenings, setPressScreenings] = useState<any[]>([])
+  const [screenings, setScreenings] = useState<any[]>([])
   const supabase = createClient()
 
-  // Load related films and interviews
+  // Load all related data
   useEffect(() => {
     const loadRelatedData = async () => {
       try {
         // Load films for this program
-        const { data: filmsData, error: filmsError } = await supabase
-          .from('films')
+        const { data: filmsData } = await supabase
+          .from('feature_films')
           .select('*')
           .or(`program_1.eq.${program.title},program_2.eq.${program.title},program_3.eq.${program.title},program_4.eq.${program.title}`)
 
-        if (filmsError) throw filmsError
         setFilms(filmsData || [])
 
-        // Load interviews for this program
-        const { data: interviewsData, error: interviewsError } = await supabase
-          .from('interview_cards')
+        // Load interviews
+        const { data: interviewsData } = await supabase
+          .from('interviews')
           .select('*')
           .eq('program_title', program.title)
 
-        if (interviewsError) throw interviewsError
         setInterviews(interviewsData || [])
+
+        // Load guests
+        const { data: guestsData } = await supabase
+          .from('guests')
+          .select('*')
+          .ilike('films_display', `%${program.title}%`)
+
+        setGuests(guestsData || [])
+
+        // Load photo shoots
+        const { data: shootsData } = await supabase
+          .from('photo_shoots')
+          .select('*, venues(name)')
+          .ilike('film_program_display', `%${program.title}%`)
+
+        setPhotoShoots(shootsData || [])
+
+        // Load red carpets
+        const { data: carpetsData } = await supabase
+          .from('red_carpets')
+          .select('*, venues(name)')
+          .ilike('film_program_display', `%${program.title}%`)
+
+        setRedCarpets(carpetsData || [])
+
+        // Load press screenings
+        const { data: pressData } = await supabase
+          .from('press_screenings')
+          .select('*, venues(name)')
+          .eq('title', program.title)
+
+        setPressScreenings(pressData || [])
+
+        // Load ticketing screenings
+        const { data: screeningsData } = await supabase
+          .from('published_screenings')
+          .select('*')
+          .eq('film_title', program.title)
+
+        setScreenings(screeningsData || [])
+
       } catch (error) {
         console.error('Error loading program data:', error)
       }
     }
 
     loadRelatedData()
-  }, [program.id])
+  }, [program.id, program.title])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button, input, select, textarea, .no-drag')) return
@@ -115,179 +168,221 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
     }
   }, [isDragging, handleMouseMove, handleMouseUp])
 
-  const formatDate = (dateString: string | null): string => {
-    if (!dateString) return '—'
-    const parts = dateString.split('-')
-    if (parts.length !== 3) return dateString
-    
-    const year = parseInt(parts[0])
-    const month = parseInt(parts[1])
-    const day = parseInt(parts[2])
-    
-    // Zeller's congruence algorithm
-    let q = day
-    let m = month
-    let y = year
-    
-    if (m < 3) {
-      m += 12
-      y -= 1
-    }
-    
-    const h = (q + Math.floor((13 * (m + 1)) / 5) + y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400)) % 7
-    const dayNames = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    
-    return `${dayNames[h]}, ${monthNames[month - 1]} ${day}`
-  }
-
-  const formatTime = (timeString: string | null): string => {
-    if (!timeString) return '—'
-    
-    const [hours, minutes] = timeString.split(':')
-    const hour24 = parseInt(hours)
-    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
-    const ampm = hour24 >= 12 ? 'PM' : 'AM'
-    
-    return `${hour12}:${minutes} ${ampm}`
+  const openGuestCard = (guest: any) => {
+    setSelectedGuest(guest)
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div
-        className="bg-white rounded-lg shadow-xl max-w-4xl w-full my-8 max-h-[calc(100vh-4rem)] overflow-y-auto cursor-move"
-        style={{ 
-          transform: `translate(${position.x}px, ${position.y}px)`,
-          cursor: isDragging ? 'grabbing' : 'grab'
-        }}
-        onMouseDown={handleMouseDown}
-      >
-        {/* Header */}
-        <div className="bg-purple-600 text-white px-6 py-4 rounded-t-lg flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-semibold">{program.title}</h2>
-            <p className="text-purple-100 text-sm">Program Card</p>
-          </div>
-          <div className="flex items-center space-x-2">
-            {onEdit && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onEdit(program)
-                }}
-                className="px-3 py-1 bg-purple-500 hover:bg-purple-400 text-white rounded text-sm no-drag"
-              >
-                Edit
-              </button>
-            )}
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+          style={{
+            transform: `translate(${position.x}px, ${position.y}px)`,
+            cursor: isDragging ? 'grabbing' : 'grab'
+          }}
+          onMouseDown={handleMouseDown}
+        >
+          {/* Header */}
+          <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900">Program Details</h2>
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 onClose()
               }}
-              className="text-purple-200 hover:text-white text-2xl no-drag"
+              className="text-gray-400 hover:text-gray-600 text-xl no-drag"
             >
               ×
             </button>
           </div>
-        </div>
 
-        {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
-          <div className="p-6 space-y-6">
+          {/* Content */}
+          <div className="p-6">
             {/* Basic Information */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <div className="text-sm text-gray-900">{formatDate(program.event_date)}</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-                <div className="text-sm text-gray-900">{formatTime(program.event_time)}</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Venue</label>
-                <div className="text-sm text-gray-900">{program.venue || '—'}</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-900">{program.event_type || '—'}</span>
-                  {program.is_industry_days && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      Industry Days
-                    </span>
-                  )}
+            <div className="mb-6">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">{program.title}</h3>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">Date</h4>
+                  <p className="text-gray-900">{program.event_date || '—'}</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">Time</h4>
+                  <p className="text-gray-900">{program.start_time || '—'}</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">Venue</h4>
+                  <p className="text-gray-900">{program.venue_name || '—'}</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">Type</h4>
+                  <div className="flex items-center space-x-2">
+                    <p className="text-gray-900">—</p>
+                    {program.is_industry_days && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Industry Days
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
+              {program.description && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">Description</h4>
+                  <p className="text-gray-900 bg-gray-50 p-3 rounded-md">{program.description}</p>
+                </div>
+              )}
             </div>
 
-            {/* Description */}
-            {program.description && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <div className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md">
-                  {program.description}
-                </div>
-              </div>
-            )}
-
-            {/* Films */}
-            <CollapsibleSection 
-              title={`Films (${films.length})`}
-              defaultExpanded={true}
-              isEmpty={films.length === 0}
-            >
-              {films.length === 0 ? (
-                <p className="text-gray-500 text-sm">No films assigned to this program</p>
-              ) : (
-                <div className="space-y-2">
-                  {films.map((film) => (
-                    <div 
-                      key={film.id} 
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-md hover:bg-gray-100 cursor-pointer"
-                      onClick={() => setSelectedFilm(film)}
-                    >
-                      <div>
-                        <div className="font-medium text-gray-900">{film.title}</div>
-                        <div className="text-sm text-gray-600">{film.director}</div>
-                      </div>
-                      <div className="text-sm text-gray-500">{film.run_time} min</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CollapsibleSection>
-
-            {/* Interviews */}
-            <CollapsibleSection 
-              title={`Interviews (${interviews.length})`}
-              defaultExpanded={interviews.length > 0}
-              isEmpty={interviews.length === 0}
-            >
-              {interviews.length === 0 ? (
-                <p className="text-gray-500 text-sm">No interviews scheduled for this program</p>
-              ) : (
-                <div className="space-y-2">
-                  {interviews.map((interview) => (
-                    <div key={interview.id} className="p-3 bg-gray-50 rounded-md">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium text-gray-900">{interview.subject_name}</div>
-                          <div className="text-sm text-gray-600">{interview.film_title}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm text-gray-900">
-                            {formatDate(interview.interview_date)} at {formatTime(interview.interview_time)}
+            {/* Collapsible Sections */}
+            <div className="space-y-0">
+              <CollapsibleSection title="Screenings" isEmpty={screenings.length === 0}>
+                {screenings.length === 0 ? (
+                  <p className="text-sm text-gray-500">No public screenings scheduled.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {screenings.map((screening) => (
+                      <div key={screening.id} className="border-l-4 border-blue-400 pl-4 py-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {screening.screening_date} at {screening.start_time}
+                            </p>
+                            <p className="text-sm text-gray-600">{screening.venue_name}</p>
                           </div>
-                          <div className="text-xs text-gray-500 capitalize">{interview.status}</div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CollapsibleSection>
+                    ))}
+                  </div>
+                )}
+              </CollapsibleSection>
+
+              <CollapsibleSection title="Press Screenings & Links" isEmpty={pressScreenings.length === 0}>
+                {pressScreenings.length === 0 ? (
+                  <p className="text-sm text-gray-500">No press screenings scheduled for this program.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {pressScreenings.map((screening) => (
+                      <div key={screening.id} className="p-3 bg-gray-50 rounded-md">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {screening.screening_date} at {screening.screening_time}
+                            </p>
+                            <p className="text-sm text-gray-600">{screening.venues?.name}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CollapsibleSection>
+
+              <CollapsibleSection title="Red Carpets & Photo Shoots" isEmpty={redCarpets.length === 0 && photoShoots.length === 0}>
+                {redCarpets.length === 0 && photoShoots.length === 0 ? (
+                  <p className="text-sm text-gray-500">No red carpet events or photo shoots scheduled.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {redCarpets.map((carpet) => (
+                      <div key={carpet.id} className="border-l-4 border-red-400 pl-4 py-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">Red Carpet</p>
+                            <p className="text-sm text-gray-600">
+                              {carpet.carpet_date} at {carpet.carpet_start_time}
+                            </p>
+                            <p className="text-sm text-gray-600">{carpet.venues?.name}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {photoShoots.map((shoot) => (
+                      <div key={shoot.id} className="border-l-4 border-purple-400 pl-4 py-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">Photo Shoot</p>
+                            <p className="text-sm text-gray-600">
+                              {shoot.shoot_date} at {shoot.shoot_time}
+                            </p>
+                            <p className="text-sm text-gray-600">{shoot.venues?.name}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CollapsibleSection>
+
+              <CollapsibleSection title="Interviews" isEmpty={interviews.length === 0}>
+                {interviews.length === 0 ? (
+                  <p className="text-sm text-gray-500">No interviews scheduled.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {interviews.map((interview) => (
+                      <div key={interview.id} className="border-l-4 border-green-400 pl-4 py-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">{interview.subject_name}</p>
+                            <p className="text-sm text-gray-600">{interview.film_title}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-gray-900">
+                              {interview.interview_date} at {interview.interview_time}
+                            </p>
+                            <p className="text-xs text-gray-500 capitalize">{interview.status}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CollapsibleSection>
+
+              <CollapsibleSection title="In Attendance" isEmpty={guests.length === 0}>
+                {guests.length === 0 ? (
+                  <p className="text-sm text-gray-500">No guests associated with this program.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {guests.map((guest) => (
+                      <div key={guest.id} className="border-l-4 border-green-400 pl-4 py-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => openGuestCard(guest)}
+                                className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
+                              >
+                                {guest.name}
+                              </button>
+                              <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                                guest.confirmed
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {guest.confirmed ? 'Confirmed' : 'Pending'}
+                              </span>
+                              {guest.checked_in && (
+                                <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                  Checked In
+                                </span>
+                              )}
+                            </div>
+                            {guest.role && (
+                              <p className="text-sm text-gray-600 mt-1">{guest.role}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CollapsibleSection>
+
+              <CollapsibleSection title="Contact Information" isEmpty={true}>
+                <p className="text-sm text-gray-500">No contact information available.</p>
+              </CollapsibleSection>
+            </div>
           </div>
         </div>
       </div>
@@ -299,6 +394,14 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
           onClose={() => setSelectedFilm(null)}
         />
       )}
-    </div>
+
+      {/* Guest Card Popup */}
+      {selectedGuest && (
+        <GuestCardPopup
+          guest={selectedGuest}
+          onClose={() => setSelectedGuest(null)}
+        />
+      )}
+    </>
   )
 }
