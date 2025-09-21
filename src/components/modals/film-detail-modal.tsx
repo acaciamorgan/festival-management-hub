@@ -76,6 +76,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
   }, [isOpen, filmTitle])
 
   const loadFilmDetails = async () => {
+    console.log('DEBUG: loadFilmDetails called for', filmTitle)
     setLoading(true)
     setFilm(null)
     setShortsProgram(null)
@@ -94,7 +95,10 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
         .eq('program_name', filmTitle)
         .single()
 
+      console.log('DEBUG: Shorts program check result:', programData)
+
       if (programData) {
+        console.log('DEBUG: Taking shorts program path')
         // This is a shorts program
         setIsShortsProgramModal(true)
         setShortsProgram(programData)
@@ -122,6 +126,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
           // This is an individual short film
           setIsShortFilmModal(true)
           setShortFilmData(shortFilmData)
+          console.log('DEBUG: Set isShortFilmModal to true, shortFilmData:', shortFilmData)
 
           // Get the shorts program data
           const { data: shortsProgram } = await supabase
@@ -193,6 +198,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
             }
           }
         } else {
+          console.log('DEBUG: Taking feature film path')
           // This is a feature film
           setIsShortsProgramModal(false)
           setIsShortFilmModal(false)
@@ -202,6 +208,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
             .eq('title', filmTitle)
             .single()
 
+          console.log('DEBUG: Feature film data:', filmData)
           setFilm(filmData)
         }
       }
@@ -283,7 +290,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
                 )}
               </div>
             </div>
-          ) : isShortFilmModal && shortFilmData ? (
+          ) : (isShortFilmModal && shortFilmData && console.log('DEBUG: Rendering short film modal')) || (isShortFilmModal && shortFilmData) ? (
             // Individual Short Film Modal Content
             <div className="space-y-6">
               {/* Short Film Basic Info */}
