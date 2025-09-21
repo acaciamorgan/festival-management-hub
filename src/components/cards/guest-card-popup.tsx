@@ -53,6 +53,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
   const [redCarpets, setRedCarpets] = useState<any[]>([])
   const [guestInterviews, setGuestInterviews] = useState<InterviewCard[]>([])
   const [filmScreenings, setFilmScreenings] = useState<any[]>([])
+  const [specialEvents, setSpecialEvents] = useState<any[]>([])
 
   const supabase = createClient()
 
@@ -347,6 +348,120 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
         }
         
         await loadFilmScreenings()
+
+        // Load special events for all films/programs this guest is associated with
+        const loadSpecialEvents = async () => {
+          try {
+            // Get all film and program titles for this guest
+            const allTitles: string[] = []
+
+            // Get films from guest_films
+            const { data: guestFilms } = await supabase
+              .from('guest_films')
+              .select('film_title')
+              .eq('guest_id', guest.id)
+
+            if (guestFilms) {
+              allTitles.push(...guestFilms.map(gf => gf.film_title))
+
+              // For each film, check if it's a short film and add its shorts program
+              for (const guestFilm of guestFilms) {
+                const { data: shortFilm } = await supabase
+                  .from('short_films')
+                  .select('shorts_program_id')
+                  .eq('title', guestFilm.film_title)
+                  .single()
+
+                if (shortFilm && shortFilm.shorts_program_id) {
+                  // Get the shorts program name
+                  const { data: shortsProgram } = await supabase
+                    .from('shorts_programs')
+                    .select('program_name')
+                    .eq('id', shortFilm.shorts_program_id)
+                    .single()
+
+                  if (shortsProgram) {
+                    allTitles.push(shortsProgram.program_name)
+                  }
+                }
+              }
+            }
+
+            // Get programs from guest_programs
+            const { data: guestPrograms } = await supabase
+              .from('guest_programs')
+              .select('program_title')
+              .eq('guest_id', guest.id)
+
+            if (guestPrograms) {
+              allTitles.push(...guestPrograms.map(gp => gp.program_title))
+            }
+
+            // Also check films_display field for program associations
+            if (guest.films_display) {
+              const displayFilms = guest.films_display.split(', ').map(f => f.trim())
+
+              // Check if any of these are programs
+              for (const displayFilm of displayFilms) {
+                const { data: programCheck } = await supabase
+                  .from('programs')
+                  .select('title')
+                  .eq('title', displayFilm)
+                  .single()
+
+                if (programCheck) {
+                  allTitles.push(displayFilm)
+                }
+              }
+            }
+
+            // Remove duplicates
+            const uniqueTitles = [...new Set(allTitles)]
+
+            if (uniqueTitles.length === 0) {
+              setSpecialEvents([])
+              return
+            }
+
+            // Load special events for these titles
+            const allSpecialEvents: any[] = []
+
+            for (const title of uniqueTitles) {
+              const { data: events } = await supabase
+                .from('special_events')
+                .select(`
+                  id,
+                  title,
+                  event_date,
+                  event_time,
+                  event_type,
+                  description,
+                  venues(name)
+                `)
+                .eq('title', title)
+                .order('event_date', { ascending: true })
+                .order('event_time', { ascending: true })
+
+              if (events) {
+                allSpecialEvents.push(...events)
+              }
+            }
+
+            // Sort all special events by date and time
+            allSpecialEvents.sort((a, b) => {
+              const dateCompare = a.event_date.localeCompare(b.event_date)
+              if (dateCompare !== 0) return dateCompare
+              return a.event_time.localeCompare(b.event_time)
+            })
+
+            setSpecialEvents(allSpecialEvents)
+          } catch (error) {
+            console.error('Error loading special events:', error)
+            setSpecialEvents([])
+          }
+        }
+
+        await loadSpecialEvents()
       } catch (error) {
         console.error('Error loading events:', error)
       }
@@ -865,8 +980,55 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
             )}
           </CollapsibleSection>
 
-          <CollapsibleSection title="Events" isEmpty={true}>
-            <p className="text-sm text-gray-500">Event data will be pulled from Special Events Module when implemented.</p>
+          <CollapsibleSection title="Events" isEmpty={specialEvents.length === 0}>
+            {specialEvents.length > 0 ? (
+              <div className="space-y-3">
+                {specialEvents.map((event) => {
+                  // Format date as DD/MM/YYYY
+                  const date = event.event_date ? (() => {
+                    const eventDate = new Date(event.event_date + 'T00:00:00')
+                    const day = eventDate.getDate().toString().padStart(2, '0')
+                    const month = (eventDate.getMonth() + 1).toString().padStart(2, '0')
+                    const year = eventDate.getFullYear()
+                    return `${day}/${month}/${year}`
+                  })() : 'TBD'
+
+                  // Format time as AM/PM
+                  const time = event.event_time ? (() => {
+                    const [hours, minutes] = event.event_time.split(':')
+                    const hour24 = parseInt(hours, 10)
+                    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+                    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+                    return `${hour12}:${minutes} ${ampm}`
+                  })() : 'TBD'
+
+                  return (
+                    <div
+                      key={event.id}
+                      className="border-l-4 border-orange-400 pl-4 py-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {event.event_type ? `${event.event_type}` : 'Special Event'}
+                          </p>
+                          <p className="text-sm text-gray-600">{event.title}</p>
+                          <p className="text-sm text-gray-600">
+                            {date} at {time}
+                          </p>
+                          <p className="text-sm text-gray-600">{event.venues?.name || 'TBD'}</p>
+                        </div>
+                      </div>
+                      {event.description && (
+                        <p className="text-sm text-gray-500 mt-1">{event.description}</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No special events found for this guest's films/programs.</p>
+            )}
           </CollapsibleSection>
 
           <CollapsibleSection title="Intros & Q&As" isEmpty={filmScreenings.length === 0}>
