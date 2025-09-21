@@ -343,31 +343,52 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
         // Load guests associated with this film
         const loadGuests = async () => {
           try {
-            // Load guests who have this film in their guest_films associations
-            console.log('DEBUG: Looking for film title:', film.title)
-            
-            // Debug: Check all guest_films records to see what titles exist
-            const { data: allGuestFilms, error: allGuestFilmsError } = await supabase
-              .from('guest_films')
-              .select('film_title, guests(name)')
-            console.log('DEBUG: All guest_films records:', allGuestFilms)
-            
-            // First try to get ALL guest_films to see if any exist
-            const { data: allGuestFilmsTest, error: allGuestFilmsTestError } = await supabase
-              .from('guest_films')
-              .select(`
-                film_id,
-                film_title,
-                guest_id,
-                guests (
-                  id,
-                  name,
-                  role
-                )
-              `)
-            console.log('DEBUG: ALL guest_films in database:', allGuestFilmsTest)
-            console.log('DEBUG: Film ID we are looking for:', film.id)
-            
+            let allGuests: any[] = []
+
+            // Check if this is a short film and find guests via shorts programs
+            const { data: shortFilm, error: shortFilmError } = await supabase
+              .from('short_films')
+              .select('id, shorts_program_id')
+              .eq('title', film.title)
+              .single()
+
+            if (!shortFilmError && shortFilm && shortFilm.shorts_program_id) {
+              console.log('DEBUG: This is a short film, checking shorts program guests')
+
+              // Get guests associated with the shorts program
+              const { data: shortsProgram, error: shortsProgramError } = await supabase
+                .from('shorts_programs')
+                .select('id, program_name')
+                .eq('id', shortFilm.shorts_program_id)
+                .single()
+
+              if (!shortsProgramError && shortsProgram) {
+                // Check guest_programs table using the shorts program name
+                const { data: guestPrograms, error: guestProgramsError } = await supabase
+                  .from('guest_programs')
+                  .select(`
+                    guest_id,
+                    guests (
+                      id,
+                      name,
+                      role,
+                      arrival_date,
+                      departure_date,
+                      confirmed,
+                      checked_in
+                    )
+                  `)
+                  .eq('program_title', shortsProgram.program_name)
+
+                if (!guestProgramsError && guestPrograms) {
+                  const programGuests = guestPrograms.map((gp: any) => gp.guests).filter(Boolean)
+                  allGuests = [...allGuests, ...programGuests]
+                  console.log('DEBUG: Found shorts program guests:', programGuests)
+                }
+              }
+            }
+
+            // Also check for direct film associations via guest_films
             const { data: guestFilms, error: guestFilmsError } = await supabase
               .from('guest_films')
               .select(`
@@ -383,16 +404,13 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                 )
               `)
               .eq('film_id', film.id)
-            console.log('DEBUG: Guest films query result:', guestFilms)
-            console.log('DEBUG: Guest films error:', guestFilmsError)
-
-            let allGuests: any[] = []
 
             if (!guestFilmsError && guestFilms) {
-              allGuests = guestFilms.map((gf: any) => gf.guests).filter(Boolean)
+              const filmGuests = guestFilms.map((gf: any) => gf.guests).filter(Boolean)
+              allGuests = [...allGuests, ...filmGuests]
             }
 
-            // Also check for guests associated via guest_programs if this is a program
+            // Also check for guests associated via guest_programs if this is a regular program
             const { data: guestPrograms, error: guestProgramsError } = await supabase
               .from('guest_programs')
               .select(`
@@ -415,11 +433,12 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             }
 
             // Remove duplicates based on guest ID
-            const uniqueGuests = allGuests.filter((guest, index, self) => 
+            const uniqueGuests = allGuests.filter((guest, index, self) =>
               index === self.findIndex(g => g.id === guest.id)
             )
 
             setFilmGuests(uniqueGuests)
+            console.log('DEBUG: Final unique guests for film:', uniqueGuests)
           } catch (error) {
             console.error('Error loading film guests:', error)
             setFilmGuests([])
@@ -451,15 +470,61 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
         // Load ticketing screenings for this film
         const loadScreenings = async () => {
           try {
-            // First try to find programming_film_id for this film
-            const { data: programmingFilm } = await supabase
-              .from('programming_films')
-              .select('id')
-              .eq('film_title', film.title)
+            let allScreenings: any[] = []
+
+            // First, check if this is a short film and inherit shorts program screenings
+            const { data: shortFilm } = await supabase
+              .from('short_films')
+              .select('shorts_program_id')
+              .eq('title', film.title)
               .single()
 
-            // Query published screenings (not ticketing screenings)
-            const screeningsQuery = supabase
+            if (shortFilm && shortFilm.shorts_program_id) {
+              console.log('DEBUG: This is a short film, loading shorts program screenings')
+
+              // Get the shorts program
+              const { data: shortsProgram } = await supabase
+                .from('shorts_programs')
+                .select('id, program_name')
+                .eq('id', shortFilm.shorts_program_id)
+                .single()
+
+              if (shortsProgram) {
+                // Find the program card for this shorts program
+                const { data: programCard } = await supabase
+                  .from('programs')
+                  .select('id')
+                  .eq('title', shortsProgram.program_name)
+                  .single()
+
+                if (programCard) {
+                  // Get screenings for the shorts program
+                  const { data: programScreenings } = await supabase
+                    .from('published_screenings')
+                    .select(`
+                      id,
+                      film_title,
+                      screening_date,
+                      day_of_week,
+                      start_time,
+                      venue_short_code,
+                      is_cancelled,
+                      notes
+                    `)
+                    .eq('film_card_id', programCard.id)
+                    .order('screening_date', { ascending: true })
+                    .order('start_time', { ascending: true })
+
+                  if (programScreenings) {
+                    allScreenings.push(...programScreenings)
+                    console.log(`DEBUG: Found ${programScreenings.length} shorts program screenings`)
+                  }
+                }
+              }
+            }
+
+            // Also check for direct film screenings
+            const { data: filmScreenings } = await supabase
               .from('published_screenings')
               .select(`
                 id,
@@ -475,37 +540,38 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               .order('screening_date', { ascending: true })
               .order('start_time', { ascending: true })
 
-            const { data: screeningsData, error: screeningsError } = await screeningsQuery
-
-            if (screeningsError) {
-              console.error('Error loading ticketing screenings:', screeningsError)
-              setFilmScreenings([])
-            } else {
-              // Attempt to resolve venue names from short codes
-              const screeningsWithVenues = await Promise.all(
-                (screeningsData || []).map(async (screening) => {
-                  if (screening.venue_short_code) {
-                    // Try to find the venue by short code in theater_houses
-                    const { data: houseData } = await supabase
-                      .from('theater_houses')
-                      .select(`
-                        venue_id,
-                        venues!inner(name)
-                      `)
-                      .eq('short_code', screening.venue_short_code)
-                      .single()
-
-                    if (houseData?.venues?.name) {
-                      return { ...screening, venue_name: houseData.venues.name }
-                    }
-                  }
-                  // If no venue found, use the short code as venue name
-                  return { ...screening, venue_name: screening.venue_short_code }
-                })
-              )
-              
-              setFilmScreenings(screeningsWithVenues)
+            if (filmScreenings) {
+              allScreenings.push(...filmScreenings)
             }
+
+            // Remove duplicates and resolve venue names
+            const uniqueScreenings = allScreenings.filter((screening, index, self) =>
+              index === self.findIndex(s => s.id === screening.id)
+            )
+
+            const screeningsWithVenues = await Promise.all(
+              uniqueScreenings.map(async (screening) => {
+                if (screening.venue_short_code) {
+                  // Try to find the venue by short code in theater_houses
+                  const { data: houseData } = await supabase
+                    .from('theater_houses')
+                    .select(`
+                      venue_id,
+                      venues!inner(name)
+                    `)
+                    .eq('short_code', screening.venue_short_code)
+                    .single()
+
+                  if (houseData?.venues?.name) {
+                    return { ...screening, venue_name: houseData.venues.name }
+                  }
+                }
+                // If no venue found, use the short code as venue name
+                return { ...screening, venue_name: screening.venue_short_code }
+              })
+            )
+
+            setFilmScreenings(screeningsWithVenues)
           } catch (error) {
             console.error('Error loading ticketing screenings:', error)
             setFilmScreenings([])

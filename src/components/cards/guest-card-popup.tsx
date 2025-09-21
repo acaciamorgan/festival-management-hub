@@ -125,23 +125,46 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           try {
             // Get all film titles for this guest
             const filmTitles: string[] = []
-            
+
             // Get films from guest_films
             const { data: guestFilms } = await supabase
               .from('guest_films')
               .select('film_title')
               .eq('guest_id', guest.id)
-            
+
             if (guestFilms) {
               filmTitles.push(...guestFilms.map(gf => gf.film_title))
+
+              // For each film, check if it's a short film and add its shorts program
+              for (const guestFilm of guestFilms) {
+                const { data: shortFilm } = await supabase
+                  .from('short_films')
+                  .select('shorts_program_id')
+                  .eq('title', guestFilm.film_title)
+                  .single()
+
+                if (shortFilm && shortFilm.shorts_program_id) {
+                  // Get the shorts program name
+                  const { data: shortsProgram } = await supabase
+                    .from('shorts_programs')
+                    .select('program_name')
+                    .eq('id', shortFilm.shorts_program_id)
+                    .single()
+
+                  if (shortsProgram) {
+                    filmTitles.push(shortsProgram.program_name)
+                    console.log(`DEBUG: Added shorts program screening for ${guestFilm.film_title}: ${shortsProgram.program_name}`)
+                  }
+                }
+              }
             }
-            
+
             // Get programs from guest_programs
             const { data: guestPrograms } = await supabase
               .from('guest_programs')
               .select('program_title')
               .eq('guest_id', guest.id)
-            
+
             if (guestPrograms) {
               filmTitles.push(...guestPrograms.map(gp => gp.program_title))
             }
