@@ -28,7 +28,21 @@ export default function PressManagementPage() {
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [selectedPress, setSelectedPress] = useState<PressCard | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingPress, setEditingPress] = useState<PressCard | null>(null)
   const [addFormData, setAddFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    media_outlet: '',
+    secondary_outlets: '',
+    outlet_type: '',
+    social_media: { twitter: '' },
+    rotten_tomatoes_accredited: false,
+    critics_groups: '',
+    accreditation_level: 'Unassigned'
+  })
+  const [editFormData, setEditFormData] = useState({
     name: '',
     email: '',
     phone: '',
@@ -675,12 +689,12 @@ export default function PressManagementPage() {
 
   const handleAddJournalist = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!addFormData.name || !addFormData.email || !addFormData.media_outlet) {
       alert('Please fill in required fields: Name, Email, and Primary Outlet')
       return
     }
-    
+
     try {
       const journalistData = {
         name: addFormData.name.trim(),
@@ -695,11 +709,11 @@ export default function PressManagementPage() {
         accreditation_level: addFormData.accreditation_level,
         picked_up_credentials: false
       }
-      
+
       const { error } = await supabase
         .from('press')
         .insert([journalistData])
-      
+
       if (error) {
         console.error('Error adding journalist:', error)
         alert('Error adding journalist. Please try again.')
@@ -722,6 +736,88 @@ export default function PressManagementPage() {
     } catch (error) {
       console.error('Error adding journalist:', error)
       alert('Error adding journalist. Please try again.')
+    }
+  }
+
+  const handleEditJournalist = (pressCard: PressCard) => {
+    setEditingPress(pressCard)
+    setEditFormData({
+      name: pressCard.name || '',
+      email: pressCard.email || '',
+      phone: pressCard.phone || '',
+      media_outlet: pressCard.media_outlet || '',
+      secondary_outlets: pressCard.secondary_outlets || '',
+      outlet_type: pressCard.outlet_type || '',
+      social_media: { twitter: pressCard.social_media?.twitter || '' },
+      rotten_tomatoes_accredited: pressCard.rotten_tomatoes_accredited || false,
+      critics_groups: pressCard.critics_groups || '',
+      accreditation_level: pressCard.accreditation_level || 'Unassigned'
+    })
+    setShowEditModal(true)
+  }
+
+  const handleUpdateJournalist = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!editingPress || !editFormData.name || !editFormData.email || !editFormData.media_outlet) {
+      alert('Please fill in required fields: Name, Email, and Primary Outlet')
+      return
+    }
+
+    try {
+      const updateData = {
+        name: editFormData.name.trim(),
+        email: editFormData.email.trim(),
+        phone: formatPhoneNumber(editFormData.phone),
+        media_outlet: editFormData.media_outlet.trim(),
+        secondary_outlets: editFormData.secondary_outlets.trim() || null,
+        outlet_type: editFormData.outlet_type || null,
+        social_media: editFormData.social_media.twitter ? { twitter: editFormData.social_media.twitter } : null,
+        rotten_tomatoes_accredited: editFormData.rotten_tomatoes_accredited,
+        critics_groups: editFormData.critics_groups.trim() || null,
+        accreditation_level: editFormData.accreditation_level,
+        updated_at: new Date().toISOString()
+      }
+
+      const { error } = await supabase
+        .from('press')
+        .update(updateData)
+        .eq('id', editingPress.id)
+
+      if (error) {
+        console.error('Error updating journalist:', error)
+        alert('Error updating journalist. Please try again.')
+      } else {
+        setShowEditModal(false)
+        setEditingPress(null)
+        await loadPress() // Reload the list
+      }
+    } catch (error) {
+      console.error('Error updating journalist:', error)
+      alert('Error updating journalist. Please try again.')
+    }
+  }
+
+  const handleDeleteJournalist = async (pressCard: PressCard) => {
+    if (!confirm(`Are you sure you want to delete ${pressCard.name}'s press card? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('press')
+        .delete()
+        .eq('id', pressCard.id)
+
+      if (error) {
+        console.error('Error deleting journalist:', error)
+        alert('Error deleting journalist. Please try again.')
+      } else {
+        await loadPress() // Reload the list
+      }
+    } catch (error) {
+      console.error('Error deleting journalist:', error)
+      alert('Error deleting journalist. Please try again.')
     }
   }
 
@@ -932,7 +1028,8 @@ export default function PressManagementPage() {
                       { key: 'social_media', label: 'Social Media', width: 200 },
                       { key: 'rotten_tomatoes_accredited', label: 'RT Accredited', width: 120 },
                       { key: 'critics_groups', label: 'Critics Groups', width: 200 },
-                      { key: 'accreditation_level', label: 'Level', width: 80 }
+                      { key: 'accreditation_level', label: 'Level', width: 80 },
+                      { key: 'actions', label: 'Actions', width: 140 }
                     ].map((column) => (
                       <th
                         key={column.key}
@@ -1040,6 +1137,24 @@ export default function PressManagementPage() {
                           </span>
                         )}
                       </td>
+                      {canEditPress && (
+                        <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['actions'] || 140}px` }}>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEditJournalist(pressCard)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteJournalist(pressCard)}
+                              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -1209,13 +1324,179 @@ export default function PressManagementPage() {
         </div>
       )}
       
+      {/* Edit Journalist Modal */}
+      {showEditModal && editingPress && (
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Edit Journalist</h2>
+              <button
+                onClick={() => {
+                  setShowEditModal(false)
+                  setEditingPress(null)
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateJournalist} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <input
+                    type="text"
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <input
+                    type="email"
+                    value={editFormData.email}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Primary Outlet *</label>
+                  <input
+                    type="text"
+                    value={editFormData.media_outlet}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, media_outlet: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Outlet Type</label>
+                  <select
+                    value={editFormData.outlet_type}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, outlet_type: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select Type</option>
+                    <option value="Print/Online">Print/Online</option>
+                    <option value="Magazine">Magazine</option>
+                    <option value="TV">TV</option>
+                    <option value="Radio">Radio</option>
+                    <option value="College">College</option>
+                    <option value="Trade">Trade</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Accreditation Level</label>
+                  <select
+                    value={editFormData.accreditation_level}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, accreditation_level: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="Unassigned">Unassigned</option>
+                    <option value="G">G - General Press</option>
+                    <option value="P">P - Priority Press</option>
+                    <option value="S">S - Social</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Outlets</label>
+                <textarea
+                  value={editFormData.secondary_outlets}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, secondary_outlets: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={2}
+                  placeholder="Comma-separated list of additional outlets"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Twitter Handle</label>
+                <input
+                  type="text"
+                  value={editFormData.social_media.twitter}
+                  onChange={(e) => setEditFormData(prev => ({
+                    ...prev,
+                    social_media: { ...prev.social_media, twitter: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="@username"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Critics Groups</label>
+                <input
+                  type="text"
+                  value={editFormData.critics_groups}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, critics_groups: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Film critics organizations"
+                />
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="edit-rt-accredited"
+                  checked={editFormData.rotten_tomatoes_accredited}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, rotten_tomatoes_accredited: e.target.checked }))}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="edit-rt-accredited" className="ml-2 text-sm text-gray-700">
+                  Rotten Tomatoes Accredited
+                </label>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false)
+                    setEditingPress(null)
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Press Card Popup */}
       {selectedPress && (
         <PressCardPopup
           press={selectedPress}
           onClose={() => setSelectedPress(null)}
           onUpdate={(updatedPress) => {
-            setPress(prev => prev.map(p => 
+            setPress(prev => prev.map(p =>
               p.id === updatedPress.id ? updatedPress : p
             ))
           }}
