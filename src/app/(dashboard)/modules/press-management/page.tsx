@@ -1029,7 +1029,7 @@ export default function PressManagementPage() {
                       { key: 'rotten_tomatoes_accredited', label: 'RT Accredited', width: 120 },
                       { key: 'critics_groups', label: 'Critics Groups', width: 200 },
                       { key: 'accreditation_level', label: 'Level', width: 80 },
-                      { key: 'actions', label: 'Actions', width: 140 }
+                      ...(canEditPress ? [{ key: 'actions', label: 'Actions', width: 140 }] : [])
                     ].map((column) => (
                       <th
                         key={column.key}
