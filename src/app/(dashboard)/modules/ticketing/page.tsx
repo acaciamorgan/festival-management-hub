@@ -1861,6 +1861,7 @@ export default function TicketingPage() {
         venue_short_code: formData.venue_short_code,
         capacity: formData.capacity,
         notes: formData.notes || null,
+        ...(viewMode === 'ticketing' && { ticketing_screening_id: crypto.randomUUID() }),
         ...(viewMode === 'pi-jury' && { screening_type: formData.screening_type }),
         ...(viewMode === 'tech-checks' && { tech_contact: formData.tech_contact })
       }
@@ -2570,8 +2571,9 @@ export default function TicketingPage() {
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                         onClick={() => {
                           setFormData(prev => ({
-                            ...prev, 
-                            venue_short_code: venue.short_code
+                            ...prev,
+                            venue_short_code: venue.short_code,
+                            capacity: venue.capacity || prev.capacity
                           }))
                           setVenueSearchTerm(venue.short_code)
                           setShowVenueSuggestions(false)
@@ -2788,8 +2790,9 @@ export default function TicketingPage() {
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                         onClick={() => {
                           setFormData(prev => ({
-                            ...prev, 
-                            venue_short_code: venue.short_code
+                            ...prev,
+                            venue_short_code: venue.short_code,
+                            capacity: venue.capacity || prev.capacity
                           }))
                           setVenueSearchTerm(venue.short_code)
                           setShowVenueSuggestions(false)
