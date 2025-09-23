@@ -1018,11 +1018,11 @@ export default function PressManagementPage() {
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
                     {[
-                      { key: 'picked_up_credentials', label: 'Credentials', width: 100 },
                       { key: 'name', label: 'Name', width: 200 },
+                      { key: 'media_outlet', label: 'Primary Outlet', width: 200 },
+                      { key: 'picked_up_credentials', label: 'Credentials', width: 100 },
                       { key: 'email', label: 'Email', width: 200 },
                       { key: 'phone', label: 'Phone', width: 150 },
-                      { key: 'media_outlet', label: 'Primary Outlet', width: 200 },
                       { key: 'secondary_outlets', label: 'Secondary Outlets', width: 250 },
                       { key: 'outlet_type', label: 'Outlet Type', width: 150 },
                       { key: 'social_media', label: 'Social Media', width: 200 },
@@ -1037,7 +1037,7 @@ export default function PressManagementPage() {
                         style={{ minWidth: `${columnWidths[column.key] || column.width}px` }}
                       >
                         <div className="flex items-center justify-between">
-                          {column.key !== 'picked_up_credentials' ? (
+                          {column.key !== 'picked_up_credentials' && column.key !== 'actions' ? (
                             <button
                               onClick={() => handleSort(column.key)}
                               className="flex items-center space-x-1 hover:text-gray-700"
@@ -1080,6 +1080,16 @@ export default function PressManagementPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredPress.map((pressCard) => (
                     <tr key={pressCard.id} className={getRowStyling(pressCard.accreditation_level)}>
+                      <td
+                        className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50"
+                        style={{ minWidth: `${columnWidths['name'] || 200}px` }}
+                        onClick={() => setSelectedPress(pressCard)}
+                      >
+                        <span className="text-blue-600 hover:text-blue-800 hover:underline">
+                          {pressCard.name}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['media_outlet'] || 200}px` }}>{pressCard.media_outlet}</td>
                       <td className="px-3 py-2 text-sm border-r border-gray-100" style={{ minWidth: `${columnWidths['picked_up_credentials'] || 100}px` }}>
                         <input
                           type="checkbox"
@@ -1089,18 +1099,8 @@ export default function PressManagementPage() {
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:cursor-not-allowed"
                         />
                       </td>
-                      <td 
-                        className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 cursor-pointer hover:bg-blue-50" 
-                        style={{ minWidth: `${columnWidths['name'] || 200}px` }}
-                        onClick={() => setSelectedPress(pressCard)}
-                      >
-                        <span className="text-blue-600 hover:text-blue-800 hover:underline">
-                          {pressCard.name}
-                        </span>
-                      </td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['email'] || 200}px` }}>{pressCard.email}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['phone'] || 150}px` }}>{pressCard.phone}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['media_outlet'] || 200}px` }}>{pressCard.media_outlet}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['secondary_outlets'] || 250}px` }}>{pressCard.secondary_outlets}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['outlet_type'] || 150}px` }}>{pressCard.outlet_type}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['social_media'] || 200}px` }}>
@@ -1125,7 +1125,7 @@ export default function PressManagementPage() {
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['accreditation_level'] || 80}px` }}>
                         {pressCard.accreditation_level && (
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            pressCard.accreditation_level === 'P' 
+                            pressCard.accreditation_level === 'P'
                               ? 'bg-purple-100 text-purple-800'
                               : pressCard.accreditation_level === 'G'
                               ? 'bg-green-100 text-green-800'
