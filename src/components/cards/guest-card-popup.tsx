@@ -57,29 +57,70 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
 
   const supabase = createClient()
 
-  // Load photo shoots and red carpets for this guest
+  // Load all guest data with parallel queries
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        // Load photo shoots
-        const { data: shootsData, error: shootsError } = await supabase
-          .from('photo_shoots')
-          .select(`
-            id,
-            shoot_date,
-            shoot_time,
-            subjects_display,
-            film_program_display,
-            venue_id
-          `)
-          .or(`subjects_display.ilike.%${guest.name}%`)
-          .order('shoot_date', { ascending: false })
+        // Execute all main queries in parallel
+        const [
+          photoShootsResult,
+          redCarpetsResult,
+          interviewsResult,
+          guestFilmsResult,
+          guestProgramsResult
+        ] = await Promise.all([
+          // Photo shoots query
+          supabase
+            .from('photo_shoots')
+            .select(`
+              id,
+              shoot_date,
+              shoot_time,
+              subjects_display,
+              film_program_display,
+              venue_id
+            `)
+            .or(`subjects_display.ilike.%${guest.name}%`)
+            .order('shoot_date', { ascending: false }),
 
-        if (shootsError) {
-          console.error('Error loading photo shoots:', shootsError)
+          // Red carpets query
+          supabase
+            .from('red_carpets')
+            .select(`
+              id,
+              carpet_date,
+              carpet_start_time,
+              subjects_display,
+              venues(name)
+            `)
+            .or(`subjects_display.ilike.%${guest.name}%`)
+            .order('carpet_date', { ascending: false }),
+
+          // Interviews query
+          getInterviewsForGuestCard(guest.id).catch(error => {
+            console.error('Error loading guest interviews:', error)
+            return []
+          }),
+
+          // Guest films query
+          supabase
+            .from('guest_films')
+            .select('film_title')
+            .eq('guest_id', guest.id),
+
+          // Guest programs query
+          supabase
+            .from('guest_programs')
+            .select('program_title')
+            .eq('guest_id', guest.id)
+        ])
+
+        // Process photo shoots
+        if (photoShootsResult.error) {
+          console.error('Error loading photo shoots:', photoShootsResult.error)
+          setPhotoShoots([])
         } else {
-          // Filter to only include shoots where this guest is actually mentioned
-          const relevantShoots = (shootsData || []).filter(shoot => {
+          const relevantShoots = (photoShootsResult.data || []).filter(shoot => {
             if (!shoot.subjects_display) return false
             const subjects = shoot.subjects_display.split(',').map((s: string) => s.trim())
             return subjects.includes(guest.name)
@@ -87,24 +128,12 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           setPhotoShoots(relevantShoots)
         }
 
-        // Load red carpets
-        const { data: carpetsData, error: carpetsError } = await supabase
-          .from('red_carpets')
-          .select(`
-            id,
-            carpet_date,
-            carpet_start_time,
-            subjects_display,
-            venues(name)
-          `)
-          .or(`subjects_display.ilike.%${guest.name}%`)
-          .order('carpet_date', { ascending: false })
-
-        if (carpetsError) {
-          console.error('Error loading red carpets:', carpetsError)
+        // Process red carpets
+        if (redCarpetsResult.error) {
+          console.error('Error loading red carpets:', redCarpetsResult.error)
+          setRedCarpets([])
         } else {
-          // Filter to only include carpets where this guest is actually mentioned
-          const relevantCarpets = (carpetsData || []).filter(carpet => {
+          const relevantCarpets = (redCarpetsResult.data || []).filter(carpet => {
             if (!carpet.subjects_display) return false
             const subjects = carpet.subjects_display.split(',').map((s: string) => s.trim())
             return subjects.includes(guest.name)
@@ -112,14 +141,8 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           setRedCarpets(relevantCarpets)
         }
 
-        // Load interviews for this guest
-        try {
-          const interviews = await getInterviewsForGuestCard(guest.id)
-          setGuestInterviews(interviews)
-        } catch (error) {
-          console.error('Error loading guest interviews:', error)
-          setGuestInterviews([])
-        }
+        // Set interviews (already processed)
+        setGuestInterviews(interviewsResult)
 
         // Load film screenings and program schedules for all films/programs this guest is associated with
         const loadFilmScreenings = async () => {
@@ -128,75 +151,76 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
             const filmTitles: string[] = []
             const programTitles: string[] = []
 
-            // Get films from guest_films
-            const { data: guestFilms } = await supabase
-              .from('guest_films')
-              .select('film_title')
-              .eq('guest_id', guest.id)
+            // Use the already loaded guest films and programs
+            if (guestFilmsResult.data) {
+              filmTitles.push(...guestFilmsResult.data.map(gf => gf.film_title))
 
-            if (guestFilms) {
-              filmTitles.push(...guestFilms.map(gf => gf.film_title))
-
-              // For each film, check if it's a short film and add its shorts program
-              for (const guestFilm of guestFilms) {
-                const { data: shortFilm } = await supabase
-                  .from('short_films')
-                  .select('shorts_program_id')
-                  .eq('title', guestFilm.film_title)
-                  .single()
-
-                if (shortFilm && shortFilm.shorts_program_id) {
-                  // Get the shorts program name
-                  const { data: shortsProgram } = await supabase
-                    .from('shorts_programs')
-                    .select('program_name')
-                    .eq('id', shortFilm.shorts_program_id)
+              // Check all films in parallel to see if they're short films
+              const shortFilmChecks = await Promise.all(
+                guestFilmsResult.data.map(async (guestFilm) => {
+                  const { data: shortFilm } = await supabase
+                    .from('short_films')
+                    .select('shorts_program_id')
+                    .eq('title', guestFilm.film_title)
                     .single()
 
-                  if (shortsProgram) {
-                    filmTitles.push(shortsProgram.program_name)
-                    console.log(`DEBUG: Added shorts program screening for ${guestFilm.film_title}: ${shortsProgram.program_name}`)
+                  if (shortFilm && shortFilm.shorts_program_id) {
+                    const { data: shortsProgram } = await supabase
+                      .from('shorts_programs')
+                      .select('program_name')
+                      .eq('id', shortFilm.shorts_program_id)
+                      .single()
+
+                    if (shortsProgram) {
+                      console.log(`DEBUG: Added shorts program screening for ${guestFilm.film_title}: ${shortsProgram.program_name}`)
+                      return shortsProgram.program_name
+                    }
                   }
-                }
-              }
+                  return null
+                })
+              )
+
+              // Add shorts program names to filmTitles
+              shortFilmChecks.forEach(programName => {
+                if (programName) filmTitles.push(programName)
+              })
             }
 
-            // Get programs from guest_programs
-            const { data: guestPrograms } = await supabase
-              .from('guest_programs')
-              .select('program_title')
-              .eq('guest_id', guest.id)
-
-            if (guestPrograms) {
-              programTitles.push(...guestPrograms.map(gp => gp.program_title))
+            if (guestProgramsResult.data) {
+              programTitles.push(...guestProgramsResult.data.map(gp => gp.program_title))
             }
 
-            // Also check films_display field for program associations
+            // Also check films_display field for program associations in parallel
             if (guest.films_display) {
               const displayFilms = guest.films_display.split(', ').map(f => f.trim())
 
-              // Check if any of these are programs
-              for (const displayFilm of displayFilms) {
-                const { data: programCheck } = await supabase
-                  .from('programs')
-                  .select('title')
-                  .eq('title', displayFilm)
-                  .single()
+              // Check all display films in parallel
+              const programChecks = await Promise.all(
+                displayFilms.map(async (displayFilm) => {
+                  const { data: programCheck } = await supabase
+                    .from('programs')
+                    .select('title')
+                    .eq('title', displayFilm)
+                    .single()
 
-                if (programCheck) {
-                  programTitles.push(displayFilm)
-                }
-              }
+                  return programCheck ? displayFilm : null
+                })
+              )
+
+              programChecks.forEach(program => {
+                if (program) programTitles.push(program)
+              })
             }
 
             // Remove duplicates
             const uniqueFilmTitles = [...new Set(filmTitles)]
             const uniqueProgramTitles = [...new Set(programTitles)]
 
-            // Get all screenings for these films
+            // Get all screenings for films in parallel
             const allScreenings: any[] = []
 
-            for (const filmTitle of uniqueFilmTitles) {
+            // Load all film screenings in parallel
+            const filmScreeningPromises = uniqueFilmTitles.map(async (filmTitle) => {
               // First try to find programming_film_id
               const { data: programmingFilm } = await supabase
                 .from('programming_films')
@@ -230,7 +254,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
               const { data: screeningsData } = await screeningsQuery
 
               if (screeningsData) {
-                // Attempt to resolve venue names
+                // Resolve venue names in parallel
                 const screeningsWithVenues = await Promise.all(
                   screeningsData.map(async (screening) => {
                     if (screening.venue_short_code) {
@@ -251,32 +275,59 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                   })
                 )
 
-                allScreenings.push(...screeningsWithVenues)
+                return screeningsWithVenues
               }
-            }
+              return []
+            })
 
-            // Load program schedules (ticketing screenings + special events)
-            for (const programTitle of uniqueProgramTitles) {
-              // Load ticketing screenings for programs
-              const { data: programScreenings } = await supabase
-                .from('ticketing_screenings')
-                .select(`
-                  id,
-                  film_title,
-                  screening_date,
-                  day_of_week,
-                  start_time,
-                  venue_short_code,
-                  is_cancelled,
-                  notes
-                `)
-                .eq('film_title', programTitle)
-                .order('screening_date', { ascending: true })
-                .order('start_time', { ascending: true })
+            const filmScreeningResults = await Promise.all(filmScreeningPromises)
+            filmScreeningResults.forEach(screenings => {
+              if (screenings) allScreenings.push(...screenings)
+            })
 
-              if (programScreenings) {
+            // Load all program schedules in parallel
+            const programScreeningPromises = uniqueProgramTitles.map(async (programTitle) => {
+              // Load both ticketing screenings and special events in parallel for each program
+              const [ticketingResult, specialEventsResult] = await Promise.all([
+                // Ticketing screenings query
+                supabase
+                  .from('ticketing_screenings')
+                  .select(`
+                    id,
+                    film_title,
+                    screening_date,
+                    day_of_week,
+                    start_time,
+                    venue_short_code,
+                    is_cancelled,
+                    notes
+                  `)
+                  .eq('film_title', programTitle)
+                  .order('screening_date', { ascending: true })
+                  .order('start_time', { ascending: true }),
+
+                // Special events query
+                supabase
+                  .from('special_events')
+                  .select(`
+                    id,
+                    title,
+                    event_date,
+                    event_time,
+                    event_type,
+                    venues(name)
+                  `)
+                  .eq('title', programTitle)
+                  .order('event_date', { ascending: true })
+                  .order('event_time', { ascending: true })
+              ])
+
+              const programScreenings: any[] = []
+
+              // Process ticketing screenings
+              if (ticketingResult.data) {
                 const screeningsWithVenues = await Promise.all(
-                  programScreenings.map(async (screening) => {
+                  ticketingResult.data.map(async (screening) => {
                     if (screening.venue_short_code) {
                       const { data: houseData } = await supabase
                         .from('theater_houses')
@@ -294,27 +345,12 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     return { ...screening, venue_name: screening.venue_short_code, type: 'screening' }
                   })
                 )
-
-                allScreenings.push(...screeningsWithVenues)
+                programScreenings.push(...screeningsWithVenues)
               }
 
-              // Load special events for programs
-              const { data: specialEvents } = await supabase
-                .from('special_events')
-                .select(`
-                  id,
-                  title,
-                  event_date,
-                  event_time,
-                  event_type,
-                  venues(name)
-                `)
-                .eq('title', programTitle)
-                .order('event_date', { ascending: true })
-                .order('event_time', { ascending: true })
-
-              if (specialEvents) {
-                const eventsFormatted = specialEvents.map(event => ({
+              // Process special events
+              if (specialEventsResult.data) {
+                const eventsFormatted = specialEventsResult.data.map(event => ({
                   id: event.id,
                   film_title: event.title,
                   screening_date: event.event_date,
@@ -325,10 +361,16 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                   is_cancelled: false,
                   notes: null
                 }))
-
-                allScreenings.push(...eventsFormatted)
+                programScreenings.push(...eventsFormatted)
               }
-            }
+
+              return programScreenings
+            })
+
+            const programScreeningResults = await Promise.all(programScreeningPromises)
+            programScreeningResults.forEach(screenings => {
+              if (screenings) allScreenings.push(...screenings)
+            })
 
             // Sort all screenings by date and time without timezone conversion
             allScreenings.sort((a, b) => {
