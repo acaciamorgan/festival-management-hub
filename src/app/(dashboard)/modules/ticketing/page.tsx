@@ -1206,10 +1206,10 @@ export default function TicketingPage() {
           .eq('film_title', screening.title)
           .eq('screening_date', screening.screening_date)
           .eq('start_time', screening.screening_time)
-          .single()
 
-        if (existing) {
+        if (existing && existing.length > 0) {
           skippedCount++
+          console.log(`  Skipping ${screening.title} - already exists`)
         } else {
           // Create new P&I screening
           const { error: insertError } = await supabase
