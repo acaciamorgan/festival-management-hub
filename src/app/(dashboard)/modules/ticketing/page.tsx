@@ -1211,6 +1211,19 @@ export default function TicketingPage() {
           skippedCount++
           console.log(`  Skipping ${screening.title} - already exists`)
         } else {
+          // Look up runtime from feature_films table
+          let runtime = screening.runtime // fallback to press_screening runtime
+          const { data: film } = await supabase
+            .from('feature_films')
+            .select('run_time')
+            .eq('title', screening.title)
+            .single()
+
+          if (film && film.run_time) {
+            runtime = film.run_time
+            console.log(`  Found runtime for ${screening.title}: ${runtime} min`)
+          }
+
           // Create new P&I screening
           const { error: insertError } = await supabase
             .from('pi_jury_screenings')
@@ -1220,7 +1233,7 @@ export default function TicketingPage() {
               screening_date: screening.screening_date,
               day_of_week: getDayOfWeek(screening.screening_date),
               start_time: screening.screening_time,
-              run_time: screening.runtime,
+              run_time: runtime,
               venue_short_code: shortCode,
               notes: screening.notes,
               is_cancelled: false
