@@ -151,7 +151,7 @@ export function InterviewCardPopup({ interview, onClose, onEdit, onDelete }: Int
     }
     
     const h = (q + Math.floor((13 * (m + 1)) / 5) + k + Math.floor(k / 4) + Math.floor(j / 4) - 2 * j) % 7
-    const dayIndex = (h + 5) % 7 // Convert to Sunday=0 format
+    const dayIndex = (h + 6) % 7 // Convert to Sunday=0 format
     
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
     const dayName = dayNames[dayIndex]
