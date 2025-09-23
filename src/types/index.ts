@@ -340,6 +340,7 @@ export interface InterviewCard {
   film_id?: string | null
   shorts_program_id?: string | null
   program_id?: string | null
+  short_film_id?: string | null
   film_title: string // Cached for display
   
   // Journalist (can link to press card or be open text)

@@ -16,7 +16,9 @@ interface InterviewFormModalProps {
 interface FilmOption {
   id: string
   title: string
-  type: 'feature' | 'short' | 'program'
+  type: 'feature' | 'short' | 'program' | 'shorts_program'
+  contextInfo?: string // For displaying additional context like "from Shorts Program A"
+  shorts_program_id?: string // For individual shorts
 }
 
 export function InterviewFormModal({ interview, isOpen, onClose, onSave }: InterviewFormModalProps) {
@@ -25,6 +27,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     film_id: '',
     shorts_program_id: '',
     program_id: '',
+    short_film_id: '',
     film_title: '',
     press_id: '',
     journalist_name: '',
@@ -69,7 +72,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
 
   const supabase = createClient()
 
-  // Load dropdown data
+  // Load dropdown data with unified film search
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -84,6 +87,17 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
           .from('shorts_programs')
           .select('id, program_name')
           .order('program_name')
+
+        // Load individual short films with program context
+        const { data: shortFilms, error: shortFilmsError } = await supabase
+          .from('short_films')
+          .select(`
+            id,
+            title,
+            shorts_program_id,
+            shorts_programs!inner(id, program_name)
+          `)
+          .order('title')
 
         // Load programs
         const { data: programs, error: programsError } = await supabase
@@ -103,21 +117,33 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
           .select('id, name')
           .order('name')
 
-        // Combine all films/programs
+        // Combine all films/programs with smart context
         const allFilms: FilmOption[] = [
-          ...(featureFilms || []).map(film => ({ 
-            id: film.id, 
-            title: film.title, 
-            type: 'feature' as const 
+          // Feature films
+          ...(featureFilms || []).map(film => ({
+            id: film.id,
+            title: film.title,
+            type: 'feature' as const
           })),
-          ...(shortsPrograms || []).map(program => ({ 
-            id: program.id, 
-            title: program.program_name, 
-            type: 'short' as const
+          // Individual short films with program context
+          ...(shortFilms || []).map(short => ({
+            id: short.id,
+            title: short.title,
+            type: 'short' as const,
+            contextInfo: `from ${short.shorts_programs.program_name}`,
+            shorts_program_id: short.shorts_program_id
           })),
-          ...(programs || []).map(program => ({ 
-            id: program.id, 
-            title: program.title, 
+          // Shorts programs (containers)
+          ...(shortsPrograms || []).map(program => ({
+            id: program.id,
+            title: program.program_name,
+            type: 'shorts_program' as const,
+            contextInfo: 'entire program'
+          })),
+          // Regular programs
+          ...(programs || []).map(program => ({
+            id: program.id,
+            title: program.title,
             type: 'program' as const
           }))
         ]
@@ -142,6 +168,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         film_id: interview.film_id || '',
         shorts_program_id: interview.shorts_program_id || '',
         program_id: interview.program_id || '',
+        short_film_id: interview.short_film_id || '',
         film_title: interview.film_title || '',
         press_id: interview.press_id || '',
         journalist_name: interview.journalist_name || '',
@@ -166,6 +193,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         film_id: '',
         shorts_program_id: '',
         program_id: '',
+        short_film_id: '',
         film_title: '',
         press_id: '',
         journalist_name: '',
@@ -229,10 +257,11 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
       // Update form data with comma-separated titles
       setFormData(prev => ({
         ...prev,
-        // Clear individual IDs when multiple films selected
+        // Clear all IDs when multiple films selected, otherwise set appropriate ID
         film_id: newFilms.length > 1 ? '' : (film.type === 'feature' ? film.id : ''),
-        shorts_program_id: newFilms.length > 1 ? '' : (film.type === 'short' ? film.id : ''),
+        shorts_program_id: newFilms.length > 1 ? '' : (film.type === 'shorts_program' ? film.id : (film.type === 'short' ? film.shorts_program_id : '')),
         program_id: newFilms.length > 1 ? '' : (film.type === 'program' ? film.id : ''),
+        short_film_id: newFilms.length > 1 ? '' : (film.type === 'short' ? film.id : ''),
         film_title: newFilms.join(', ')
       }))
     }
@@ -250,6 +279,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
       film_id: '',
       shorts_program_id: '',
       program_id: '',
+      short_film_id: '',
       film_title: newFilms.join(', ')
     }))
   }
@@ -340,6 +370,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         film_id: formData.film_id || null,
         shorts_program_id: formData.shorts_program_id || null,
         program_id: formData.program_id || null,
+        short_film_id: formData.short_film_id || null,
         film_title: formData.film_title,
         press_id: formData.press_id || null,
         journalist_name: formData.journalist_name || null,
@@ -476,7 +507,9 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                       className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
                     >
                       <span className="font-medium">{film.title}</span>
-                      <span className="text-gray-500 ml-2">({film.type})</span>
+                      <span className="text-gray-500 ml-2">
+                        {film.contextInfo ? `(${film.contextInfo})` : `(${film.type})`}
+                      </span>
                     </button>
                   ))}
                 </div>

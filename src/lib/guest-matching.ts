@@ -24,14 +24,15 @@ export async function matchSubjectsToGuests(
   const unmatched: string[] = []
 
   try {
-    // Get all guests with their film/program associations
+    // Get all guests with their film/program associations including short films
     const { data: guestsData, error: guestsError } = await supabase
       .from('guests')
       .select(`
         id,
         name,
         guest_films:guest_films(film_title),
-        guest_programs:guest_programs(program_title)
+        guest_programs:guest_programs(program_title),
+        guest_short_films:guest_short_films(film_title)
       `)
 
     if (guestsError) throw guestsError
@@ -65,9 +66,10 @@ export async function matchSubjectsToGuests(
         const contextualMatch = potentialMatches.find(guest => {
           const guestFilms = [
             ...(guest.guest_films || []).map((f: any) => f.film_title),
-            ...(guest.guest_programs || []).map((p: any) => p.program_title)
+            ...(guest.guest_programs || []).map((p: any) => p.program_title),
+            ...(guest.guest_short_films || []).map((sf: any) => sf.film_title)
           ]
-          return guestFilms.some(title => 
+          return guestFilms.some(title =>
             title.toLowerCase() === filmTitle.toLowerCase()
           )
         })
@@ -115,7 +117,8 @@ export async function getGuestSuggestions(query: string): Promise<Array<{
         id,
         name,
         guest_films:guest_films(film_title),
-        guest_programs:guest_programs(program_title)
+        guest_programs:guest_programs(program_title),
+        guest_short_films:guest_short_films(film_title)
       `)
       .ilike('name', `%${query}%`)
       .limit(10)
@@ -125,10 +128,11 @@ export async function getGuestSuggestions(query: string): Promise<Array<{
     return (data || []).map(guest => {
       const films = [
         ...(guest.guest_films || []).map((f: any) => f.film_title),
-        ...(guest.guest_programs || []).map((p: any) => p.program_title)
+        ...(guest.guest_programs || []).map((p: any) => p.program_title),
+        ...(guest.guest_short_films || []).map((sf: any) => sf.film_title)
       ]
       const films_display = films.join(', ') || 'No films assigned'
-      
+
       return {
         id: guest.id,
         name: guest.name,
