@@ -1039,18 +1039,25 @@ export default function TitlesPage() {
   // Fixed header mapping for the exact CSV format
   const getColumnIndex = (headers: string[], targetHeader: string): number => {
     // First try exact match
-    let index = headers.findIndex(header => 
+    let index = headers.findIndex(header =>
       header && header.trim() === targetHeader
     )
-    
-    // If exact match fails, try flexible matching for known problematic headers
+
+    // If exact match fails, try case-insensitive match
+    if (index === -1) {
+      index = headers.findIndex(header =>
+        header && header.toLowerCase().trim() === targetHeader.toLowerCase()
+      )
+    }
+
+    // If still no match and it's Countries, try flexible matching
     if (index === -1 && targetHeader === 'Countries') {
       // Look for any header that starts with "Country" to handle malformed CSV
-      index = headers.findIndex(header => 
+      index = headers.findIndex(header =>
         header && header.toLowerCase().trim().startsWith('country')
       )
     }
-    
+
     return index
   }
 
@@ -1481,40 +1488,51 @@ export default function TitlesPage() {
     setUploadStatus('Processing shorts CSV with new simple approach...')
     
     // Find column indices - match EXACT CSV headers
+    // Helper function for case-insensitive header search
+    const findHeaderIndex = (headerVariations: string[]): number => {
+      for (const variation of headerVariations) {
+        const index = headers.findIndex(h =>
+          h && h.toLowerCase().trim() === variation.toLowerCase()
+        )
+        if (index !== -1) return index
+      }
+      return -1
+    }
+
     const indices = {
-      title: headers.indexOf('Title'),
-      source: headers.indexOf('Source'),
-      original_language_title: headers.indexOf('Original Language Title'),
-      language: headers.indexOf('Language'),
-      subtitles: headers.indexOf('Subtitles'),
-      run_time: headers.indexOf('Runtime') !== -1 ? headers.indexOf('Runtime') : headers.indexOf('Run Time'),
-      director: headers.indexOf('Director'),
-      countries: headers.indexOf('Countries'),
-      program_1: headers.indexOf('Program 1'),
-      program_2: headers.indexOf('Program 2'),
-      program_3: headers.indexOf('Program 3'),
-      genre_1: headers.indexOf('Genre 1'),
-      genre_2: headers.indexOf('Genre 2'),
-      genre_3: headers.indexOf('Genre 3'),
-      captions: headers.indexOf('Captions'),
-      screenwriter: headers.indexOf('Screenwriter'),
-      cinematographer: headers.indexOf('Cinematographer'),
-      animator: headers.indexOf('Animator'),
-      editor: headers.indexOf('Editor'),
-      sound_designer: headers.indexOf('Sound Designer'),
-      principal_cast: headers.indexOf('Principal Cast'),
-      music_score: headers.indexOf('Music Score'),
-      producer: headers.indexOf('Producer'),
-      executive_producer: headers.indexOf('Executive Producer'),
-      archivist: headers.indexOf('Archivist'),
-      production_companies: headers.indexOf('Production Companies'),
-      film_website: headers.indexOf('Film Website'),
-      trailer_url: headers.indexOf('Trailer URL'),
-      premiere_status: headers.indexOf('Premiere Status'),
-      content_considerations: headers.indexOf('Content Considerations'),
-      shorts_program_id: headers.indexOf('Shorts Program ID'),
-      shorts_program_name: headers.indexOf('Shorts Program Name'),
-      program_order: headers.indexOf('Program Order')
+      title: findHeaderIndex(['Title']),
+      source: findHeaderIndex(['Source']),
+      original_language_title: findHeaderIndex(['Original Language Title']),
+      language: findHeaderIndex(['Language']),
+      subtitles: findHeaderIndex(['Subtitles']),
+      run_time: findHeaderIndex(['Runtime', 'Run Time', 'Run time']),
+      director: findHeaderIndex(['Director']),
+      countries: findHeaderIndex(['Countries', 'Country']),
+      program_1: findHeaderIndex(['Program 1']),
+      program_2: findHeaderIndex(['Program 2']),
+      program_3: findHeaderIndex(['Program 3']),
+      genre_1: findHeaderIndex(['Genre 1']),
+      genre_2: findHeaderIndex(['Genre 2']),
+      genre_3: findHeaderIndex(['Genre 3']),
+      captions: findHeaderIndex(['Captions']),
+      screenwriter: findHeaderIndex(['Screenwriter']),
+      cinematographer: findHeaderIndex(['Cinematographer']),
+      animator: findHeaderIndex(['Animator']),
+      editor: findHeaderIndex(['Editor']),
+      sound_designer: findHeaderIndex(['Sound Designer']),
+      principal_cast: findHeaderIndex(['Principal Cast']),
+      music_score: findHeaderIndex(['Music Score']),
+      producer: findHeaderIndex(['Producer']),
+      executive_producer: findHeaderIndex(['Executive Producer']),
+      archivist: findHeaderIndex(['Archivist']),
+      production_companies: findHeaderIndex(['Production Companies']),
+      film_website: findHeaderIndex(['Film Website']),
+      trailer_url: findHeaderIndex(['Trailer URL']),
+      premiere_status: findHeaderIndex(['Premiere Status']),
+      content_considerations: findHeaderIndex(['Content Considerations']),
+      shorts_program_id: findHeaderIndex(['Shorts Program ID']),
+      shorts_program_name: findHeaderIndex(['Shorts Program Name']),
+      program_order: findHeaderIndex(['Program Order'])
     }
 
     console.log('Column indices found:', indices)
