@@ -434,9 +434,21 @@ export default function InAttendancePage() {
       for (const guest of guests) {
         const guestScreeningsList: any[] = []
 
-        // Get films this guest is associated with
-        if (guest.films && guest.films.length > 0) {
-          for (const guestFilm of guest.films) {
+        // Get films this guest is associated with (both regular and short films)
+        const allGuestFilms = guest.films || []
+
+        // Also get short films from guest_short_films table
+        const { data: shortFilmsData } = await supabase
+          .from('guest_short_films')
+          .select('film_title')
+          .eq('guest_id', guest.id)
+
+        if (shortFilmsData) {
+          allGuestFilms.push(...shortFilmsData.map(sf => ({ film_title: sf.film_title })))
+        }
+
+        if (allGuestFilms.length > 0) {
+          for (const guestFilm of allGuestFilms) {
             // Find feature film screenings
             const featureScreenings = screenings?.filter(s => s.film_title === guestFilm.film_title) || []
             guestScreeningsList.push(...featureScreenings)
