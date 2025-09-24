@@ -440,15 +440,52 @@ export default function InAttendancePage() {
             guestScreeningsList.push(...featureScreenings)
 
             // For shorts, check if this is a short film and find its program screenings
-            const { data: shortFilm } = await supabase
+            const { data: shortFilm, error: shortFilmError } = await supabase
               .from('short_films')
               .select('shorts_program_id, shorts_programs(program_name)')
               .eq('title', guestFilm.film_title)
               .single()
 
-            if (shortFilm && shortFilm.shorts_programs) {
-              const programScreenings = screenings?.filter(s => s.film_title === shortFilm.shorts_programs.program_name) || []
-              guestScreeningsList.push(...programScreenings)
+            if (shortFilmError && shortFilmError.code !== 'PGRST116') {
+              console.log(`DEBUG: Error checking if ${guestFilm.film_title} is a short:`, shortFilmError)
+            }
+
+            if (shortFilm) {
+              console.log(`DEBUG: ${guestFilm.film_title} is a short film. Raw data:`, shortFilm)
+
+              // Handle different possible data structures
+              let programName = null
+              if (shortFilm.shorts_programs?.program_name) {
+                programName = shortFilm.shorts_programs.program_name
+              } else if (shortFilm.shorts_program_id) {
+                // Fallback: query the program directly
+                const { data: programData } = await supabase
+                  .from('shorts_programs')
+                  .select('program_name')
+                  .eq('id', shortFilm.shorts_program_id)
+                  .single()
+
+                programName = programData?.program_name
+              }
+
+              if (programName) {
+                console.log(`DEBUG: Looking for screenings with film_title: "${programName}"`)
+
+                // Try exact match first
+                let programScreenings = screenings?.filter(s => s.film_title === programName) || []
+
+                // If no exact match, try partial match (in case of subtitle differences)
+                if (programScreenings.length === 0) {
+                  programScreenings = screenings?.filter(s =>
+                    s.film_title.includes(programName) || programName.includes(s.film_title)
+                  ) || []
+                }
+
+                console.log(`DEBUG: Found ${programScreenings.length} screenings for program "${programName}"`)
+                guestScreeningsList.push(...programScreenings)
+              } else {
+                console.log(`DEBUG: Could not determine program name for short film ${guestFilm.film_title}`)
+              }
             }
           }
         }
