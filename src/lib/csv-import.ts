@@ -3,6 +3,18 @@ import { GuestCard, GuestType } from '@/types'
 import { getFestivalYear, parseSmartDate } from '@/lib/smart-date-parser'
 import { findBestTitleMatch, normalizeTitle } from '@/lib/title-utils'
 
+// Normalize names by removing accents and special characters for matching
+function normalizeName(name: string): string {
+  if (!name) return ''
+
+  // Normalize unicode characters (é -> e, ć -> c, etc.)
+  return name
+    .normalize('NFD') // Decompose accented characters
+    .replace(/[\u0300-\u036f]/g, '') // Remove combining diacritical marks
+    .toLowerCase()
+    .trim()
+}
+
 interface TitleMapping {
   csvTitle: string
   suggestedMatch?: string
@@ -478,18 +490,37 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
         }
 
-        // Check if guest already exists and get their full data including films
-        const { data: existingGuests, error: checkError } = await supabase
+        // Check if guest already exists - first try exact match, then normalized match
+        let existingGuest = null
+
+        // Try exact name match first
+        const { data: exactMatchGuests, error: exactCheckError } = await supabase
           .from('guests')
           .select('*')
           .eq('name', guestName)
 
-        if (checkError) {
-          errors.push(`Error checking for existing guest ${guestName}: ${checkError.message}`)
+        if (exactCheckError) {
+          errors.push(`Error checking for existing guest ${guestName}: ${exactCheckError.message}`)
           continue
         }
 
-        const existingGuest = existingGuests && existingGuests.length > 0 ? existingGuests[0] : null
+        if (exactMatchGuests && exactMatchGuests.length > 0) {
+          existingGuest = exactMatchGuests[0]
+        } else {
+          // If no exact match, try normalized match to catch accent variations
+          const normalizedInputName = normalizeName(guestName)
+
+          // Get all guests and check normalized names
+          const { data: allGuests, error: allGuestsError } = await supabase
+            .from('guests')
+            .select('*')
+
+          if (!allGuestsError && allGuests) {
+            existingGuest = allGuests.find(guest =>
+              normalizeName(guest.name) === normalizedInputName
+            )
+          }
+        }
 
         let savedGuest: any
 
@@ -561,6 +592,7 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
         // Process film associations - SIMPLIFIED APPROACH
         // Process EACH ROW individually for this guest
         const filmAssociations = []
+        const shortFilmAssociations = []
         const programAssociations = []
         const matchedTitlesForDisplay = [] // Collect actual database titles for display
 
@@ -680,24 +712,35 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
               })
             }
 
-            // Check if this is a short film - if so, also associate with its program
-            const shortFilm = allShortFilms.data?.find(sf => sf.id === matchedFilm.id)
-            if (shortFilm && shortFilm.shorts_program_id) {
-              console.log(`  Short film belongs to program ID: ${shortFilm.shorts_program_id}`)
+            // Check if this is a short film - if so, create guest_short_films association
+            const shortFilm = allShortFilms.data?.find(sf => sf.title === matchedFilm.title)
+            if (shortFilm) {
+              console.log(`  ✓ This is a short film: "${shortFilm.title}"`)
 
-              // Find the program in our list
-              const shortsProgram = allProgramsFromDb.data?.find(p => p.id === shortFilm.shorts_program_id)
-              if (shortsProgram) {
-                console.log(`  ✓ Adding program association: "${shortsProgram.title}"`)
-                const programExists = existingProgramAssociations.some(
-                  a => a.program_id === shortsProgram.id
-                )
-                if (!programExists) {
-                  programAssociations.push({
-                    guest_id: savedGuest.id,
-                    program_id: shortsProgram.id,
-                    program_title: shortsProgram.title
-                  })
+              // Add to guest_short_films associations
+              shortFilmAssociations.push({
+                guest_id: savedGuest.id,
+                film_title: shortFilm.title
+              })
+
+              // Also associate with its program if it has one
+              if (shortFilm.shorts_program_id) {
+                console.log(`  Short film belongs to program ID: ${shortFilm.shorts_program_id}`)
+
+                // Find the program in our list
+                const shortsProgram = allProgramsFromDb.data?.find(p => p.id === shortFilm.shorts_program_id)
+                if (shortsProgram) {
+                  console.log(`  ✓ Adding program association: "${shortsProgram.title}"`)
+                  const programExists = existingProgramAssociations.some(
+                    a => a.program_id === shortsProgram.id
+                  )
+                  if (!programExists) {
+                    programAssociations.push({
+                      guest_id: savedGuest.id,
+                      program_id: shortsProgram.id,
+                      program_title: shortsProgram.title
+                    })
+                  }
                 }
               }
             }
@@ -750,6 +793,17 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
 
           if (filmAssocError) {
             warnings.push(`Warning: Could not create film associations for ${guestName}: ${filmAssocError.message}`)
+          }
+        }
+
+        // Insert new short film associations only
+        if (shortFilmAssociations.length > 0) {
+          const { error: shortFilmAssocError } = await supabase
+            .from('guest_short_films')
+            .insert(shortFilmAssociations)
+
+          if (shortFilmAssocError) {
+            warnings.push(`Warning: Could not create short film associations for ${guestName}: ${shortFilmAssocError.message}`)
           }
         }
 
