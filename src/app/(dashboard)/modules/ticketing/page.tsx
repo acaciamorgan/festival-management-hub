@@ -1364,25 +1364,43 @@ export default function TicketingPage() {
     return Array.from(programs).sort()
   }, [featureFilms, shortFilms, shortsPrograms])
 
-  // Load venue cards for auto-suggest from existing screenings
-  const loadVenueCards = useCallback(() => {
-    // Get unique venue short codes from all existing screenings
-    const uniqueVenues = Array.from(new Set([
-      ...publishedScreenings.map(s => s.venue_short_code),
-      ...piJuryScreenings.map(s => s.venue_short_code),
-      ...techCheckScreenings.map(s => s.venue_short_code)
-    ])).filter(Boolean).sort()
-    
-    // Convert to the format expected by the auto-suggest
-    const venueCards = uniqueVenues.map(shortCode => ({
-      id: shortCode,
-      short_code: shortCode,
-      display_name: shortCode
-    }))
-    
-    setVenueCards(venueCards)
-    console.log('🏢 Loaded venue cards:', venueCards.length, venueCards)
-  }, [publishedScreenings, piJuryScreenings, techCheckScreenings])
+  // Load venue cards with capacity from theater_houses table
+  const loadVenueCards = useCallback(async () => {
+    try {
+      // Get all theater houses with capacity data
+      const { data: theaterHouses, error } = await supabase
+        .from('theater_houses')
+        .select('short_code, seat_count, house_name')
+        .not('short_code', 'is', null)
+        .order('short_code')
+
+      if (error) {
+        console.error('Error loading theater houses:', error)
+        return
+      }
+
+      // Remove duplicates by keeping the first occurrence of each short_code
+      const uniqueVenues = new Map()
+      theaterHouses.forEach(theater => {
+        if (!uniqueVenues.has(theater.short_code)) {
+          uniqueVenues.set(theater.short_code, {
+            id: theater.short_code,
+            short_code: theater.short_code,
+            display_name: theater.short_code,
+            capacity: theater.seat_count,
+            house_name: theater.house_name
+          })
+        }
+      })
+
+      const venueCards = Array.from(uniqueVenues.values())
+      setVenueCards(venueCards)
+      console.log('🏢 Loaded venue cards with capacity:', venueCards.length, venueCards)
+
+    } catch (error) {
+      console.error('Error loading venue cards:', error)
+    }
+  }, [supabase])
 
   // Load all data
   const loadData = useCallback(async () => {
@@ -1399,12 +1417,12 @@ export default function TicketingPage() {
         loadShortsPrograms()
       ])
       
-      // Load venue cards after screenings are loaded
-      loadVenueCards()
+      // Load venue cards (now async)
+      await loadVenueCards()
     } finally {
       setLoading(false)
     }
-  }, [loadPublishedScreenings, loadPIJuryScreenings, loadTechCheckScreenings, loadFilmCards, loadFestivalSettings, loadFeatureFilms, loadShortFilms, loadShortsPrograms])
+  }, [loadPublishedScreenings, loadPIJuryScreenings, loadTechCheckScreenings, loadFilmCards, loadFestivalSettings, loadFeatureFilms, loadShortFilms, loadShortsPrograms, loadVenueCards])
 
   useEffect(() => {
     loadData()
