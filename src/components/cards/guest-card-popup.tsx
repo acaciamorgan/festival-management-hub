@@ -1202,19 +1202,14 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-gray-900">{label}</p>
-                          <p className={`text-sm ${screening.is_cancelled ? 'text-red-600 line-through' : 'text-gray-600'}`}>
-                            {title}
+                          <p className={`text-sm ${screening.is_cancelled ? 'text-red-600 line-through' : 'text-gray-900'}`}>
+                            {title}, {date} at {time}, {venue}
+                            {screening.is_cancelled && (
+                              <span className="ml-2 inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                Cancelled
+                              </span>
+                            )}
                           </p>
-                          <p className="text-sm text-gray-600">
-                            {date} at {time}
-                          </p>
-                          <p className="text-sm text-gray-600">{venue}</p>
-                          {screening.is_cancelled && (
-                            <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 mt-1">
-                              Cancelled
-                            </span>
-                          )}
                         </div>
                       </div>
                       {screening.notes && (
