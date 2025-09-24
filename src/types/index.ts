@@ -213,8 +213,9 @@ export interface GuestCard {
   // Relationships
   films?: GuestFilm[]
   programs?: GuestProgram[]
+  screenings?: any[] // Array of screening objects for this guest's films
   films_display?: string // "Film A, Film B, Film C"
-  
+
   created_at: string
   updated_at: string
   created_by: string
