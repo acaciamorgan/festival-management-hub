@@ -48,6 +48,7 @@ export default function InAttendancePage() {
   const [pendingCSVRows, setPendingCSVRows] = useState<any[] | null>(null)
   const [screeningsData, setScreeningsData] = useState<any[]>([])
   const [guestScreenings, setGuestScreenings] = useState<Map<string, any[]>>(new Map())
+  const [screeningsLoading, setScreeningsLoading] = useState(false)
 
   const supabase = createClient()
 
@@ -410,6 +411,7 @@ export default function InAttendancePage() {
 
   // Load screenings and calculate which guests should attend which screenings
   const loadScreeningsData = useCallback(async () => {
+    setScreeningsLoading(true)
     try {
       // Load all published ticketing screenings
       const { data: screenings, error: screeningsError } = await supabase
@@ -507,6 +509,8 @@ export default function InAttendancePage() {
       setGuestScreenings(guestScreeningMap)
     } catch (error) {
       console.error('Error loading screenings data:', error)
+    } finally {
+      setScreeningsLoading(false)
     }
   }, [supabase, guests])
 
@@ -947,6 +951,15 @@ export default function InAttendancePage() {
   }
 
   const renderScreeningAttendance = (guest: GuestCard) => {
+    if (screeningsLoading) {
+      return (
+        <div className="flex items-center space-x-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          <span className="text-xs text-gray-500">Loading screenings...</span>
+        </div>
+      )
+    }
+
     const guestScreeningsList = guestScreenings.get(guest.id) || []
 
     if (guestScreeningsList.length === 0) {
