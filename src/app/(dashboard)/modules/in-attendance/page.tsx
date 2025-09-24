@@ -48,8 +48,7 @@ export default function InAttendancePage() {
   const [pendingCSVRows, setPendingCSVRows] = useState<any[] | null>(null)
   const [screeningsData, setScreeningsData] = useState<any[]>([])
   const [guestScreenings, setGuestScreenings] = useState<Map<string, any[]>>(new Map())
-  const [editingScreenings, setEditingScreenings] = useState<Set<string>>(new Set())
-  const [loadingScreeningsFor, setLoadingScreeningsFor] = useState<string | null>(null)
+  const [screeningsLoading, setScreeningsLoading] = useState(false)
 
   const supabase = createClient()
 
@@ -410,112 +409,115 @@ export default function InAttendancePage() {
     }
   }, [supabase])
 
-  // Load screenings for a single guest (on-demand)
-  const loadScreeningsForGuest = useCallback(async (guest: GuestCard) => {
-    setLoadingScreeningsFor(guest.id)
+  // Load screenings and calculate which guests should attend which screenings
+  const loadScreeningsData = useCallback(async () => {
+    setScreeningsLoading(true)
     try {
-      // Load all published ticketing screenings if not already loaded
-      let screenings = screeningsData
-      if (screenings.length === 0) {
-        const { data: screeningsResponse, error: screeningsError } = await supabase
-          .from('ticketing_screenings')
-          .select('*')
-          .eq('is_published', true)
-          .order('screening_date', { ascending: true })
-          .order('start_time', { ascending: true })
+      // Load all published ticketing screenings
+      const { data: screenings, error: screeningsError } = await supabase
+        .from('ticketing_screenings')
+        .select('*')
+        .eq('is_published', true)
+        .order('screening_date', { ascending: true })
+        .order('start_time', { ascending: true })
 
-        if (screeningsError) {
-          console.error('Error loading screenings:', screeningsError)
-          return
+      if (screeningsError) {
+        console.error('Error loading screenings:', screeningsError)
+        return
+      }
+
+      setScreeningsData(screenings || [])
+
+      // Calculate guest-screening relationships
+      const guestScreeningMap = new Map<string, any[]>()
+
+      for (const guest of guests) {
+        const guestScreeningsList: any[] = []
+
+        // Get films this guest is associated with (both regular and short films)
+        const allGuestFilms = guest.films || []
+
+        // Also get short films from guest_short_films table
+        const { data: shortFilmsData } = await supabase
+          .from('guest_short_films')
+          .select('film_title')
+          .eq('guest_id', guest.id)
+
+        if (shortFilmsData) {
+          allGuestFilms.push(...shortFilmsData.map(sf => ({ film_title: sf.film_title })))
         }
-        screenings = screeningsResponse || []
-        setScreeningsData(screenings)
-      }
 
-      const guestScreeningsList: any[] = []
+        if (allGuestFilms.length > 0) {
+          for (const guestFilm of allGuestFilms) {
+            // Find feature film screenings
+            const featureScreenings = screenings?.filter(s => s.film_title === guestFilm.film_title) || []
+            guestScreeningsList.push(...featureScreenings)
 
-      // Get films this guest is associated with (both regular and short films)
-      const allGuestFilms = guest.films || []
+            // For shorts, check if this is a short film and find its program screenings
+            const { data: shortFilm, error: shortFilmError } = await supabase
+              .from('short_films')
+              .select('shorts_program_id, shorts_programs(program_name)')
+              .eq('title', guestFilm.film_title)
+              .single()
 
-      // Also get short films from guest_short_films table
-      const { data: shortFilmsData } = await supabase
-        .from('guest_short_films')
-        .select('film_title')
-        .eq('guest_id', guest.id)
-
-      if (shortFilmsData) {
-        allGuestFilms.push(...shortFilmsData.map(sf => ({ film_title: sf.film_title })))
-      }
-
-      if (allGuestFilms.length > 0) {
-        for (const guestFilm of allGuestFilms) {
-          // Find feature film screenings
-          const featureScreenings = screenings?.filter(s => s.film_title === guestFilm.film_title) || []
-          guestScreeningsList.push(...featureScreenings)
-
-          // For shorts, check if this is a short film and find its program screenings
-          const { data: shortFilm, error: shortFilmError } = await supabase
-            .from('short_films')
-            .select('shorts_program_id, shorts_programs(program_name)')
-            .eq('title', guestFilm.film_title)
-            .single()
-
-          if (shortFilmError && shortFilmError.code !== 'PGRST116') {
-            console.log(`DEBUG: Error checking if ${guestFilm.film_title} is a short:`, shortFilmError)
-          }
-
-          if (shortFilm) {
-            // Handle different possible data structures
-            let programName = null
-            if (shortFilm.shorts_programs?.program_name) {
-              programName = shortFilm.shorts_programs.program_name
-            } else if (shortFilm.shorts_program_id) {
-              // Fallback: query the program directly
-              const { data: programData } = await supabase
-                .from('shorts_programs')
-                .select('program_name')
-                .eq('id', shortFilm.shorts_program_id)
-                .single()
-
-              programName = programData?.program_name
+            if (shortFilmError && shortFilmError.code !== 'PGRST116') {
+              console.log(`DEBUG: Error checking if ${guestFilm.film_title} is a short:`, shortFilmError)
             }
 
-            if (programName) {
-              // Try exact match first
-              let programScreenings = screenings?.filter(s => s.film_title === programName) || []
+            if (shortFilm) {
+              // Handle different possible data structures
+              let programName = null
+              if (shortFilm.shorts_programs?.program_name) {
+                programName = shortFilm.shorts_programs.program_name
+              } else if (shortFilm.shorts_program_id) {
+                // Fallback: query the program directly
+                const { data: programData } = await supabase
+                  .from('shorts_programs')
+                  .select('program_name')
+                  .eq('id', shortFilm.shorts_program_id)
+                  .single()
 
-              // If no exact match, try partial match (in case of subtitle differences)
-              if (programScreenings.length === 0) {
-                programScreenings = screenings?.filter(s =>
-                  s.film_title.includes(programName) || programName.includes(s.film_title)
-                ) || []
+                programName = programData?.program_name
               }
 
-              guestScreeningsList.push(...programScreenings)
+              if (programName) {
+                // Try exact match first
+                let programScreenings = screenings?.filter(s => s.film_title === programName) || []
+
+                // If no exact match, try partial match (in case of subtitle differences)
+                if (programScreenings.length === 0) {
+                  programScreenings = screenings?.filter(s =>
+                    s.film_title.includes(programName) || programName.includes(s.film_title)
+                  ) || []
+                }
+
+                guestScreeningsList.push(...programScreenings)
+              }
             }
           }
         }
+
+        // Remove duplicates and sort by date/time
+        const uniqueScreenings = guestScreeningsList.filter((screening, index, array) =>
+          array.findIndex(s => s.id === screening.id) === index
+        )
+
+        uniqueScreenings.sort((a, b) => {
+          const dateCompare = a.screening_date.localeCompare(b.screening_date)
+          if (dateCompare !== 0) return dateCompare
+          return a.start_time.localeCompare(b.start_time)
+        })
+
+        guestScreeningMap.set(guest.id, uniqueScreenings)
       }
 
-      // Remove duplicates and sort by date/time
-      const uniqueScreenings = guestScreeningsList.filter((screening, index, array) =>
-        array.findIndex(s => s.id === screening.id) === index
-      )
-
-      uniqueScreenings.sort((a, b) => {
-        const dateCompare = a.screening_date.localeCompare(b.screening_date)
-        if (dateCompare !== 0) return dateCompare
-        return a.start_time.localeCompare(b.start_time)
-      })
-
-      // Update the guest screenings map
-      setGuestScreenings(prev => new Map(prev.set(guest.id, uniqueScreenings)))
+      setGuestScreenings(guestScreeningMap)
     } catch (error) {
-      console.error('Error loading screenings for guest:', error)
+      console.error('Error loading screenings data:', error)
     } finally {
-      setLoadingScreeningsFor(null)
+      setScreeningsLoading(false)
     }
-  }, [supabase, screeningsData])
+  }, [supabase, guests])
 
   // Get unique guest types for filtering
   const uniqueGuestTypes = useMemo(() => {
@@ -968,134 +970,59 @@ export default function InAttendancePage() {
   }
 
   const renderScreeningAttendance = (guest: GuestCard) => {
-    const isEditing = editingScreenings.has(guest.id)
-    const isLoading = loadingScreeningsFor === guest.id
+    if (screeningsLoading) {
+      return (
+        <div className="flex items-center space-x-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          <span className="text-xs text-gray-500">Loading screenings...</span>
+        </div>
+      )
+    }
+
     const guestScreeningsList = guestScreenings.get(guest.id) || []
+
+    if (guestScreeningsList.length === 0) {
+      return <span className="text-gray-500">—</span>
+    }
+
     const nonAttendingIds = guest.non_attending_screenings || []
 
-    // Generate static display text from screenings data if available
-    const getDisplayText = () => {
-      if (guestScreeningsList.length === 0) return '—'
-
-      const attendingScreenings = guestScreeningsList.filter(screening =>
-        !nonAttendingIds.includes(screening.id)
-      )
-
-      if (attendingScreenings.length === 0) return 'Not attending'
-
-      return attendingScreenings.map(screening => {
-        // Format date as MM/DD
-        const date = screening.screening_date ? (() => {
-          const [year, month, day] = screening.screening_date.split('-')
-          return `${month}/${day}`
-        })() : 'TBD'
-
-        // Format time as 12-hour format
-        const time = screening.start_time ? (() => {
-          const [hours, minutes] = screening.start_time.split(':')
-          const hour24 = parseInt(hours, 10)
-          const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
-          const ampm = hour24 >= 12 ? 'pm' : 'am'
-          return `${hour12}:${minutes}${ampm}`
-        })() : 'TBD'
-
-        return `${date}, ${time}`
-      }).join('; ')
-    }
-
-    const handleCellClick = async (e: React.MouseEvent) => {
-      e.stopPropagation() // Prevent guest card modal from opening
-      if (!canEditInAttendance || isLoading) return
-
-      if (!isEditing) {
-        // Enter edit mode
-        setEditingScreenings(prev => new Set(prev).add(guest.id))
-        // Load screenings if not already loaded
-        if (guestScreeningsList.length === 0) {
-          await loadScreeningsForGuest(guest)
-        }
-      }
-    }
-
-    const handleSave = () => {
-      setEditingScreenings(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(guest.id)
-        return newSet
-      })
-    }
-
-    if (isLoading) {
-      return (
-        <div className="flex items-center space-x-2 p-2">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-          <span className="text-xs text-gray-500">Loading...</span>
-        </div>
-      )
-    }
-
-    if (isEditing) {
-      return (
-        <div className="space-y-1 p-2 bg-blue-50 border border-blue-200 rounded">
-          {guestScreeningsList.length === 0 ? (
-            <span className="text-gray-500 text-xs">No screenings found</span>
-          ) : (
-            guestScreeningsList.map((screening) => {
-              const isAttending = !nonAttendingIds.includes(screening.id)
-
-              // Format date as MM/DD
-              const date = screening.screening_date ? (() => {
-                const [year, month, day] = screening.screening_date.split('-')
-                return `${month}/${day}`
-              })() : 'TBD'
-
-              // Format time as 12-hour format
-              const time = screening.start_time ? (() => {
-                const [hours, minutes] = screening.start_time.split(':')
-                const hour24 = parseInt(hours, 10)
-                const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
-                const ampm = hour24 >= 12 ? 'pm' : 'am'
-                return `${hour12}:${minutes}${ampm}`
-              })() : 'TBD'
-
-              return (
-                <div key={screening.id} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={isAttending}
-                    onChange={() => handleScreeningAttendanceToggle(guest.id, screening.id, isAttending)}
-                    className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <span className="text-xs text-gray-900">
-                    {date}, {time}
-                  </span>
-                </div>
-              )
-            })
-          )}
-          <div className="flex space-x-2 mt-2">
-            <button
-              onClick={handleSave}
-              className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      )
-    }
-
-    // Static display mode
     return (
-      <div
-        className={`text-xs text-gray-900 p-2 rounded cursor-pointer hover:bg-gray-50 ${
-          canEditInAttendance ? 'hover:border hover:border-blue-300' : ''
-        }`}
-        onClick={handleCellClick}
-        title={canEditInAttendance ? 'Click to edit screening attendance' : ''}
-      >
-        {getDisplayText()}
+      <div className="space-y-1">
+        {guestScreeningsList.map((screening, index) => {
+          const isAttending = !nonAttendingIds.includes(screening.id)
+
+          // Format date as MM/DD
+          const date = screening.screening_date ? (() => {
+            const [year, month, day] = screening.screening_date.split('-')
+            return `${month}/${day}`
+          })() : 'TBD'
+
+          // Format time as 12-hour format
+          const time = screening.start_time ? (() => {
+            const [hours, minutes] = screening.start_time.split(':')
+            const hour24 = parseInt(hours, 10)
+            const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+            const ampm = hour24 >= 12 ? 'pm' : 'am'
+            return `${hour12}:${minutes}${ampm}`
+          })() : 'TBD'
+
+          return (
+            <div key={screening.id} className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={isAttending}
+                onChange={() => handleScreeningAttendanceToggle(guest.id, screening.id, isAttending)}
+                disabled={!canEditInAttendance}
+                className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:cursor-not-allowed"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="text-xs text-gray-900">
+                {date}, {time}
+              </span>
+            </div>
+          )
+        })}
       </div>
     )
   }
@@ -1164,7 +1091,11 @@ export default function InAttendancePage() {
     loadGuests()
   }, [loadGuests])
 
-  // Remove automatic loading - now on-demand only
+  useEffect(() => {
+    if (guests.length > 0) {
+      loadScreeningsData()
+    }
+  }, [loadScreeningsData, guests])
 
   // Click away handler for Daily Report dropdown
   useEffect(() => {
@@ -1580,11 +1511,15 @@ export default function InAttendancePage() {
               {filteredGuests.map((guest) => (
                 <tr
                   key={guest.id}
-                  className="hover:bg-gray-50 cursor-pointer"
-                  onClick={() => setShowGuestCard(guest)}
+                  className="hover:bg-gray-50"
                 >
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-0 bg-white z-10" style={{ minWidth: `${columnWidths['name'] || 150}px` }}>
-                    {guest.name}
+                    <button
+                      onClick={() => setShowGuestCard(guest)}
+                      className="text-left hover:text-blue-600 hover:underline"
+                    >
+                      {guest.name}
+                    </button>
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['role'] || 120}px` }}>
                     {guest.role || '—'}
