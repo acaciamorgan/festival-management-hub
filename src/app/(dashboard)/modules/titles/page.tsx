@@ -549,18 +549,62 @@ export default function TitlesPage() {
   const loadPrograms = useCallback(async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      // First get all programs
+      const { data: programsData, error: programsError } = await supabase
         .from('programs')
         .select('*')
         .order('event_date, start_time, title')
-      
-      if (error) {
-        console.error('Error loading programs:', error)
+
+      if (programsError) {
+        console.error('Error loading programs:', programsError)
         setPrograms([])
         setFilteredPrograms([])
+        return
+      }
+
+      // Then get guest_programs relationships with guest names
+      const { data: guestProgramsData, error: guestProgramsError } = await supabase
+        .from('guest_programs')
+        .select(`
+          program_id,
+          guests (
+            name
+          )
+        `)
+
+      if (!guestProgramsError && guestProgramsData) {
+        // Create a map of program_id to participant names
+        const participantMap = new Map<string, string[]>()
+
+        guestProgramsData.forEach((gp: any) => {
+          if (gp.program_id && gp.guests?.name) {
+            if (!participantMap.has(gp.program_id)) {
+              participantMap.set(gp.program_id, [])
+            }
+            participantMap.get(gp.program_id)!.push(gp.guests.name)
+          }
+        })
+
+        // Update programs with participant names from guest cards
+        const programsWithParticipants = (programsData || []).map(program => {
+          const guestNames = participantMap.get(program.id) || []
+          if (guestNames.length > 0) {
+            // Join guest names with the existing participants field if it exists
+            const existingParticipants = program.participants ? program.participants.split(',').map((p: string) => p.trim()) : []
+            const allParticipants = [...new Set([...guestNames, ...existingParticipants])]
+            return {
+              ...program,
+              participants: allParticipants.join(', ')
+            }
+          }
+          return program
+        })
+
+        setPrograms(programsWithParticipants)
+        setFilteredPrograms(programsWithParticipants)
       } else {
-        setPrograms(data || [])
-        setFilteredPrograms(data || [])
+        setPrograms(programsData || [])
+        setFilteredPrograms(programsData || [])
       }
     } catch (error) {
       console.error('Error loading programs:', error)
@@ -2021,7 +2065,7 @@ export default function TitlesPage() {
                       { key: 'participants', label: 'Participants', width: 200 },
                       { key: 'description', label: 'Description', width: 300 },
                       { key: 'is_industry_days', label: 'Industry Days', width: 120 },
-                      ...(canEditTitles ? [{ key: 'actions', label: 'Actions', width: 100 }] : [])
+                      ...(canEditTitles ? [{ key: 'actions', label: 'Actions', width: 140 }] : [])
                     ].map((column) => (
                       <th
                         key={column.key}
@@ -2111,16 +2155,43 @@ export default function TitlesPage() {
                         )}
                       </td>
                       {canEditTitles && (
-                        <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 100}px` }}>
-                          <button
-                            onClick={() => {
-                              setEditingEvent(program)
-                              setShowCreateEventModal(true)
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium"
-                          >
-                            Edit
-                          </button>
+                        <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 140}px` }}>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => {
+                                setEditingEvent(program)
+                                setShowCreateEventModal(true)
+                              }}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (confirm(`Are you sure you want to delete "${program.title}"?`)) {
+                                  try {
+                                    const { error } = await supabase
+                                      .from('programs')
+                                      .delete()
+                                      .eq('id', program.id)
+
+                                    if (error) {
+                                      console.error('Error deleting program:', error)
+                                      alert('Failed to delete program')
+                                    } else {
+                                      loadPrograms()
+                                    }
+                                  } catch (error) {
+                                    console.error('Error deleting program:', error)
+                                    alert('Failed to delete program')
+                                  }
+                                }
+                              }}
+                              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
