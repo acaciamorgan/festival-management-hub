@@ -208,6 +208,7 @@ export interface GuestCard {
   // Management
   checked_in: boolean
   notes?: string
+  non_attending_screenings?: string[] // Array of screening IDs where guest is NOT attending
   
   // Relationships
   films?: GuestFilm[]

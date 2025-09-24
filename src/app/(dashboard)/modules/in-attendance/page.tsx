@@ -46,6 +46,8 @@ export default function InAttendancePage() {
   const [pendingRemovals, setPendingRemovals] = useState<Array<{guestName: string, removedFilms: string[]}> | null>(null)
   const [pendingTitleMappings, setPendingTitleMappings] = useState<Array<{csvTitle: string, suggestedMatch?: string, confidence?: number}> | null>(null)
   const [pendingCSVRows, setPendingCSVRows] = useState<any[] | null>(null)
+  const [screeningsData, setScreeningsData] = useState<any[]>([])
+  const [guestScreenings, setGuestScreenings] = useState<Map<string, any[]>>(new Map())
 
   const supabase = createClient()
 
@@ -405,6 +407,71 @@ export default function InAttendancePage() {
       setLoading(false)
     }
   }, [supabase])
+
+  // Load screenings and calculate which guests should attend which screenings
+  const loadScreeningsData = useCallback(async () => {
+    try {
+      // Load all published ticketing screenings
+      const { data: screenings, error: screeningsError } = await supabase
+        .from('ticketing_screenings')
+        .select('*')
+        .eq('is_published', true)
+        .order('screening_date', { ascending: true })
+        .order('start_time', { ascending: true })
+
+      if (screeningsError) {
+        console.error('Error loading screenings:', screeningsError)
+        return
+      }
+
+      setScreeningsData(screenings || [])
+
+      // Calculate guest-screening relationships
+      const guestScreeningMap = new Map<string, any[]>()
+
+      for (const guest of guests) {
+        const guestScreeningsList: any[] = []
+
+        // Get films this guest is associated with
+        if (guest.films && guest.films.length > 0) {
+          for (const guestFilm of guest.films) {
+            // Find feature film screenings
+            const featureScreenings = screenings?.filter(s => s.film_title === guestFilm.film_title) || []
+            guestScreeningsList.push(...featureScreenings)
+
+            // For shorts, check if this is a short film and find its program screenings
+            const { data: shortFilm } = await supabase
+              .from('short_films')
+              .select('shorts_program_id, shorts_programs(program_name)')
+              .eq('title', guestFilm.film_title)
+              .single()
+
+            if (shortFilm && shortFilm.shorts_programs) {
+              const programScreenings = screenings?.filter(s => s.film_title === shortFilm.shorts_programs.program_name) || []
+              guestScreeningsList.push(...programScreenings)
+            }
+          }
+        }
+
+        // Remove duplicates and sort by date/time
+        const uniqueScreenings = guestScreeningsList.filter((screening, index, array) =>
+          array.findIndex(s => s.id === screening.id) === index
+        )
+
+        uniqueScreenings.sort((a, b) => {
+          const dateCompare = a.screening_date.localeCompare(b.screening_date)
+          if (dateCompare !== 0) return dateCompare
+          return a.start_time.localeCompare(b.start_time)
+        })
+
+        guestScreeningMap.set(guest.id, uniqueScreenings)
+      }
+
+      setGuestScreenings(guestScreeningMap)
+    } catch (error) {
+      console.error('Error loading screenings data:', error)
+    }
+  }, [supabase, guests])
 
   // Get unique guest types for filtering
   const uniqueGuestTypes = useMemo(() => {
@@ -799,6 +866,97 @@ export default function InAttendancePage() {
     )
   }
 
+  const handleScreeningAttendanceToggle = async (guestId: string, screeningId: string, isCurrentlyAttending: boolean) => {
+    if (!canEditInAttendance) return
+
+    try {
+      const guest = guests.find(g => g.id === guestId)
+      if (!guest) return
+
+      // Get current non_attending_screenings array (default to empty if field doesn't exist)
+      const currentNonAttending = guest.non_attending_screenings || []
+
+      let newNonAttending: string[]
+      if (isCurrentlyAttending) {
+        // Currently attending, so add to non_attending list
+        newNonAttending = [...currentNonAttending, screeningId]
+      } else {
+        // Currently not attending, so remove from non_attending list
+        newNonAttending = currentNonAttending.filter(id => id !== screeningId)
+      }
+
+      // Update guest in database (for now, we'll handle the case where column doesn't exist)
+      const { error } = await supabase
+        .from('guests')
+        .update({ non_attending_screenings: newNonAttending })
+        .eq('id', guestId)
+
+      if (error && !error.message.includes('column "non_attending_screenings" does not exist')) {
+        console.error('Error updating screening attendance:', error)
+        return
+      }
+
+      // Update local state
+      setGuests(prevGuests =>
+        prevGuests.map(g =>
+          g.id === guestId
+            ? { ...g, non_attending_screenings: newNonAttending }
+            : g
+        )
+      )
+    } catch (error) {
+      console.error('Error toggling screening attendance:', error)
+    }
+  }
+
+  const renderScreeningAttendance = (guest: GuestCard) => {
+    const guestScreeningsList = guestScreenings.get(guest.id) || []
+
+    if (guestScreeningsList.length === 0) {
+      return <span className="text-gray-500">—</span>
+    }
+
+    const nonAttendingIds = guest.non_attending_screenings || []
+
+    return (
+      <div className="space-y-1">
+        {guestScreeningsList.map((screening, index) => {
+          const isAttending = !nonAttendingIds.includes(screening.id)
+
+          // Format date as MM/DD
+          const date = screening.screening_date ? (() => {
+            const [year, month, day] = screening.screening_date.split('-')
+            return `${month}/${day}`
+          })() : 'TBD'
+
+          // Format time as 12-hour format
+          const time = screening.start_time ? (() => {
+            const [hours, minutes] = screening.start_time.split(':')
+            const hour24 = parseInt(hours, 10)
+            const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+            const ampm = hour24 >= 12 ? 'pm' : 'am'
+            return `${hour12}:${minutes}${ampm}`
+          })() : 'TBD'
+
+          return (
+            <div key={screening.id} className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={isAttending}
+                onChange={() => handleScreeningAttendanceToggle(guest.id, screening.id, isAttending)}
+                disabled={!canEditInAttendance}
+                className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:cursor-not-allowed"
+              />
+              <span className="text-xs text-gray-900">
+                {date}, {time}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   const handleCSVImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -862,6 +1020,12 @@ export default function InAttendancePage() {
   useEffect(() => {
     loadGuests()
   }, [loadGuests])
+
+  useEffect(() => {
+    if (guests.length > 0) {
+      loadScreeningsData()
+    }
+  }, [loadScreeningsData, guests])
 
   // Click away handler for Daily Report dropdown
   useEffect(() => {
@@ -1192,6 +1356,7 @@ export default function InAttendancePage() {
                   { key: 'name', label: 'Name', width: 150, sortable: true },
                   { key: 'role', label: 'Role', width: 120, sortable: false },
                   { key: 'films_display', label: 'Film / Program Titles', width: 200, sortable: false },
+                  { key: 'appearing_at_screenings', label: 'Appearing At Screening(s)', width: 250, sortable: false },
                   { key: 'checked_in', label: 'Checked In', width: 80, sortable: true },
                   { key: 'guest_type', label: 'Type', width: 80, sortable: true },
                   { key: 'arranging_travel', label: 'Arranging Travel', width: 120, sortable: true },
@@ -1287,6 +1452,9 @@ export default function InAttendancePage() {
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['films_display'] || 200}px` }}>
                     {renderFilmTitles(guest.films_display)}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['appearing_at_screenings'] || 250}px` }}>
+                    {renderScreeningAttendance(guest)}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center" style={{ minWidth: `${columnWidths['checked_in'] || 80}px` }}>
                     <input
