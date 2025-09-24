@@ -721,14 +721,13 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
       <div
         className="fixed bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto z-[110] flex flex-col"
         onClick={(e) => e.stopPropagation()}
-        style={{ 
-          left: `${position.x}px`, 
-          top: `${position.y}px`,
+        style={{
+          left: `${Math.max(16, Math.min(position.x, window.innerWidth - 16 - Math.min(1000, window.innerWidth * 0.9)))}px`,
+          top: `${Math.max(16, Math.min(position.y, 100))}px`,
           cursor: isDragging ? 'grabbing' : 'default',
           maxWidth: '1000px',
           width: '90vw',
-          maxHeight: 'calc(100vh - 2rem)',
-          overflowY: 'auto'
+          maxHeight: 'calc(100vh - 2rem)'
         }}
       >
         {/* Header with drag handle */}
@@ -767,7 +766,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           </div>
         </div>
 
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className="flex-1 p-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
           {/* Basic Information */}
           <CollapsibleSection title="Basic Information" defaultExpanded={true}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
