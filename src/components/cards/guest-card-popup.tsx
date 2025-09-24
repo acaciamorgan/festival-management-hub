@@ -719,21 +719,21 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
       />
       
       <div
-        className="fixed bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto z-[110] flex flex-col"
+        className="fixed bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden z-[110] flex flex-col"
         onClick={(e) => e.stopPropagation()}
         style={{
-          left: `${Math.max(16, Math.min(position.x, window.innerWidth - 16 - Math.min(1000, window.innerWidth * 0.9)))}px`,
-          top: `${Math.max(16, Math.min(position.y, 100))}px`,
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
           cursor: isDragging ? 'grabbing' : 'default',
           maxWidth: '1000px',
           width: '90vw',
-          maxHeight: 'calc(100vh - 2rem)'
+          maxHeight: '90vh'
         }}
       >
         {/* Header with drag handle */}
-        <div 
-          className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg cursor-grab active:cursor-grabbing flex justify-between items-center"
-          onMouseDown={handleMouseDown}
+        <div
+          className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg flex justify-between items-center flex-shrink-0"
         >
           <div className="flex items-center">
             <span className="text-2xl mr-3">{getGuestTypeIcon(guest.guest_type)}</span>
@@ -766,7 +766,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           </div>
         </div>
 
-        <div className="flex-1 p-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
+        <div className="flex-1 p-6 overflow-y-auto">
           {/* Basic Information */}
           <CollapsibleSection title="Basic Information" defaultExpanded={true}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
