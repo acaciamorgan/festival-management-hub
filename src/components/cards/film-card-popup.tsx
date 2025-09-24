@@ -76,6 +76,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
   const [screenerData, setScreenerData] = useState<any>(null)
   const [filmInterviews, setFilmInterviews] = useState<InterviewCard[]>([])
   const [filmScreenings, setFilmScreenings] = useState<any[]>([])
+  const [screeningsWithGuests, setScreeningsWithGuests] = useState<Set<string>>(new Set())
 
   const supabase = createClient()
 
@@ -478,9 +479,43 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
             setFilmGuests(uniqueGuests)
             console.log('DEBUG: Final unique guests for film:', uniqueGuests)
+
+            // Calculate which screenings have attending guests
+            await calculateScreeningsWithGuests(uniqueGuests)
           } catch (error) {
             console.error('Error loading film guests:', error)
             setFilmGuests([])
+          }
+        }
+
+        const calculateScreeningsWithGuests = async (guests: any[]) => {
+          try {
+            // Load all published screenings for this film and check which ones have attending guests
+            const { data: allScreenings } = await supabase
+              .from('ticketing_screenings')
+              .select('id, film_title')
+              .eq('is_published', true)
+              .or(`film_title.eq.${film.title}${shortsProgramName ? `,film_title.eq.${shortsProgramName}` : ''}`)
+
+            if (!allScreenings || allScreenings.length === 0) return
+
+            const screeningIdsWithGuests = new Set<string>()
+
+            for (const screening of allScreenings) {
+              // Check if any guest is attending this screening
+              const hasAttendingGuests = guests.some(guest => {
+                const nonAttendingIds = guest.non_attending_screenings || []
+                return !nonAttendingIds.includes(screening.id)
+              })
+
+              if (hasAttendingGuests) {
+                screeningIdsWithGuests.add(screening.id)
+              }
+            }
+
+            setScreeningsWithGuests(screeningIdsWithGuests)
+          } catch (error) {
+            console.error('Error calculating screenings with guests:', error)
           }
         }
 
@@ -763,7 +798,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                       >
                         <div className="flex items-center">
                           <span className={screening.is_cancelled ? 'line-through' : ''}>
-                            {screening.film_title && screening.film_title !== film.title 
+                            {screening.film_title && screening.film_title !== film.title
                               ? `${screening.film_title} • ${date} • ${time} • ${venue}`
                               : `${date} • ${time} • ${venue}`
                             }
@@ -771,6 +806,11 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                           {screening.is_cancelled && (
                             <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
                               Cancelled
+                            </span>
+                          )}
+                          {screeningsWithGuests.has(screening.id) && (
+                            <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                              Intro/Q&A
                             </span>
                           )}
                         </div>

@@ -382,7 +382,11 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
               return a.start_time.localeCompare(b.start_time)
             })
 
-            setFilmScreenings(allScreenings)
+            // Filter to only show screenings the guest is attending (not in non_attending_screenings array)
+            const nonAttendingIds = guest.non_attending_screenings || []
+            const attendingScreenings = allScreenings.filter(screening => !nonAttendingIds.includes(screening.id))
+
+            setFilmScreenings(attendingScreenings)
           } catch (error) {
             console.error('Error loading film screenings:', error)
             setFilmScreenings([])
