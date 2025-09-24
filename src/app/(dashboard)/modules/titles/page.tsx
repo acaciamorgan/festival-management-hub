@@ -2141,7 +2141,7 @@ export default function TitlesPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['participants'] || 200}px` }}>{program.participants}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['participants'] || 200}px` }}>{renderPersonName(program.participants)}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['description'] || 300}px` }}>
                         <div className="max-w-xs truncate" title={program.description || ''}>
                           {program.description}

@@ -465,38 +465,79 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
               return
             }
 
-            // Load special events for these titles
-            const allSpecialEvents: any[] = []
+            // Load special events and program events for these titles
+            const allEvents: any[] = []
 
             for (const title of uniqueTitles) {
-              const { data: events } = await supabase
-                .from('special_events')
-                .select(`
-                  id,
-                  title,
-                  event_date,
-                  event_time,
-                  event_type,
-                  description,
-                  venues(name)
-                `)
-                .eq('title', title)
-                .order('event_date', { ascending: true })
-                .order('event_time', { ascending: true })
+              // Search both special_events and programs tables
+              const [specialEventsResult, programsResult] = await Promise.all([
+                supabase
+                  .from('special_events')
+                  .select(`
+                    id,
+                    title,
+                    event_date,
+                    event_time,
+                    event_type,
+                    description,
+                    venues(name)
+                  `)
+                  .eq('title', title)
+                  .order('event_date', { ascending: true })
+                  .order('event_time', { ascending: true }),
 
-              if (events) {
-                allSpecialEvents.push(...events)
+                supabase
+                  .from('programs')
+                  .select(`
+                    id,
+                    title,
+                    event_date,
+                    start_time,
+                    end_time,
+                    venue_name,
+                    participants,
+                    description,
+                    is_industry_days
+                  `)
+                  .eq('title', title)
+              ])
+
+              // Add special events
+              if (specialEventsResult.data) {
+                const formattedSpecialEvents = specialEventsResult.data.map(event => ({
+                  ...event,
+                  venue_name: event.venues?.name || 'TBD',
+                  type: 'special_event'
+                }))
+                allEvents.push(...formattedSpecialEvents)
+              }
+
+              // Add program events
+              if (programsResult.data) {
+                const formattedProgramEvents = programsResult.data.map(program => ({
+                  id: program.id,
+                  title: program.title,
+                  event_date: program.event_date,
+                  event_time: program.start_time,
+                  end_time: program.end_time,
+                  venue_name: program.venue_name || 'TBD',
+                  participants: program.participants,
+                  description: program.description,
+                  event_type: program.is_industry_days ? 'Industry Days' : 'Program Event',
+                  type: 'program_event'
+                }))
+                allEvents.push(...formattedProgramEvents)
               }
             }
 
-            // Sort all special events by date and time
-            allSpecialEvents.sort((a, b) => {
+            // Sort all events by date and time
+            allEvents.sort((a, b) => {
               const dateCompare = a.event_date.localeCompare(b.event_date)
               if (dateCompare !== 0) return dateCompare
               return a.event_time.localeCompare(b.event_time)
             })
 
-            setSpecialEvents(allSpecialEvents)
+            setSpecialEvents(allEvents)
           } catch (error) {
             console.error('Error loading special events:', error)
             setSpecialEvents([])
@@ -1044,21 +1085,38 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     return `${hour12}:${minutes} ${ampm}`
                   })() : 'TBD'
 
+                  // Format end time for program events
+                  const endTime = event.end_time ? (() => {
+                    const [hours, minutes] = event.end_time.split(':')
+                    const hour24 = parseInt(hours, 10)
+                    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
+                    const ampm = hour24 >= 12 ? 'PM' : 'AM'
+                    return `${hour12}:${minutes} ${ampm}`
+                  })() : null
+
+                  const isProgram = event.type === 'program_event'
+
                   return (
                     <div
                       key={event.id}
-                      className="border-l-4 border-orange-400 pl-4 py-2"
+                      className={`border-l-4 pl-4 py-2 ${isProgram ? 'border-blue-400' : 'border-orange-400'}`}
                     >
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-gray-900">
                             {event.event_type ? `${event.event_type}` : 'Special Event'}
+                            {isProgram && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Program</span>}
                           </p>
                           <p className="text-sm text-gray-600">{event.title}</p>
                           <p className="text-sm text-gray-600">
-                            {date} at {time}
+                            {date} at {time}{endTime && ` - ${endTime}`}
                           </p>
-                          <p className="text-sm text-gray-600">{event.venues?.name || 'TBD'}</p>
+                          <p className="text-sm text-gray-600">{event.venue_name || event.venues?.name || 'TBD'}</p>
+                          {event.participants && (
+                            <p className="text-sm text-gray-600">
+                              <span className="font-medium">Participants:</span> {event.participants}
+                            </p>
+                          )}
                         </div>
                       </div>
                       {event.description && (
