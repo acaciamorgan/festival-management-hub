@@ -801,7 +801,7 @@ export default function ScreenerAccessPage() {
         <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
           <div className="overflow-x-auto overflow-y-auto flex-1">
             <table className="min-w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
                 {[
                   { key: 'title', label: 'Film Title / Shorts Program', width: 180, sortable: true },
