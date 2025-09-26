@@ -924,7 +924,19 @@ export default function TicketingGridPage() {
           parsedRuntime = runtimeMatch ? parseInt(runtimeMatch[1]) : null
           console.log(`Runtime parsing: "${runTime}" → ${parsedRuntime}`)
         }
-        
+
+        // Auto-fill capacity from venue if not provided in CSV
+        let finalCapacity = capacity ? parseInt(capacity) : null
+        if (!finalCapacity && venue) {
+          const venueMatch = theaterHouses.find(house =>
+            house.short_code === venue
+          )
+          if (venueMatch) {
+            finalCapacity = venueMatch.seat_count
+            console.log(`🏢 CSV auto-filled capacity for ${venue}: ${finalCapacity}`)
+          }
+        }
+
         const screeningData = {
           film_title: title,
           programming_film_id: null, // No longer tied to Films Grid
@@ -933,7 +945,7 @@ export default function TicketingGridPage() {
           start_time: startTime || '00:00',
           run_time: parsedRuntime || null,
           venue_short_code: venue || '',
-          capacity: capacity ? parseInt(capacity) : null,
+          capacity: finalCapacity,
           notes: notes || null,
           created_by: user?.id || null
         }

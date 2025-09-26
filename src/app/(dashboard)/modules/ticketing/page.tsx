@@ -1222,6 +1222,16 @@ export default function TicketingPage() {
             console.log(`  Found runtime for ${screening.title}: ${runtime} min`)
           }
 
+          // Look up venue capacity
+          let capacity = null
+          const venueMatch = venueCards.find(venue =>
+            venue.short_code === shortCode
+          )
+          if (venueMatch) {
+            capacity = venueMatch.capacity
+            console.log(`  Auto-filled capacity for ${shortCode}: ${capacity}`)
+          }
+
           // Create new P&I screening
           const { error: insertError } = await supabase
             .from('pi_jury_screenings')
@@ -1233,6 +1243,7 @@ export default function TicketingPage() {
               start_time: screening.screening_time,
               run_time: runtime,
               venue_short_code: shortCode,
+              capacity: capacity,
               notes: screening.notes,
               is_cancelled: false
             })
