@@ -600,12 +600,15 @@ export default function PressRequestsPage() {
         // Each request (12pt)
         entry.requests.forEach((request: PressRequest) => {
           const statusText = request.status === 'requested' ? ' (REQUESTED)' : ''
+          const isNew = request.status === 'new'
+
           children.push(
             new Paragraph({
               children: [
                 new TextRun({
                   text: `${request.requester_name} / ${request.requester_outlet} / ${request.requester_email} / ${request.film_titles}${statusText}`,
-                  size: 24
+                  size: 24,
+                  highlight: isNew ? 'yellow' : undefined
                 })
               ]
             })
