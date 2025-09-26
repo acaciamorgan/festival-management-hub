@@ -23,9 +23,10 @@ interface CollapsibleSectionProps {
   title: string
   children: React.ReactNode
   isEmpty?: boolean
+  badge?: React.ReactNode
 }
 
-function CollapsibleSection({ title, children, isEmpty = false }: CollapsibleSectionProps) {
+function CollapsibleSection({ title, children, isEmpty = false, badge }: CollapsibleSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   return (
@@ -34,7 +35,10 @@ function CollapsibleSection({ title, children, isEmpty = false }: CollapsibleSec
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center justify-between py-4 px-6 text-left hover:bg-gray-50 transition-colors"
       >
-        <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+        <div className="flex items-center space-x-3">
+          <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+          {badge && <div>{badge}</div>}
+        </div>
         <div className="flex items-center space-x-2">
           {isEmpty && (
             <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
@@ -86,7 +90,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
     }
 
     const badgeConfig = {
-      cinesend: { text: 'Cinesend', className: 'bg-blue-100 text-blue-800' },
+      cinesend: { text: 'CineSend', className: 'bg-blue-100 text-blue-800' },
       link_available: { text: 'Link Available', className: 'bg-green-100 text-green-800' },
       request_link: { text: 'Request Link', className: 'bg-yellow-100 text-yellow-800' },
       no_links: { text: 'No Links', className: 'bg-red-100 text-red-800' }
@@ -101,6 +105,28 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
           {config.text}
         </span>
       </div>
+    )
+  }
+
+  const renderHeaderBadge = () => {
+    if (!screenerData || screenerData.access_type === 'tbd') {
+      return null
+    }
+
+    const badgeConfig = {
+      cinesend: { text: 'CineSend', className: 'bg-blue-200 text-blue-700' },
+      link_available: { text: 'Link Available', className: 'bg-green-200 text-green-700' },
+      request_link: { text: 'Request Link', className: 'bg-yellow-200 text-yellow-700' },
+      no_links: { text: 'No Links', className: 'bg-red-200 text-red-700' }
+    }
+
+    const config = badgeConfig[screenerData.access_type as keyof typeof badgeConfig]
+    if (!config) return null
+
+    return (
+      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${config.className}`}>
+        {config.text}
+      </span>
     )
   }
 
@@ -823,8 +849,11 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               )}
             </CollapsibleSection>
 
-            <CollapsibleSection title="Press Screenings & Links" isEmpty={filmPressScreenings.length === 0}>
-              {renderScreenerBadge()}
+            <CollapsibleSection
+              title="Press Screenings & Links"
+              isEmpty={filmPressScreenings.length === 0}
+              badge={renderHeaderBadge()}
+            >
               {filmPressScreenings.length > 0 ? (
                 <div className="space-y-2">
                   {filmPressScreenings.map((screening) => {
