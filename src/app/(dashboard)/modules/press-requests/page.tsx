@@ -49,6 +49,7 @@ export default function PressRequestsPage() {
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'created_at', direction: 'desc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [filmContacts, setFilmContacts] = useState<FilmContact[]>([])
+  const [screenerAccessMap, setScreenerAccessMap] = useState<Record<string, string>>({})
 
   const supabase = createClient()
 
@@ -67,6 +68,50 @@ export default function PressRequestsPage() {
 
       console.log('DEBUG: Loaded requests from database:', data?.map(r => ({ id: r.id, film: r.film_titles })))
       setRequests(data || [])
+
+      // Load screener access data for all unique film titles
+      const uniqueTitles = [...new Set((data || []).map(r => r.film_titles))]
+
+      // Load feature films with screener access
+      const { data: features } = await supabase
+        .from('feature_films')
+        .select(`
+          title,
+          screener_access (
+            access_type
+          )
+        `)
+        .in('title', uniqueTitles)
+
+      // Load shorts programs with screener access
+      const { data: shortsPrograms } = await supabase
+        .from('shorts_programs')
+        .select(`
+          program_name,
+          screener_access (
+            access_type
+          )
+        `)
+        .in('program_name', uniqueTitles)
+
+      // Create a map of film title to access type
+      const accessMap: Record<string, string> = {}
+
+      features?.forEach(film => {
+        if (film.screener_access?.[0]?.access_type) {
+          accessMap[film.title] = film.screener_access[0].access_type
+        }
+      })
+
+      shortsPrograms?.forEach(program => {
+        if (program.screener_access?.[0]?.access_type) {
+          accessMap[program.program_name] = program.screener_access[0].access_type
+        }
+      })
+
+      console.log('DEBUG: Screener access map:', accessMap)
+      setScreenerAccessMap(accessMap)
+
     } catch (error) {
       console.error('Error loading press requests:', error)
     } finally {
@@ -756,6 +801,7 @@ export default function PressRequestsPage() {
                     { key: 'requester_outlet', label: 'Outlet', width: 150, sortable: true },
                     { key: 'requester_email', label: 'Email', width: 200, sortable: true },
                     { key: 'film_titles', label: 'Film/Program', width: 300, sortable: false },
+                    { key: 'access_type', label: 'Access Type', width: 120, sortable: false },
                     { key: 'screening_date', label: 'Screening', width: 120, sortable: true },
                     { key: 'created_at', label: 'Requested', width: 120, sortable: true },
                     { key: 'requested_at', label: 'Email Sent', width: 120, sortable: true }
@@ -842,6 +888,27 @@ export default function PressRequestsPage() {
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['film_titles'] || 300}px` }}>
                       {request.film_titles}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['access_type'] || 120}px` }}>
+                      {(() => {
+                        const accessType = screenerAccessMap[request.film_titles]
+                        if (!accessType) return <span className="text-gray-400">—</span>
+
+                        const badgeConfig = {
+                          'request_link': { text: 'Request Link', className: 'bg-yellow-100 text-yellow-800' },
+                          'link_available': { text: 'Link Available', className: 'bg-green-100 text-green-800' },
+                          'cinesend': { text: 'Cinesend', className: 'bg-blue-100 text-blue-800' }
+                        }
+
+                        const config = badgeConfig[accessType as keyof typeof badgeConfig]
+                        if (!config) return <span className="text-gray-400">—</span>
+
+                        return (
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.className}`}>
+                            {config.text}
+                          </span>
+                        )
+                      })()}
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['screening_date'] || 120}px` }}>
                       {request.screening_date && request.request_type === 'screening_ticket' ? (
