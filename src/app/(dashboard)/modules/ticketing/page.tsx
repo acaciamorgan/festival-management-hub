@@ -1136,15 +1136,37 @@ export default function TicketingPage() {
 
   const loadPIJuryScreenings = useCallback(async () => {
     try {
-      // TODO: Create pi_jury_screenings table
-      const { data, error } = await supabase
+      // Load P&I/Jury screenings first
+      const { data: screenings, error } = await supabase
         .from('pi_jury_screenings')
         .select('*')
         .order('screening_date', { ascending: true })
         .order('start_time', { ascending: true })
 
       if (error && error.code !== 'PGRST116') throw error // Ignore table not found for now
-      setPiJuryScreenings(data || [])
+
+      if (!screenings || screenings.length === 0) {
+        setPiJuryScreenings([])
+        return
+      }
+
+      // Get theater capacities
+      const { data: theaters, error: theaterError } = await supabase
+        .from('theater_houses')
+        .select('short_code, seat_count')
+
+      if (theaterError) throw theaterError
+
+      // Map screenings with current theater capacity
+      const mappedData = screenings.map(screening => {
+        const theater = theaters?.find(t => t.short_code === screening.venue_short_code)
+        return {
+          ...screening,
+          capacity: theater?.seat_count || screening.capacity
+        }
+      })
+
+      setPiJuryScreenings(mappedData)
     } catch (error) {
       console.error('Error loading P&I/Jury screenings:', error)
       setPiJuryScreenings([]) // Set empty array if table doesn't exist yet

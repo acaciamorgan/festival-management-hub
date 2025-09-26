@@ -798,8 +798,9 @@ export default function PressRequestsPage() {
       </div>
 
       {/* Data Grid */}
-      <div className="flex-1 overflow-hidden bg-white">
-        <div className="overflow-auto" style={{ height: 'calc(100vh - 220px)' }}>
+      <div className="flex-1 flex flex-col p-6 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden">
+          <div className="overflow-x-auto overflow-y-auto flex-1">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-lg text-gray-500">Loading screener requests...</div>
