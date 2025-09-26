@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { parseStringDateWithContext, formatStringDate, formatStringDateDisplay, getStringDayOfWeek, formatStringTime, convertExcelToStringDate } from '@/lib/string-date-utils'
+import { processExcelWithStrikethrough, filterStrikethroughRows, isCSVRowStrikethrough } from '@/lib/excel-utils'
 import * as XLSX from 'xlsx'
 
 // Interface for theater house with short codes
@@ -801,27 +802,28 @@ export default function TicketingGridPage() {
 
       console.log('DEBUG file detection:', file.name, file.type)
       if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.type.includes('spreadsheet')) {
-        // Handle Excel file
-        const buffer = await file.arrayBuffer()
-        const workbook = XLSX.read(buffer, { type: 'array' })
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
-        
-        if (jsonData.length < 2) {
-          alert('Excel file must have at least a header row and one data row')
+        // Handle Excel file with strikethrough detection
+        console.log('📝 Processing Excel file with strikethrough detection')
+        const excelData = await processExcelWithStrikethrough(file)
+
+        if (excelData.rows.length === 0) {
+          alert('Excel file must have at least one data row')
           return
         }
-        
-        headers = (jsonData[0] as string[]).map(h => String(h || '').trim())
-        
+
+        headers = excelData.headers
+
+        // Filter out strikethrough rows
+        const filteredRows = filterStrikethroughRows(excelData.rows)
+
         // Process rows with async Excel date conversion
         const processedRows: any[][] = []
-        for (const row of jsonData.slice(1)) {
+        for (const row of filteredRows) {
           const processedRow: any[] = []
           for (let index = 0; index < row.length; index++) {
             const cell = row[index]
             const header = headers[index]
-            
+
             // Convert Excel date numbers to MM/DD/YYYY format using string operations
             if (header === 'Date' && typeof cell === 'number') {
               try {
@@ -847,24 +849,37 @@ export default function TicketingGridPage() {
           }
           processedRows.push(processedRow)
         }
-        
+
         dataRows = processedRows
         console.log('DEBUG Excel headers:', headers)
         console.log('DEBUG Excel first row after conversion:', dataRows[0])
       } else {
-        // Handle CSV file
+        // Handle CSV file with strikethrough detection
+        console.log('📝 Processing CSV file with strikethrough detection')
         const text = await file.text()
         const lines = text.split('\n').filter(line => line.trim())
-        
+
         if (lines.length < 2) {
           alert('CSV file must have at least a header row and one data row')
           return
         }
 
         headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
-        dataRows = lines.slice(1).map(line => 
+        const allRows = lines.slice(1).map(line =>
           line.split(',').map(v => v.trim().replace(/"/g, ''))
         )
+
+        // Filter out strikethrough rows (basic CSV strikethrough detection)
+        const filteredRows = allRows.filter((row, index) => {
+          const hasStrikethrough = isCSVRowStrikethrough(row)
+          if (hasStrikethrough) {
+            console.log(`🚫 Skipped CSV strikethrough row ${index + 2}:`, row.slice(0, 3).join(', '))
+          }
+          return !hasStrikethrough
+        })
+
+        console.log(`📝 CSV filtered out ${allRows.length - filteredRows.length} strikethrough rows, keeping ${filteredRows.length} rows`)
+        dataRows = filteredRows
       }
       
       console.log('=== CSV Upload Debug ===')

@@ -8,6 +8,7 @@ import { DraggableModal } from '@/components/ui/draggable-modal'
 import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
 import { loadScreeningBoardSettings, saveScreeningBoardSettings } from '@/lib/screening-board-settings'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
+import { isCSVRowStrikethrough } from '@/lib/excel-utils'
 import * as XLSX from 'xlsx-js-style'
 
 // Helper functions for calendar calculations without Date objects
@@ -1512,20 +1513,31 @@ export default function TicketingPage() {
         return result
       }
       
-      const rows = text.split('\n').map(row => parseCSVRow(row))
-      const headers = rows[0]
-      
+      const allRows = text.split('\n').map(row => parseCSVRow(row))
+      const headers = allRows[0]
+
       if (!headers.includes('Title') || !headers.includes('Date') || !headers.includes('Start Time')) {
         alert('CSV must contain Title, Date, and Start Time columns')
         return
       }
 
+      // Filter out strikethrough rows
+      const dataRows = allRows.slice(1) // Skip header
+      const filteredRows = dataRows.filter((row, index) => {
+        const hasStrikethrough = isCSVRowStrikethrough(row)
+        if (hasStrikethrough) {
+          console.log(`🚫 Skipped CSV strikethrough row ${index + 2}:`, row.slice(0, 3).join(', '))
+        }
+        return !hasStrikethrough
+      })
+
+      console.log(`📝 Ticketing CSV: filtered out ${dataRows.length - filteredRows.length} strikethrough rows, keeping ${filteredRows.length} rows`)
+
       let successCount = 0
       let errorCount = 0
       const errors: string[] = []
 
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i]
+      for (const row of filteredRows) {
         if (!row[0] || row[0].trim() === '') continue // Skip empty rows
 
         try {

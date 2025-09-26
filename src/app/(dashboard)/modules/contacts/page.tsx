@@ -8,6 +8,7 @@ import { ContactCard } from '@/types'
 import { ContactFormModal } from '@/components/forms/contact-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import { isCSVRowStrikethrough } from '@/lib/excel-utils'
 import * as XLSX from 'xlsx-js-style'
 
 type ViewMode = 'by-contact' | 'by-film'
@@ -394,14 +395,28 @@ export default function ContactsPage() {
 
     try {
       const text = await file.text()
-      const rows = parseCSV(text)
-      
-      if (rows.length === 0) {
+      const allRows = parseCSV(text)
+
+      if (allRows.length === 0) {
         setUploadStatus('Error: CSV file is empty')
         return
       }
 
-      const headers = rows[0]
+      const headers = allRows[0]
+
+      // Filter out strikethrough rows
+      const dataRows = allRows.slice(1) // Skip header
+      const filteredRows = dataRows.filter((row, index) => {
+        const hasStrikethrough = isCSVRowStrikethrough(row)
+        if (hasStrikethrough) {
+          console.log(`🚫 Skipped Contacts CSV strikethrough row ${index + 2}:`, row.slice(0, 3).join(', '))
+        }
+        return !hasStrikethrough
+      })
+
+      console.log(`📝 Contacts CSV: filtered out ${dataRows.length - filteredRows.length} strikethrough rows, keeping ${filteredRows.length} rows`)
+
+      const rows = [headers, ...filteredRows]
       
       // Field mapping for Contacts CSV
       const fieldMap: Record<string, string> = {
