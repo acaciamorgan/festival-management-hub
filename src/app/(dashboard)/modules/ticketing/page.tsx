@@ -1009,9 +1009,6 @@ export default function TicketingPage() {
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>(null)
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   
-  // Unpublish state
-  const [selectedForUnpublish, setSelectedForUnpublish] = useState<Set<string>>(new Set())
-  const [unpublishing, setUnpublishing] = useState(false)
   
   // Screening Board state
   const [currentBoardDate, setCurrentBoardDate] = useState('')
@@ -1122,8 +1119,9 @@ export default function TicketingPage() {
   // Load data functions
   const loadPublishedScreenings = useCallback(async () => {
     try {
+      // Simplified: load all screenings from ticketing_screenings (no more published_screenings table)
       const { data, error } = await supabase
-        .from('published_screenings')
+        .from('ticketing_screenings')
         .select('*')
         .order('screening_date', { ascending: true })
         .order('start_time', { ascending: true })
@@ -1874,7 +1872,7 @@ export default function TicketingPage() {
   const handleCancelScreening = async (screening: any) => {
     try {
       let tableName = ''
-      if (viewMode === 'ticketing') tableName = 'published_screenings'
+      if (viewMode === 'ticketing') tableName = 'ticketing_screenings'
       else if (viewMode === 'pi-jury') tableName = 'pi_jury_screenings'
       else if (viewMode === 'tech-checks') tableName = 'tech_check_screenings'
 
@@ -1915,7 +1913,7 @@ export default function TicketingPage() {
       }
 
       let tableName = ''
-      if (viewMode === 'ticketing') tableName = 'published_screenings'
+      if (viewMode === 'ticketing') tableName = 'ticketing_screenings'
       else if (viewMode === 'pi-jury') tableName = 'pi_jury_screenings'
       else if (viewMode === 'tech-checks') tableName = 'tech_check_screenings'
 
@@ -2153,15 +2151,6 @@ export default function TicketingPage() {
                 🔄 Sync Press Screenings
               </button>
             )}
-            {viewMode === 'ticketing' && selectedForUnpublish.size > 0 && (
-              <button
-                onClick={handleBulkUnpublish}
-                disabled={unpublishing}
-                className="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 font-medium disabled:opacity-50"
-              >
-                {unpublishing ? 'Unpublishing...' : `Unpublish Selected (${selectedForUnpublish.size})`}
-              </button>
-            )}
             {canEditTicketing && (
               <button
                 onClick={handleAddScreening}
@@ -2334,16 +2323,6 @@ export default function TicketingPage() {
               <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50 sticky top-0">
               <tr>
-                {viewMode === 'ticketing' && (
-                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                    <input
-                      type="checkbox"
-                      checked={selectedForUnpublish.size > 0 && selectedForUnpublish.size === filteredData.length}
-                      onChange={(e) => handleSelectAllForUnpublish(e.target.checked)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </th>
-                )}
                 {getTableColumns().map((column) => (
                   <th
                     key={column.key}
@@ -2410,16 +2389,6 @@ export default function TicketingPage() {
                       : ''
                   }`}
                 >
-                  {viewMode === 'ticketing' && (
-                    <td className="px-3 py-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedForUnpublish.has(screening.id)}
-                        onChange={(e) => handleSelectForUnpublish(screening.id, e.target.checked)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
-                  )}
                   {getTableColumns().map((column) => {
                     const cellValue = screening[column.key as keyof typeof screening];
                     let displayValue: React.ReactNode = cellValue || '--';
@@ -2455,14 +2424,6 @@ export default function TicketingPage() {
                         >
                           Edit
                         </button>
-                        {viewMode === 'ticketing' && (
-                          <button
-                            onClick={() => unpublishScreening(screening).then(() => loadData())}
-                            className="bg-orange-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-orange-700"
-                          >
-                            Unpublish
-                          </button>
-                        )}
                         <button
                           onClick={() => handleDeleteScreening(screening)}
                           className="bg-red-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-red-700"
@@ -2609,8 +2570,21 @@ export default function TicketingPage() {
                   type="text"
                   value={venueSearchTerm || formData.venue_short_code}
                   onChange={(e) => {
-                    setVenueSearchTerm(e.target.value)
-                    setFormData(prev => ({...prev, venue_short_code: e.target.value}))
+                    const venueCode = e.target.value
+                    setVenueSearchTerm(venueCode)
+
+                    // Auto-fill capacity if exact match found
+                    const matchingVenue = venueCards.find(v => v.short_code === venueCode)
+                    setFormData(prev => ({
+                      ...prev,
+                      venue_short_code: venueCode,
+                      capacity: matchingVenue?.capacity || prev.capacity
+                    }))
+
+                    if (matchingVenue) {
+                      console.log('🏢 Auto-filled capacity for', venueCode, ':', matchingVenue.capacity)
+                    }
+
                     setShowVenueSuggestions(true)
                   }}
                   onFocus={() => setShowVenueSuggestions(true)}
@@ -2829,8 +2803,21 @@ export default function TicketingPage() {
                   type="text"
                   value={venueSearchTerm || formData.venue_short_code}
                   onChange={(e) => {
-                    setVenueSearchTerm(e.target.value)
-                    setFormData(prev => ({...prev, venue_short_code: e.target.value}))
+                    const venueCode = e.target.value
+                    setVenueSearchTerm(venueCode)
+
+                    // Auto-fill capacity if exact match found
+                    const matchingVenue = venueCards.find(v => v.short_code === venueCode)
+                    setFormData(prev => ({
+                      ...prev,
+                      venue_short_code: venueCode,
+                      capacity: matchingVenue?.capacity || prev.capacity
+                    }))
+
+                    if (matchingVenue) {
+                      console.log('🏢 Auto-filled capacity for', venueCode, ':', matchingVenue.capacity)
+                    }
+
                     setShowVenueSuggestions(true)
                   }}
                   onFocus={() => setShowVenueSuggestions(true)}
