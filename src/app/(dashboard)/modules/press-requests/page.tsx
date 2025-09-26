@@ -604,7 +604,7 @@ export default function PressRequestsPage() {
             new Paragraph({
               children: [
                 new TextRun({
-                  text: `${request.requester_name} / ${request.requester_outlet} / ${request.film_titles}${statusText}`,
+                  text: `${request.requester_name} / ${request.requester_outlet} / ${request.requester_email} / ${request.film_titles}${statusText}`,
                   size: 24
                 })
               ]
