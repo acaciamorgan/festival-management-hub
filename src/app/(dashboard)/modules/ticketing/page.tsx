@@ -1702,6 +1702,33 @@ export default function TicketingPage() {
     setShowAddModal(true)
   }
 
+  const handleDeleteScreening = async (screening: any) => {
+    const screeningType = viewMode === 'ticketing' ? 'published screening' :
+                         viewMode === 'pi-jury' ? 'P&I/Jury screening' : 'tech check'
+
+    if (!confirm(`Are you sure you want to delete this ${screeningType}?\n\nFilm: ${screening.film_title}\nDate: ${screening.screening_date}\nTime: ${screening.start_time}`)) {
+      return
+    }
+
+    try {
+      const tableName = viewMode === 'ticketing' ? 'ticketing_screenings' :
+                       viewMode === 'pi-jury' ? 'pi_jury_screenings' : 'tech_check_screenings'
+
+      const { error } = await supabase
+        .from(tableName)
+        .delete()
+        .eq('id', screening.id)
+
+      if (error) throw error
+
+      alert(`${screeningType} deleted successfully`)
+      await loadData()
+    } catch (error) {
+      console.error('Error deleting screening:', error)
+      alert('Failed to delete screening. Please try again.')
+    }
+  }
+
   const handleEditScreening = (screening: any) => {
     setFormData({
       film_title: screening.film_title,
@@ -2433,6 +2460,12 @@ export default function TicketingPage() {
                             Unpublish
                           </button>
                         )}
+                        <button
+                          onClick={() => handleDeleteScreening(screening)}
+                          className="bg-red-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   )}
