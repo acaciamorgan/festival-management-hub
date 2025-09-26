@@ -1268,19 +1268,20 @@ export default function TicketingPage() {
           console.log(`  Auto-filled capacity for ${shortCode}: ${capacity}`)
         }
 
-        // Check if this screening already exists
+        // Check if this screening already exists (match by title and date only)
         const { data: existing } = await supabase
           .from('pi_jury_screenings')
           .select('id')
           .eq('film_title', screening.title)
           .eq('screening_date', screening.screening_date)
-          .eq('start_time', screening.screening_time)
+          .eq('screening_type', 'P&I') // Only match P&I screenings, not Jury
 
         if (existing && existing.length > 0) {
-          // Update existing screening with new venue and other details
+          // Update existing screening with new time, venue, and other details
           const { error: updateError } = await supabase
             .from('pi_jury_screenings')
             .update({
+              start_time: screening.screening_time, // Update time too!
               venue_short_code: shortCode,
               capacity: capacity,
               run_time: runtime,
@@ -1292,7 +1293,7 @@ export default function TicketingPage() {
 
           if (!updateError) {
             updatedCount++
-            console.log(`  Updated P&I screening for ${screening.title} - venue: ${shortCode}`)
+            console.log(`  Updated P&I screening for ${screening.title} - time: ${screening.screening_time}, venue: ${shortCode}`)
           } else {
             console.error(`  Error updating screening for ${screening.title}:`, updateError)
           }
