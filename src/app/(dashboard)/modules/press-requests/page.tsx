@@ -72,40 +72,54 @@ export default function PressRequestsPage() {
       // Load screener access data for all unique film titles
       const uniqueTitles = [...new Set((data || []).map(r => r.film_titles))]
 
-      // Load feature films with screener access
+      // Load feature films and their IDs
       const { data: features } = await supabase
         .from('feature_films')
-        .select(`
-          title,
-          screener_access (
-            access_type
-          )
-        `)
+        .select('id, title')
         .in('title', uniqueTitles)
 
-      // Load shorts programs with screener access
+      // Load shorts programs and their IDs
       const { data: shortsPrograms } = await supabase
         .from('shorts_programs')
-        .select(`
-          program_name,
-          screener_access (
-            access_type
-          )
-        `)
+        .select('id, program_name')
         .in('program_name', uniqueTitles)
+
+      // Get all film IDs (features + programs)
+      const filmIds = [
+        ...(features?.map(f => f.id) || []),
+        ...(shortsPrograms?.map(p => p.id) || [])
+      ]
+
+      // Load screener access data for all these films
+      const { data: screenerAccess, error: screenerError } = await supabase
+        .from('screener_access')
+        .select('film_id, access_type')
+        .in('film_id', filmIds)
+
+      if (screenerError) {
+        console.error('Error loading screener access:', screenerError)
+      }
+
+      console.log('DEBUG: Features:', features)
+      console.log('DEBUG: Shorts programs:', shortsPrograms)
+      console.log('DEBUG: Screener access data:', screenerAccess)
 
       // Create a map of film title to access type
       const accessMap: Record<string, string> = {}
 
+      // Map feature films
       features?.forEach(film => {
-        if (film.screener_access?.[0]?.access_type) {
-          accessMap[film.title] = film.screener_access[0].access_type
+        const access = screenerAccess?.find(sa => sa.film_id === film.id)
+        if (access?.access_type) {
+          accessMap[film.title] = access.access_type
         }
       })
 
+      // Map shorts programs
       shortsPrograms?.forEach(program => {
-        if (program.screener_access?.[0]?.access_type) {
-          accessMap[program.program_name] = program.screener_access[0].access_type
+        const access = screenerAccess?.find(sa => sa.film_id === program.id)
+        if (access?.access_type) {
+          accessMap[program.program_name] = access.access_type
         }
       })
 
