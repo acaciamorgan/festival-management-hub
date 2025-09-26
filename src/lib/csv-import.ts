@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/client'
 import { GuestCard, GuestType } from '@/types'
 import { getFestivalYear, parseSmartDate } from '@/lib/smart-date-parser'
 import { findBestTitleMatch, normalizeTitle } from '@/lib/title-utils'
+import { isCSVRowStrikethrough } from '@/lib/excel-utils'
 
 // Normalize names by removing accents and special characters for matching
 function normalizeName(name: string): string {
@@ -109,19 +110,25 @@ export async function parseCSVContent(csvContent: string): Promise<CSVGuestRow[]
   // Process data rows starting after the header
   for (let i = headerRowIndex + 1; i < records.length; i++) {
     const record = records[i]
-    
+
     // Skip empty rows or rows with all empty cells
     if (!record || record.length === 0 || record.every(cell => !cell || !cell.trim())) {
       continue
     }
-    
+
+    // Skip strikethrough rows
+    if (isCSVRowStrikethrough(record)) {
+      console.log(`🚫 Skipped Guest CSV strikethrough row ${i + 1}:`, record.slice(0, 3).join(', '))
+      continue
+    }
+
     const row: any = {}
-    
+
     // Map each header to its corresponding value
     headers.forEach((header, index) => {
       row[header] = (record && record[index]) ? record[index] : ''
     })
-    
+
     // Only add rows that have a name
     if (row['Name']?.trim()) {
       rows.push(row as CSVGuestRow)

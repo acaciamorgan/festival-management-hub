@@ -11,6 +11,7 @@ import { ProgramCardPopup } from '@/components/cards/program-card-popup'
 import { FilmEditModal } from '@/components/forms/film-edit-modal'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { normalizeDateValue } from '@/lib/date-utils'
+import { isCSVRowStrikethrough } from '@/lib/excel-utils'
 import * as XLSX from 'xlsx-js-style'
 
 interface FeatureFilm {
@@ -1161,12 +1162,18 @@ export default function TitlesPage() {
     // Process each data row using the column indices
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i]
-      
+
       // Skip completely empty rows or rows where all cells are empty
       if (!row || row.length === 0 || row.every(cell => !cell || !cell.trim())) {
         continue
       }
-      
+
+      // Skip strikethrough rows
+      if (isCSVRowStrikethrough(row)) {
+        console.log(`🚫 Skipped Titles CSV strikethrough row ${i + 1}:`, row.slice(0, 3).join(', '))
+        continue
+      }
+
       const titleValue = row[indices.title]?.trim()
       
       const filmData: any = {}
@@ -1392,12 +1399,18 @@ export default function TitlesPage() {
     // Process each row (skip program headers and empty rows)
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i]
-      
+
       // Skip completely empty rows or rows where all cells are empty
       if (!row || row.length === 0 || row.every(cell => !cell || !cell.trim())) {
         continue
       }
-      
+
+      // Skip strikethrough rows
+      if (isCSVRowStrikethrough(row)) {
+        console.log(`🚫 Skipped Titles CSV strikethrough row ${i + 1}:`, row.slice(0, 3).join(', '))
+        continue
+      }
+
       const rowData: any = {}
       
       // Skip rows that are program headers (no film title)
@@ -1602,13 +1615,19 @@ export default function TitlesPage() {
     // Process each row directly (start after header row)
     for (let i = headerRowIndex + 1; i < rows.length; i++) {
       const row = rows[i]
-      
+
       // Skip completely empty rows or rows where all cells are empty
       if (!row || row.length === 0 || row.every(cell => !cell || !cell.trim())) {
         console.log(`Skipping empty row ${i}`)
         continue
       }
-      
+
+      // Skip strikethrough rows
+      if (isCSVRowStrikethrough(row)) {
+        console.log(`🚫 Skipped Titles CSV strikethrough row ${i + 1}:`, row.slice(0, 3).join(', '))
+        continue
+      }
+
       if (!row[indices.title]?.trim()) continue
 
       const title = row[indices.title]?.trim()
