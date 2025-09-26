@@ -295,7 +295,24 @@ function ScreeningBoard({
           </div>
         </div>
       </div>
-      
+
+      {/* Legend for P&I/Jury screenings */}
+      {screeningsForDate.some(s => s.type === 'pi-jury') && (
+        <div className="bg-gray-50 px-6 py-2 border-b border-gray-200">
+          <div className="flex items-center space-x-6 text-xs">
+            <span className="text-gray-600 font-medium">Legend:</span>
+            <span className="flex items-center">
+              <span className="w-4 h-3 bg-white border border-gray-300 rounded inline-block mr-1"></span>
+              <span className="text-gray-700">Confirmed P&I</span>
+            </span>
+            <span className="flex items-center">
+              <span className="w-4 h-3 bg-gray-100 border border-gray-400 border-dashed rounded inline-block mr-1"></span>
+              <span className="text-gray-500">Tentative (Film Not Approved)</span>
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Screening Grid */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
@@ -713,11 +730,17 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
       }
     }
     
-    // P&I/Press screenings: Always white with dark text
+    // P&I/Press screenings: White for confirmed, gray for tentative
     if (screening.type === 'pi-jury') {
-      return { 
-        className: 'border-gray-300', 
-        backgroundColor: '#ffffff' 
+      if ((screening as any).is_tentative) {
+        return {
+          className: 'border-gray-400 border-dashed',
+          backgroundColor: '#f3f4f6' // Gray-100
+        }
+      }
+      return {
+        className: 'border-gray-300',
+        backgroundColor: '#ffffff'
       }
     }
     
@@ -847,6 +870,7 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                         title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
                       >
                         <div className="truncate font-medium text-xs leading-tight">
+                          {(screening as any).is_tentative && <span className="opacity-75">(TENT) </span>}
                           {screening.film_title}
                         </div>
                         <div className="truncate text-xs opacity-75">
@@ -913,6 +937,7 @@ interface PIJuryScreening {
   capacity: number | null
   notes: string | null
   is_cancelled: boolean
+  is_tentative?: boolean
   created_by: string
   created_at: string
   updated_at: string
@@ -1268,7 +1293,8 @@ export default function TicketingPage() {
               venue_short_code: shortCode,
               capacity: capacity,
               notes: screening.notes,
-              is_cancelled: false
+              is_cancelled: false,
+              is_tentative: !screening.film_approved // Mark as tentative if film not approved
             })
 
           if (!insertError) {
@@ -2186,6 +2212,18 @@ export default function TicketingPage() {
             <p className="text-sm text-gray-600 mt-1">
               {filteredData.length} of {getCurrentData().length} screenings
             </p>
+            {viewMode === 'pi-jury' && (
+              <div className="flex items-center space-x-4 mt-2 text-xs">
+                <span className="flex items-center">
+                  <span className="w-3 h-3 bg-white border border-gray-300 rounded inline-block mr-1"></span>
+                  <span className="text-gray-700">Confirmed</span>
+                </span>
+                <span className="flex items-center">
+                  <span className="w-3 h-3 bg-gray-100 border border-gray-400 border-dashed rounded inline-block mr-1"></span>
+                  <span className="text-gray-500 italic">(TENTATIVE) Film Not Approved</span>
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex space-x-2">
             {viewMode === 'pi-jury' && (
@@ -2426,20 +2464,28 @@ export default function TicketingPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredData.map((screening) => (
-                <tr 
-                  key={screening.id} 
+                <tr
+                  key={screening.id}
                   className={`hover:bg-gray-50 ${
-                    screening.is_cancelled 
-                      ? 'bg-red-50 text-gray-500' 
+                    screening.is_cancelled
+                      ? 'bg-red-50 text-gray-500'
+                      : (screening as any).is_tentative
+                      ? 'bg-gray-50'
                       : ''
                   }`}
                 >
                   {getTableColumns().map((column) => {
                     const cellValue = screening[column.key as keyof typeof screening];
                     let displayValue: React.ReactNode = cellValue || '--';
-                    
+
                     if (column.key === 'film_title') {
-                      displayValue = <div className="font-medium">{screening.film_title}</div>;
+                      const isTentative = (screening as any).is_tentative;
+                      displayValue = (
+                        <div className={`font-medium ${isTentative ? 'text-gray-500 italic' : ''}`}>
+                          {isTentative && <span className="text-gray-400 mr-1">(TENTATIVE)</span>}
+                          {screening.film_title}
+                        </div>
+                      );
                     } else if (column.key === 'screening_date') {
                       displayValue = formatDate(screening.screening_date);
                     } else if (column.key === 'start_time') {
@@ -2449,10 +2495,12 @@ export default function TicketingPage() {
                     }
                     
                     return (
-                      <td 
+                      <td
                         key={column.key}
-                        className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${
+                        className={`px-3 py-2 text-sm border-r border-gray-100 ${
                           screening.is_cancelled ? 'line-through' : ''
+                        } ${
+                          (screening as any).is_tentative ? 'text-gray-500' : 'text-gray-900'
                         }`}
                         style={{ minWidth: `${columnWidths[column.key] || column.width}px` }}
                       >
