@@ -797,9 +797,9 @@ export default function ScreenerAccessPage() {
       </div>
 
       {/* Films Grid */}
-      <div className="flex-1 p-6">
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
+      <div className="flex-1 flex flex-col p-6 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
+          <div className="overflow-x-auto overflow-y-auto flex-1">
             <table className="min-w-full">
             <thead className="bg-gray-50">
               <tr>
