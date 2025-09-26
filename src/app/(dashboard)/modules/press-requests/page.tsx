@@ -1003,6 +1003,7 @@ export default function PressRequestsPage() {
               </tbody>
             </table>
           )}
+          </div>
         </div>
       </div>
 
