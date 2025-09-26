@@ -1395,7 +1395,10 @@ export default function TicketingPage() {
 
       const venueCards = Array.from(uniqueVenues.values())
       setVenueCards(venueCards)
-      console.log('🏢 Loaded venue cards with capacity:', venueCards.length, venueCards)
+      console.log('🏢 Loaded venue cards with capacity:', venueCards.length)
+      venueCards.forEach(venue => {
+        console.log(`  - ${venue.short_code}: ${venue.capacity} capacity`)
+      })
 
     } catch (error) {
       console.error('Error loading venue cards:', error)
@@ -2621,6 +2624,7 @@ export default function TicketingPage() {
                         key={venue.id}
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                         onClick={() => {
+                          console.log('🏢 Venue selected:', venue.short_code, 'capacity:', venue.capacity)
                           setFormData(prev => ({
                             ...prev,
                             venue_short_code: venue.short_code,
@@ -2840,6 +2844,7 @@ export default function TicketingPage() {
                         key={venue.id}
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                         onClick={() => {
+                          console.log('🏢 Venue selected:', venue.short_code, 'capacity:', venue.capacity)
                           setFormData(prev => ({
                             ...prev,
                             venue_short_code: venue.short_code,
