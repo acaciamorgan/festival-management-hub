@@ -1231,7 +1231,7 @@ export default function TicketingPage() {
 
       // Process each press screening
       let successCount = 0
-      let skippedCount = 0
+      let updatedCount = 0
       
       for (const screening of pressScreenings || []) {
         if (!screening.screening_date || !screening.screening_time) continue
@@ -1245,6 +1245,29 @@ export default function TicketingPage() {
         const shortCode = screening.short_code
         console.log(`DEBUG: Syncing ${screening.title} with short_code: "${shortCode}"`)
 
+        // Look up runtime from feature_films table first
+        let runtime = screening.runtime // fallback to press_screening runtime
+        const { data: film } = await supabase
+          .from('feature_films')
+          .select('run_time')
+          .eq('title', screening.title)
+          .single()
+
+        if (film && film.run_time) {
+          runtime = film.run_time
+          console.log(`  Found runtime for ${screening.title}: ${runtime} min`)
+        }
+
+        // Look up venue capacity
+        let capacity = null
+        const venueMatch = venueCards.find(venue =>
+          venue.short_code === shortCode
+        )
+        if (venueMatch) {
+          capacity = venueMatch.capacity
+          console.log(`  Auto-filled capacity for ${shortCode}: ${capacity}`)
+        }
+
         // Check if this screening already exists
         const { data: existing } = await supabase
           .from('pi_jury_screenings')
@@ -1254,32 +1277,26 @@ export default function TicketingPage() {
           .eq('start_time', screening.screening_time)
 
         if (existing && existing.length > 0) {
-          skippedCount++
-          console.log(`  Skipping ${screening.title} - already exists`)
+          // Update existing screening with new venue and other details
+          const { error: updateError } = await supabase
+            .from('pi_jury_screenings')
+            .update({
+              venue_short_code: shortCode,
+              capacity: capacity,
+              run_time: runtime,
+              notes: screening.notes,
+              is_tentative: !screening.film_approved,
+              day_of_week: getDayOfWeek(screening.screening_date)
+            })
+            .eq('id', existing[0].id)
+
+          if (!updateError) {
+            updatedCount++
+            console.log(`  Updated P&I screening for ${screening.title} - venue: ${shortCode}`)
+          } else {
+            console.error(`  Error updating screening for ${screening.title}:`, updateError)
+          }
         } else {
-          // Look up runtime from feature_films table
-          let runtime = screening.runtime // fallback to press_screening runtime
-          const { data: film } = await supabase
-            .from('feature_films')
-            .select('run_time')
-            .eq('title', screening.title)
-            .single()
-
-          if (film && film.run_time) {
-            runtime = film.run_time
-            console.log(`  Found runtime for ${screening.title}: ${runtime} min`)
-          }
-
-          // Look up venue capacity
-          let capacity = null
-          const venueMatch = venueCards.find(venue =>
-            venue.short_code === shortCode
-          )
-          if (venueMatch) {
-            capacity = venueMatch.capacity
-            console.log(`  Auto-filled capacity for ${shortCode}: ${capacity}`)
-          }
-
           // Create new P&I screening
           const { error: insertError } = await supabase
             .from('pi_jury_screenings')
@@ -1299,15 +1316,16 @@ export default function TicketingPage() {
 
           if (!insertError) {
             successCount++
+            console.log(`  Created new P&I screening for ${screening.title}`)
           } else {
-            console.error(`Error inserting ${screening.title}:`, insertError)
+            console.error(`  Error creating screening for ${screening.title}:`, insertError)
           }
         }
       }
 
-      const message = skippedCount > 0 
-        ? `Successfully synced ${successCount} press screenings to P&I (${skippedCount} already existed)`
-        : `Successfully synced ${successCount} press screenings to P&I`
+      const message = updatedCount > 0
+        ? `Successfully synced: ${successCount} new, ${updatedCount} updated P&I screenings`
+        : `Successfully synced ${successCount} new P&I screenings`
       
       alert(message)
       await loadPIJuryScreenings()
