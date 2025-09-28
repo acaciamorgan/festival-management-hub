@@ -300,14 +300,18 @@ function ScreeningBoard({
       {screeningsForDate.some(s => s.type === 'pi-jury') && (
         <div className="bg-gray-50 px-6 py-2 border-b border-gray-200">
           <div className="flex items-center space-x-6 text-xs">
-            <span className="text-gray-600 font-medium">Legend:</span>
-            <span className="flex items-center">
-              <span className="w-4 h-3 bg-white border border-gray-300 rounded inline-block mr-1"></span>
-              <span className="text-gray-700">Confirmed P&I</span>
-            </span>
+            <span className="text-gray-600 font-medium">P&I Status:</span>
             <span className="flex items-center">
               <span className="w-4 h-3 bg-gray-100 border border-gray-400 border-dashed rounded inline-block mr-1"></span>
-              <span className="text-gray-500">Tentative (Film Not Approved)</span>
+              <span className="text-gray-500">Not Approved</span>
+            </span>
+            <span className="flex items-center">
+              <span className="w-4 h-3 bg-green-100 border border-green-400 border-dashed rounded inline-block mr-1"></span>
+              <span className="text-green-700">Approved (Not Locked)</span>
+            </span>
+            <span className="flex items-center">
+              <span className="w-4 h-3 bg-white border border-gray-300 rounded inline-block mr-1"></span>
+              <span className="text-gray-700">Locked</span>
             </span>
           </div>
         </div>
@@ -730,17 +734,30 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
       }
     }
     
-    // P&I/Press screenings: White for confirmed, gray for tentative
+    // P&I/Press screenings: Three-state system
     if (screening.type === 'pi-jury') {
-      if ((screening as any).is_tentative) {
+      const piScreening = screening as PIJuryScreening;
+      const isApproved = piScreening.film_approved && !piScreening.locked;
+      const isLocked = piScreening.film_approved && piScreening.locked;
+
+      if (isLocked) {
+        // Confirmed (locked): White background, solid border
+        return {
+          className: 'border-gray-300',
+          backgroundColor: '#ffffff'
+        }
+      } else if (isApproved) {
+        // Approved but not locked: Light green background
+        return {
+          className: 'border-green-400 border-dashed',
+          backgroundColor: '#dcfce7' // Green-100
+        }
+      } else {
+        // Tentative (not approved): Gray background
         return {
           className: 'border-gray-400 border-dashed',
           backgroundColor: '#f3f4f6' // Gray-100
         }
-      }
-      return {
-        className: 'border-gray-300',
-        backgroundColor: '#ffffff'
       }
     }
     
@@ -938,6 +955,8 @@ interface PIJuryScreening {
   notes: string | null
   is_cancelled: boolean
   is_tentative?: boolean
+  film_approved?: boolean
+  locked?: boolean
   created_by: string
   created_at: string
   updated_at: string
@@ -1286,7 +1305,9 @@ export default function TicketingPage() {
               capacity: capacity,
               run_time: runtime,
               notes: screening.notes,
-              is_tentative: !screening.film_approved,
+              is_tentative: !(screening.film_approved && screening.locked), // Only not tentative if BOTH approved AND locked
+              film_approved: screening.film_approved || false,
+              locked: screening.locked || false,
               day_of_week: getDayOfWeek(screening.screening_date)
             })
             .eq('id', existing[0].id)
@@ -1312,7 +1333,9 @@ export default function TicketingPage() {
               capacity: capacity,
               notes: screening.notes,
               is_cancelled: false,
-              is_tentative: !screening.film_approved // Mark as tentative if film not approved
+              is_tentative: !(screening.film_approved && screening.locked), // Only not tentative if BOTH approved AND locked
+              film_approved: screening.film_approved || false,
+              locked: screening.locked || false
             })
 
           if (!insertError) {
@@ -2234,12 +2257,16 @@ export default function TicketingPage() {
             {viewMode === 'pi-jury' && (
               <div className="flex items-center space-x-4 mt-2 text-xs">
                 <span className="flex items-center">
-                  <span className="w-3 h-3 bg-white border border-gray-300 rounded inline-block mr-1"></span>
-                  <span className="text-gray-700">Confirmed</span>
+                  <span className="w-3 h-3 bg-gray-100 border border-gray-400 border-dashed rounded inline-block mr-1"></span>
+                  <span className="text-gray-500">Not Approved</span>
                 </span>
                 <span className="flex items-center">
-                  <span className="w-3 h-3 bg-gray-100 border border-gray-400 border-dashed rounded inline-block mr-1"></span>
-                  <span className="text-gray-500 italic">(TENTATIVE) Film Not Approved</span>
+                  <span className="w-3 h-3 bg-green-100 border border-green-400 border-dashed rounded inline-block mr-1"></span>
+                  <span className="text-green-700">Approved (Not Locked)</span>
+                </span>
+                <span className="flex items-center">
+                  <span className="w-3 h-3 bg-white border border-gray-300 rounded inline-block mr-1"></span>
+                  <span className="text-gray-700">Locked/Confirmed</span>
                 </span>
               </div>
             )}
@@ -2482,29 +2509,39 @@ export default function TicketingPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredData.map((screening) => (
-                <tr
-                  key={screening.id}
-                  className={`hover:bg-gray-50 ${
-                    screening.is_cancelled
-                      ? 'bg-red-50 text-gray-500'
-                      : (screening as any).is_tentative
-                      ? 'bg-gray-50'
-                      : ''
-                  }`}
-                >
-                  {getTableColumns().map((column) => {
-                    const cellValue = screening[column.key as keyof typeof screening];
-                    let displayValue: React.ReactNode = cellValue || '--';
+              {filteredData.map((screening) => {
+                // Determine the approval state
+                const piScreening = screening as PIJuryScreening;
+                const isApproved = piScreening.film_approved && !piScreening.locked;
+                const isLocked = piScreening.film_approved && piScreening.locked;
+                const isTentative = piScreening.is_tentative;
 
-                    if (column.key === 'film_title') {
-                      const isTentative = (screening as any).is_tentative;
-                      displayValue = (
-                        <div className={`font-medium ${isTentative ? 'text-gray-500 italic' : ''}`}>
-                          {isTentative && <span className="text-gray-400 mr-1">(TENTATIVE)</span>}
-                          {screening.film_title}
-                        </div>
-                      );
+                return (
+                  <tr
+                    key={screening.id}
+                    className={`hover:bg-gray-50 ${
+                      screening.is_cancelled
+                        ? 'bg-red-50 text-gray-500'
+                        : isLocked
+                        ? '' // White background for locked (confirmed)
+                        : isApproved
+                        ? 'bg-green-50' // Light green for approved but not locked
+                        : isTentative
+                        ? 'bg-gray-50' // Gray for tentative (not approved)
+                        : ''
+                    }`}
+                  >
+                    {getTableColumns().map((column) => {
+                      const cellValue = screening[column.key as keyof typeof screening];
+                      let displayValue: React.ReactNode = cellValue || '--';
+
+                      if (column.key === 'film_title') {
+                        displayValue = (
+                          <div className={`font-medium ${isTentative ? 'text-gray-500 italic' : ''}`}>
+                            {isTentative && <span className="text-gray-400 mr-1">(TENT)</span>}
+                            {screening.film_title}
+                          </div>
+                        );
                     } else if (column.key === 'screening_date') {
                       displayValue = formatDate(screening.screening_date);
                     } else if (column.key === 'start_time') {
@@ -2546,7 +2583,8 @@ export default function TicketingPage() {
                     </td>
                   )}
                 </tr>
-              ))}
+                );
+              })}
               {filteredData.length === 0 && (
                 <tr>
                   <td colSpan={getTableColumns().length + (canEditTicketing ? 1 : 0)} className="px-6 py-12 text-center text-gray-500">
