@@ -1108,11 +1108,21 @@ export default function InAttendancePage() {
           }
         }
 
-        // Only add non-empty, non-strikethrough rows
-        if (rowData.some(cell => cell && String(cell).trim()) && !isRowStrikethrough) {
+        // Check for Delete column (look for 'X' in Delete column)
+        let shouldDelete = false
+        const deleteColumnIndex = headers.findIndex(h => h.toLowerCase().includes('delete'))
+        if (deleteColumnIndex >= 0 && rowData[deleteColumnIndex]) {
+          const deleteValue = String(rowData[deleteColumnIndex]).toLowerCase().trim()
+          shouldDelete = deleteValue === 'x' || deleteValue === 'delete' || deleteValue === 'y' || deleteValue === 'yes'
+        }
+
+        // Only add non-empty, non-strikethrough, non-deleted rows
+        if (rowData.some(cell => cell && String(cell).trim()) && !isRowStrikethrough && !shouldDelete) {
           rows.push(rowData)
         } else if (isRowStrikethrough) {
           strikethroughCount++
+        } else if (shouldDelete) {
+          strikethroughCount++ // Count deleted rows in the same counter for simplicity
         }
       }
 
