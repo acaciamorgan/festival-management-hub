@@ -10,6 +10,7 @@ import { GuestFormModal } from '@/components/forms/guest-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { ProgramCardPopup } from '@/components/cards/program-card-popup'
 import { parseCSVContent, importGuestsFromCSV, removeFilmAssociations } from '@/lib/csv-import'
+import { processExcelWithStrikethrough } from '@/lib/excel-utils'
 import { FilmRemovalDialog } from '@/components/import/film-removal-dialog'
 import { TitleMappingConfirmation } from '@/components/TitleMappingConfirmation'
 import { saveTitleMappings } from '@/lib/title-mappings'
@@ -1027,17 +1028,35 @@ export default function InAttendancePage() {
     )
   }
 
-  const handleCSVImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleExcelImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
     setUploading(true)
-    setUploadStatus('Reading CSV file...')
+    setUploadStatus('Reading Excel file...')
 
     try {
-      const csvContent = await file.text()
-      setUploadStatus('Parsing CSV data...')
-      
+      setUploadStatus('Processing Excel file and detecting strikethrough rows...')
+
+      const { headers, rows } = await processExcelWithStrikethrough(file)
+      const filteredRows = rows.filter(row => !row.isStrikethrough)
+
+      console.log(`📝 In Attendance Excel: filtered out ${rows.length - filteredRows.length} strikethrough rows, keeping ${filteredRows.length} rows`)
+
+      // Convert Excel data to CSV format for existing import logic
+      const csvContent = [
+        headers.join(','),
+        ...filteredRows.map(row => row.data.map(cell => {
+          const cellStr = String(cell || '')
+          // Escape commas and quotes in CSV format
+          if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+            return `"${cellStr.replace(/"/g, '""')}"`
+          }
+          return cellStr
+        }).join(','))
+      ].join('\n')
+
+      setUploadStatus('Parsing processed data...')
       const csvRows = await parseCSVContent(csvContent)
       setUploadStatus(`Processing ${csvRows.length} rows...`)
       
@@ -1071,9 +1090,9 @@ export default function InAttendancePage() {
         alert(`Import failed with errors:\n${result.errors.join('\n')}`)
       }
     } catch (error) {
-      console.error('CSV import error:', error)
+      console.error('Excel import error:', error)
       setUploadStatus('Import failed')
-      alert('Error importing CSV file. Please check the file format.')
+      alert('Error importing Excel file. Please check the file format.')
     } finally {
       setUploading(false)
       // Clear the file input
@@ -1147,8 +1166,8 @@ export default function InAttendancePage() {
               <div className="relative">
                 <input
                   type="file"
-                  accept=".csv"
-                  onChange={handleCSVImport}
+                  accept=".xlsx,.xls"
+                  onChange={handleExcelImport}
                   disabled={uploading}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                 />
@@ -1156,7 +1175,12 @@ export default function InAttendancePage() {
                   disabled={uploading}
                   className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed"
                 >
-                  {uploading ? 'Importing...' : 'Import CSV'}
+                  {uploading ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Importing...</span>
+                    </div>
+                  ) : 'Import Excel'}
                 </button>
               </div>
             )}
