@@ -362,10 +362,24 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           })
           .filter(film => film && film !== '' && film !== '—')
 
-        for (const filmTitle of allFilmsForGuest) {
-          if (filmTitle) {
-            // Parse individual titles from compound strings like "Film A, Film B"
-            const parsedTitles = parseFilmTitles(filmTitle, allDbTitles)
+        for (const row of guestRows) {
+          const databaseMatch = row['Database Match']?.trim()
+          const displayTitle = row['Film/Program Titles']?.trim()
+
+          if (databaseMatch && databaseMatch !== '—') {
+            // Database Match values are exact titles - don't parse/split them
+            // Only add if it actually matches something in the database
+            const exactMatch = allDbTitles.find(dbTitle =>
+              dbTitle.toLowerCase().trim() === databaseMatch.toLowerCase().trim()
+            )
+            if (!exactMatch) {
+              // No match found - that's fine, skip this title entirely
+              continue
+            }
+            uniqueCsvTitles.add(databaseMatch)
+          } else if (displayTitle && displayTitle !== '—') {
+            // Only parse display titles that might contain multiple films
+            const parsedTitles = parseFilmTitles(displayTitle, allDbTitles)
             for (const title of parsedTitles) {
               uniqueCsvTitles.add(title.trim())
             }
