@@ -1144,7 +1144,70 @@ export default function InAttendancePage() {
       setUploadStatus('Parsing processed data...')
       const csvRows = await parseCSVContent(csvContent)
       setUploadStatus(`Processing ${csvRows.length} rows...`)
-      
+
+      // First, handle deletions - find rows marked for deletion and delete those guests from database
+      const deleteColumnIndex = headers.findIndex(h => h.toLowerCase().includes('delete'))
+      if (deleteColumnIndex >= 0) {
+        const deletionNames: string[] = []
+
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i]
+          const deleteValue = row[deleteColumnIndex] ? String(row[deleteColumnIndex]).toLowerCase().trim() : ''
+          if (deleteValue === 'x' || deleteValue === 'delete' || deleteValue === 'y' || deleteValue === 'yes') {
+            const nameColumnIndex = headers.findIndex(h => h.toLowerCase().includes('name'))
+            if (nameColumnIndex >= 0 && row[nameColumnIndex]) {
+              const guestName = String(row[nameColumnIndex]).trim()
+              if (guestName) {
+                deletionNames.push(guestName)
+              }
+            }
+          }
+        }
+
+        if (deletionNames.length > 0) {
+          setUploadStatus(`Deleting ${deletionNames.length} guests marked for deletion...`)
+
+          for (const guestName of deletionNames) {
+            try {
+              // Find the guest in database
+              const { data: existingGuest, error: findError } = await supabase
+                .from('guests')
+                .select('id')
+                .eq('name', guestName)
+                .single()
+
+              if (!findError && existingGuest) {
+                console.log(`Deleting guest: ${guestName} (ID: ${existingGuest.id})`)
+
+                // Delete all associated records first
+                await Promise.all([
+                  supabase.from('guest_films').delete().eq('guest_id', existingGuest.id),
+                  supabase.from('guest_programs').delete().eq('guest_id', existingGuest.id),
+                  supabase.from('guest_short_films').delete().eq('guest_id', existingGuest.id)
+                ])
+
+                // Delete the guest
+                const { error: deleteError } = await supabase
+                  .from('guests')
+                  .delete()
+                  .eq('id', existingGuest.id)
+
+                if (deleteError) {
+                  console.error(`Error deleting guest ${guestName}:`, deleteError)
+                } else {
+                  console.log(`Successfully deleted guest: ${guestName}`)
+                }
+              } else {
+                console.log(`Guest not found for deletion: ${guestName}`)
+              }
+            } catch (error) {
+              console.error(`Error processing deletion for ${guestName}:`, error)
+            }
+          }
+        }
+      }
+
+      setUploadStatus(`Processing remaining ${csvRows.length} rows...`)
       const result = await importGuestsFromCSV(csvRows)
 
       if (result.titleMappingsRequired && result.titleMappingsRequired.length > 0) {
