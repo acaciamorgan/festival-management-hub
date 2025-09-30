@@ -48,6 +48,9 @@ export default function InAttendancePage() {
   const [pendingTitleMappings, setPendingTitleMappings] = useState<Array<{csvTitle: string, suggestedMatch?: string, confidence?: number}> | null>(null)
   const [pendingCSVRows, setPendingCSVRows] = useState<any[] | null>(null)
   const [editingScreenings, setEditingScreenings] = useState<Set<string>>(new Set())
+  const [excelFile, setExcelFile] = useState<File | null>(null)
+  const [availableSheets, setAvailableSheets] = useState<string[]>([])
+  const [selectedSheet, setSelectedSheet] = useState<string>('')
 
   const supabase = createClient()
 
@@ -1028,25 +1031,97 @@ export default function InAttendancePage() {
     )
   }
 
-  const handleExcelImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleExcelFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
     setUploading(true)
-    setUploadStatus('Reading Excel file...')
+    setUploadStatus('Reading Excel file and detecting sheets...')
 
     try {
-      setUploadStatus('Processing Excel file and detecting strikethrough rows...')
+      // Read workbook to get sheet names
+      const buffer = await file.arrayBuffer()
+      const workbook = XLSX.read(buffer, { type: 'array' })
+      const sheetNames = workbook.SheetNames
 
-      const { headers, rows } = await processExcelWithStrikethrough(file)
-      const filteredRows = rows.filter(row => !row.isStrikethrough)
+      setExcelFile(file)
+      setAvailableSheets(sheetNames)
+      setSelectedSheet('')
+      setUploadStatus(`Found ${sheetNames.length} sheets. Please select which sheet to import.`)
+    } catch (error: any) {
+      console.error('Error reading Excel file:', error)
+      setUploadStatus('Error reading Excel file: ' + error.message)
+    } finally {
+      setUploading(false)
+      if (event.target) {
+        event.target.value = ''
+      }
+    }
+  }
 
-      console.log(`📝 In Attendance Excel: filtered out ${rows.length - filteredRows.length} strikethrough rows, keeping ${filteredRows.length} rows`)
+  const handleSheetImport = async () => {
+    if (!excelFile || !selectedSheet) return
+
+    setUploading(true)
+    setUploadStatus(`Processing sheet "${selectedSheet}" and detecting strikethrough rows...`)
+
+    try {
+      // Process the selected sheet specifically
+      const buffer = await excelFile.arrayBuffer()
+      const workbook = XLSX.read(buffer, { type: 'array', cellStyles: true })
+      const worksheet = workbook.Sheets[selectedSheet]
+
+      if (!worksheet) {
+        throw new Error(`Sheet "${selectedSheet}" not found`)
+      }
+
+      // Get the range of the worksheet
+      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1')
+      const headers: string[] = []
+      const rows: any[] = []
+
+      // Extract headers from first row
+      for (let col = range.s.c; col <= range.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col })
+        const cell = worksheet[cellAddress]
+        headers.push(cell ? String(cell.v || '').trim() : '')
+      }
+
+      // Process data rows (starting from row 1, skipping header row 0)
+      let strikethroughCount = 0
+      for (let row = 1; row <= range.e.r; row++) {
+        const rowData: any[] = []
+        let isRowStrikethrough = false
+
+        for (let col = range.s.c; col <= range.e.c; col++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+          const cell = worksheet[cellAddress]
+
+          if (cell) {
+            rowData.push(cell.v || '')
+            // Check for strikethrough formatting
+            if (cell.s && cell.s.font && cell.s.font.strike) {
+              isRowStrikethrough = true
+            }
+          } else {
+            rowData.push('')
+          }
+        }
+
+        // Only add non-empty, non-strikethrough rows
+        if (rowData.some(cell => cell && String(cell).trim()) && !isRowStrikethrough) {
+          rows.push(rowData)
+        } else if (isRowStrikethrough) {
+          strikethroughCount++
+        }
+      }
+
+      console.log(`📝 In Attendance Excel: filtered out ${strikethroughCount} strikethrough rows, keeping ${rows.length} rows`)
 
       // Convert Excel data to CSV format for existing import logic
       const csvContent = [
         headers.join(','),
-        ...filteredRows.map(row => row.data.map(cell => {
+        ...rows.map(row => row.map(cell => {
           const cellStr = String(cell || '')
           // Escape commas and quotes in CSV format
           if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
@@ -1095,8 +1170,10 @@ export default function InAttendancePage() {
       alert('Error importing Excel file. Please check the file format.')
     } finally {
       setUploading(false)
-      // Clear the file input
-      event.target.value = ''
+      // Clear the sheet selection after successful import
+      setAvailableSheets([])
+      setSelectedSheet('')
+      setExcelFile(null)
       // Clear status after a delay
       setTimeout(() => setUploadStatus(''), 3000)
     }
@@ -1167,7 +1244,7 @@ export default function InAttendancePage() {
                 <input
                   type="file"
                   accept=".xlsx,.xls"
-                  onChange={handleExcelImport}
+                  onChange={handleExcelFileSelect}
                   disabled={uploading}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                 />
@@ -1186,6 +1263,37 @@ export default function InAttendancePage() {
             )}
             {uploadStatus && (
               <span className="text-sm text-gray-600">{uploadStatus}</span>
+            )}
+
+            {/* Sheet Selection */}
+            {availableSheets.length > 0 && (
+              <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 className="text-sm font-medium text-gray-900 mb-2">Select Sheet to Import:</h3>
+                <div className="flex items-center space-x-3">
+                  <select
+                    value={selectedSheet}
+                    onChange={(e) => setSelectedSheet(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">Choose a sheet...</option>
+                    {availableSheets.map(sheetName => (
+                      <option key={sheetName} value={sheetName}>{sheetName}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleSheetImport}
+                    disabled={!selectedSheet || uploading}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {uploading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Processing...</span>
+                      </div>
+                    ) : 'Import Selected Sheet'}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>
