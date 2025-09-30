@@ -10,13 +10,11 @@ import { GuestFormModal } from '@/components/forms/guest-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { ProgramCardPopup } from '@/components/cards/program-card-popup'
 import { parseCSVContent, importGuestsFromCSV, removeFilmAssociations } from '@/lib/csv-import'
-import { processExcelWithStrikethrough } from '@/lib/excel-utils'
 import { FilmRemovalDialog } from '@/components/import/film-removal-dialog'
 import { TitleMappingConfirmation } from '@/components/TitleMappingConfirmation'
 import { saveTitleMappings } from '@/lib/title-mappings'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { normalizeDateValue } from '@/lib/date-utils'
-import * as XLSX from 'xlsx-js-style'
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableCell, TableRow, WidthType } from 'docx'
 
 export default function InAttendancePage() {
@@ -48,9 +46,6 @@ export default function InAttendancePage() {
   const [pendingTitleMappings, setPendingTitleMappings] = useState<Array<{csvTitle: string, suggestedMatch?: string, confidence?: number}> | null>(null)
   const [pendingCSVRows, setPendingCSVRows] = useState<any[] | null>(null)
   const [editingScreenings, setEditingScreenings] = useState<Set<string>>(new Set())
-  const [excelFile, setExcelFile] = useState<File | null>(null)
-  const [availableSheets, setAvailableSheets] = useState<string[]>([])
-  const [selectedSheet, setSelectedSheet] = useState<string>('')
 
   const supabase = createClient()
 
@@ -292,41 +287,19 @@ export default function InAttendancePage() {
     
     const headers = headerMapping.map(h => h.display)
     
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.aoa_to_sheet([headers])
-    
-    // Style headers - bold with light grey background
-    const headerStyle = { 
-      font: { bold: true, sz: 12, name: 'Arial' }, 
-      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
-      alignment: { horizontal: "center", vertical: "center" },
-      border: {
-        top: { style: "thin", color: { rgb: "CCCCCC" } },
-        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-        left: { style: "thin", color: { rgb: "CCCCCC" } },
-        right: { style: "thin", color: { rgb: "CCCCCC" } }
-      }
-    }
-    
-    // Apply styles and set column widths based on header length
-    const cols: any[] = []
-    headers.forEach((header, index) => {
-      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
-      if (!ws[cellRef]) ws[cellRef] = {}
-      ws[cellRef].s = headerStyle
-      
-      // Calculate column width based on header length (min 15, max 30)
-      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
-    })
-    
-    ws['!cols'] = cols
-    
-    // Freeze the header row
-    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
-    
-    XLSX.utils.book_append_sheet(wb, ws, 'In Attendance Template')
-    XLSX.writeFile(wb, 'in_attendance_import_template.xlsx')
+    // Create CSV content
+    const csvContent = headers.join(',') + '\n'
+
+    // Create and download CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'in_attendance_import_template.csv'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 
   // Load existing films and programs only when Show Films toggle is activated
@@ -1031,26 +1004,19 @@ export default function InAttendancePage() {
     )
   }
 
-  const handleExcelFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCSVFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
     setUploading(true)
-    setUploadStatus('Reading Excel file and detecting sheets...')
+    setUploadStatus('Reading CSV file...')
 
     try {
-      // Read workbook to get sheet names
-      const buffer = await file.arrayBuffer()
-      const workbook = XLSX.read(buffer, { type: 'array' })
-      const sheetNames = workbook.SheetNames
-
-      setExcelFile(file)
-      setAvailableSheets(sheetNames)
-      setSelectedSheet('')
-      setUploadStatus(`Found ${sheetNames.length} sheets. Please select which sheet to import.`)
+      const text = await file.text()
+      await processCSVImport(text)
     } catch (error: any) {
-      console.error('Error reading Excel file:', error)
-      setUploadStatus('Error reading Excel file: ' + error.message)
+      console.error('Error reading CSV file:', error)
+      setUploadStatus('Error reading CSV file: ' + error.message)
     } finally {
       setUploading(false)
       if (event.target) {
@@ -1059,112 +1025,56 @@ export default function InAttendancePage() {
     }
   }
 
-  const handleSheetImport = async () => {
-    if (!excelFile || !selectedSheet) return
-
-    setUploading(true)
-    setUploadStatus(`Processing sheet "${selectedSheet}" and detecting strikethrough rows...`)
+  const processCSVImport = async (csvContent: string) => {
+    setUploadStatus('Processing CSV and checking for deletions...')
 
     try {
-      // Process the selected sheet specifically
-      const buffer = await excelFile.arrayBuffer()
-      const workbook = XLSX.read(buffer, { type: 'array', cellStyles: true })
-      const worksheet = workbook.Sheets[selectedSheet]
+      // Parse CSV to check for deletions first
+      const lines = csvContent.split('\n')
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
 
-      if (!worksheet) {
-        throw new Error(`Sheet "${selectedSheet}" not found`)
-      }
-
-      // Get the range of the worksheet
-      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1')
-      const headers: string[] = []
-      const rows: any[] = []
-
-      // Extract headers from first row
-      for (let col = range.s.c; col <= range.e.c; col++) {
-        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col })
-        const cell = worksheet[cellAddress]
-        // Use formatted value and TRIM whitespace to handle headers with spaces
-        const headerValue = cell ? (cell.w || String(cell.v || '')).trim() : ''
-        headers.push(headerValue)
-      }
-
-      // Process data rows (starting from row 1, skipping header row 0)
-      let strikethroughCount = 0
-      for (let row = 1; row <= range.e.r; row++) {
-        const rowData: any[] = []
-        let isRowStrikethrough = false
-
-        for (let col = range.s.c; col <= range.e.c; col++) {
-          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
-          const cell = worksheet[cellAddress]
-
-          if (cell) {
-            // Get the formatted text value, not the raw value
-            // This prevents dates from becoming serial numbers
-            const formattedValue = cell.w || (cell.v !== undefined ? String(cell.v) : '')
-            rowData.push(formattedValue)
-            // Check for strikethrough formatting
-            if (cell.s && cell.s.font && cell.s.font.strike) {
-              isRowStrikethrough = true
-            }
-          } else {
-            rowData.push('')
-          }
-        }
-
-        // Check for Delete column (look for 'X' in Delete column)
-        let shouldDelete = false
-        const deleteColumnIndex = headers.findIndex(h => h.toLowerCase().includes('delete'))
-        if (deleteColumnIndex >= 0 && rowData[deleteColumnIndex]) {
-          const deleteValue = String(rowData[deleteColumnIndex]).toLowerCase().trim()
-          shouldDelete = deleteValue === 'x' || deleteValue === 'delete' || deleteValue === 'y' || deleteValue === 'yes'
-        }
-
-        // Only add non-empty, non-strikethrough, non-deleted rows
-        if (rowData.some(cell => cell && String(cell).trim()) && !isRowStrikethrough && !shouldDelete) {
-          rows.push(rowData)
-        } else if (isRowStrikethrough) {
-          strikethroughCount++
-        } else if (shouldDelete) {
-          strikethroughCount++ // Count deleted rows in the same counter for simplicity
-        }
-      }
-
-      console.log(`📝 In Attendance Excel: filtered out ${strikethroughCount} strikethrough rows, keeping ${rows.length} rows`)
-
-      // Handle deletions BEFORE converting to CSV - check the original Excel data
       const deleteColumnIndex = headers.findIndex(h => h.toLowerCase().includes('delete'))
-      console.log('Delete column index:', deleteColumnIndex, 'Headers:', headers)
+      const nameColumnIndex = headers.findIndex(h => h.toLowerCase().includes('name'))
 
-      if (deleteColumnIndex >= 0) {
+      if (deleteColumnIndex >= 0 && nameColumnIndex >= 0) {
         const deletionNames: string[] = []
-        const nameColumnIndex = headers.findIndex(h => h.toLowerCase().includes('name'))
-        console.log('Name column index:', nameColumnIndex)
 
-        // Check all original rows for deletions (including filtered ones)
-        for (let row = 1; row <= range.e.r; row++) {
-          const deleteCell = worksheet[XLSX.utils.encode_cell({ r: row, c: deleteColumnIndex })]
-          const nameCell = worksheet[XLSX.utils.encode_cell({ r: row, c: nameColumnIndex })]
+        // Check each data row for deletion markers
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim()
+          if (!line) continue
 
-          const deleteValue = deleteCell ? String(deleteCell.v || '').toLowerCase().trim() : ''
-          const guestName = nameCell ? String(nameCell.v || '').trim() : ''
+          const row = []
+          let currentCell = ''
+          let inQuotes = false
 
-          console.log(`Row ${row}: Name="${guestName}", Delete="${deleteValue}"`)
+          // Parse CSV row manually to handle commas in quoted fields
+          for (let j = 0; j < line.length; j++) {
+            const char = line[j]
+            if (char === '"') {
+              inQuotes = !inQuotes
+            } else if (char === ',' && !inQuotes) {
+              row.push(currentCell.trim())
+              currentCell = ''
+            } else {
+              currentCell += char
+            }
+          }
+          row.push(currentCell.trim()) // Add the last cell
+
+          const deleteValue = row[deleteColumnIndex]?.toLowerCase().trim()
+          const guestName = row[nameColumnIndex]?.trim()
 
           if ((deleteValue === 'x' || deleteValue === 'delete' || deleteValue === 'y' || deleteValue === 'yes') && guestName) {
             deletionNames.push(guestName)
-            console.log(`Marked for deletion: ${guestName}`)
           }
         }
 
         if (deletionNames.length > 0) {
           setUploadStatus(`Deleting ${deletionNames.length} guests marked for deletion...`)
-          console.log('Guests to delete:', deletionNames)
 
           for (const guestName of deletionNames) {
             try {
-              console.log(`Looking for guest to delete: ${guestName}`)
               const { data: existingGuest, error: findError } = await supabase
                 .from('guests')
                 .select('id')
@@ -1172,8 +1082,6 @@ export default function InAttendancePage() {
                 .single()
 
               if (!findError && existingGuest) {
-                console.log(`Deleting guest: ${guestName} (ID: ${existingGuest.id})`)
-
                 // Delete all associated records first
                 await Promise.all([
                   supabase.from('guest_films').delete().eq('guest_id', existingGuest.id),
@@ -1182,67 +1090,36 @@ export default function InAttendancePage() {
                 ])
 
                 // Delete the guest
-                const { error: deleteError } = await supabase
-                  .from('guests')
-                  .delete()
-                  .eq('id', existingGuest.id)
-
-                if (deleteError) {
-                  console.error(`Error deleting guest ${guestName}:`, deleteError)
-                } else {
-                  console.log(`Successfully deleted guest: ${guestName}`)
-                }
-              } else {
-                console.log(`Guest not found for deletion: ${guestName}`, findError)
+                await supabase.from('guests').delete().eq('id', existingGuest.id)
               }
             } catch (error) {
               console.error(`Error processing deletion for ${guestName}:`, error)
             }
           }
-        } else {
-          console.log('No guests marked for deletion')
         }
-      } else {
-        console.log('No Delete column found')
       }
 
-      // Convert Excel data to CSV format for existing import logic
-      const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.map(cell => {
-          const cellStr = String(cell || '')
-          // Escape commas and quotes in CSV format
-          if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
-            return `"${cellStr.replace(/"/g, '""')}"`
-          }
-          return cellStr
-        }).join(','))
-      ].join('\n')
-
-      setUploadStatus('Parsing processed data...')
+      setUploadStatus('Parsing CSV data...')
       const csvRows = await parseCSVContent(csvContent)
       setUploadStatus(`Processing ${csvRows.length} rows...`)
       const result = await importGuestsFromCSV(csvRows)
 
       if (result.titleMappingsRequired && result.titleMappingsRequired.length > 0) {
-        // Need title confirmation
         setPendingTitleMappings(result.titleMappingsRequired)
         setPendingCSVRows(csvRows)
         setUploadStatus('Please confirm title mappings...')
       } else if (result.success) {
         setUploadStatus(`Successfully imported ${result.importedGuests} guests!`)
 
-        // Check if there are film removals to confirm
         if (result.filmRemovals && result.filmRemovals.length > 0) {
           setPendingRemovals(result.filmRemovals)
           setUploadStatus('Import complete. Please review film removals...')
         } else {
-          await loadGuests() // Reload the guests list
+          await loadGuests()
         }
 
         if (result.warnings.length > 0) {
           console.warn('Import warnings:', result.warnings)
-          // Don't show alert for warnings if we have removals to review
           if (!result.filmRemovals || result.filmRemovals.length === 0) {
             alert(`Import completed with ${result.warnings.length} warnings. Check console for details.`)
           }
@@ -1252,16 +1129,11 @@ export default function InAttendancePage() {
         alert(`Import failed with errors:\n${result.errors.join('\n')}`)
       }
     } catch (error) {
-      console.error('Excel import error:', error)
+      console.error('CSV import error:', error)
       setUploadStatus('Import failed')
-      alert('Error importing Excel file. Please check the file format.')
+      alert('Error importing CSV file. Please check the file format.')
     } finally {
       setUploading(false)
-      // Clear the sheet selection after successful import
-      setAvailableSheets([])
-      setSelectedSheet('')
-      setExcelFile(null)
-      // Clear status after a delay
       setTimeout(() => setUploadStatus(''), 3000)
     }
   }
@@ -1305,7 +1177,7 @@ export default function InAttendancePage() {
                 onClick={exportInAttendanceTemplate}
                 className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
               >
-                📄 Create In Attendance Template
+                📄 Create CSV Template
               </button>
             )}
             <button
@@ -1330,8 +1202,8 @@ export default function InAttendancePage() {
               <div className="relative">
                 <input
                   type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleExcelFileSelect}
+                  accept=".csv"
+                  onChange={handleCSVFileSelect}
                   disabled={uploading}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                 />
@@ -1344,7 +1216,7 @@ export default function InAttendancePage() {
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                       <span>Importing...</span>
                     </div>
-                  ) : 'Import Excel'}
+                  ) : 'Import CSV'}
                 </button>
               </div>
             )}
@@ -1352,36 +1224,6 @@ export default function InAttendancePage() {
               <span className="text-sm text-gray-600">{uploadStatus}</span>
             )}
 
-            {/* Sheet Selection */}
-            {availableSheets.length > 0 && (
-              <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                <h3 className="text-sm font-medium text-gray-900 mb-2">Select Sheet to Import:</h3>
-                <div className="flex items-center space-x-3">
-                  <select
-                    value={selectedSheet}
-                    onChange={(e) => setSelectedSheet(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <option value="">Choose a sheet...</option>
-                    {availableSheets.map(sheetName => (
-                      <option key={sheetName} value={sheetName}>{sheetName}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={handleSheetImport}
-                    disabled={!selectedSheet || uploading}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    {uploading ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Processing...</span>
-                      </div>
-                    ) : 'Import Selected Sheet'}
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
