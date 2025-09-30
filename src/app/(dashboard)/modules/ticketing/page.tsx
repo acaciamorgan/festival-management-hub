@@ -1585,10 +1585,12 @@ export default function TicketingPage() {
         const result: string[] = []
         let current = ''
         let inQuotes = false
-        
-        for (let i = 0; i < row.length; i++) {
-          const char = row[i]
-          
+        const rowLength = row.length
+
+        let charIndex = 0
+        while (charIndex < rowLength) {
+          const char = row.charAt(charIndex)
+
           if (char === '"') {
             inQuotes = !inQuotes
           } else if (char === ',' && !inQuotes) {
@@ -1597,8 +1599,9 @@ export default function TicketingPage() {
           } else {
             current += char
           }
+          charIndex++
         }
-        
+
         result.push(current.trim().replace(/^"(.+)"$/, '$1'))
         return result
       }
