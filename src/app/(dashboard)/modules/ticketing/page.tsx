@@ -1628,7 +1628,8 @@ export default function TicketingPage() {
       let errorCount = 0
       const errors: string[] = []
 
-      for (const row of filteredRows) {
+      for (let rowIndex = 0; rowIndex < filteredRows.length; rowIndex++) {
+        const row = filteredRows[rowIndex]
         if (!row[0] || row[0].trim() === '') continue // Skip empty rows
 
         try {
@@ -1643,7 +1644,7 @@ export default function TicketingPage() {
           const notes = row[headers.indexOf('Notes')]?.trim() || ''
 
           if (!title || !dateStr || !startTimeStr) {
-            errors.push(`Row ${i + 1}: Missing required fields`)
+            errors.push(`Row ${rowIndex + 2}: Missing required fields`) // +2 because header is row 1
             errorCount++
             continue
           }
@@ -1663,9 +1664,9 @@ export default function TicketingPage() {
           const year = 2025 // Festival year
           
           // Debug the problematic rows
-          if (i + 1 === 46 || i + 1 === 88 || i + 1 === 129 || i + 1 === 158) {
-            console.log(`DEBUG Row ${i + 1}:`, {
-              rawRow: rows[i],
+          if (rowIndex + 2 === 46 || rowIndex + 2 === 88 || rowIndex + 2 === 129 || rowIndex + 2 === 158) {
+            console.log(`DEBUG Row ${rowIndex + 2}:`, {
+              rawRow: filteredRows[rowIndex],
               title,
               dateStr,
               month,
@@ -1676,8 +1677,8 @@ export default function TicketingPage() {
 
           // Validate month and day_num exist before calling padStart
           if (!month || !day_num) {
-            console.error(`Invalid date format in row ${i + 1}:`, dateStr, 'Raw row:', rows[i])
-            errors.push(`Row ${i + 1}: Invalid date format - ${dateStr}`)
+            console.error(`Invalid date format in row ${rowIndex + 2}:`, dateStr, 'Raw row:', filteredRows[rowIndex])
+            errors.push(`Row ${rowIndex + 2}: Invalid date format - ${dateStr}`)
             errorCount++
             continue
           }
@@ -1687,7 +1688,7 @@ export default function TicketingPage() {
           // Convert time from "6:30 PM" to "18:30" format
           const timeMatch = startTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
           if (!timeMatch) {
-            errors.push(`Row ${i + 1}: Invalid time format: ${startTimeStr}`)
+            errors.push(`Row ${rowIndex + 2}: Invalid time format: ${startTimeStr}`)
             errorCount++
             continue
           }
@@ -1712,14 +1713,14 @@ export default function TicketingPage() {
 
           if (duplicateCheckError && duplicateCheckError.code !== 'PGRST116') {
             console.error('Duplicate check error:', duplicateCheckError)
-            errors.push(`Row ${i + 1} (${title}): Duplicate check failed - ${duplicateCheckError.message}`)
+            errors.push(`Row ${rowIndex + 2} (${title}): Duplicate check failed - ${duplicateCheckError.message}`)
             errorCount++
             continue
           }
 
           if (existingScreening) {
             console.log(`Skipping duplicate screening: ${title} at ${location} on ${formattedDate} ${formattedTime}`)
-            errors.push(`Row ${i + 1} (${title}): Duplicate screening skipped - ${existingScreening.film_title} already scheduled at ${location} on ${formattedDate} ${formattedTime}`)
+            errors.push(`Row ${rowIndex + 2} (${title}): Duplicate screening skipped - ${existingScreening.film_title} already scheduled at ${location} on ${formattedDate} ${formattedTime}`)
             errorCount++
             continue
           }
@@ -1746,7 +1747,7 @@ export default function TicketingPage() {
 
           if (ticketingError) {
             console.error('Ticketing insert error:', ticketingError)
-            errors.push(`Row ${i + 1} (${title}): Failed to create ticketing record - ${ticketingError.message}`)
+            errors.push(`Row ${rowIndex + 2} (${title}): Failed to create ticketing record - ${ticketingError.message}`)
             errorCount++
             continue
           }
@@ -1774,14 +1775,14 @@ export default function TicketingPage() {
             .insert(publishedData)
 
           if (error) {
-            errors.push(`Row ${i + 1} (${title}): ${error.message}`)
+            errors.push(`Row ${rowIndex + 2} (${title}): ${error.message}`)
             errorCount++
           } else {
             successCount++
           }
 
         } catch (rowError: any) {
-          errors.push(`Row ${i + 1}: ${rowError.message || rowError}`)
+          errors.push(`Row ${rowIndex + 2}: ${rowError.message || rowError}`)
           errorCount++
         }
       }
