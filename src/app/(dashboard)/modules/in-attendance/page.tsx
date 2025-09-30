@@ -1128,48 +1128,38 @@ export default function InAttendancePage() {
 
       console.log(`📝 In Attendance Excel: filtered out ${strikethroughCount} strikethrough rows, keeping ${rows.length} rows`)
 
-      // Convert Excel data to CSV format for existing import logic
-      const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.map(cell => {
-          const cellStr = String(cell || '')
-          // Escape commas and quotes in CSV format
-          if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
-            return `"${cellStr.replace(/"/g, '""')}"`
-          }
-          return cellStr
-        }).join(','))
-      ].join('\n')
-
-      setUploadStatus('Parsing processed data...')
-      const csvRows = await parseCSVContent(csvContent)
-      setUploadStatus(`Processing ${csvRows.length} rows...`)
-
-      // First, handle deletions - find rows marked for deletion and delete those guests from database
+      // Handle deletions BEFORE converting to CSV - check the original Excel data
       const deleteColumnIndex = headers.findIndex(h => h.toLowerCase().includes('delete'))
+      console.log('Delete column index:', deleteColumnIndex, 'Headers:', headers)
+
       if (deleteColumnIndex >= 0) {
         const deletionNames: string[] = []
+        const nameColumnIndex = headers.findIndex(h => h.toLowerCase().includes('name'))
+        console.log('Name column index:', nameColumnIndex)
 
-        for (let i = 0; i < rows.length; i++) {
-          const row = rows[i]
-          const deleteValue = row[deleteColumnIndex] ? String(row[deleteColumnIndex]).toLowerCase().trim() : ''
-          if (deleteValue === 'x' || deleteValue === 'delete' || deleteValue === 'y' || deleteValue === 'yes') {
-            const nameColumnIndex = headers.findIndex(h => h.toLowerCase().includes('name'))
-            if (nameColumnIndex >= 0 && row[nameColumnIndex]) {
-              const guestName = String(row[nameColumnIndex]).trim()
-              if (guestName) {
-                deletionNames.push(guestName)
-              }
-            }
+        // Check all original rows for deletions (including filtered ones)
+        for (let row = 1; row <= range.e.r; row++) {
+          const deleteCell = worksheet[XLSX.utils.encode_cell({ r: row, c: deleteColumnIndex })]
+          const nameCell = worksheet[XLSX.utils.encode_cell({ r: row, c: nameColumnIndex })]
+
+          const deleteValue = deleteCell ? String(deleteCell.v || '').toLowerCase().trim() : ''
+          const guestName = nameCell ? String(nameCell.v || '').trim() : ''
+
+          console.log(`Row ${row}: Name="${guestName}", Delete="${deleteValue}"`)
+
+          if ((deleteValue === 'x' || deleteValue === 'delete' || deleteValue === 'y' || deleteValue === 'yes') && guestName) {
+            deletionNames.push(guestName)
+            console.log(`Marked for deletion: ${guestName}`)
           }
         }
 
         if (deletionNames.length > 0) {
           setUploadStatus(`Deleting ${deletionNames.length} guests marked for deletion...`)
+          console.log('Guests to delete:', deletionNames)
 
           for (const guestName of deletionNames) {
             try {
-              // Find the guest in database
+              console.log(`Looking for guest to delete: ${guestName}`)
               const { data: existingGuest, error: findError } = await supabase
                 .from('guests')
                 .select('id')
@@ -1198,16 +1188,35 @@ export default function InAttendancePage() {
                   console.log(`Successfully deleted guest: ${guestName}`)
                 }
               } else {
-                console.log(`Guest not found for deletion: ${guestName}`)
+                console.log(`Guest not found for deletion: ${guestName}`, findError)
               }
             } catch (error) {
               console.error(`Error processing deletion for ${guestName}:`, error)
             }
           }
+        } else {
+          console.log('No guests marked for deletion')
         }
+      } else {
+        console.log('No Delete column found')
       }
 
-      setUploadStatus(`Processing remaining ${csvRows.length} rows...`)
+      // Convert Excel data to CSV format for existing import logic
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => {
+          const cellStr = String(cell || '')
+          // Escape commas and quotes in CSV format
+          if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+            return `"${cellStr.replace(/"/g, '""')}"`
+          }
+          return cellStr
+        }).join(','))
+      ].join('\n')
+
+      setUploadStatus('Parsing processed data...')
+      const csvRows = await parseCSVContent(csvContent)
+      setUploadStatus(`Processing ${csvRows.length} rows...`)
       const result = await importGuestsFromCSV(csvRows)
 
       if (result.titleMappingsRequired && result.titleMappingsRequired.length > 0) {
