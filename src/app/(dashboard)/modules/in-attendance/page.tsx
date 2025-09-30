@@ -1098,7 +1098,10 @@ export default function InAttendancePage() {
           const cell = worksheet[cellAddress]
 
           if (cell) {
-            rowData.push(cell.v || '')
+            // Get the formatted text value, not the raw value
+            // This prevents dates from becoming serial numbers
+            const formattedValue = cell.w || (cell.v !== undefined ? String(cell.v) : '')
+            rowData.push(formattedValue)
             // Check for strikethrough formatting
             if (cell.s && cell.s.font && cell.s.font.strike) {
               isRowStrikethrough = true
