@@ -1084,7 +1084,9 @@ export default function InAttendancePage() {
       for (let col = range.s.c; col <= range.e.c; col++) {
         const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col })
         const cell = worksheet[cellAddress]
-        headers.push(cell ? String(cell.v || '').trim() : '')
+        // Use formatted value and TRIM whitespace to handle headers with spaces
+        const headerValue = cell ? (cell.w || String(cell.v || '')).trim() : ''
+        headers.push(headerValue)
       }
 
       // Process data rows (starting from row 1, skipping header row 0)
