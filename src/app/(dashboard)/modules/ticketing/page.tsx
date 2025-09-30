@@ -1580,33 +1580,31 @@ export default function TicketingPage() {
 
     try {
       const text = await file.text()
-      // Parse CSV properly handling quoted fields with commas
-      const parseCSVRow = (row: string): string[] => {
+
+      // Simple CSV parser that handles quoted fields
+      const parseCSVLine = (line: string): string[] => {
         const result: string[] = []
-        let current = ''
-        let inQuotes = false
-        const rowLength = row.length
+        const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g
+        let matches
 
-        let charIndex = 0
-        while (charIndex < rowLength) {
-          const char = row.charAt(charIndex)
-
-          if (char === '"') {
-            inQuotes = !inQuotes
-          } else if (char === ',' && !inQuotes) {
-            result.push(current.trim().replace(/^"(.+)"$/, '$1'))
-            current = ''
+        while ((matches = regex.exec(line)) !== null) {
+          let value = matches[1]
+          if (value && value.length > 0) {
+            // Remove surrounding quotes and unescape internal quotes
+            if (value[0] === '"' && value[value.length - 1] === '"') {
+              value = value.slice(1, -1).replace(/""/g, '"')
+            }
+            result.push(value.trim())
           } else {
-            current += char
+            result.push('')
           }
-          charIndex++
         }
 
-        result.push(current.trim().replace(/^"(.+)"$/, '$1'))
         return result
       }
-      
-      const allRows = text.split('\n').map(row => parseCSVRow(row))
+
+      const lines = text.split('\n').filter(line => line.trim())
+      const allRows = lines.map(line => parseCSVLine(line))
       const headers = allRows[0]
 
       if (!headers.includes('Title') || !headers.includes('Date') || !headers.includes('Start Time')) {
