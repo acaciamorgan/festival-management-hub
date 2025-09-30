@@ -520,7 +520,6 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             const { data: allScreenings } = await supabase
               .from('ticketing_screenings')
               .select('id, film_title')
-              .eq('is_published', true)
               .or(`film_title.eq.${film.title}${shortsProgramName ? `,film_title.eq.${shortsProgramName}` : ''}`)
 
             if (!allScreenings || allScreenings.length === 0) return
@@ -634,9 +633,9 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               }
             }
 
-            // Also check for direct film screenings
+            // Also check for direct film screenings in ticketing_screenings
             const { data: filmScreenings } = await supabase
-              .from('published_screenings')
+              .from('ticketing_screenings')
               .select(`
                 id,
                 film_title,
@@ -647,7 +646,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                 is_cancelled,
                 notes
               `)
-              .eq('film_card_id', film.id)
+              .eq('film_title', film.title)
               .order('screening_date', { ascending: true })
               .order('start_time', { ascending: true })
 
