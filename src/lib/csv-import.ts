@@ -122,6 +122,16 @@ export async function parseCSVContent(csvContent: string): Promise<CSVGuestRow[]
       continue
     }
 
+    // Check for Delete column - skip rows marked for deletion
+    const deleteColumnIndex = headers.findIndex(h => h.toLowerCase().includes('delete'))
+    if (deleteColumnIndex >= 0 && record[deleteColumnIndex]) {
+      const deleteValue = String(record[deleteColumnIndex]).toLowerCase().trim()
+      if (deleteValue === 'x' || deleteValue === 'delete' || deleteValue === 'y' || deleteValue === 'yes') {
+        console.log(`🚫 Skipped Guest CSV deletion row ${i + 1}:`, record.slice(0, 3).join(', '))
+        continue
+      }
+    }
+
     const row: any = {}
 
     // Map each header to its corresponding value
