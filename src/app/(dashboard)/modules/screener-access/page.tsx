@@ -375,8 +375,19 @@ export default function ScreenerAccessPage() {
       if (bVal == null) return -1
 
       if (typeof aVal === 'string' && typeof bVal === 'string') {
-        const result = aVal.localeCompare(bVal)
-        return sortConfig.direction === 'asc' ? result : -result
+        // If sorting by title, ignore articles
+        if (sortConfig.key === 'title') {
+          const getTitleForSort = (title: string) => {
+            return title.replace(/^(The |A |An )/i, '').toLowerCase().trim()
+          }
+          const aSortTitle = getTitleForSort(aVal)
+          const bSortTitle = getTitleForSort(bVal)
+          const result = aSortTitle.localeCompare(bSortTitle)
+          return sortConfig.direction === 'asc' ? result : -result
+        } else {
+          const result = aVal.localeCompare(bVal)
+          return sortConfig.direction === 'asc' ? result : -result
+        }
       }
 
       if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1
