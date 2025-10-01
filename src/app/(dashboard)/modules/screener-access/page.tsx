@@ -299,8 +299,8 @@ export default function ScreenerAccessPage() {
       // Sort unified films by title, ignoring articles
       const sortedFilms = unifiedFilms.sort((a, b) => {
         const getTitleForSort = (title: string) => {
-          // Remove leading articles for sorting
-          return title.replace(/^(the |a |an )/i, '').toLowerCase()
+          // Remove leading articles for sorting - must match exactly with space
+          return title.replace(/^(The |A |An )/i, '').toLowerCase().trim()
         }
         const aSort = getTitleForSort(a.title)
         const bSort = getTitleForSort(b.title)
