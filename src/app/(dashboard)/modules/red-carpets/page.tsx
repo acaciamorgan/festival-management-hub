@@ -547,7 +547,8 @@ export default function RedCarpetsPage() {
                     { key: 'call_time', label: 'Call Time', width: 100, sortable: true },
                     { key: 'carpet_start_time', label: 'Carpet Start Time', width: 120, sortable: true },
                     { key: 'film_program_start_time', label: 'Film/Program Start', width: 120, sortable: true },
-                    { key: 'rsvps', label: 'RSVPs', width: 100, sortable: false }
+                    { key: 'rsvps', label: 'RSVPs', width: 100, sortable: false },
+                    { key: 'ros', label: 'ROS', width: 80, sortable: false }
                   ].map((column) => (
                     <th
                       key={column.key}
@@ -719,20 +720,22 @@ export default function RedCarpetsPage() {
                             </button>
                           </>
                         )}
-                        {event.run_of_show_url && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              window.open(event.run_of_show_url!, '_blank')
-                            }}
-                            className="bg-orange-600 text-white px-2 py-1 rounded text-xs hover:bg-orange-700"
-                            title="Open Run of Show document"
-                          >
-                            ROS
-                          </button>
-                        )}
-                        {!event.rsvp_responses_url && !event.rsvp_form_url && !event.run_of_show_url && '—'}
+                        {!event.rsvp_responses_url && !event.rsvp_form_url && '—'}
                       </div>
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['ros'] || 80}px` }}>
+                      {event.run_of_show_url ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            window.open(event.run_of_show_url!, '_blank')
+                          }}
+                          className="bg-orange-600 text-white px-2 py-1 rounded text-xs hover:bg-orange-700"
+                          title="Open Run of Show document"
+                        >
+                          ROS
+                        </button>
+                      ) : '—'}
                     </td>
                     {canEditRedCarpets && (
                       <td className="px-3 py-2 text-sm text-gray-900 text-center">
@@ -748,7 +751,7 @@ export default function RedCarpetsPage() {
                 ))}
                 {sortedEvents.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                       {searchTerm 
                         ? 'No red carpets match your search.'
                         : 'No red carpets found. Click "Add Carpet" to create your first red carpet event.'
