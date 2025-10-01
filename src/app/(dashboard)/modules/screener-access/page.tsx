@@ -202,8 +202,8 @@ export default function ScreenerAccessPage() {
       // Load all feature films
       const { data: filmsData, error: filmsError } = await supabase
         .from('feature_films')
-        .select('id, title')
-        .order('title')
+        .select('id, title, title_for_sorting')
+        .order('title_for_sorting')
 
       if (filmsError) {
         console.error('Error loading films:', filmsError)
