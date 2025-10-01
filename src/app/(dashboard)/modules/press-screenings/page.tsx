@@ -60,7 +60,38 @@ export default function PressScreeningsPage() {
 
       if (error) throw error
 
-      const screeningsWithVenues = (screeningsData || []).map(screening => ({
+      // Now get the actual runtime from film cards
+      const screeningsWithRealRuntime = await Promise.all((screeningsData || []).map(async (screening) => {
+        try {
+          // Try feature films first
+          const { data: featureFilm } = await supabase
+            .from('feature_films')
+            .select('runtime')
+            .eq('id', screening.film_id)
+            .single()
+
+          if (featureFilm?.runtime) {
+            return { ...screening, runtime: featureFilm.runtime }
+          }
+
+          // If not found, try short films
+          const { data: shortFilm } = await supabase
+            .from('short_films')
+            .select('runtime')
+            .eq('id', screening.film_id)
+            .single()
+
+          if (shortFilm?.runtime) {
+            return { ...screening, runtime: shortFilm.runtime }
+          }
+        } catch (e) {
+          // If error, just use the existing runtime
+        }
+
+        return screening
+      }))
+
+      const screeningsWithVenues = (screeningsWithRealRuntime || []).map(screening => ({
         ...screening,
         venue_name: screening.venues?.name || null
       }))
