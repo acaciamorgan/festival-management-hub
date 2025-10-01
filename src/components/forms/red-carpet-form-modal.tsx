@@ -26,6 +26,7 @@ interface RedCarpetFormData {
   film_program_start_time: string
   rsvp_form_url: string
   rsvp_responses_url: string
+  run_of_show_url: string
 }
 
 export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCarpetFormModalProps) {
@@ -39,7 +40,8 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     carpet_start_time: '',
     film_program_start_time: '',
     rsvp_form_url: '',
-    rsvp_responses_url: ''
+    rsvp_responses_url: '',
+    run_of_show_url: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -183,7 +185,8 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
         carpet_start_time: redCarpet.carpet_start_time || '',
         film_program_start_time: redCarpet.film_program_start_time || '',
         rsvp_form_url: redCarpet.rsvp_form_url || '',
-        rsvp_responses_url: redCarpet.rsvp_responses_url || ''
+        rsvp_responses_url: redCarpet.rsvp_responses_url || '',
+        run_of_show_url: redCarpet.run_of_show_url || ''
       })
       
       // Set up house field if venue has houses
@@ -205,7 +208,8 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
         carpet_start_time: '',
         film_program_start_time: '',
         rsvp_form_url: '',
-        rsvp_responses_url: ''
+        rsvp_responses_url: '',
+        run_of_show_url: ''
       })
     }
     setErrors({})
@@ -413,6 +417,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
           film_program_start_time: formData.film_program_start_time || null,
           rsvp_form_url: formData.rsvp_form_url.trim() || null,
           rsvp_responses_url: formData.rsvp_responses_url.trim() || null,
+          run_of_show_url: formData.run_of_show_url.trim() || null,
           updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
         }
 
@@ -812,8 +817,8 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
               </div>
             </div>
 
-            {/* RSVP Links */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* RSVP Links and Run of Show */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">RSVP Form Link</label>
                 <input
@@ -838,6 +843,19 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
                 />
                 <p className="text-sm text-gray-500 mt-1">
                   The responses/spreadsheet link to view submitted RSVPs.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Run of Show (ROS)</label>
+                <input
+                  type="url"
+                  value={formData.run_of_show_url}
+                  onChange={(e) => setFormData(prev => ({ ...prev, run_of_show_url: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Google Doc link for run of show"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Link to the run of show document.
                 </p>
               </div>
             </div>

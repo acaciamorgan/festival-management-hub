@@ -23,6 +23,7 @@ interface RedCarpet {
   film_program_start_time: string | null
   rsvp_form_url: string | null
   rsvp_responses_url: string | null
+  run_of_show_url: string | null
   created_at: string
   updated_at: string
   created_by: string
@@ -38,6 +39,7 @@ interface RedCarpetFormData {
   film_program_start_time: string
   rsvp_form_url: string
   rsvp_responses_url: string
+  run_of_show_url: string
 }
 
 interface GroupedRedCarpetEvent {
@@ -48,6 +50,7 @@ interface GroupedRedCarpetEvent {
   house: string | null
   rsvp_form_url: string | null
   rsvp_responses_url: string | null
+  run_of_show_url: string | null
   films: {
     title: string
     subjects: string[]
@@ -201,6 +204,7 @@ export default function RedCarpetsPage() {
           house: carpet.house,
           rsvp_form_url: carpet.rsvp_form_url,
           rsvp_responses_url: carpet.rsvp_responses_url,
+          run_of_show_url: carpet.run_of_show_url,
           films: [],
           rawEvents: []
         })
@@ -715,7 +719,19 @@ export default function RedCarpetsPage() {
                             </button>
                           </>
                         )}
-                        {!event.rsvp_responses_url && !event.rsvp_form_url && '—'}
+                        {event.run_of_show_url && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              window.open(event.run_of_show_url!, '_blank')
+                            }}
+                            className="bg-orange-600 text-white px-2 py-1 rounded text-xs hover:bg-orange-700"
+                            title="Open Run of Show document"
+                          >
+                            ROS
+                          </button>
+                        )}
+                        {!event.rsvp_responses_url && !event.rsvp_form_url && !event.run_of_show_url && '—'}
                       </div>
                     </td>
                     {canEditRedCarpets && (
