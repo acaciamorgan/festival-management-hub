@@ -202,8 +202,8 @@ export default function ScreenerAccessPage() {
       // Load all feature films
       const { data: filmsData, error: filmsError } = await supabase
         .from('feature_films')
-        .select('id, title, title_for_sorting')
-        .order('title_for_sorting')
+        .select('id, title')
+        .order('title')
 
       if (filmsError) {
         console.error('Error loading films:', filmsError)
@@ -296,8 +296,19 @@ export default function ScreenerAccessPage() {
         unifiedFilms.push(...programsWithData)
       }
 
-      setAllFilms(unifiedFilms)
-      setFilteredFilms(unifiedFilms)
+      // Sort unified films by title, ignoring articles
+      const sortedFilms = unifiedFilms.sort((a, b) => {
+        const getTitleForSort = (title: string) => {
+          // Remove leading articles for sorting
+          return title.replace(/^(the |a |an )/i, '').toLowerCase()
+        }
+        const aSort = getTitleForSort(a.title)
+        const bSort = getTitleForSort(b.title)
+        return aSort.localeCompare(bSort)
+      })
+
+      setAllFilms(sortedFilms)
+      setFilteredFilms(sortedFilms)
     } catch (error) {
       console.error('Error loading films:', error)
       setAllFilms([])
