@@ -559,28 +559,8 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
         // Load interviews for this film
         try {
-          let allInterviews = await getInterviewsForFilmCard(film.id)
-
-          // Check if this is a short film to also get shorts program interviews
-          const { data: shortFilmCheck } = await supabase
-            .from('short_films')
-            .select('shorts_program_id')
-            .eq('title', film.title)
-            .single()
-
-          if (shortFilmCheck && shortFilmCheck.shorts_program_id) {
-            const { getInterviewsForShortsProgram } = await import('@/lib/interviews-client')
-            const programInterviews = await getInterviewsForShortsProgram(shortFilmCheck.shorts_program_id)
-            // Combine and deduplicate interviews
-            const interviewIds = new Set(allInterviews.map(i => i.id))
-            programInterviews.forEach(interview => {
-              if (!interviewIds.has(interview.id)) {
-                allInterviews.push(interview)
-              }
-            })
-          }
-
-          setFilmInterviews(allInterviews)
+          const filmInterviews = await getInterviewsForFilmCard(film.id)
+          setFilmInterviews(filmInterviews)
         } catch (error) {
           console.error('Error loading film interviews:', error)
           setFilmInterviews([])

@@ -40,7 +40,33 @@ export async function getInterviewsForCard(
 }
 
 export async function getInterviewsForFilmCard(filmId: string): Promise<InterviewCard[]> {
-  return getInterviewsForCard('feature_films', filmId)
+  const supabase = createClient()
+
+  // First, determine if this is a feature film or short film
+  const { data: featureFilm } = await supabase
+    .from('feature_films')
+    .select('id')
+    .eq('id', filmId)
+    .single()
+
+  if (featureFilm) {
+    // It's a feature film - query by film_id
+    return getInterviewsForCard('feature_films', filmId)
+  }
+
+  // It's a short film - query by short_film_id
+  const { data, error } = await supabase
+    .from('interviews')
+    .select('*')
+    .eq('short_film_id', filmId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error(`Error fetching interviews for short film ${filmId}:`, error)
+    return []
+  }
+
+  return data || []
 }
 
 export async function getInterviewsForShortsProgram(programId: string): Promise<InterviewCard[]> {
