@@ -318,12 +318,28 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
 
   // Subject selection handlers
   const handleSubjectSelect = (guest: GuestCard | { id: string, name: string }) => {
-    setFormData(prev => ({
-      ...prev,
-      subject_names: guest.name,
-      subject_guest_ids: [guest.id]
-    }))
-    setSubjectSearch(guest.name)
+    setFormData(prev => {
+      // Get existing names, split by comma
+      const existingNames = prev.subject_names ? prev.subject_names.split(',').map(s => s.trim()).filter(s => s) : []
+      // Remove the last incomplete entry (what was being typed)
+      existingNames.pop()
+      // Add the selected guest name
+      existingNames.push(guest.name)
+      const newSubjectNames = existingNames.join(', ')
+
+      // Update guest IDs - add this guest if not already in the list
+      const newGuestIds = [...prev.subject_guest_ids]
+      if (!newGuestIds.includes(guest.id)) {
+        newGuestIds.push(guest.id)
+      }
+
+      return {
+        ...prev,
+        subject_names: newSubjectNames,
+        subject_guest_ids: newGuestIds
+      }
+    })
+    setSubjectSearch(formData.subject_names ? formData.subject_names.split(',').map(s => s.trim()).filter(s => s).slice(0, -1).join(', ') + ', ' + guest.name : guest.name)
     setShowSubjectDropdown(false)
   }
 
@@ -331,10 +347,14 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
   const handleSubjectInputChange = useCallback(async (value: string) => {
     setSubjectSearch(value)
     setFormData(prev => ({ ...prev, subject_names: value }))
-    
-    if (value.length >= 2) {
+
+    // Extract the current name being typed (after the last comma)
+    const parts = value.split(',').map(s => s.trim())
+    const currentName = parts[parts.length - 1]
+
+    if (currentName.length >= 2) {
       setShowSubjectDropdown(true)
-      await loadGuestSuggestions(value)
+      await loadGuestSuggestions(currentName)
     } else {
       setShowSubjectDropdown(false)
       setGuestSuggestions([])
