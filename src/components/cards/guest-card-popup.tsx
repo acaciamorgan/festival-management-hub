@@ -995,7 +995,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     {interview.status === 'Scheduled' && (
                       <div className="text-sm text-gray-600">
                         {interview.interview_date && <span>Date: {formatDate(interview.interview_date)}</span>}
-                        {interview.interview_time && <span> | Time: {formatTime(interview.interview_time)}</span>}
+                        {interview.interview_time && <span> | Time: {formatTimeForDisplay(interview.interview_time)}</span>}
                         {interview.location && <span> | Location: {interview.location}</span>}
                       </div>
                     )}
