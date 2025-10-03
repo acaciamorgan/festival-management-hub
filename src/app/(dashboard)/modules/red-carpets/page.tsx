@@ -66,7 +66,7 @@ export default function RedCarpetsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedCarpet, setSelectedCarpet] = useState<RedCarpet | null>(null)
-  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'carpet_date', direction: 'desc' })
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'carpet_date', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [showFilmCard, setShowFilmCard] = useState<any>(null)
   const [showGuestCard, setShowGuestCard] = useState<any>(null)

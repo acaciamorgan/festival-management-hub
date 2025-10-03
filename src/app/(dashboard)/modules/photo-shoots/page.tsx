@@ -56,7 +56,7 @@ export default function PhotoShootsPage() {
   const [selectedShoot, setSelectedShoot] = useState<PhotoShoot | null>(null)
   const [selectsFilter, setSelectsFilter] = useState<'all' | 'pending' | 'received'>('all')
   const [prFilter, setPrFilter] = useState<'all' | 'pending' | 'sent'>('all')
-  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'shoot_date', direction: 'desc' })
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'shoot_date', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [showFilmCard, setShowFilmCard] = useState<any>(null)
   const [showGuestCard, setShowGuestCard] = useState<any>(null)
