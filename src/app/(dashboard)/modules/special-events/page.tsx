@@ -7,6 +7,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { SpecialEventCard } from '@/types'
 import { SpecialEventFormModal } from '@/components/forms/special-event-form-modal'
 import { SpecialEventsCalendar } from '@/components/calendar/special-events-calendar'
+import { SpecialEventsTimeline } from '@/components/calendar/special-events-timeline'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import * as XLSX from 'xlsx-js-style'
 
@@ -22,7 +23,7 @@ export default function SpecialEventsPage() {
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingEvent, setEditingEvent] = useState<SpecialEventCard | null>(null)
-  const [viewMode, setViewMode] = useState<'grid' | 'calendar'>('grid')
+  const [viewMode, setViewMode] = useState<'grid' | 'calendar' | 'timeline'>('grid')
   
   // Filter states
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('all')
@@ -796,7 +797,7 @@ export default function SpecialEventsPage() {
           )}
           
           {/* View Toggle - Always visible */}
-          <div className={`flex bg-gray-100 rounded-md p-1 ${viewMode === 'calendar' ? 'ml-auto' : ''}`}>
+          <div className={`flex bg-gray-100 rounded-md p-1 ${viewMode !== 'grid' ? 'ml-auto' : ''}`}>
             <button
               onClick={() => setViewMode('grid')}
               className={`px-3 py-1 text-sm font-medium rounded ${
@@ -806,6 +807,16 @@ export default function SpecialEventsPage() {
               }`}
             >
               Grid
+            </button>
+            <button
+              onClick={() => setViewMode('timeline')}
+              className={`px-3 py-1 text-sm font-medium rounded ${
+                viewMode === 'timeline'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Timeline
             </button>
             <button
               onClick={() => setViewMode('calendar')}
@@ -1203,6 +1214,12 @@ export default function SpecialEventsPage() {
               </div>
             )}
           </>
+        ) : viewMode === 'timeline' ? (
+          /* Timeline View */
+          <SpecialEventsTimeline
+            events={filteredEvents}
+            onEventClick={handleEditEvent}
+          />
         ) : (
           /* Calendar View */
           <SpecialEventsCalendar
