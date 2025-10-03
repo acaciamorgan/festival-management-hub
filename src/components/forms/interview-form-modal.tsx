@@ -253,17 +253,43 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     if (!selectedFilms.includes(film.title)) {
       const newFilms = [...selectedFilms, film.title]
       setSelectedFilms(newFilms)
-      
+
       // Update form data with comma-separated titles
-      setFormData(prev => ({
-        ...prev,
-        // Clear all IDs when multiple films selected, otherwise set appropriate ID
-        film_id: newFilms.length > 1 ? '' : (film.type === 'feature' ? film.id : ''),
-        shorts_program_id: newFilms.length > 1 ? '' : (film.type === 'shorts_program' ? film.id : (film.type === 'short' ? film.shorts_program_id : '')),
-        program_id: newFilms.length > 1 ? '' : (film.type === 'program' ? film.id : ''),
-        short_film_id: newFilms.length > 1 ? '' : (film.type === 'short' ? film.id : ''),
-        film_title: newFilms.join(', ')
-      }))
+      setFormData(prev => {
+        // For first film, set its ID. For additional films, keep the first film's ID
+        const isFirstFilm = newFilms.length === 1
+
+        // If this is the first film, set the appropriate ID field based on type
+        // If adding additional films, preserve existing IDs from the first film
+        let film_id = prev.film_id
+        let shorts_program_id = prev.shorts_program_id
+        let program_id = prev.program_id
+        let short_film_id = prev.short_film_id
+
+        if (isFirstFilm) {
+          // First film - set the appropriate ID
+          if (film.type === 'feature') {
+            film_id = film.id
+          } else if (film.type === 'shorts_program') {
+            shorts_program_id = film.id
+          } else if (film.type === 'program') {
+            program_id = film.id
+          } else if (film.type === 'short') {
+            short_film_id = film.id
+            shorts_program_id = film.shorts_program_id || ''
+          }
+        }
+        // For additional films, keep existing IDs unchanged
+
+        return {
+          ...prev,
+          film_id,
+          shorts_program_id,
+          program_id,
+          short_film_id,
+          film_title: newFilms.join(', ')
+        }
+      })
     }
     setFilmSearch('')
     setShowFilmDropdown(false)
@@ -425,9 +451,10 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
 
       onSave()
       onClose()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving interview:', error)
-      alert('Error saving interview')
+      const errorMessage = error?.message || 'Unknown error'
+      alert(`Error saving interview: ${errorMessage}\n\nPlease check the console for details.`)
     } finally {
       setLoading(false)
     }
