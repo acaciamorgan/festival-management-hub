@@ -45,20 +45,41 @@ export async function getInterviewsForFilmCard(filmId: string): Promise<Intervie
   // First, determine if this is a feature film or short film
   const { data: featureFilm } = await supabase
     .from('feature_films')
-    .select('id')
+    .select('id, title')
     .eq('id', filmId)
     .single()
 
   if (featureFilm) {
-    // It's a feature film - query by film_id
-    return getInterviewsForCard('feature_films', filmId)
+    // It's a feature film - query by film_id OR film_title contains this film's title
+    const { data, error } = await supabase
+      .from('interviews')
+      .select('*')
+      .or(`film_id.eq.${filmId},film_title.ilike.%${featureFilm.title}%`)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error(`Error fetching interviews for feature film ${filmId}:`, error)
+      return []
+    }
+
+    return data || []
   }
 
-  // It's a short film - query by short_film_id
+  // It's a short film - get the title and query by short_film_id OR film_title
+  const { data: shortFilm } = await supabase
+    .from('short_films')
+    .select('id, title')
+    .eq('id', filmId)
+    .single()
+
+  if (!shortFilm) {
+    return []
+  }
+
   const { data, error } = await supabase
     .from('interviews')
     .select('*')
-    .eq('short_film_id', filmId)
+    .or(`short_film_id.eq.${filmId},film_title.ilike.%${shortFilm.title}%`)
     .order('created_at', { ascending: false })
 
   if (error) {
