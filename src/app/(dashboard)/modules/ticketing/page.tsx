@@ -2054,9 +2054,10 @@ export default function TicketingPage() {
       setShowAddModal(false)
       setShowEditModal(false)
       resetForm()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving screening:', error)
-      alert('Error saving screening. Please try again.')
+      const errorMessage = error?.message || 'Unknown error'
+      alert(`Error saving screening: ${errorMessage}\n\nPlease check the console for details.`)
     }
   }
 
