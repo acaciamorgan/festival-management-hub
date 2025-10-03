@@ -227,8 +227,19 @@ export default function SpecialEventsPage() {
           if (fieldName && row[index]) {
             let value = row[index].trim()
             
-            // Handle boolean fields
-            if (['open_press', 'photography'].includes(fieldName)) {
+            // Handle open_press field - map to 'Yes' | 'No' | 'Limited'
+            if (fieldName === 'open_press') {
+              const lowerValue = value.toLowerCase().trim()
+              if (lowerValue === 'y' || lowerValue === 'yes' || lowerValue === 'true' || lowerValue === '1') {
+                value = 'Yes'
+              } else if (lowerValue === 'l' || lowerValue === 'limited') {
+                value = 'Limited'
+              } else {
+                value = 'No'
+              }
+            }
+            // Handle photography boolean field
+            else if (fieldName === 'photography') {
               value = value.toLowerCase() === 'true' || value.toLowerCase() === 'yes' || value === '1'
             }
             // Handle numeric fields
@@ -275,20 +286,118 @@ export default function SpecialEventsPage() {
         return
       }
 
-      setUploadStatus(`Uploading ${eventData.length} events...`)
+      setUploadStatus(`Processing ${eventData.length} events...`)
 
-      // Insert events into database
-      const { error } = await supabase
-        .from('special_events')
-        .insert(eventData)
+      // Load all venues for lookup
+      const { data: allVenues } = await supabase
+        .from('venues')
+        .select('id, name')
 
-      if (error) {
-        console.error('Upload error:', error)
-        setUploadStatus(`Error: ${error.message}`)
-        return
+      const venueMap = new Map(
+        (allVenues || []).map(v => [v.name.toLowerCase().trim(), v.id])
+      )
+
+      // Helper function to convert 12-hour time to 24-hour format
+      const convertTo24Hour = (timeStr: string): string | null => {
+        if (!timeStr) return null
+
+        const trimmed = timeStr.trim()
+
+        // Check if already in 24-hour format (HH:MM or HH:MM:SS)
+        if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed) && !trimmed.toLowerCase().includes('am') && !trimmed.toLowerCase().includes('pm')) {
+          const parts = trimmed.split(':')
+          const hours = parts[0].padStart(2, '0')
+          const minutes = parts[1]
+          const seconds = parts[2] || '00'
+          return `${hours}:${minutes}:${seconds}`
+        }
+
+        // Parse 12-hour format (e.g., "7:15 PM", "9:15 AM")
+        const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+        if (!match) return trimmed // Return as-is if format not recognized
+
+        let hours = parseInt(match[1], 10)
+        const minutes = match[2]
+        const ampm = match[3].toUpperCase()
+
+        // Convert to 24-hour
+        if (ampm === 'PM' && hours !== 12) {
+          hours += 12
+        } else if (ampm === 'AM' && hours === 12) {
+          hours = 0
+        }
+
+        return `${hours.toString().padStart(2, '0')}:${minutes}:00`
       }
 
-      setUploadStatus(`Successfully uploaded ${eventData.length} special events!`)
+      // Process each event with venue lookup and time conversion
+      const processedEvents = eventData.map(event => {
+        // Look up venue_id from venue name
+        if (event.venue_name) {
+          const venueName = event.venue_name.toLowerCase().trim()
+          const venueId = venueMap.get(venueName)
+          if (venueId) {
+            event.venue_id = venueId
+          }
+        }
+
+        // Convert time fields from 12-hour to 24-hour format
+        if (event.access_time) {
+          event.access_time = convertTo24Hour(event.access_time)
+        }
+        if (event.start_time) {
+          event.start_time = convertTo24Hour(event.start_time)
+        }
+        if (event.end_time) {
+          event.end_time = convertTo24Hour(event.end_time)
+        }
+
+        return event
+      })
+
+      // Use upsert logic to prevent duplicates
+      let insertedCount = 0
+      let updatedCount = 0
+
+      for (const event of processedEvents) {
+        // Check if event already exists (match on title, date, and start time)
+        const { data: existingEvent } = await supabase
+          .from('special_events')
+          .select('id')
+          .eq('title', event.title)
+          .eq('event_date', event.event_date)
+          .eq('start_time', event.start_time)
+          .maybeSingle()
+
+        if (existingEvent) {
+          // Update existing event
+          const { error: updateError } = await supabase
+            .from('special_events')
+            .update(event)
+            .eq('id', existingEvent.id)
+
+          if (updateError) {
+            console.error('Update error:', updateError)
+            setUploadStatus(`Error updating event: ${updateError.message}`)
+            return
+          }
+          updatedCount++
+        } else {
+          // Insert new event
+          const { error: insertError } = await supabase
+            .from('special_events')
+            .insert(event)
+
+          if (insertError) {
+            console.error('Insert error:', insertError)
+            setUploadStatus(`Error inserting event: ${insertError.message}`)
+            return
+          }
+          insertedCount++
+        }
+      }
+
+      setUploadStatus(`Successfully processed ${eventData.length} events! (${insertedCount} new, ${updatedCount} updated)`)
       
       // Reload the events
       loadSpecialEvents()
