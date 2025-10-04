@@ -2022,7 +2022,6 @@ export default function TicketingPage() {
         venue_short_code: formData.venue_short_code,
         capacity: formData.capacity,
         notes: formData.notes || null,
-        ...(viewMode === 'ticketing' && { ticketing_screening_id: crypto.randomUUID() }),
         ...(viewMode === 'pi-jury' && { screening_type: formData.screening_type }),
         ...(viewMode === 'tech-checks' && { tech_contact: formData.tech_contact })
       }
