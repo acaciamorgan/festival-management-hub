@@ -38,6 +38,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     status: 'TBD' as InterviewStatus,
     interview_date: '',
     interview_time: '',
+    duration_minutes: '',
     venue_id: '',
     location: '',
     show_on_special_events: false,
@@ -189,6 +190,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         status: interview.status,
         interview_date: interview.interview_date || '',
         interview_time: interview.interview_time || '',
+        duration_minutes: (interview as any).duration_minutes?.toString() || '',
         venue_id: (interview as any).venue_id || '',
         location: interview.location || '',
         show_on_special_events: (interview as any).show_on_special_events || false,
@@ -216,6 +218,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         status: 'TBD',
         interview_date: '',
         interview_time: '',
+        duration_minutes: '',
         venue_id: '',
         location: '',
         show_on_special_events: false,
@@ -441,6 +444,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         status: formData.status,
         interview_date: formData.interview_date || null,
         interview_time: formData.interview_time || null,
+        duration_minutes: formData.duration_minutes ? parseInt(formData.duration_minutes) : null,
         venue_id: formData.venue_id || null,
         location: formData.location || null,
         show_on_special_events: formData.show_on_special_events,
@@ -718,7 +722,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
               )}
             </h3>
               
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-3 gap-4 mb-4">
                 {/* Date */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -744,6 +748,22 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                     value={formData.interview_time}
                     onChange={(e) => handleInputChange('interview_time', e.target.value)}
                     placeholder="e.g. 3:00 PM"
+                    readOnly={formData.status === 'Complete'}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formData.status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
+                  />
+                </div>
+
+                {/* Duration */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Length (mins)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.duration_minutes}
+                    onChange={(e) => handleInputChange('duration_minutes', e.target.value)}
+                    placeholder="30"
+                    min="1"
                     readOnly={formData.status === 'Complete'}
                     className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formData.status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
                   />

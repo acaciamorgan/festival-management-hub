@@ -456,40 +456,52 @@ export default function SpecialEventsPage() {
       }))
 
       // Transform interviews to look like special events for display
-      const interviewsAsEvents = (interviewsResult.data || []).map(interview => ({
-        id: interview.id,
-        title: interview.film_title || 'Interview',
-        event_type: 'Interview',
-        event_date: interview.interview_date,
-        start_time: interview.interview_time,
-        end_time: null,
-        access_time: null,
-        venue_id: interview.venue_id,
-        venue_name: interview.venues?.name || null,
-        venue_address: interview.venues?.address || null,
-        location_details: interview.location,
-        films_programs_display: interview.film_title,
-        guests_display: interview.subject_names,
-        lead_staff: null,
-        invited_tags: null,
-        number_expected: null,
-        beverages: null,
-        bartender: null,
-        food: null,
-        caterer: null,
-        photography: null,
-        photo_shoot_id: null,
-        open_press: null,
-        rsvp_responder_link: null,
-        rsvp_response_link: null,
-        actual_attendance: null,
-        notes: interview.notes,
-        created_at: interview.created_at,
-        updated_at: interview.updated_at,
-        created_by: interview.created_by,
-        _type: 'interview' as const,
-        _interview_data: interview // Keep full interview data for popups
-      }))
+      const interviewsAsEvents = (interviewsResult.data || []).map(interview => {
+        // Calculate end time from start time + duration
+        let endTime = null
+        if (interview.interview_time && interview.duration_minutes) {
+          const [hours, minutes] = interview.interview_time.split(':').map(Number)
+          const totalMinutes = hours * 60 + minutes + interview.duration_minutes
+          const endHours = Math.floor(totalMinutes / 60)
+          const endMinutes = totalMinutes % 60
+          endTime = `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}:00`
+        }
+
+        return {
+          id: interview.id,
+          title: interview.film_title || 'Interview',
+          event_type: 'Interview',
+          event_date: interview.interview_date,
+          start_time: interview.interview_time,
+          end_time: endTime,
+          access_time: null,
+          venue_id: interview.venue_id,
+          venue_name: interview.venues?.name || null,
+          venue_address: interview.venues?.address || null,
+          location_details: interview.location,
+          films_programs_display: interview.film_title,
+          guests_display: interview.subject_names,
+          lead_staff: null,
+          invited_tags: null,
+          number_expected: null,
+          beverages: null,
+          bartender: null,
+          food: null,
+          caterer: null,
+          photography: null,
+          photo_shoot_id: null,
+          open_press: null,
+          rsvp_responder_link: null,
+          rsvp_response_link: null,
+          actual_attendance: null,
+          notes: interview.notes,
+          created_at: interview.created_at,
+          updated_at: interview.updated_at,
+          created_by: interview.created_by,
+          _type: 'interview' as const,
+          _interview_data: interview // Keep full interview data for popups
+        }
+      })
 
       // Combine and sort by date
       const combined = [...eventsWithDetails, ...interviewsAsEvents].sort((a, b) => {
