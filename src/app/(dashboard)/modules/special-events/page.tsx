@@ -418,8 +418,8 @@ export default function SpecialEventsPage() {
   const loadSpecialEvents = useCallback(async () => {
     setLoading(true)
     try {
-      // Load special events and venues
-      const [eventsResult, venuesResult] = await Promise.all([
+      // Load special events, venues, and interviews
+      const [eventsResult, venuesResult, interviewsResult] = await Promise.all([
         supabase
           .from('special_events')
           .select(`
@@ -430,21 +430,77 @@ export default function SpecialEventsPage() {
         supabase
           .from('venues')
           .select('id, name')
-          .order('name')
+          .order('name'),
+        supabase
+          .from('interviews')
+          .select(`
+            *,
+            venues(name, address)
+          `)
+          .eq('show_on_special_events', true)
+          .in('status', ['Scheduled', 'Complete'])
+          .not('interview_date', 'is', null)
+          .order('interview_date', { ascending: true })
       ])
 
       if (eventsResult.error) throw eventsResult.error
       if (venuesResult.error) throw venuesResult.error
+      if (interviewsResult.error) throw interviewsResult.error
 
       const eventsWithDetails = (eventsResult.data || []).map(event => ({
         ...event,
         venue_name: event.venues?.name || null,
         venue_address: event.venues?.address || null,
         venue_contact_name: event.venues?.contact_names?.[0] || null,
-        venue_contact_phone: event.venues?.contact_phones?.[0] || null
+        venue_contact_phone: event.venues?.contact_phones?.[0] || null,
+        _type: 'special_event' as const
       }))
 
-      setSpecialEvents(eventsWithDetails)
+      // Transform interviews to look like special events for display
+      const interviewsAsEvents = (interviewsResult.data || []).map(interview => ({
+        id: interview.id,
+        title: interview.film_title || 'Interview',
+        event_type: 'Interview',
+        event_date: interview.interview_date,
+        start_time: interview.interview_time,
+        end_time: null,
+        access_time: null,
+        venue_id: interview.venue_id,
+        venue_name: interview.venues?.name || null,
+        venue_address: interview.venues?.address || null,
+        location_details: interview.location,
+        films_programs_display: interview.film_title,
+        guests_display: interview.subject_names,
+        lead_staff: null,
+        invited_tags: null,
+        number_expected: null,
+        beverages: null,
+        bartender: null,
+        food: null,
+        caterer: null,
+        photography: null,
+        photo_shoot_id: null,
+        open_press: null,
+        rsvp_responder_link: null,
+        rsvp_response_link: null,
+        actual_attendance: null,
+        notes: interview.notes,
+        created_at: interview.created_at,
+        updated_at: interview.updated_at,
+        created_by: interview.created_by,
+        _type: 'interview' as const,
+        _interview_data: interview // Keep full interview data for popups
+      }))
+
+      // Combine and sort by date
+      const combined = [...eventsWithDetails, ...interviewsAsEvents].sort((a, b) => {
+        if (!a.event_date && !b.event_date) return 0
+        if (!a.event_date) return 1
+        if (!b.event_date) return -1
+        return a.event_date.localeCompare(b.event_date)
+      })
+
+      setSpecialEvents(combined as any)
       setAvailableVenues(venuesResult.data || [])
     } catch (error) {
       console.error('Error loading special events:', error)
@@ -999,31 +1055,59 @@ export default function SpecialEventsPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {sortedEvents.map((event) => (
-                  <tr key={event.id} className="hover:bg-gray-50">
+                {sortedEvents.map((event) => {
+                  const isInterview = (event as any)._type === 'interview'
+                  return (
+                  <tr key={event.id} className={`hover:bg-gray-50 ${isInterview ? 'bg-purple-50' : ''}`}>
                     {/* Date */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['event_date'] || 150}px` }}>
                       {formatDate(event.event_date)}
                     </td>
-                    
+
                     {/* Event (Title) */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 font-medium" style={{ minWidth: `${columnWidths['title'] || 200}px` }}>
+                      {isInterview && <span className="mr-1">🎤</span>}
                       {event.title}
                     </td>
-                    
+
                     {/* Event Type */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['event_type'] || 120}px` }}>
-                      {event.event_type || '—'}
+                      {isInterview ? (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                          Interview
+                        </span>
+                      ) : (
+                        event.event_type || '—'
+                      )}
                     </td>
                     
                     {/* Films/Programs Associated */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['films_programs_display'] || 250}px` }}>
-                      {event.films_programs_display || '—'}
+                      {isInterview && event.films_programs_display ? (
+                        <span className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium">
+                          {event.films_programs_display}
+                        </span>
+                      ) : (
+                        event.films_programs_display || '—'
+                      )}
                     </td>
-                    
+
                     {/* Guests Associated */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guests_display'] || 200}px` }}>
-                      {event.guests_display || '—'}
+                      {isInterview && event.guests_display ? (
+                        <div className="flex flex-wrap gap-1">
+                          {event.guests_display.split(', ').map((name: string, index: number) => (
+                            <span key={index}>
+                              <span className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer">
+                                {name}
+                              </span>
+                              {index < event.guests_display!.split(', ').length - 1 && <span className="text-gray-400">, </span>}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        event.guests_display || '—'
+                      )}
                     </td>
                     
                     {/* Access Time */}
@@ -1173,24 +1257,31 @@ export default function SpecialEventsPage() {
                     {/* Actions */}
                     {canEditSpecialEvents && (
                       <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 100}px` }}>
-                        <div className="flex flex-col gap-1">
-                          <button
-                            onClick={() => handleEditEvent(event)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteEvent(event)}
-                            className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-medium"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                        {isInterview ? (
+                          <div className="text-xs text-gray-500 italic">
+                            Edit in Interview Management
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => handleEditEvent(event)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteEvent(event)}
+                              className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-medium"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </td>
                     )}
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
                 </table>
               </div>

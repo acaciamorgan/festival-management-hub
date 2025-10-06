@@ -34,9 +34,10 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
   // Get event type color
   const getEventTypeColor = (type: string | null): string => {
     switch (type) {
+      case 'Interview': return 'bg-purple-500 border-purple-600'
       case 'Reception': return 'bg-blue-500 border-blue-600'
       case 'Mixer': return 'bg-green-500 border-green-600'
-      case 'Party': return 'bg-purple-500 border-purple-600'
+      case 'Party': return 'bg-pink-500 border-pink-600'
       case 'Awards': return 'bg-yellow-500 border-yellow-600'
       case 'Media Filing': return 'bg-orange-500 border-orange-600'
       case 'Other': return 'bg-gray-500 border-gray-600'
@@ -273,6 +274,7 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
 
                             {/* Events */}
                             {venueEvents.map(event => {
+                              const isInterview = event.event_type === 'Interview'
                               const startMinutes = timeToMinutes(event.start_time)
                               const endMinutes = timeToMinutes(event.end_time)
                               const startPercent = ((startMinutes - 9 * 60) / (15 * 60)) * 100 // 9 AM = start, 15 hours total
@@ -288,9 +290,12 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
                                     width: `${Math.min(100 - startPercent, widthPercent)}%`
                                   }}
                                 >
-                                  <div className="text-xs font-semibold truncate">{event.title}</div>
+                                  <div className="text-xs font-semibold truncate">
+                                    {isInterview && <span className="mr-1">🎤</span>}
+                                    {event.title}
+                                  </div>
                                   <div className="text-xs opacity-90">
-                                    {formatTime(event.start_time)} - {formatTime(event.end_time)}
+                                    {formatTime(event.start_time)}{event.end_time ? ` - ${formatTime(event.end_time)}` : ''}
                                   </div>
                                   {event.open_press === 'Yes' && (
                                     <div className="text-xs opacity-90">📰 Open Press</div>
@@ -324,7 +329,7 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
           {allEventTypes.map(type => (
             <div key={type} className="flex items-center">
               <div className={`w-4 h-4 rounded mr-1 ${getEventTypeColor(type).split(' ')[0]}`} />
-              <span className="text-gray-600">{type}</span>
+              <span className="text-gray-600">{type === 'Interview' ? '🎤 Interview' : type}</span>
             </div>
           ))}
         </div>

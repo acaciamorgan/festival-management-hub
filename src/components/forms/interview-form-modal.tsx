@@ -38,7 +38,9 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     status: 'TBD' as InterviewStatus,
     interview_date: '',
     interview_time: '',
+    venue_id: '',
     location: '',
+    show_on_special_events: false,
     notes: ''
   })
   const [loading, setLoading] = useState(false)
@@ -51,6 +53,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
   const [films, setFilms] = useState<FilmOption[]>([])
   const [pressOptions, setPressOptions] = useState<PressCard[]>([])
   const [guestOptions, setGuestOptions] = useState<GuestCard[]>([])
+  const [venues, setVenues] = useState<Array<{id: string, name: string}>>([])
   
   // Search states
   const [filmSearch, setFilmSearch] = useState('')
@@ -117,6 +120,12 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
           .select('id, name')
           .order('name')
 
+        // Load venues
+        const { data: venuesData, error: venuesError } = await supabase
+          .from('venues')
+          .select('id, name')
+          .order('name')
+
         // Combine all films/programs with smart context
         const allFilms: FilmOption[] = [
           // Feature films
@@ -151,6 +160,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         setFilms(allFilms)
         setPressOptions(press || [])
         setGuestOptions(guests || [])
+        setVenues(venuesData || [])
       } catch (error) {
         console.error('Error loading data:', error)
       }
@@ -179,7 +189,9 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         status: interview.status,
         interview_date: interview.interview_date || '',
         interview_time: interview.interview_time || '',
+        venue_id: (interview as any).venue_id || '',
         location: interview.location || '',
+        show_on_special_events: (interview as any).show_on_special_events || false,
         notes: interview.notes || ''
       })
       setFilmSearch(interview.film_title || '')
@@ -204,7 +216,9 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         status: 'TBD',
         interview_date: '',
         interview_time: '',
+        venue_id: '',
         location: '',
+        show_on_special_events: false,
         notes: ''
       })
       setFilmSearch('')
@@ -427,7 +441,9 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         status: formData.status,
         interview_date: formData.interview_date || null,
         interview_time: formData.interview_time || null,
+        venue_id: formData.venue_id || null,
         location: formData.location || null,
+        show_on_special_events: formData.show_on_special_events,
         notes: formData.notes || null,
         created_by: user?.id
       }
@@ -734,20 +750,65 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                 </div>
               </div>
 
+              {/* Venue Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Venue (Optional)
+                </label>
+                <select
+                  value={formData.venue_id}
+                  onChange={(e) => handleInputChange('venue_id', e.target.value)}
+                  disabled={formData.status === 'Complete'}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formData.status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
+                >
+                  <option value="">No venue</option>
+                  {venues.map((venue) => (
+                    <option key={venue.id} value={venue.id}>
+                      {venue.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Select a venue for structured locations like Filmmakers Lounge
+                </p>
+              </div>
+
               {/* Location */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Location
+                  Location (Text)
                 </label>
                 <input
                   type="text"
                   value={formData.location}
                   onChange={(e) => handleInputChange('location', e.target.value)}
-                  placeholder="Phone, Zoom link, or physical location..."
+                  placeholder="Phone, Zoom link, or other details..."
                   readOnly={formData.status === 'Complete'}
                   className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formData.status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  For non-venue locations (phone, Zoom, etc.)
+                </p>
               </div>
+            </div>
+
+            {/* Show on Special Events Calendar */}
+            <div className="mt-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.show_on_special_events}
+                  onChange={(e) => handleInputChange('show_on_special_events', e.target.checked)}
+                  disabled={formData.status === 'Complete'}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span className="ml-2 text-sm font-medium text-gray-700">
+                  Add to Special Events Calendar
+                </span>
+              </label>
+              <p className="ml-6 text-xs text-gray-500">
+                When checked, this interview will appear on the Special Events calendar and timeline
+              </p>
             </div>
 
           {/* Notes */}

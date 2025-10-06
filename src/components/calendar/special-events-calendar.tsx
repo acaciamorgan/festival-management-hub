@@ -150,9 +150,10 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
   
   const getEventTypeColor = (type: string | null): string => {
     switch (type) {
+      case 'Interview': return 'bg-purple-100 text-purple-800 border-purple-300'
       case 'Reception': return 'bg-blue-100 text-blue-800 border-blue-200'
       case 'Mixer': return 'bg-green-100 text-green-800 border-green-200'
-      case 'Party': return 'bg-purple-100 text-purple-800 border-purple-200'
+      case 'Party': return 'bg-pink-100 text-pink-800 border-pink-200'
       case 'Awards': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
       default: return 'bg-gray-100 text-gray-800 border-gray-200'
     }
@@ -224,18 +225,24 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
               
               {/* Events for this day */}
               <div className="space-y-1">
-                {dayEvents.slice(0, 3).map((event, eventIndex) => (
+                {dayEvents.slice(0, 3).map((event, eventIndex) => {
+                  const isInterview = event.event_type === 'Interview'
+                  return (
                   <div
                     key={event.id}
                     onClick={() => onEventClick(event)}
                     className={`text-xs px-2 py-1 rounded border cursor-pointer hover:opacity-80 transition-opacity ${getEventTypeColor(event.event_type)}`}
                   >
-                    <div className="font-medium truncate">{event.title}</div>
+                    <div className="font-medium truncate">
+                      {isInterview && <span className="mr-1">🎤</span>}
+                      {event.title}
+                    </div>
                     {event.start_time && (
                       <div className="text-xs opacity-75">{formatTime(event.start_time)}</div>
                     )}
                   </div>
-                ))}
+                  )
+                })}
                 
                 {dayEvents.length > 3 && (
                   <div className="text-xs text-gray-500 px-2">
@@ -252,10 +259,10 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
       <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
         <div className="flex items-center space-x-4 text-xs">
           <span className="font-medium text-gray-700">Event Types:</span>
-          {['Reception', 'Mixer', 'Party', 'Awards'].map(type => (
+          {['Interview', 'Reception', 'Mixer', 'Party', 'Awards'].map(type => (
             <div key={type} className="flex items-center">
               <div className={`w-3 h-3 rounded mr-1 ${getEventTypeColor(type).replace('text-', 'bg-').split(' ')[0]}`} />
-              <span className="text-gray-600">{type}</span>
+              <span className="text-gray-600">{type === 'Interview' ? '🎤 Interview' : type}</span>
             </div>
           ))}
         </div>
