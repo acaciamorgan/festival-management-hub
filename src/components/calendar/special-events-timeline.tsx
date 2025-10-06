@@ -255,7 +255,7 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
                       const venueEvents = dayEvents.filter(e => e.venue_name === venue)
 
                       return (
-                        <div key={venue} className="flex items-stretch mb-3 min-h-[80px]">
+                        <div key={venue} className="flex items-stretch mb-2 min-h-[60px]">
                           {/* Venue Label */}
                           <div className="w-32 flex-shrink-0 pr-4 flex items-center">
                             <span className="text-sm font-medium text-gray-700">{venue}</span>
@@ -284,35 +284,22 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
                                 <div
                                   key={event.id}
                                   onClick={() => onEventClick(event)}
-                                  className={`group absolute top-1 bottom-1 ${getEventTypeColor(event.event_type)} text-white rounded px-2 py-2 cursor-pointer hover:opacity-90 transition-opacity border-2 overflow-hidden hover:z-50`}
+                                  className={`absolute top-1 bottom-1 ${getEventTypeColor(event.event_type)} text-white rounded px-2 py-1 cursor-pointer hover:opacity-90 transition-opacity border-2 overflow-hidden`}
                                   style={{
                                     left: `${Math.max(0, startPercent)}%`,
                                     width: `${Math.min(100 - startPercent, widthPercent)}%`
                                   }}
-                                  title={`${event.title}\n${formatTime(event.start_time)}${event.end_time ? ` - ${formatTime(event.end_time)}` : ''}\n${event.venue_name || ''}`}
                                 >
-                                  <div className="text-sm font-semibold truncate">
+                                  <div className="text-xs font-semibold truncate">
                                     {isInterview && <span className="mr-1">🎤</span>}
                                     {event.title}
                                   </div>
-                                  <div className="text-xs opacity-90 truncate">
+                                  <div className="text-xs opacity-90">
                                     {formatTime(event.start_time)}{event.end_time ? ` - ${formatTime(event.end_time)}` : ''}
                                   </div>
                                   {event.open_press === 'Yes' && (
-                                    <div className="text-xs opacity-90">📰</div>
+                                    <div className="text-xs opacity-90">📰 Open Press</div>
                                   )}
-
-                                  {/* Hover tooltip */}
-                                  <div className="absolute hidden group-hover:block bg-gray-900 text-white text-sm rounded-lg shadow-lg p-3 bottom-full left-0 mb-2 min-w-[250px] z-50 whitespace-normal">
-                                    <div className="font-bold mb-1">{event.title}</div>
-                                    <div className="text-xs space-y-1">
-                                      <div>⏰ {formatTime(event.start_time)}{event.end_time ? ` - ${formatTime(event.end_time)}` : ''}</div>
-                                      <div>📍 {event.venue_name}</div>
-                                      {event.films_programs_display && <div>🎬 {event.films_programs_display}</div>}
-                                      {event.guests_display && <div>👤 {event.guests_display}</div>}
-                                      {event.open_press === 'Yes' && <div>📰 Open Press</div>}
-                                    </div>
-                                  </div>
                                 </div>
                               )
                             })}
