@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useCallback, useEffect } from 'react'
 import { SpecialEventCard } from '@/types'
 
 interface EventDetailsModalProps {
@@ -9,9 +10,45 @@ interface EventDetailsModalProps {
 }
 
 export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalProps) {
+  const [position, setPosition] = useState({ x: 100, y: 100 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+
   if (!isOpen || !event) return null
 
   const isInterview = (event as any)._type === 'interview'
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    })
+  }
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isDragging) {
+      setPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      })
+    }
+  }, [isDragging, dragStart])
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false)
+  }, [])
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp])
 
   const formatTime = (timeString: string | null): string => {
     if (!timeString) return '—'
@@ -32,13 +69,24 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 pointer-events-none">
       <div
-        className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto"
+        className="bg-white rounded-lg shadow-2xl border border-gray-300 overflow-y-auto pointer-events-auto"
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          width: '600px',
+          maxHeight: '80vh',
+          position: 'fixed',
+          cursor: isDragging ? 'grabbing' : 'default'
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        {/* Header - Draggable */}
+        <div
+          className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50 cursor-grab active:cursor-grabbing"
+          onMouseDown={handleMouseDown}
+        >
           <div className="flex items-center">
             {isInterview ? (
               <span className="text-2xl mr-3">🎤</span>
@@ -49,7 +97,7 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl font-bold w-8 h-8 flex items-center justify-center"
+            className="text-gray-500 hover:text-gray-700 text-xl font-bold w-6 h-6 flex items-center justify-center hover:bg-gray-200 rounded"
           >
             ×
           </button>
