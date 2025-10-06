@@ -438,7 +438,6 @@ export default function SpecialEventsPage() {
             venues(name, address)
           `)
           .eq('show_on_special_events', true)
-          .in('status', ['Scheduled', 'Complete'])
           .not('interview_date', 'is', null)
           .order('interview_date', { ascending: true })
       ])
