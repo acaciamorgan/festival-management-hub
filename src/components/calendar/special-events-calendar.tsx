@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { SpecialEventCard } from '@/types'
+import { EventDetailsModal } from './event-details-modal'
 
 interface SpecialEventsCalendarProps {
   events: SpecialEventCard[]
@@ -9,6 +10,8 @@ interface SpecialEventsCalendarProps {
 }
 
 export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCalendarProps) {
+  const [selectedEvent, setSelectedEvent] = useState<SpecialEventCard | null>(null)
+  const [showModal, setShowModal] = useState(false)
   const [currentDate, setCurrentDate] = useState(() => {
     const now = new Date()
     return { year: now.getFullYear(), month: now.getMonth() }
@@ -230,7 +233,10 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
                   return (
                   <div
                     key={event.id}
-                    onClick={() => onEventClick(event)}
+                    onClick={() => {
+                      setSelectedEvent(event)
+                      setShowModal(true)
+                    }}
                     className={`text-xs px-2 py-1 rounded border cursor-pointer hover:opacity-80 transition-opacity ${getEventTypeColor(event.event_type)}`}
                   >
                     <div className="font-medium truncate">
@@ -267,6 +273,16 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
           ))}
         </div>
       </div>
+
+      {/* Event Details Modal */}
+      <EventDetailsModal
+        event={selectedEvent}
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false)
+          setSelectedEvent(null)
+        }}
+      />
     </div>
   )
 }
