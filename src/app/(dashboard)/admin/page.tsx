@@ -290,12 +290,12 @@ export default function AdminPage() {
 
       const response = await fetch('/api/admin/update-user', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          userId: editingUser.user_id,
+          userId: editingUser.id,
           email: editingUser.user_email,
           name: editUserName,
           role: editUserRole,

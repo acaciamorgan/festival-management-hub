@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
-export async function PUT(request: Request) {
+export async function POST(request: Request) {
   try {
     const { userId, name, role, phone } = await request.json()
 
@@ -58,7 +58,7 @@ export async function PUT(request: Request) {
 
     if (name !== undefined) updateData.user_name = name
     if (role !== undefined) updateData.user_role = role
-    if (phone !== undefined) updateData.phone = phone
+    if (phone !== undefined) updateData.user_phone = phone
 
     // Update user_permissions record
     const { data: updatedUser, error: updateError } = await supabaseAdmin
@@ -80,7 +80,7 @@ export async function PUT(request: Request) {
         email: updatedUser.user_email,
         name: updatedUser.user_name,
         role: updatedUser.user_role,
-        phone: updatedUser.phone,
+        phone: updatedUser.user_phone,
         isAdmin: updatedUser.is_admin,
         isSuperAdmin: updatedUser.is_super_admin
       }
