@@ -303,7 +303,23 @@ export default function AdminPage() {
         })
       })
 
-      const result = await response.json()
+      // Check if response has content before parsing
+      const responseText = await response.text()
+      console.log('Response status:', response.status)
+      console.log('Response text:', responseText)
+
+      if (!responseText) {
+        throw new Error('Empty response from server')
+      }
+
+      let result
+      try {
+        result = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError)
+        console.error('Response was:', responseText)
+        throw new Error('Invalid JSON response from server')
+      }
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to update user')

@@ -276,10 +276,17 @@ export function PressRequestFormModal({
         error: featuresError
       })
 
-      // Skip loading individual shorts - only shorts programs (which are in feature_films) should be available
-      // Individual shorts cannot be requested separately from their curated programs
-      const shorts: any[] = []
-      console.log('Skipping individual shorts - using shorts programs from feature_films instead')
+      // Load shorts programs
+      const { data: shortsPrograms, error: shortsProgramsError } = await supabase
+        .from('shorts_programs')
+        .select('id, program_name')
+        .order('program_number')
+
+      console.log('Shorts programs result:', {
+        count: shortsPrograms?.length || 0,
+        hasError: !!shortsProgramsError,
+        error: shortsProgramsError
+      })
 
       const { data: programs, error: programsError } = await supabase
         .from('programs')
@@ -314,18 +321,19 @@ export function PressRequestFormModal({
       }
 
       const allFilms: Film[] = [
-        ...(features || []).map(f => ({ 
-          ...f, 
+        ...(features || []).map(f => ({
+          ...f,
           type: 'feature' as const,
           access_type: accessMap.get(f.id) || 'no_links'
         })),
-        ...(shorts || []).map(s => ({ 
-          ...s, 
+        ...(shortsPrograms || []).map(sp => ({
+          id: sp.id,
+          title: sp.program_name,
           type: 'short' as const,
-          access_type: accessMap.get(s.id) || 'no_links'
+          access_type: accessMap.get(sp.id) || 'no_links'
         })),
-        ...(programs || []).map(p => ({ 
-          ...p, 
+        ...(programs || []).map(p => ({
+          ...p,
           type: 'program' as const,
           access_type: accessMap.get(p.id) || 'no_links'
         }))
@@ -335,7 +343,7 @@ export function PressRequestFormModal({
       console.log('Total films loaded:', allFilms.length)
       console.log('Film breakdown:', {
         features: features?.length || 0,
-        shorts: 0, // Individual shorts excluded - shorts programs are in features
+        shortsPrograms: shortsPrograms?.length || 0,
         programs: programs?.length || 0
       })
       console.log('Access type breakdown:', {
@@ -392,25 +400,11 @@ export function PressRequestFormModal({
       )
       
       console.log('After text + exclusion filtering:', filtered.length)
-      
-      // Filter based on request type
-      if (formData.request_type === 'screener_link') {
-        // Only show films with link_available, request_link, or cinesend access (exclude no_links)
-        const beforeAccessFilter = filtered.length
-        filtered = filtered.filter(film => 
-          film.access_type === 'link_available' || 
-          film.access_type === 'request_link' ||
-          film.access_type === 'cinesend'
-        )
-        console.log('Screener link request - filtered out no_links films:', {
-          before: beforeAccessFilter,
-          after: filtered.length,
-          excluded: beforeAccessFilter - filtered.length
-        })
-      } else if (formData.request_type === 'screening_ticket') {
-        console.log('Screening ticket request - showing all films')
-      }
-      
+
+      // Show all films regardless of access type - the UI will display the access type
+      // Users can request screener links OR in-person tickets for any film/program
+      console.log('Showing all matching films/programs')
+
       setFilteredFilmSuggestions(filtered)
       console.log('=== FILTERING COMPLETE ===')
       console.log('Final filtered suggestions:', filtered.length)
@@ -825,9 +819,16 @@ export function PressRequestFormModal({
                             <div className="font-medium">{film.title}</div>
                             <div className="text-gray-500 text-xs capitalize flex justify-between">
                               <span>{film.type}</span>
-                              {formData.request_type === 'screener_link' && film.access_type && (
-                                <span className="text-xs text-blue-600">
-                                  {film.access_type === 'link_available' ? 'Link Available' : 'Request Link'}
+                              {film.access_type && (
+                                <span className={`text-xs ${
+                                  film.access_type === 'link_available' || film.access_type === 'request_link' || film.access_type === 'cinesend'
+                                    ? 'text-blue-600'
+                                    : 'text-gray-500'
+                                }`}>
+                                  {film.access_type === 'link_available' ? 'Link Available' :
+                                   film.access_type === 'request_link' ? 'Request Link' :
+                                   film.access_type === 'cinesend' ? 'CineSend' :
+                                   'No Links'}
                                 </span>
                               )}
                             </div>
