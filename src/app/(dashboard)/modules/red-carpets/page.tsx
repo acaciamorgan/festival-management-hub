@@ -318,14 +318,38 @@ export default function RedCarpetsPage() {
 
   const formatTime = (timeString: string | null): string => {
     if (!timeString) return '—'
-    
+
     // Convert 24-hour format to 12-hour AM/PM format
     const [hours, minutes] = timeString.split(':')
     const hour24 = parseInt(hours, 10)
     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
     const ampm = hour24 >= 12 ? 'PM' : 'AM'
-    
+
     return `${hour12}:${minutes} ${ampm}`
+  }
+
+  const handleDeleteCarpetEvent = async (event: GroupedRedCarpetEvent) => {
+    const filmTitles = event.films.map(f => f.title).join(', ')
+    if (!confirm(`Are you sure you want to delete this red carpet event for: ${filmTitles}?`)) {
+      return
+    }
+
+    try {
+      // Delete all records from this grouped event
+      const idsToDelete = event.rawEvents.map(carpet => carpet.id)
+      const { error } = await supabase
+        .from('red_carpets')
+        .delete()
+        .in('id', idsToDelete)
+
+      if (error) throw error
+
+      // Remove from local state
+      setRedCarpets(prev => prev.filter(carpet => !idsToDelete.includes(carpet.id)))
+    } catch (error) {
+      console.error('Error deleting red carpet event:', error)
+      alert('Error deleting red carpet event')
+    }
   }
 
   const checkIfFilmExists = async (filmTitle: string): Promise<boolean> => {
@@ -739,12 +763,20 @@ export default function RedCarpetsPage() {
                     </td>
                     {canEditRedCarpets && (
                       <td className="px-3 py-2 text-sm text-gray-900 text-center">
-                        <button
-                          onClick={() => setSelectedCarpet(event.rawEvents)}
-                          className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm font-medium"
-                        >
-                          Edit
-                        </button>
+                        <div className="flex gap-2 justify-center">
+                          <button
+                            onClick={() => setSelectedCarpet(event.rawEvents)}
+                            className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm font-medium"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCarpetEvent(event)}
+                            className="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 text-sm font-medium"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
