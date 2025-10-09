@@ -65,7 +65,7 @@ export default function RedCarpetsPage() {
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
-  const [selectedCarpet, setSelectedCarpet] = useState<RedCarpet | null>(null)
+  const [selectedCarpet, setSelectedCarpet] = useState<RedCarpet[] | null>(null)
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'carpet_date', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [showFilmCard, setShowFilmCard] = useState<any>(null)
@@ -740,7 +740,7 @@ export default function RedCarpetsPage() {
                     {canEditRedCarpets && (
                       <td className="px-3 py-2 text-sm text-gray-900 text-center">
                         <button
-                          onClick={() => setSelectedCarpet(event.rawEvents[0])}
+                          onClick={() => setSelectedCarpet(event.rawEvents)}
                           className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm font-medium"
                         >
                           Edit

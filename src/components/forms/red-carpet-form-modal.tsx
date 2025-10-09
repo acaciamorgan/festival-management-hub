@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 
 interface RedCarpetFormModalProps {
-  redCarpet?: any | null
+  redCarpet?: any[] | null
   isOpen: boolean
   onClose: () => void
   onSave: (redCarpet: any) => void
@@ -166,32 +166,32 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
 
   // Initialize form data when redCarpet changes
   useEffect(() => {
-    if (redCarpet) {
-      // For editing, convert back to pair format
-      const pairs: FilmSubjectPair[] = []
-      if (redCarpet.film_program_display || redCarpet.subjects_display) {
-        pairs.push({
-          film_program_title: redCarpet.film_program_display || '',
-          subjects: redCarpet.subjects_display || ''
-        })
-      }
-      
+    if (redCarpet && redCarpet.length > 0) {
+      // For editing, convert all records to pairs
+      const pairs: FilmSubjectPair[] = redCarpet.map(carpet => ({
+        film_program_title: carpet.film_program_display || '',
+        subjects: carpet.subjects_display || ''
+      })).filter(pair => pair.film_program_title.trim()) // Remove empty pairs
+
+      // Use the first record for shared fields (venue, date, times)
+      const firstRecord = redCarpet[0]
+
       setFormData({
         film_subject_pairs: pairs.length > 0 ? pairs : [{ film_program_title: '', subjects: '' }],
-        venue_id: redCarpet.venue_id || '',
-        house: redCarpet.house || '',
-        carpet_date: redCarpet.carpet_date || '',
-        call_time: redCarpet.call_time || '',
-        carpet_start_time: redCarpet.carpet_start_time || '',
-        film_program_start_time: redCarpet.film_program_start_time || '',
-        rsvp_form_url: redCarpet.rsvp_form_url || '',
-        rsvp_responses_url: redCarpet.rsvp_responses_url || '',
-        run_of_show_url: redCarpet.run_of_show_url || ''
+        venue_id: firstRecord.venue_id || '',
+        house: firstRecord.house || '',
+        carpet_date: firstRecord.carpet_date || '',
+        call_time: firstRecord.call_time || '',
+        carpet_start_time: firstRecord.carpet_start_time || '',
+        film_program_start_time: firstRecord.film_program_start_time || '',
+        rsvp_form_url: firstRecord.rsvp_form_url || '',
+        rsvp_responses_url: firstRecord.rsvp_responses_url || '',
+        run_of_show_url: firstRecord.run_of_show_url || ''
       })
-      
+
       // Set up house field if venue has houses
-      if (redCarpet.venue_id) {
-        const selectedVenue = availableVenues.find(v => v.id === redCarpet.venue_id)
+      if (firstRecord.venue_id) {
+        const selectedVenue = availableVenues.find(v => v.id === firstRecord.venue_id)
         if (selectedVenue && selectedVenue.theater_houses && selectedVenue.theater_houses.length > 0) {
           const houses = selectedVenue.theater_houses.map(house => house.house_name)
           setSelectedVenueHouses(houses)
@@ -400,12 +400,23 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     setIsSubmitting(true)
 
     try {
-      // We'll create multiple records - one for each film/subject pair
+      // If editing, delete all existing records from this carpet event
+      if (redCarpet && redCarpet.length > 0) {
+        const idsToDelete = redCarpet.map(carpet => carpet.id)
+        const { error: deleteError } = await supabase
+          .from('red_carpets')
+          .delete()
+          .in('id', idsToDelete)
+
+        if (deleteError) throw deleteError
+      }
+
+      // Now create new records for all pairs
       const savedRedCarpets = []
-      
+
       for (const pair of formData.film_subject_pairs) {
         if (!pair.film_program_title.trim()) continue // Skip empty pairs
-        
+
         const redCarpetData = {
           film_program_display: pair.film_program_title.trim(),
           subjects_display: pair.subjects.trim() || null,
@@ -418,48 +429,30 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
           rsvp_form_url: formData.rsvp_form_url.trim() || null,
           rsvp_responses_url: formData.rsvp_responses_url.trim() || null,
           run_of_show_url: formData.run_of_show_url.trim() || null,
-          updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
+          created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
+          updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
+          created_by: user?.id
         }
 
-        let savedRedCarpet: any
+        // Create new red carpet record
+        const { data, error } = await supabase
+          .from('red_carpets')
+          .insert([redCarpetData])
+          .select()
+          .single()
 
-        if (redCarpet && formData.film_subject_pairs.length === 1) {
-          // Update existing red carpet (only if single pair)
-          const { data, error } = await supabase
-            .from('red_carpets')
-            .update(redCarpetData)
-            .eq('id', redCarpet.id)
-            .select()
-            .single()
-
-          if (error) throw error
-          savedRedCarpet = data
-        } else {
-          // Create new red carpet
-          const { data, error } = await supabase
-            .from('red_carpets')
-            .insert([{
-              ...redCarpetData,
-              created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
-              created_by: user?.id
-            }])
-            .select()
-            .single()
-
-          if (error) throw error
-          savedRedCarpet = data
-        }
+        if (error) throw error
 
         // Handle associations for this pair
-        await handleAssociations(savedRedCarpet.id, pair.film_program_title, pair.subjects)
+        await handleAssociations(data.id, pair.film_program_title, pair.subjects)
 
         // Add venue name for display
-        if (savedRedCarpet.venue_id) {
-          const venue = availableVenues.find(v => v.id === savedRedCarpet.venue_id)
-          savedRedCarpet.venue_name = venue?.name
+        if (data.venue_id) {
+          const venue = availableVenues.find(v => v.id === data.venue_id)
+          data.venue_name = venue?.name
         }
 
-        savedRedCarpets.push(savedRedCarpet)
+        savedRedCarpets.push(data)
       }
 
       // Trigger a refresh instead of trying to update individual records
