@@ -708,6 +708,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
               <option value="Pitching">Pitching</option>
               <option value="Subject Pending">Subject Pending</option>
               <option value="Scheduled">Scheduled</option>
+              <option value="Film Team">Film Team</option>
               <option value="Complete">Complete</option>
               <option value="Declined">Declined</option>
             </select>
