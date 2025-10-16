@@ -105,10 +105,11 @@ export default function InterviewManagementPage() {
   const sortedInterviews = useMemo(() => {
     return [...filteredInterviews].sort((a, b) => {
       // First, always sort by status priority
-      // Priority: Active statuses (TBD, Pitching, Subject Pending, Scheduled) > Complete > Declined
+      // Priority: Active statuses (TBD, Pitching, Subject Pending, Scheduled) > Film Team > Complete > Declined
       const statusPriority = (status: string) => {
-        if (status === 'Declined') return 2
-        if (status === 'Complete') return 1
+        if (status === 'Declined') return 3
+        if (status === 'Complete') return 2
+        if (status === 'Film Team') return 1
         return 0 // All active statuses
       }
 
