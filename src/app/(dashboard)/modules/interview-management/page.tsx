@@ -453,6 +453,7 @@ export default function InterviewManagementPage() {
             <option value="Pitching">Pitching</option>
             <option value="Subject Pending">Subject Pending</option>
             <option value="Scheduled">Scheduled</option>
+            <option value="Film Team">Film Team</option>
             <option value="Complete">Complete</option>
             <option value="Declined">Declined</option>
           </select>
@@ -471,6 +472,7 @@ export default function InterviewManagementPage() {
           interview.status === 'Scheduled' ? 'bg-blue-100 text-blue-800' :
           interview.status === 'Declined' ? 'bg-red-100 text-red-800' :
           interview.status === 'Pitching' ? 'bg-yellow-100 text-yellow-800' :
+          interview.status === 'Film Team' ? 'bg-orange-100 text-orange-800' :
           'bg-gray-100 text-gray-800'
         }`}>
           {interview.status}
@@ -578,6 +580,7 @@ export default function InterviewManagementPage() {
               <option value="Pitching">Pitching</option>
               <option value="Subject Pending">Subject Pending</option>
               <option value="Scheduled">Scheduled</option>
+              <option value="Film Team">Film Team</option>
               <option value="Complete">Complete</option>
               <option value="Declined">Declined</option>
             </select>

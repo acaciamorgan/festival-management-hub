@@ -333,7 +333,7 @@ export interface PressScreeningCard {
 }
 
 // Interview Management Types
-export type InterviewStatus = 'TBD' | 'Pitching' | 'Subject Pending' | 'Scheduled' | 'Complete' | 'Declined'
+export type InterviewStatus = 'TBD' | 'Pitching' | 'Subject Pending' | 'Scheduled' | 'Film Team' | 'Complete' | 'Declined'
 
 export interface InterviewCard {
   id: string

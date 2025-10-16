@@ -22,7 +22,7 @@ CREATE TABLE interviews (
   subject_guest_ids UUID[], -- Array of guest IDs if subjects have guest cards
   
   -- Interview details
-  status TEXT NOT NULL DEFAULT 'TBD' CHECK (status IN ('TBD', 'Pitching', 'Subject Pending', 'Scheduled', 'Complete', 'Declined')),
+  status TEXT NOT NULL DEFAULT 'TBD' CHECK (status IN ('TBD', 'Pitching', 'Subject Pending', 'Scheduled', 'Film Team', 'Complete', 'Declined')),
   interview_date DATE,
   interview_time TIME,
   location TEXT, -- Can be phone, Zoom link, or physical location
