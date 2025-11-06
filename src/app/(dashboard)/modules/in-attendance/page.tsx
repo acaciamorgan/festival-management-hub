@@ -359,9 +359,9 @@ export default function InAttendancePage() {
         guestShortFilmsResponse,
         shortsProgramsResponse
       ] = await Promise.all([
-        supabase.from('guest_films').select('*'),
+        supabase.from('guest_films_with_details').select('*'),
         supabase.from('guest_programs').select('*'),
-        supabase.from('ticketing_screenings').select('*').eq('is_published', true),
+        supabase.from('ticketing_screenings_with_films').select('*').eq('is_published', true),
         supabase.from('short_films').select('id, title, shorts_program_id'),
         supabase.from('guest_short_films').select('*'),
         supabase.from('shorts_programs').select('id, program_name')
