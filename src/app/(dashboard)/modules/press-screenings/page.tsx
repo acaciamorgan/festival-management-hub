@@ -51,52 +51,13 @@ export default function PressScreeningsPage() {
     setLoading(true)
     try {
       const { data: screeningsData, error } = await supabase
-        .from('press_screenings')
-        .select(`
-          *,
-          venues(name)
-        `)
+        .from('press_screenings_with_films')
+        .select('*')
         .order('screening_date', { ascending: true })
 
       if (error) throw error
 
-      // Now get the actual runtime from film cards
-      const screeningsWithRealRuntime = await Promise.all((screeningsData || []).map(async (screening) => {
-        try {
-          // Try feature films first
-          const { data: featureFilm } = await supabase
-            .from('feature_films')
-            .select('runtime')
-            .eq('id', screening.film_id)
-            .single()
-
-          if (featureFilm?.runtime) {
-            return { ...screening, runtime: featureFilm.runtime }
-          }
-
-          // If not found, try short films
-          const { data: shortFilm } = await supabase
-            .from('short_films')
-            .select('runtime')
-            .eq('id', screening.film_id)
-            .single()
-
-          if (shortFilm?.runtime) {
-            return { ...screening, runtime: shortFilm.runtime }
-          }
-        } catch (e) {
-          // If error, just use the existing runtime
-        }
-
-        return screening
-      }))
-
-      const screeningsWithVenues = (screeningsWithRealRuntime || []).map(screening => ({
-        ...screening,
-        venue_name: screening.venues?.name || null
-      }))
-
-      setPressScreenings(screeningsWithVenues)
+      setPressScreenings(screeningsData || [])
     } catch (error) {
       console.error('Error loading press screenings:', error)
     } finally {

@@ -1164,9 +1164,9 @@ export default function TicketingPage() {
   // Load data functions
   const loadPublishedScreenings = useCallback(async () => {
     try {
-      // Simplified: load all screenings from ticketing_screenings (no more published_screenings table)
+      // Load screenings with film details from view
       const { data, error } = await supabase
-        .from('ticketing_screenings')
+        .from('ticketing_screenings_with_films')
         .select('*')
         .order('screening_date', { ascending: true })
         .order('start_time', { ascending: true })
@@ -1180,9 +1180,9 @@ export default function TicketingPage() {
 
   const loadPIJuryScreenings = useCallback(async () => {
     try {
-      // Load P&I/Jury screenings first
+      // Load P&I/Jury screenings with film details
       const { data: screenings, error } = await supabase
-        .from('pi_jury_screenings')
+        .from('pi_jury_screenings_with_films')
         .select('*')
         .order('screening_date', { ascending: true })
         .order('start_time', { ascending: true })
@@ -1219,9 +1219,9 @@ export default function TicketingPage() {
 
   const loadTechCheckScreenings = useCallback(async () => {
     try {
-      // TODO: Create tech_check_screenings table
+      // Load tech check screenings with film details
       const { data, error } = await supabase
-        .from('tech_check_screenings')
+        .from('tech_check_screenings_with_films')
         .select('*')
         .order('screening_date', { ascending: true })
         .order('start_time', { ascending: true })
