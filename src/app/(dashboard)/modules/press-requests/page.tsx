@@ -60,7 +60,7 @@ export default function PressRequestsPage() {
     setLoading(true)
     try {
       const { data, error } = await supabase
-        .from('press_requests')
+        .from('press_requests_with_films')
         .select('*')
         .order('created_at', { ascending: false })
 

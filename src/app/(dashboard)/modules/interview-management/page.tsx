@@ -54,9 +54,9 @@ export default function InterviewManagementPage() {
     setLoading(true)
     try {
       const { data: interviewsData, error } = await supabase
-        .from('interviews')
+        .from('interviews_with_films')
         .select('*')
-        .order('film_title', { ascending: true })
+        .order('title', { ascending: true })
 
       if (error) throw error
 
@@ -85,7 +85,7 @@ export default function InterviewManagementPage() {
         const searchFilter = createAccentInsensitiveFilter<InterviewCard>(
           searchTerm,
           (interview) => [
-            interview.film_title,
+            interview.title,
             interview.journalist_name,
             interview.outlet,
             interview.email,
@@ -161,7 +161,7 @@ export default function InterviewManagementPage() {
   }
 
   const handleDeleteInterview = async (interview: InterviewCard) => {
-    if (!confirm(`Are you sure you want to delete the interview for "${interview.film_title}" with ${interview.journalist_name}?`)) {
+    if (!confirm(`Are you sure you want to delete the interview for "${interview.title}" with ${interview.journalist_name}?`)) {
       return
     }
 
@@ -185,7 +185,7 @@ export default function InterviewManagementPage() {
     if (!showFilms) return
     
     // Don't open film card if multiple films (comma-separated)
-    if (interview.film_title && interview.film_title.includes(',')) {
+    if (interview.title && interview.title.includes(',')) {
       return // Multiple films - can't open single film card
     }
 
@@ -265,10 +265,10 @@ export default function InterviewManagementPage() {
         // Group subjects by film for contextual matching
         const subjectsByFilm = new Map<string, string[]>()
         interviews.forEach(interview => {
-          if (interview.subject_names && interview.film_title) {
+          if (interview.subject_names && interview.title) {
             const names = interview.subject_names.split(', ').map(n => n.trim())
-            const existing = subjectsByFilm.get(interview.film_title) || []
-            subjectsByFilm.set(interview.film_title, [...new Set([...existing, ...names])])
+            const existing = subjectsByFilm.get(interview.title) || []
+            subjectsByFilm.set(interview.title, [...new Set([...existing, ...names])])
           }
         })
 
@@ -680,15 +680,15 @@ export default function InterviewManagementPage() {
                   <tr key={interview.id} className="hover:bg-gray-50">
                     {/* Title */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['film_title'] || 200}px` }}>
-                      {showFilms && interview.film_title && !interview.film_title.includes(',') ? (
+                      {showFilms && interview.title && !interview.title.includes(',') ? (
                         <button
                           onClick={() => handleFilmClick(interview)}
                           className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
                         >
-                          {interview.film_title}
+                          {interview.title}
                         </button>
                       ) : (
-                        <span className="font-medium">{interview.film_title}</span>
+                        <span className="font-medium">{interview.title}</span>
                       )}
                     </td>
                     

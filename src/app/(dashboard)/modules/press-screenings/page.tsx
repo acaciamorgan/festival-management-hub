@@ -99,13 +99,22 @@ export default function PressScreeningsPage() {
     return [...filteredScreenings].sort((a, b) => {
       const aValue = a[sortConfig.key as keyof PressScreeningCard]
       const bValue = b[sortConfig.key as keyof PressScreeningCard]
-      
+
       if (aValue === null && bValue === null) return 0
       if (aValue === null) return 1
       if (bValue === null) return -1
-      
+
       if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
       if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
+
+      // If equal and sorting by date, sub-sort by time
+      if (aValue === bValue && sortConfig.key === 'screening_date') {
+        const aTime = a.screening_time || ''
+        const bTime = b.screening_time || ''
+        if (aTime < bTime) return sortConfig.direction === 'asc' ? -1 : 1
+        if (aTime > bTime) return sortConfig.direction === 'asc' ? 1 : -1
+      }
+
       return 0
     })
   }, [filteredScreenings, sortConfig])
@@ -503,11 +512,11 @@ export default function PressScreeningsPage() {
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   {[
-                    { key: 'title', label: 'Title', width: 200 },
+                    { key: 'film_title', label: 'Title', width: 200 },
                     { key: 'screening_date', label: 'Date', width: 180 },
                     { key: 'screening_time', label: 'Time', width: 100 },
                     { key: 'short_code', label: 'Venue Short Code', width: 150 },
-                    { key: 'runtime', label: 'Runtime', width: 100 },
+                    { key: 'run_time', label: 'Runtime', width: 100 },
                     { key: 'rsvps', label: 'RSVPs', width: 120 },
                     { key: 'film_approved', label: 'Film Approved', width: 120 },
                     { key: 'locked', label: 'Locked', width: 100 },
