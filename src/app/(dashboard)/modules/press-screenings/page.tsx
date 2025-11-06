@@ -78,7 +78,7 @@ export default function PressScreeningsPage() {
         const searchFilter = createAccentInsensitiveFilter<PressScreeningCard>(
           searchTerm,
           (screening) => [
-            screening.title,
+            screening.film_title,
             screening.venue_name,
             screening.house,
             screening.staffer,
@@ -135,7 +135,7 @@ export default function PressScreeningsPage() {
   }
 
   const handleDeleteScreening = async (screening: PressScreeningCard) => {
-    if (!confirm(`Are you sure you want to delete the screening for "${screening.title}"?`)) {
+    if (!confirm(`Are you sure you want to delete the screening for "${screening.film_title}"?`)) {
       return
     }
 
@@ -269,8 +269,8 @@ export default function PressScreeningsPage() {
   const handleCancelToggle = async (screening: PressScreeningCard) => {
     const newCanceledState = !screening.canceled
     const confirmMessage = newCanceledState 
-      ? `Are you sure you want to cancel the screening for "${screening.title}"?`
-      : `Are you sure you want to uncancel the screening for "${screening.title}"?`
+      ? `Are you sure you want to cancel the screening for "${screening.film_title}"?`
+      : `Are you sure you want to uncancel the screening for "${screening.film_title}"?`
     
     if (!confirm(confirmMessage)) {
       return
@@ -549,7 +549,7 @@ export default function PressScreeningsPage() {
                         onClick={() => handleFilmClick(screening)}
                         className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
                       >
-                        {screening.title}
+                        {screening.film_title}
                       </button>
                     </td>
                     
