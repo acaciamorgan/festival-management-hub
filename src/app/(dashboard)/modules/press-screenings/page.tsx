@@ -570,7 +570,7 @@ export default function PressScreeningsPage() {
                     
                     {/* Runtime */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['runtime'] || 100}px` }}>
-                      {screening.runtime ? `${screening.runtime}min` : '—'}
+                      {screening.run_time ? `${screening.run_time}min` : '—'}
                     </td>
                     
                     {/* RSVPs */}
