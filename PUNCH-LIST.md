@@ -14,15 +14,15 @@
 ### Interview Management Module
 - [x] EVERYTHING IS GONE - FIXED (now using interviews_with_films view)
 
-## Remaining Issues
-
 ### Screener Access Module
-- [ ] Sort functions disappeared (only Title sorts now)
-- [ ] Access Type column should be sortable
+- [x] Sort functions disappeared (only Title sorts now) - FIXED
+- [x] Access Type column should be sortable - FIXED
 
 ### Ticketing Module
-- [ ] Sorting doesn't work for any column
-- [ ] Film titles should be clickable and open the film card
+- [x] Sorting doesn't work for any column - FIXED
+- [x] Film titles should be clickable and open the film card - FIXED
+
+## Remaining Issues
 
 ### To Test - All Modules
 - [ ] Press Screenings - verify titles and runtimes display
