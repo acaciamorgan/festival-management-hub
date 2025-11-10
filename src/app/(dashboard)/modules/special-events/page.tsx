@@ -47,8 +47,8 @@ export default function SpecialEventsPage() {
       { field: 'event_date', display: 'Date' },
       { field: 'title', display: 'Event' },
       { field: 'event_type', display: 'Event Type' },
-      { field: 'films_programs_display', display: 'Films/Programs Associated' },
-      { field: 'guests_display', display: 'Guests Associated' },
+      { field: 'films_programs_display_combined', display: 'Films/Programs Associated' },
+      { field: 'guests_display_combined', display: 'Guests Associated' },
       { field: 'access_time', display: 'Access Time' },
       { field: 'start_time', display: 'Start Time' },
       { field: 'end_time', display: 'End Time' },
@@ -187,8 +187,8 @@ export default function SpecialEventsPage() {
         'Date': 'event_date',
         'Event': 'title',
         'Event Type': 'event_type',
-        'Films/Programs Associated': 'films_programs_display',
-        'Guests Associated': 'guests_display',
+        'Films/Programs Associated': 'films_programs_display_combined',
+        'Guests Associated': 'guests_display_combined',
         'Access Time': 'access_time',
         'Start Time': 'start_time',
         'End Time': 'end_time',
@@ -421,11 +421,8 @@ export default function SpecialEventsPage() {
       // Load special events, venues, and interviews
       const [eventsResult, venuesResult, interviewsResult] = await Promise.all([
         supabase
-          .from('special_events')
-          .select(`
-            *,
-            venues(name, address, contact_names, contact_phones)
-          `)
+          .from('special_events_with_details')
+          .select('*')
           .order('event_date', { ascending: true }),
         supabase
           .from('venues')
@@ -448,10 +445,6 @@ export default function SpecialEventsPage() {
 
       const eventsWithDetails = (eventsResult.data || []).map(event => ({
         ...event,
-        venue_name: event.venues?.name || null,
-        venue_address: event.venues?.address || null,
-        venue_contact_name: event.venues?.contact_names?.[0] || null,
-        venue_contact_phone: event.venues?.contact_phones?.[0] || null,
         _type: 'special_event' as const
       }))
 
@@ -479,8 +472,8 @@ export default function SpecialEventsPage() {
           venue_name: interview.venues?.name || null,
           venue_address: interview.venues?.address || null,
           location_details: interview.location,
-          films_programs_display: interview.film_title,
-          guests_display: interview.subject_names,
+          films_programs_display_combined: interview.film_title,
+          guests_display_combined: interview.subject_names,
           lead_staff: null,
           invited_tags: null,
           number_expected: null,
@@ -541,8 +534,8 @@ export default function SpecialEventsPage() {
             event.venue_name,
             event.lead_staff,
             event.invited_tags,
-            event.films_programs_display,
-            event.guests_display,
+            event.films_programs_display_combined,
+            event.guests_display_combined,
             event.notes
           ]
         )
@@ -1021,8 +1014,8 @@ export default function SpecialEventsPage() {
                     { key: 'event_date', label: 'Date', width: 150, sortable: true },
                     { key: 'title', label: 'Event', width: 200, sortable: true },
                     { key: 'event_type', label: 'Event Type', width: 120, sortable: true },
-                    { key: 'films_programs_display', label: 'Films/Programs Associated', width: 250, sortable: false },
-                    { key: 'guests_display', label: 'Guests Associated', width: 200, sortable: false },
+                    { key: 'films_programs_display_combined', label: 'Films/Programs Associated', width: 250, sortable: false },
+                    { key: 'guests_display_combined', label: 'Guests Associated', width: 200, sortable: false },
                     { key: 'access_time', label: 'Access Time', width: 100, sortable: false },
                     { key: 'start_time', label: 'Start Time', width: 100, sortable: false },
                     { key: 'end_time', label: 'End Time', width: 100, sortable: false },
@@ -1093,31 +1086,31 @@ export default function SpecialEventsPage() {
                     </td>
                     
                     {/* Films/Programs Associated */}
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['films_programs_display'] || 250}px` }}>
-                      {isInterview && event.films_programs_display ? (
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['films_programs_display_combined'] || 250}px` }}>
+                      {isInterview && event.films_programs_display_combined ? (
                         <span className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium">
-                          {event.films_programs_display}
+                          {event.films_programs_display_combined}
                         </span>
                       ) : (
-                        event.films_programs_display || '—'
+                        event.films_programs_display_combined || '—'
                       )}
                     </td>
 
                     {/* Guests Associated */}
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guests_display'] || 200}px` }}>
-                      {isInterview && event.guests_display ? (
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guests_display_combined'] || 200}px` }}>
+                      {isInterview && event.guests_display_combined ? (
                         <div className="flex flex-wrap gap-1">
-                          {event.guests_display.split(', ').map((name: string, index: number) => (
+                          {event.guests_display_combined.split(', ').map((name: string, index: number) => (
                             <span key={index}>
                               <span className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer">
                                 {name}
                               </span>
-                              {index < event.guests_display!.split(', ').length - 1 && <span className="text-gray-400">, </span>}
+                              {index < event.guests_display_combined!.split(', ').length - 1 && <span className="text-gray-400">, </span>}
                             </span>
                           ))}
                         </div>
                       ) : (
-                        event.guests_display || '—'
+                        event.guests_display_combined || '—'
                       )}
                     </td>
                     

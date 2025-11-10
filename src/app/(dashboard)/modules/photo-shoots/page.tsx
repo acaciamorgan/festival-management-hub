@@ -12,10 +12,10 @@ import * as XLSX from 'xlsx-js-style'
 
 interface PhotoShoot {
   id: string
-  film_program_display: string // Complete display string including free text
-  subjects_display: string // Complete display string including free text
+  film_program_display_combined: string // Hybrid: relational + free text
+  subjects_display_combined: string // Hybrid: relational + free text
   venue_id: string | null
-  venue_name: string | null
+  venue_name_from_fk: string | null // From view
   house: string | null
   shoot_date: string | null
   call_time: string | null
@@ -72,9 +72,9 @@ export default function PhotoShootsPage() {
   const exportPhotoShootsTemplate = () => {
     // Define headers with proper display names
     const headerMapping = [
-      { field: 'film_program_display', display: 'Film/Program' },
-      { field: 'subjects_display', display: 'Subjects' },
-      { field: 'venue_name', display: 'Venue' },
+      { field: 'film_program_display_combined', display: 'Film/Program' },
+      { field: 'subjects_display_combined', display: 'Subjects' },
+      { field: 'venue_name_from_fk', display: 'Venue' },
       { field: 'house', display: 'House' },
       { field: 'shoot_date', display: 'Shoot Date' },
       { field: 'call_time', display: 'Call Time' },
@@ -130,24 +130,16 @@ export default function PhotoShootsPage() {
     setLoading(true)
     try {
       const { data: shootsData, error } = await supabase
-        .from('photo_shoots')
-        .select(`
-          *,
-          venues(name)
-        `)
+        .from('photo_shoots_with_details')
+        .select('*')
         .order('shoot_date', { ascending: false })
 
       if (error) throw error
 
-      const shootsWithVenues = (shootsData || []).map(shoot => ({
-        ...shoot,
-        venue_name: shoot.venues?.name || null
-      }))
+      setPhotoShoots(shootsData || [])
 
-      setPhotoShoots(shootsWithVenues)
-      
       // Check which films/programs and guests exist in database
-      await checkExistingItems(shootsWithVenues)
+      await checkExistingItems(shootsData || [])
     } catch (error) {
       console.error('Error loading photo shoots:', error)
     } finally {
@@ -157,24 +149,31 @@ export default function PhotoShootsPage() {
 
   const checkExistingItems = async (shoots: PhotoShoot[]) => {
     const allFilmTitles = new Set<string>()
-    const allGuestNames = new Set<string>()
-    
-    // Collect all unique titles and names
+
+    // Collect all unique titles from combined display
     shoots.forEach(shoot => {
-      if (shoot.film_program_display) {
-        shoot.film_program_display.split(',').forEach(title => {
+      if (shoot.film_program_display_combined) {
+        shoot.film_program_display_combined.split(',').forEach(title => {
           allFilmTitles.add(title.trim())
         })
       }
-      // DON'T add subjects from photo shoot data - only use actual guest cards
     })
-    
-    // For now, assume all items exist and make them clickable
+
+    // For films, assume all items exist and make them clickable
     // We'll check existence when clicked instead of preloading
     setExistingFilms(allFilmTitles)
-    // Only use actual guest names from the guests table, not from photo shoot data
-    const actualGuestNames = new Set((guestsData || []).map(g => g.name))
-    setExistingGuests(actualGuestNames)
+
+    // For guests, load actual guest names from the database
+    try {
+      const { data: guestsData } = await supabase
+        .from('guests')
+        .select('name')
+
+      const actualGuestNames = new Set((guestsData || []).map(g => g.name))
+      setExistingGuests(actualGuestNames)
+    } catch (error) {
+      console.error('Error loading guests:', error)
+    }
   }
 
   useEffect(() => {
@@ -189,11 +188,11 @@ export default function PhotoShootsPage() {
         const searchFilter = createAccentInsensitiveFilter<PhotoShoot>(
           searchTerm,
           (shoot) => [
-            shoot.film_program_display,
-            shoot.subjects_display,
+            shoot.film_program_display_combined,
+            shoot.subjects_display_combined,
             shoot.photographer,
             shoot.videographer,
-            shoot.venue_name
+            shoot.venue_name_from_fk
           ]
         )
         if (!searchFilter(shoot)) return false
@@ -613,9 +612,9 @@ export default function PhotoShootsPage() {
                 {sortedPhotoShoots.map((shoot) => (
                   <tr key={shoot.id} className="hover:bg-gray-50">
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-0 bg-white z-10" style={{ minWidth: `${columnWidths['film_program_display'] || 200}px`, maxWidth: `${columnWidths['film_program_display'] || 200}px` }}>
-                      {shoot.film_program_display ? (
+                      {shoot.film_program_display_combined ? (
                         <div className="flex flex-wrap gap-1">
-                          {shoot.film_program_display.split(', ').map((title, index) => {
+                          {shoot.film_program_display_combined.split(', ').map((title, index) => {
                             const trimmedTitle = title.trim()
                             const exists = existingFilms.has(trimmedTitle)
                             return (
@@ -633,7 +632,7 @@ export default function PhotoShootsPage() {
                                 ) : (
                                   <span className="text-gray-900">{title}</span>
                                 )}
-                                {index < shoot.film_program_display.split(', ').length - 1 && <span className="text-gray-400">, </span>}
+                                {index < shoot.film_program_display_combined.split(', ').length - 1 && <span className="text-gray-400">, </span>}
                               </span>
                             )
                           })}
@@ -643,9 +642,9 @@ export default function PhotoShootsPage() {
                       )}
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-200px bg-white z-9" style={{ minWidth: `${columnWidths['subjects_display'] || 200}px`, maxWidth: `${columnWidths['subjects_display'] || 200}px`, left: `${columnWidths['film_program_display'] || 200}px` }}>
-                      {shoot.subjects_display ? (
+                      {shoot.subjects_display_combined ? (
                         <div className="flex flex-wrap gap-1">
-                          {shoot.subjects_display.split(', ').map((name, index) => {
+                          {shoot.subjects_display_combined.split(', ').map((name, index) => {
                             const trimmedName = name.trim()
                             const exists = existingGuests.has(trimmedName)
                             return (
@@ -663,7 +662,7 @@ export default function PhotoShootsPage() {
                                 ) : (
                                   <span className="text-gray-900">{name}</span>
                                 )}
-                                {index < shoot.subjects_display.split(', ').length - 1 && <span className="text-gray-400">, </span>}
+                                {index < shoot.subjects_display_combined.split(', ').length - 1 && <span className="text-gray-400">, </span>}
                               </span>
                             )
                           })}
@@ -673,9 +672,9 @@ export default function PhotoShootsPage() {
                       )}
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['venue_name'] || 150}px` }}>
-                      {shoot.venue_name ? (
+                      {shoot.venue_name_from_fk ? (
                         <div>
-                          <div>{shoot.venue_name}</div>
+                          <div>{shoot.venue_name_from_fk}</div>
                           {shoot.house && <div className="text-xs text-gray-500">{shoot.house}</div>}
                         </div>
                       ) : '—'}

@@ -399,15 +399,15 @@ export interface SpecialEventCard {
   
   // Location
   venue_id?: string | null
-  venue_name?: string | null
-  venue_address?: string | null
-  venue_contact_name?: string | null
-  venue_contact_phone?: string | null
+  venue_name_from_fk?: string | null // From view
+  venue_address_from_fk?: string | null // From view
+  venue_contact_name_from_fk?: string | null // From view
+  venue_contact_phone_from_fk?: string | null // From view
   location_details?: string | null
-  
-  // Associations (display strings)
-  films_programs_display?: string | null
-  guests_display?: string | null
+
+  // Associations (hybrid display strings: relational + free text)
+  films_programs_display_combined?: string | null
+  guests_display_combined?: string | null
   
   // Staff and logistics
   lead_staff?: string | null

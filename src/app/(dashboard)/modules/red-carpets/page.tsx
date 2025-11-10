@@ -12,10 +12,10 @@ import * as XLSX from 'xlsx-js-style'
 
 interface RedCarpet {
   id: string
-  film_program_display: string // Complete display string including free text
-  subjects_display: string // Complete display string including free text
+  film_program_display_combined: string // Hybrid: relational + free text
+  subjects_display_combined: string // Hybrid: relational + free text
   venue_id: string | null
-  venue_name: string | null
+  venue_name_from_fk: string | null
   house: string | null
   carpet_date: string | null
   call_time: string | null
@@ -46,7 +46,7 @@ interface GroupedRedCarpetEvent {
   eventKey: string
   carpet_date: string | null
   carpet_start_time: string | null
-  venue_name: string | null
+  venue_name_from_fk: string | null
   house: string | null
   rsvp_form_url: string | null
   rsvp_responses_url: string | null
@@ -82,9 +82,9 @@ export default function RedCarpetsPage() {
   const exportRedCarpetsTemplate = () => {
     // Define headers with proper display names
     const headerMapping = [
-      { field: 'film_program_display', display: 'Film/Program' },
-      { field: 'subjects_display', display: 'Subjects' },
-      { field: 'venue_name', display: 'Venue' },
+      { field: 'film_program_display_combined', display: 'Film/Program' },
+      { field: 'subjects_display_combined', display: 'Subjects' },
+      { field: 'venue_name_from_fk', display: 'Venue' },
       { field: 'house', display: 'House' },
       { field: 'carpet_date', display: 'Carpet Date' },
       { field: 'call_time', display: 'Call Time' },
@@ -137,24 +137,16 @@ export default function RedCarpetsPage() {
     setLoading(true)
     try {
       const { data: carpetsData, error } = await supabase
-        .from('red_carpets')
-        .select(`
-          *,
-          venues(name)
-        `)
+        .from('red_carpets_with_details')
+        .select('*')
         .order('carpet_date', { ascending: false })
 
       if (error) throw error
 
-      const carpetsWithVenues = (carpetsData || []).map(carpet => ({
-        ...carpet,
-        venue_name: carpet.venues?.name || null
-      }))
+      setRedCarpets(carpetsData || [])
 
-      setRedCarpets(carpetsWithVenues)
-      
       // Check which films/programs and guests exist in database
-      await checkExistingItems(carpetsWithVenues)
+      await checkExistingItems(carpetsData || [])
     } catch (error) {
       console.error('Error loading red carpets:', error)
     } finally {
@@ -164,24 +156,30 @@ export default function RedCarpetsPage() {
 
   const checkExistingItems = async (carpets: RedCarpet[]) => {
     const allFilmTitles = new Set<string>()
-    const allGuestNames = new Set<string>()
-    
-    // Collect all unique titles and names
+
+    // Collect all unique titles from combined display
     carpets.forEach(carpet => {
-      if (carpet.film_program_display) {
-        carpet.film_program_display.split(',').forEach(title => {
+      if (carpet.film_program_display_combined) {
+        carpet.film_program_display_combined.split(',').forEach(title => {
           allFilmTitles.add(title.trim())
         })
       }
-      // DON'T add subjects from red carpet data - only use actual guest cards
     })
-    
-    // For now, assume all items exist and make them clickable
-    // We'll check existence when clicked instead of preloading
+
+    // For films, assume all items exist and make them clickable
     setExistingFilms(allFilmTitles)
-    // Only use actual guest names from the guests table, not from red carpet data
-    const actualGuestNames = new Set((guestsData || []).map(g => g.name))
-    setExistingGuests(actualGuestNames)
+
+    // For guests, load actual guest names from the database
+    try {
+      const { data: guestsData } = await supabase
+        .from('guests')
+        .select('name')
+
+      const actualGuestNames = new Set((guestsData || []).map(g => g.name))
+      setExistingGuests(actualGuestNames)
+    } catch (error) {
+      console.error('Error loading guests:', error)
+    }
   }
 
   useEffect(() => {
@@ -193,14 +191,14 @@ export default function RedCarpetsPage() {
     const groups = new Map<string, GroupedRedCarpetEvent>()
     
     redCarpets.forEach(carpet => {
-      const eventKey = `${carpet.carpet_date || ''}-${carpet.carpet_start_time || ''}-${carpet.venue_name || ''}-${carpet.house || ''}`
-      
+      const eventKey = `${carpet.carpet_date || ''}-${carpet.carpet_start_time || ''}-${carpet.venue_name_from_fk || ''}-${carpet.house || ''}`
+
       if (!groups.has(eventKey)) {
         groups.set(eventKey, {
           eventKey,
           carpet_date: carpet.carpet_date,
           carpet_start_time: carpet.carpet_start_time,
-          venue_name: carpet.venue_name,
+          venue_name_from_fk: carpet.venue_name_from_fk,
           house: carpet.house,
           rsvp_form_url: carpet.rsvp_form_url,
           rsvp_responses_url: carpet.rsvp_responses_url,
@@ -214,11 +212,11 @@ export default function RedCarpetsPage() {
       group.rawEvents.push(carpet)
       
       // Add films with their subjects
-      if (carpet.film_program_display) {
-        const titles = carpet.film_program_display.split(',').map(t => t.trim())
+      if (carpet.film_program_display_combined) {
+        const titles = carpet.film_program_display_combined.split(',').map(t => t.trim())
         titles.forEach(title => {
           const existingFilm = group.films.find(f => f.title === title)
-          const subjects = carpet.subjects_display ? carpet.subjects_display.split(',').map(s => s.trim()) : []
+          const subjects = carpet.subjects_display_combined ? carpet.subjects_display_combined.split(',').map(s => s.trim()) : []
           
           if (existingFilm) {
             // Add unique subjects to existing film
@@ -250,7 +248,7 @@ export default function RedCarpetsPage() {
           (event) => [
             ...event.films.map((f: any) => f.title),
             ...event.films.flatMap((f: any) => f.subjects),
-            event.venue_name
+            event.venue_name_from_fk
           ]
         )
         if (!searchFilter(event)) return false
@@ -276,8 +274,8 @@ export default function RedCarpetsPage() {
           bValue = b.carpet_start_time
           break
         case 'venue_name':
-          aValue = a.venue_name
-          bValue = b.venue_name
+          aValue = a.venue_name_from_fk
+          bValue = b.venue_name_from_fk
           break
         default:
           aValue = a[sortConfig.key as keyof GroupedRedCarpetEvent]
@@ -680,9 +678,9 @@ export default function RedCarpetsPage() {
                       </div>
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['venue_name'] || 150}px` }}>
-                      {event.venue_name ? (
+                      {event.venue_name_from_fk ? (
                         <div>
-                          <div>{event.venue_name}</div>
+                          <div>{event.venue_name_from_fk}</div>
                           {event.house && <div className="text-xs text-gray-500">{event.house}</div>}
                         </div>
                       ) : '—'}
