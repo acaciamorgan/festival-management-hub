@@ -829,7 +829,7 @@ export default function ScreenerAccessPage() {
                   { key: 'title', label: 'Film Title / Shorts Program', width: 180, sortable: true },
                   { key: 'contacts', label: 'Contacts', width: 160, sortable: false },
                   { key: 'all_emails', label: 'All Emails', width: 200, sortable: false },
-                  { key: 'access_type', label: 'Access Type', width: 120, sortable: false },
+                  { key: 'access_type', label: 'Access Type', width: 120, sortable: true },
                   { key: 'link', label: 'Link', width: 180, sortable: false },
                   { key: 'password', label: 'Password', width: 100, sortable: false },
                   { key: 'instructions_sent', label: 'Instructions Sent', width: 110, sortable: false },

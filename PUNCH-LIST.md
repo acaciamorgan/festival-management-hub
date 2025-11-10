@@ -1,20 +1,24 @@
 # Data Migration Punch List
 
-## Known Issues
+## Fixed Issues (Deployed)
 
 ### Press Screenings Module
-- [ ] Title column doesn't sort
-- [ ] Date sort should automatically sub-sort by time (10am, 12pm, 3pm same day)
+- [x] Title column doesn't sort - FIXED
+- [x] Date sort should automatically sub-sort by time - FIXED
 
-### Screener Requests Module
-- [ ] Titles are missing
+### Press Requests Module
+- [x] View updated to use press_requests_with_films
+- [ ] ⚠️ OLD DATA LOST - film associations for existing requests are gone (migration issue)
+- [ ] New requests will work correctly going forward
+
+### Interview Management Module
+- [x] EVERYTHING IS GONE - FIXED (now using interviews_with_films view)
+
+## Remaining Issues
 
 ### Screener Access Module
 - [ ] Sort functions disappeared (only Title sorts now)
 - [ ] Access Type column should be sortable
-
-### Interview Management Module
-- [ ] EVERYTHING IS GONE - no interviews showing at all
 
 ### Ticketing Module
 - [ ] Sorting doesn't work for any column

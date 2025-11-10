@@ -1053,8 +1053,11 @@ export default function TicketingPage() {
   // Sorting state
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>(null)
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
-  
-  
+
+  // Film card popup state
+  const [selectedFilm, setSelectedFilm] = useState<any>(null)
+  const [showFilmCard, setShowFilmCard] = useState(false)
+
   // Screening Board state
   const [currentBoardDate, setCurrentBoardDate] = useState('')
   const [festivalSettings, setFestivalSettings] = useState<any>(null)
@@ -1867,6 +1870,74 @@ export default function TicketingPage() {
     setShowEditModal(true)
   }
 
+  const handleFilmClick = async (screening: any) => {
+    try {
+      // Determine if it's a feature or short film and fetch accordingly
+      let filmData = null
+
+      if (screening.film_type === 'feature') {
+        const { data: featureData } = await supabase
+          .from('feature_films')
+          .select('*')
+          .eq('id', screening.film_id)
+          .single()
+
+        if (featureData) {
+          filmData = {
+            id: featureData.id,
+            title: featureData.title,
+            original_language_title: featureData.original_language_title,
+            director: featureData.director,
+            countries: featureData.countries,
+            programs: [featureData.program_1, featureData.program_2, featureData.program_3, featureData.program_4]
+              .filter(Boolean).join(', '),
+            premiere_status: featureData.premiere_status
+          }
+        }
+      } else if (screening.film_type === 'short') {
+        const { data: shortData } = await supabase
+          .from('short_films')
+          .select('*')
+          .eq('id', screening.film_id)
+          .single()
+
+        if (shortData) {
+          filmData = {
+            id: shortData.id,
+            title: shortData.title,
+            original_language_title: shortData.original_language_title,
+            director: shortData.director,
+            countries: shortData.countries,
+            programs: [shortData.program_1, shortData.program_2, shortData.program_3]
+              .filter(Boolean).join(', '),
+            premiere_status: shortData.premiere_status
+          }
+        }
+      } else if (screening.film_type === 'shorts_program') {
+        const { data: programData } = await supabase
+          .from('shorts_programs')
+          .select('*')
+          .eq('id', screening.film_id)
+          .single()
+
+        if (programData) {
+          filmData = {
+            id: programData.id,
+            title: programData.program_name,
+            type: 'shorts_program'
+          }
+        }
+      }
+
+      if (filmData) {
+        setSelectedFilm(filmData)
+        setShowFilmCard(true)
+      }
+    } catch (error) {
+      console.error('Error loading film data:', error)
+    }
+  }
+
   // Export function for all three views
   const exportData = (format: 'csv' | 'excel') => {
     let data: any[]
@@ -2178,6 +2249,40 @@ export default function TicketingPage() {
     )
   }, [debouncedSearchTerm, publishedScreenings, piJuryScreenings, techCheckScreenings, viewMode])
 
+  // Sort filtered data
+  const sortedData = useMemo(() => {
+    if (!sortConfig) return filteredData
+
+    return [...filteredData].sort((a, b) => {
+      const aValue = a[sortConfig.key]
+      const bValue = b[sortConfig.key]
+
+      // Handle null/undefined values
+      if (aValue == null && bValue == null) return 0
+      if (aValue == null) return 1
+      if (bValue == null) return -1
+
+      // Compare values
+      let comparison = 0
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.localeCompare(bValue)
+      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+        comparison = aValue - bValue
+      } else {
+        comparison = String(aValue).localeCompare(String(bValue))
+      }
+
+      // Add sub-sort by time when sorting by date
+      if (comparison === 0 && sortConfig.key === 'screening_date') {
+        const aTime = a.start_time || ''
+        const bTime = b.start_time || ''
+        comparison = aTime.localeCompare(bTime)
+      }
+
+      return sortConfig.direction === 'asc' ? comparison : -comparison
+    })
+  }, [filteredData, sortConfig])
+
   // Filter film suggestions - make it dynamic to catch newly synced shorts
   const filteredFilms = useMemo(() => {
     if (!filmSearchTerm) return []
@@ -2254,7 +2359,7 @@ export default function TicketingPage() {
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">🎟️ Ticketing</h1>
             <p className="text-sm text-gray-600 mt-1">
-              {filteredData.length} of {getCurrentData().length} screenings
+              {sortedData.length} of {getCurrentData().length} screenings
             </p>
             {viewMode === 'pi-jury' && (
               <div className="flex items-center space-x-4 mt-2 text-xs">
@@ -2511,7 +2616,7 @@ export default function TicketingPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredData.map((screening) => {
+              {sortedData.map((screening) => {
                 // Determine the approval state
                 const piScreening = screening as PIJuryScreening;
                 const isApproved = piScreening.film_approved && !piScreening.locked;
@@ -2541,7 +2646,12 @@ export default function TicketingPage() {
                         displayValue = (
                           <div className={`font-medium ${isTentative ? 'text-gray-500 italic' : ''}`}>
                             {isTentative && <span className="text-gray-400 mr-1">(TENT)</span>}
-                            {screening.film_title}
+                            <button
+                              onClick={() => handleFilmClick(screening)}
+                              className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                            >
+                              {screening.film_title}
+                            </button>
                           </div>
                         );
                     } else if (column.key === 'screening_date') {
@@ -2587,7 +2697,7 @@ export default function TicketingPage() {
                 </tr>
                 );
               })}
-              {filteredData.length === 0 && (
+              {sortedData.length === 0 && (
                 <tr>
                   <td colSpan={getTableColumns().length + (canEditTicketing ? 1 : 0)} className="px-6 py-12 text-center text-gray-500">
                     {debouncedSearchTerm
@@ -3083,6 +3193,17 @@ export default function TicketingPage() {
             </div>
           </DraggableModal>
         </div>
+      )}
+
+      {/* Film Card Popup */}
+      {showFilmCard && selectedFilm && (
+        <FilmCardPopup
+          film={selectedFilm}
+          onClose={() => {
+            setShowFilmCard(false)
+            setSelectedFilm(null)
+          }}
+        />
       )}
 
     </div>
