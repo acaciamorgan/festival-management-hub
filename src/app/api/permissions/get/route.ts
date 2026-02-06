@@ -24,15 +24,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch permissions using service role
-    const { data, error } = await supabaseAdmin
+    const { data: initialData, error } = await supabaseAdmin
       .from('user_permissions')
       .select('*')
       .eq('user_id', userId)
       .single()
 
+    let data = initialData
+
     if (error) {
       console.error('Error fetching permissions:', error)
-      
+
       // Try by email as fallback
       const { data: emailData, error: emailError } = await supabaseAdmin
         .from('user_permissions')
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
           error: 'No permissions found'
         })
       }
-      
+
       data = emailData
     }
 

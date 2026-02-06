@@ -1,7 +1,13 @@
 // STRING-ONLY DATE UTILITIES
 // NO JavaScript Date objects - pure string manipulation only
 
-import { getFestivalYear } from './festival-context'
+import { getFestivalYear as getFestivalYearString } from './smart-date-parser'
+
+// Helper to get festival year as a number
+async function getFestivalYear(): Promise<number> {
+  const yearString = await getFestivalYearString()
+  return parseInt(yearString, 10)
+}
 
 export interface DateComponents {
   year: number
