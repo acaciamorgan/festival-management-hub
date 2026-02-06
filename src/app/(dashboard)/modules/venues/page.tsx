@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { VenueCard, TheaterHouse, VenueType } from '@/types'
 import { VenueFormModal } from '@/components/forms/venue-form-modal'
@@ -10,6 +11,7 @@ import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 
 export default function VenueManagementPage() {
   const { permissions } = usePermissions()
+  const { currentYear } = useFestivalYear()
   const [venues, setVenues] = useState<VenueCard[]>([])
   const [filteredVenues, setFilteredVenues] = useState<VenueCard[]>([])
   const [loading, setLoading] = useState(false)
@@ -51,6 +53,7 @@ export default function VenueManagementPage() {
       const { data: venuesData, error: venuesError } = await supabase
         .from('venues')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('name', { ascending: true })
 
       if (venuesError) throw venuesError
@@ -59,6 +62,7 @@ export default function VenueManagementPage() {
       const { data: housesData, error: housesError } = await supabase
         .from('theater_houses')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('house_name', { ascending: true })
 
       if (housesError) throw housesError
@@ -93,7 +97,7 @@ export default function VenueManagementPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   // Get unique venue types for filtering
   const uniqueVenueTypes = useMemo(() => {

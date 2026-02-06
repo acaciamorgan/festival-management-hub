@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { FilmCard, ProgramCard, VenueCard, GuestCard } from '@/types'
@@ -102,6 +103,7 @@ type ViewMode = 'features' | 'shorts' | 'programs'
 export default function TitlesPage() {
   const { } = useAuth()
   const { permissions } = usePermissions()
+  const { currentYear } = useFestivalYear()
   const [viewMode, setViewMode] = useState<ViewMode>('features')
   const [films, setFilms] = useState<FeatureFilm[]>([])
   const [shorts, setShorts] = useState<ShortFilm[]>([])
@@ -357,6 +359,7 @@ export default function TitlesPage() {
         const { data: guests, error } = await supabase
           .from('guests')
           .select('name')
+          .eq('festival_year', currentYear)
           // Remove the confirmed requirement - show all guests in the system
 
         if (!error && guests) {
@@ -368,7 +371,7 @@ export default function TitlesPage() {
     }
 
     loadConfirmedGuests()
-  }, [showGuestMode, supabase])
+  }, [showGuestMode, supabase, currentYear])
 
   const openGuestCard = async (guestName: string) => {
     try {
@@ -380,6 +383,7 @@ export default function TitlesPage() {
           guest_programs:guest_programs(program_title)
         `)
         .eq('name', guestName)
+        .eq('festival_year', currentYear)
         .single()
 
       if (error || !guestData) {
@@ -444,8 +448,9 @@ export default function TitlesPage() {
       const { data, error } = await supabase
         .from('feature_films')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('title')
-      
+
       if (error) {
         console.error('Error loading title cards:', error)
       } else {
@@ -457,7 +462,7 @@ export default function TitlesPage() {
           genres: [film.genre_1, film.genre_2, film.genre_3, film.genre_4]
             .filter(Boolean).join(', ')
         }))
-        
+
         setFilms(filmsWithCombined)
         setFilteredFilms(filmsWithCombined)
       }
@@ -466,7 +471,7 @@ export default function TitlesPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   const loadShorts = useCallback(async () => {
     setLoading(true)
@@ -475,15 +480,16 @@ export default function TitlesPage() {
       const { data: shortsData, error: shortsError } = await supabase
         .from('short_films')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('title')
-      
+
       if (shortsError) {
         console.error('Error loading shorts:', shortsError)
         setShorts([])
         setFilteredShorts([])
         return
       }
-      
+
       // Then get all program assignments from junction table
       const { data: assignmentsData, error: assignmentsError } = await supabase
         .from('short_film_programs')
@@ -492,6 +498,7 @@ export default function TitlesPage() {
           program_order,
           shorts_programs(id, program_name, program_number)
         `)
+        .eq('festival_year', currentYear)
         .order('shorts_program_id')
         .order('program_order')
       
@@ -533,7 +540,7 @@ export default function TitlesPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   const formatTime = (timeString: string | null): string => {
     if (!timeString) return ''
@@ -554,6 +561,7 @@ export default function TitlesPage() {
       const { data: programsData, error: programsError } = await supabase
         .from('programs')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('event_date, start_time, title')
 
       if (programsError) {
@@ -572,6 +580,7 @@ export default function TitlesPage() {
             name
           )
         `)
+        .eq('festival_year', currentYear)
 
       if (!guestProgramsError && guestProgramsData) {
         // Create a map of program_id to participant names
@@ -614,7 +623,7 @@ export default function TitlesPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   // Sync shorts programs to feature_films table for ticketing
   const syncShortsToFeatureFilms = useCallback(async () => {
@@ -625,19 +634,21 @@ export default function TitlesPage() {
       const { data: programsData, error: programsError } = await supabase
         .from('shorts_programs')
         .select('id, program_name')
-      
+        .eq('festival_year', currentYear)
+
       if (programsError) {
         console.error('Error fetching shorts programs:', programsError)
         throw programsError
       }
-      
+
       console.log('Raw programs data:', programsData)
-      
+
       // Then get films for each program separately
       const programsWithFilms = await Promise.all(
         (programsData || []).map(async (program) => {
-          const { data: filmsData, error: filmsError } = await supabase
-            .from('short_films') 
+          const { data: filmsData, error: filmsError} = await supabase
+            .from('short_films')
+            .eq('festival_year', currentYear) 
             .select('id, title, run_time')
             .eq('shorts_program_id', program.id)
           
@@ -669,6 +680,7 @@ export default function TitlesPage() {
           .from('feature_films')
           .select('id')
           .eq('title', program.program_name)
+          .eq('festival_year', currentYear)
           .single()
         
         const filmData = {
@@ -712,11 +724,11 @@ export default function TitlesPage() {
             throw updateError
           }
         } else {
-          // Insert new entry  
+          // Insert new entry
           console.log(`Inserting new program: ${program.program_name}`)
           const { error: insertError } = await supabase
             .from('feature_films')
-            .insert([filmData])
+            .insert([{ ...filmData, festival_year: currentYear }])
           
           if (insertError) {
             console.error(`Error inserting ${program.program_name}:`, insertError)
@@ -729,7 +741,7 @@ export default function TitlesPage() {
     } catch (error) {
       console.error('Error syncing shorts programs:', error)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   // Get unique values for filters
   const uniquePrograms = useMemo(() => {
@@ -1302,6 +1314,7 @@ export default function TitlesPage() {
     const { data: existingCards, error: fetchError } = await supabase
       .from('feature_films')
       .select('*')
+      .eq('festival_year', currentYear)
     
     if (fetchError) {
       setUploadStatus(`Error loading existing cards: ${fetchError.message}`)
@@ -1337,7 +1350,7 @@ export default function TitlesPage() {
         // CREATE new Card
         const { error } = await supabase
           .from('feature_films')
-          .insert([filmData])
+          .insert([{ ...filmData, festival_year: currentYear }])
         
         if (error) {
           console.error(`Error creating card "${filmData.title}":`, error)
@@ -1500,6 +1513,7 @@ export default function TitlesPage() {
         .from('short_films')
         .select('*')
         .eq('title', shortData.title)
+        .eq('festival_year', currentYear)
         .single()
 
       if (findError && findError.code !== 'PGRST116') {
@@ -1513,6 +1527,7 @@ export default function TitlesPage() {
           .from('short_films')
           .update({ ...shortData })
           .eq('id', existingShort.id)
+          .eq('festival_year', currentYear)
 
         if (updateError) {
           console.error('Update error:', updateError)
@@ -1525,7 +1540,7 @@ export default function TitlesPage() {
         // Create new short
         const { error: insertError } = await supabase
           .from('short_films')
-          .insert([shortData])
+          .insert([{ ...shortData, festival_year: currentYear }])
 
         if (insertError) {
           console.error('Insert error:', insertError)
@@ -1693,6 +1708,7 @@ export default function TitlesPage() {
             .from('shorts_programs')
             .select('id')
             .eq('program_name', shortsProgramName)
+            .eq('festival_year', currentYear)
             .single()
           
           if (existingProgram) {
@@ -1702,6 +1718,7 @@ export default function TitlesPage() {
             const { data: existingPrograms } = await supabase
               .from('shorts_programs')
               .select('program_number')
+              .eq('festival_year', currentYear)
               .order('program_number', { ascending: false })
               .limit(1)
 
@@ -1710,13 +1727,14 @@ export default function TitlesPage() {
               : 1
 
             console.log(`Creating new program "${shortsProgramName}" with program_number: ${nextProgramNumber}`)
-            
+
             // Create new program
             const { data: newProgram, error } = await supabase
               .from('shorts_programs')
-              .insert({ 
+              .insert({
                 program_name: shortsProgramName,
-                program_number: nextProgramNumber
+                program_number: nextProgramNumber,
+                festival_year: currentYear
               })
               .select('id')
               .single()
@@ -1751,6 +1769,7 @@ export default function TitlesPage() {
       const { data: allShorts } = await supabase
         .from('short_films')
         .select('id, title, shorts_program_id, program_order')
+        .eq('festival_year', currentYear)
 
       const existingRecord = allShorts?.find(short =>
         short.title?.toLowerCase() === title?.toLowerCase()
@@ -1775,7 +1794,7 @@ export default function TitlesPage() {
         // Insert new record
         const { error: insertError } = await supabase
           .from('short_films')
-          .insert([shortData])
+          .insert([{ ...shortData, festival_year: currentYear }])
 
         if (insertError) {
           console.error('Insert error:', insertError)
@@ -2891,7 +2910,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
 
       const { error } = await supabase
         .from('feature_films')
-        .insert([filmData])
+        .insert([{ ...filmData, festival_year: currentYear }])
 
       if (error) throw error
 
@@ -3617,6 +3636,7 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
           .from('shorts_programs')
           .update({ program_name: programName.trim() })
           .eq('id', editingProgram.id)
+          .eq('festival_year', currentYear)
 
         if (updateError) {
           console.error('Error updating program:', updateError)
@@ -3635,6 +3655,7 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
         const { data: existingPrograms } = await supabase
           .from('shorts_programs')
           .select('program_number')
+          .eq('festival_year', currentYear)
           .order('program_number', { ascending: false })
           .limit(1)
 
@@ -3647,7 +3668,8 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
           .from('shorts_programs')
           .insert([{
             program_number: nextProgramNumber,
-            program_name: programName.trim()
+            program_name: programName.trim(),
+            festival_year: currentYear
           }])
           .select()
           .single()
@@ -3698,6 +3720,7 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
         .from('short_films')
         .update({ shorts_program_id: null, program_order: null })
         .eq('shorts_program_id', editingProgram.id)
+        .eq('festival_year', currentYear)
       
       // Delete all associations in junction table
       await supabase
@@ -3710,6 +3733,7 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
         .from('shorts_programs')
         .delete()
         .eq('id', editingProgram.id)
+        .eq('festival_year', currentYear)
       
       if (error) {
         console.error('Error deleting program:', error)
@@ -4007,8 +4031,8 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase }: Cr
   useEffect(() => {
     const loadVenuesAndGuests = async () => {
       const [venuesResponse, guestsResponse] = await Promise.all([
-        supabase.from('venues').select('*'),
-        supabase.from('guests').select('*')
+        supabase.from('venues').select('*').eq('festival_year', currentYear),
+        supabase.from('guests').select('*').eq('festival_year', currentYear)
       ])
       
       if (venuesResponse.data) setVenues(venuesResponse.data)
@@ -4059,6 +4083,7 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase }: Cr
           .from('programs')
           .update(programData)
           .eq('id', editingEvent.id)
+          .eq('festival_year', currentYear)
 
         if (error) {
           console.error('Error updating program:', error)
@@ -4068,7 +4093,7 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase }: Cr
       } else {
         const { error } = await supabase
           .from('programs')
-          .insert([programData])
+          .insert([{ ...programData, festival_year: currentYear }])
 
         if (error) {
           console.error('Error creating program:', error)

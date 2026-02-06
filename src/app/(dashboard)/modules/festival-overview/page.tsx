@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { getOrdinalSuffix } from '@/utils/ordinal'
 
@@ -19,6 +20,7 @@ interface FestivalSettings {
 
 export default function FestivalOverviewPage() {
   const { permissions } = usePermissions()
+  const { currentYear } = useFestivalYear()
   const [activeTab, setActiveTab] = useState<'overview' | 'settings'>('overview')
   const [festivalSettings, setFestivalSettings] = useState<FestivalSettings | null>(null)
   const [loading, setLoading] = useState(true)
@@ -50,7 +52,7 @@ export default function FestivalOverviewPage() {
   useEffect(() => {
     loadFestivalSettings()
     loadStats()
-  }, [])
+  }, [currentYear])
 
   const loadStats = async () => {
     setStatsLoading(true)
@@ -59,22 +61,26 @@ export default function FestivalOverviewPage() {
       const { count: featuresCount } = await supabase
         .from('feature_films')
         .select('*', { count: 'exact', head: true })
+        .eq('festival_year', currentYear)
 
-      // Get total shorts  
+      // Get total shorts
       const { count: shortsCount } = await supabase
         .from('short_films')
         .select('*', { count: 'exact', head: true })
+        .eq('festival_year', currentYear)
 
       // Get public screenings from published_screenings table
       const { count: screeningsCount } = await supabase
         .from('published_screenings')
         .select('*', { count: 'exact', head: true })
+        .eq('festival_year', currentYear)
 
       // Get movie theater venues
       const { count: venuesCount } = await supabase
         .from('venues')
         .select('*', { count: 'exact', head: true })
         .eq('venue_type', 'Movie Theater')
+        .eq('festival_year', currentYear)
 
       setTotalFeatures(featuresCount || 0)
       setTotalShorts(shortsCount || 0)  
@@ -93,6 +99,7 @@ export default function FestivalOverviewPage() {
       const { data, error } = await supabase
         .from('festival_settings')
         .select('*')
+        .eq('year', currentYear)
         .single()
 
       if (error && error.code !== 'PGRST116') { // Not found error
@@ -120,26 +127,28 @@ export default function FestivalOverviewPage() {
     setSaving(true)
     try {
       const settingsData = {
+        year: currentYear,
         edition_number: editionNumber,
         festival_name: festivalName,
         start_date: startDate,
         end_date: endDate,
-        important_links: importantLinks
+        important_links: importantLinks,
+        updated_at: new Date().toISOString()
       }
 
       if (festivalSettings) {
-        // Update existing
+        // Update existing year
         const { error } = await supabase
           .from('festival_settings')
           .update(settingsData)
-          .eq('id', festivalSettings.id)
+          .eq('year', currentYear)
 
         if (error) throw error
       } else {
-        // Create new
+        // Create new year (should rarely happen since year selector creates it)
         const { error } = await supabase
           .from('festival_settings')
-          .insert([settingsData])
+          .insert([{ ...settingsData, is_archived: false }])
 
         if (error) throw error
       }

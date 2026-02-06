@@ -149,7 +149,7 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
   },
   archives: {
     id: 'archives',
-    name: 'Archives',
+    name: 'Reports & Archives',
     icon: 'archive',
     hasGridView: false,
     hasRSVP: false,

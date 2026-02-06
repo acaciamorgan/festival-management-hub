@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { GuestCard, GuestType, GuestFilm } from '@/types'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
@@ -20,6 +21,7 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableCell, T
 export default function InAttendancePage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
+  const { currentYear } = useFestivalYear()
   const [guests, setGuests] = useState<GuestCard[]>([])
   const [filteredGuests, setFilteredGuests] = useState<GuestCard[]>([])
   const [loading, setLoading] = useState(false)
@@ -1102,7 +1104,7 @@ export default function InAttendancePage() {
       setUploadStatus('Parsing CSV data...')
       const csvRows = await parseCSVContent(csvContent)
       setUploadStatus(`Processing ${csvRows.length} rows...`)
-      const result = await importGuestsFromCSV(csvRows)
+      const result = await importGuestsFromCSV(csvRows, undefined, currentYear)
 
       if (result.titleMappingsRequired && result.titleMappingsRequired.length > 0) {
         setPendingTitleMappings(result.titleMappingsRequired)
@@ -1762,7 +1764,7 @@ export default function InAttendancePage() {
             const saved = await saveTitleMappings(confirmedMappings)
             if (saved) {
               setUploadStatus('Re-processing CSV with confirmed mappings...')
-              const result = await importGuestsFromCSV(pendingCSVRows, confirmedMappings)
+              const result = await importGuestsFromCSV(pendingCSVRows, confirmedMappings, currentYear)
               if (result.success) {
                 setUploadStatus(`Successfully imported ${result.importedGuests} guests!`)
                 if (result.filmRemovals && result.filmRemovals.length > 0) {

@@ -313,15 +313,15 @@ export async function removeFilmAssociations(removals: Array<{guestName: string,
   return { success: errors.length === 0, errors }
 }
 
-export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappings?: Record<string, string>): Promise<GuestImportResult> {
+export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappings?: Record<string, string>, currentYear?: number): Promise<GuestImportResult> {
   const supabase = createClient()
   const errors: string[] = []
   const warnings: string[] = []
   const importedGuests: GuestCard[] = []
   const filmRemovals: Array<{guestName: string, removedFilms: string[]}> = []
-  
+
   // Get festival year once for all date parsing
-  const festivalYear = await getFestivalYear()
+  const festivalYear = await getFestivalYear(currentYear)
 
   try {
     // Group rows by guest name to handle duplicate guests with multiple films

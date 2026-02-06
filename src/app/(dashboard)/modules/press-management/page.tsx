@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PressCardPopup } from '@/components/cards/press-card-popup'
@@ -13,6 +14,7 @@ import * as XLSX from 'xlsx-js-style'
 export default function PressManagementPage() {
   const { } = useAuth()
   const { permissions } = usePermissions()
+  const { currentYear } = useFestivalYear()
   const [press, setPress] = useState<PressCard[]>([])
   const [filteredPress, setFilteredPress] = useState<PressCard[]>([])
   const [loading, setLoading] = useState(false)
@@ -131,8 +133,9 @@ export default function PressManagementPage() {
       const { data, error } = await supabase
         .from('press')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('name')
-      
+
       if (error) {
         console.error('Error loading press cards:', error)
       } else {
@@ -144,7 +147,7 @@ export default function PressManagementPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   // Get unique values for filters
   const uniqueAccreditationLevels = useMemo(() => {
@@ -600,6 +603,7 @@ export default function PressManagementPage() {
       const { data: existingCards, error: fetchError } = await supabase
         .from('press')
         .select('*')
+        .eq('festival_year', currentYear)
       
       if (fetchError) {
         setUploadStatus(`Error loading existing cards: ${fetchError.message}`)

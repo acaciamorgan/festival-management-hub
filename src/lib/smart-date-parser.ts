@@ -2,33 +2,45 @@ import { createClient } from '@/lib/supabase/client'
 
 /**
  * Get the festival year from Festival Settings
- * Returns current year as fallback if no festival dates are set
+ * Accepts optional currentYear parameter for explicit year context
+ * Falls back to localStorage, then current year if not provided
  */
-export async function getFestivalYear(): Promise<string> {
+export async function getFestivalYear(currentYear?: number): Promise<string> {
+  // Prefer explicit parameter
+  if (currentYear !== undefined) {
+    return currentYear.toString()
+  }
+
+  // Fallback to localStorage (from FestivalYearProvider)
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('festival_selected_year')
+    if (stored) {
+      console.warn('getFestivalYear: using localStorage fallback, consider passing year parameter')
+      return stored
+    }
+  }
+
+  // Last resort: fetch from database (non-archived year)
   try {
     const supabase = createClient()
-    
-    // Get festival settings from the festival_settings table
+
     const { data, error } = await supabase
       .from('festival_settings')
-      .select('start_date, end_date')
+      .select('year, start_date')
+      .eq('is_archived', false)
+      .order('year', { ascending: false })
+      .limit(1)
       .single()
-    
-    if (error || !data || !data.start_date) {
-      console.warn('No festival dates found in settings, using current year')
-      // Fallback to current year using string manipulation to avoid Date object
-      const currentYear = new Date().getFullYear().toString()
-      return currentYear
+
+    if (error || !data) {
+      console.warn('No festival year found in settings, using current year')
+      return new Date().getFullYear().toString()
     }
-    
-    // Extract year from start_date (format: YYYY-MM-DD)
-    const year = data.start_date.split('-')[0]
-    return year
+
+    return data.year.toString()
   } catch (error) {
     console.error('Error fetching festival year:', error)
-    // Fallback to current year
-    const currentYear = new Date().getFullYear().toString()
-    return currentYear
+    return new Date().getFullYear().toString()
   }
 }
 
@@ -130,17 +142,21 @@ export function parseSmartDate(input: string | null | undefined, festivalYear: s
 /**
  * Async wrapper that fetches festival year and parses date
  * Use this when you don't already have the festival year
+ * @param input - Date string to parse
+ * @param currentYear - Optional year for context (defaults to getFestivalYear logic)
  */
-export async function parseSmartDateAsync(input: string | null | undefined): Promise<string | null> {
-  const festivalYear = await getFestivalYear()
+export async function parseSmartDateAsync(input: string | null | undefined, currentYear?: number): Promise<string | null> {
+  const festivalYear = await getFestivalYear(currentYear)
   return parseSmartDate(input, festivalYear)
 }
 
 /**
  * Parse multiple dates at once (useful for CSV import)
  * Fetches festival year once and reuses for all dates
+ * @param inputs - Array of date strings to parse
+ * @param currentYear - Optional year for context (defaults to getFestivalYear logic)
  */
-export async function parseSmartDateBatch(inputs: (string | null | undefined)[]): Promise<(string | null)[]> {
-  const festivalYear = await getFestivalYear()
+export async function parseSmartDateBatch(inputs: (string | null | undefined)[], currentYear?: number): Promise<(string | null)[]> {
+  const festivalYear = await getFestivalYear(currentYear)
   return inputs.map(input => parseSmartDate(input, festivalYear))
 }

@@ -51,9 +51,11 @@ export function formatDateForShortDisplay(dateString: string | null | undefined)
 /**
  * Parse any date input into YYYY-MM-DD format using festival context
  * This is the main function to use throughout the application
+ * @param input - Date string to parse
+ * @param currentYear - Optional year for context (defaults to getFestivalYear logic)
  */
-export async function parseDate(input: string | null | undefined): Promise<string | null> {
-  return parseSmartDateAsync(input)
+export async function parseDate(input: string | null | undefined, currentYear?: number): Promise<string | null> {
+  return parseSmartDateAsync(input, currentYear)
 }
 
 /**
@@ -88,23 +90,26 @@ export function compareDates(date1: string | null, date2: string | null): number
 
 /**
  * Check if a date falls within the festival dates
+ * @param dateString - Date in YYYY-MM-DD format
+ * @param currentYear - Festival year to check against (required)
  */
-export async function isWithinFestivalDates(dateString: string | null): Promise<boolean> {
+export async function isWithinFestivalDates(dateString: string | null, currentYear: number): Promise<boolean> {
   if (!dateString) return false
-  
+
   try {
     const { createClient } = await import('@/lib/supabase/client')
     const supabase = createClient()
-    
+
     const { data, error } = await supabase
       .from('festival_settings')
       .select('start_date, end_date')
+      .eq('year', currentYear)
       .single()
-    
+
     if (error || !data || !data.start_date || !data.end_date) {
       return true // If no festival dates set, consider all dates valid
     }
-    
+
     return dateString >= data.start_date && dateString <= data.end_date
   } catch (error) {
     console.error('Error checking festival dates:', error)

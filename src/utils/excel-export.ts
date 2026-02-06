@@ -130,22 +130,35 @@ interface Screening {
 export async function exportFestivalToExcel(options: ExportOptions = {}) {
   const supabase = createClient()
   const workbook: WorkBook = utils.book_new()
-  
+
   try {
     console.log('Starting export...')
-    
-    // Get festival info
+
+    // Get festival year - prefer parameter, fallback to localStorage
+    let festivalYear = options.festivalYear
+    if (!festivalYear && typeof window !== 'undefined') {
+      const stored = localStorage.getItem('festival_selected_year')
+      if (stored) {
+        festivalYear = parseInt(stored)
+      }
+    }
+    if (!festivalYear) {
+      festivalYear = 2025 // Last resort fallback
+    }
+
+    // Get festival info for the specified year
     const { data: festivalSettings, error: settingsError } = await supabase
       .from('festival_settings')
       .select('*')
+      .eq('year', festivalYear)
       .single()
-    
+
     console.log('Festival settings:', settingsError ? 'ERROR: ' + settingsError.message : 'SUCCESS')
-    
+
     if (settingsError) {
       throw new Error('Could not fetch festival settings: ' + settingsError.message)
     }
-    
+
     const festivalName = festivalSettings?.festival_name || 'Film Festival'
     const edition = festivalSettings?.edition_number || ''
     const startDate = festivalSettings?.start_date || ''

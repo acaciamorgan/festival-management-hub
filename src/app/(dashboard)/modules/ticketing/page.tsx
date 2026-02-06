@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
@@ -997,6 +998,7 @@ type ViewMode = 'ticketing' | 'pi-jury' | 'tech-checks' | 'screening-board'
 export default function TicketingPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
+  const { currentYear } = useFestivalYear()
   const canEditTicketing = permissions?.modulePermissions?.['ticketing']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   const [viewMode, setViewMode] = useState<ViewMode>('ticketing')
   
@@ -1116,10 +1118,11 @@ export default function TicketingPage() {
       const { data, error } = await supabase
         .from('festival_settings')
         .select('*')
+        .eq('year', currentYear)
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
-      
+
       if (data) {
         setFestivalSettings(data)
         // Set current board date to festival start date by default

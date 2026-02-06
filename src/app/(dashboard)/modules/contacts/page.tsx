@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { ContactCard } from '@/types'
@@ -17,6 +18,7 @@ type FilmViewMode = 'features' | 'shorts'
 export default function ContactsPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
+  const { currentYear } = useFestivalYear()
   const [viewMode, setViewMode] = useState<ViewMode>('by-film')
   const [filmViewMode, setFilmViewMode] = useState<FilmViewMode>('features')
   
@@ -132,9 +134,9 @@ export default function ContactsPage() {
     const loadExistingFilms = async () => {
       try {
         const [featureFilms, shortFilms, programs] = await Promise.all([
-          supabase.from('feature_films').select('title'),
-          supabase.from('short_films').select('title'),
-          supabase.from('programs').select('title')
+          supabase.from('feature_films').select('title').eq('festival_year', currentYear),
+          supabase.from('short_films').select('title').eq('festival_year', currentYear),
+          supabase.from('programs').select('title').eq('festival_year', currentYear)
         ])
 
         const allTitles = new Set<string>()
@@ -156,7 +158,7 @@ export default function ContactsPage() {
     }
 
     loadExistingFilms()
-  }, [supabase])
+  }, [supabase, currentYear])
 
   const loadFilms = useCallback(async () => {
     setLoading(true)
@@ -166,6 +168,7 @@ export default function ContactsPage() {
         supabase
           .from('feature_films')
           .select('id, title, director, countries, program_1, program_2, program_3, program_4')
+          .eq('festival_year', currentYear)
           .order('title'),
         supabase
           .from('short_films')
@@ -173,10 +176,12 @@ export default function ContactsPage() {
             id, title, director, countries, program_1, program_2, program_3,
             shorts_programs(id, program_name, program_number)
           `)
+          .eq('festival_year', currentYear)
           .order('title'),
         supabase
           .from('film_contacts')
           .select('film_id, film_type, name, company, email, contact_type')
+          .eq('festival_year', currentYear)
       ])
 
       if (featuresResponse.error || shortsResponse.error || allContactsResponse.error) {
@@ -238,7 +243,7 @@ export default function ContactsPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   const loadContacts = useCallback(async () => {
     setLoading(true)
@@ -260,11 +265,12 @@ export default function ContactsPage() {
       const { data: allFilmContacts } = await supabase
         .from('film_contacts')
         .select('film_id, film_type, contact_id, contact_type')
-      
+        .eq('festival_year', currentYear)
+
       // Load all films to get titles
       const [featuresResponse, shortsResponse] = await Promise.all([
-        supabase.from('feature_films').select('id, title'),
-        supabase.from('short_films').select('id, title')
+        supabase.from('feature_films').select('id, title').eq('festival_year', currentYear),
+        supabase.from('short_films').select('id, title').eq('festival_year', currentYear)
       ])
       
       const featureFilmsMap = new Map((featuresResponse.data || []).map(f => [f.id, f]))
@@ -321,7 +327,7 @@ export default function ContactsPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   useEffect(() => {
     if (viewMode === 'by-contact') {
@@ -625,8 +631,8 @@ export default function ContactsPage() {
         
         // Load all films to match titles
         const [featuresResponse, shortsResponse] = await Promise.all([
-          supabase.from('feature_films').select('*').order('title'),
-          supabase.from('short_films').select('*').order('title')
+          supabase.from('feature_films').select('*').eq('festival_year', currentYear).order('title'),
+          supabase.from('short_films').select('*').eq('festival_year', currentYear).order('title')
         ])
 
         const allFilms = [
@@ -1086,8 +1092,8 @@ export default function ContactsPage() {
     // Load all available films
     try {
       const [featuresResponse, shortsResponse] = await Promise.all([
-        supabase.from('feature_films').select('id, title, director').order('title'),
-        supabase.from('short_films').select('id, title, director').order('title')
+        supabase.from('feature_films').select('id, title, director').eq('festival_year', currentYear).order('title'),
+        supabase.from('short_films').select('id, title, director').eq('festival_year', currentYear).order('title')
       ])
 
       const allFilms = [

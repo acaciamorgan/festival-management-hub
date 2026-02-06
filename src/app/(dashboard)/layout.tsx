@@ -1,6 +1,7 @@
 'use client'
 
 import { useAuth } from '@/components/providers/auth-provider'
+import { FestivalYearProvider } from '@/components/providers/festival-year-provider'
 import { Sidebar } from '@/components/layout/sidebar'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -41,11 +42,13 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <Sidebar />
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
-    </div>
+    <FestivalYearProvider>
+      <div className="flex h-screen bg-gray-100">
+        <Sidebar />
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </div>
+    </FestivalYearProvider>
   )
 }

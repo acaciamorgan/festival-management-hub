@@ -4,14 +4,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { getAllModules } from '@/config/modules'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getOrdinalSuffix } from '@/utils/ordinal'
-import { 
+import {
   Calendar, Film, Plane, Newspaper, PlayCircle, Eye, Tv,
   Camera, Star, Mic, Sparkles, BookOpen, Building, Ticket,
-  BarChart3, Archive, Settings, GitBranch, Home, LogOut, User
+  BarChart3, Archive, Settings, GitBranch, Home, LogOut, User, ChevronDown
 } from 'lucide-react'
 
 const moduleIcons: Record<string, any> = {
@@ -38,29 +39,9 @@ export function Sidebar() {
   const pathname = usePathname()
   const { signOut } = useAuth()
   const { permissions } = usePermissions()
+  const { currentYear, availableYears, setCurrentYear, loading: yearLoading } = useFestivalYear()
   const modules = getAllModules()
-  const [festivalInfo, setFestivalInfo] = useState<{edition: string, name: string} | null>(null)
-  const supabase = createClient()
-
-  useEffect(() => {
-    const loadFestivalInfo = async () => {
-      const { data } = await supabase
-        .from('festival_settings')
-        .select('edition_number, festival_name')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-      
-      if (data) {
-        setFestivalInfo({
-          edition: getOrdinalSuffix(data.edition_number),
-          name: data.festival_name
-        })
-      }
-    }
-    
-    loadFestivalInfo()
-  }, [supabase])
+  const [showYearDropdown, setShowYearDropdown] = useState(false)
 
   const canAccessModule = (moduleId: string) => {
     if (!permissions) return false
@@ -76,11 +57,57 @@ export function Sidebar() {
     <aside className="w-64 bg-gray-900 text-white h-screen overflow-y-auto">
       <div className="p-4">
         <h1 className="text-xl font-bold">Callsheet</h1>
-        {festivalInfo && (
-          <p className="text-xs text-gray-400 mt-1">
-            {festivalInfo.edition} {festivalInfo.name}
-          </p>
-        )}
+
+        {/* Year Selector */}
+        <div className="mt-3 relative">
+          <button
+            onClick={() => setShowYearDropdown(!showYearDropdown)}
+            className="flex items-center justify-between w-full px-3 py-2 text-sm bg-gray-800 rounded-md hover:bg-gray-700 transition-colors"
+            disabled={yearLoading}
+          >
+            <span className="flex items-center">
+              <Calendar className="w-4 h-4 mr-2" />
+              <span className="font-medium">{currentYear}</span>
+              {availableYears.find(y => y.year === currentYear)?.is_archived && (
+                <span className="ml-2 px-1.5 py-0.5 text-xs bg-yellow-600 rounded">
+                  Archived
+                </span>
+              )}
+            </span>
+            <ChevronDown className="w-4 h-4" />
+          </button>
+
+          {/* Dropdown Menu */}
+          {showYearDropdown && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setShowYearDropdown(false)}
+              />
+              <div className="absolute top-full mt-1 w-full bg-gray-800 rounded-md shadow-lg z-20 border border-gray-700 max-h-64 overflow-y-auto">
+                {availableYears.map((year) => (
+                  <button
+                    key={year.id}
+                    onClick={() => {
+                      setCurrentYear(year.year)
+                      setShowYearDropdown(false)
+                    }}
+                    className={`flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-gray-700 transition-colors ${
+                      year.year === currentYear ? 'bg-gray-700' : ''
+                    }`}
+                  >
+                    <span className="font-medium">{year.year}</span>
+                    {year.is_archived && (
+                      <span className="px-1.5 py-0.5 text-xs bg-yellow-600 rounded">
+                        Archived
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
       
       <nav className="mt-4">

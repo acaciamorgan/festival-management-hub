@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { InterviewCard, FilmCard, PressCard, GuestCard, ProgramCard } from '@/types'
@@ -15,6 +16,7 @@ import { matchSubjectsToGuests, GuestMatch } from '@/lib/guest-matching'
 export default function InterviewManagementPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
+  const { currentYear } = useFestivalYear()
   const [interviews, setInterviews] = useState<InterviewCard[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -56,6 +58,7 @@ export default function InterviewManagementPage() {
       const { data: interviewsData, error } = await supabase
         .from('interviews_with_films')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('title', { ascending: true })
 
       if (error) throw error
@@ -66,7 +69,7 @@ export default function InterviewManagementPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   useEffect(() => {
     loadInterviews()
@@ -197,20 +200,22 @@ export default function InterviewManagementPage() {
           .from('feature_films')
           .select('*')
           .eq('id', interview.film_id)
+          .eq('festival_year', currentYear)
           .single()
-          
+
         if (!error && data) {
           filmData = data
         }
       }
-      
+
       if (interview.shorts_program_id) {
         const { data, error } = await supabase
           .from('shorts_programs')
           .select('*')
           .eq('id', interview.shorts_program_id)
+          .eq('festival_year', currentYear)
           .single()
-          
+
         if (!error && data) {
           filmData = data
         }
@@ -234,6 +239,7 @@ export default function InterviewManagementPage() {
         .from('press')
         .select('*')
         .eq('id', interview.press_id)
+        .eq('festival_year', currentYear)
         .single()
 
       if (error) throw error
@@ -320,6 +326,7 @@ export default function InterviewManagementPage() {
           guest_programs:guest_programs(program_title)
         `)
         .eq('name', guestName)
+        .eq('festival_year', currentYear)
         .single()
 
       if (error || !guestData) {

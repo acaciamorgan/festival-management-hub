@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PhotoShootFormModal } from '@/components/forms/photo-shoot-form-modal'
@@ -49,6 +50,7 @@ interface PhotoShootFormData {
 export default function PhotoShootsPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
+  const { currentYear } = useFestivalYear()
   const [photoShoots, setPhotoShoots] = useState<PhotoShoot[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -132,6 +134,7 @@ export default function PhotoShootsPage() {
       const { data: shootsData, error } = await supabase
         .from('photo_shoots_with_details')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('shoot_date', { ascending: false })
 
       if (error) throw error
@@ -145,7 +148,7 @@ export default function PhotoShootsPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   const checkExistingItems = async (shoots: PhotoShoot[]) => {
     const allFilmTitles = new Set<string>()
@@ -168,6 +171,7 @@ export default function PhotoShootsPage() {
       const { data: guestsData } = await supabase
         .from('guests')
         .select('name')
+        .eq('festival_year', currentYear)
 
       const actualGuestNames = new Set((guestsData || []).map(g => g.name))
       setExistingGuests(actualGuestNames)
@@ -293,26 +297,29 @@ export default function PhotoShootsPage() {
         .from('feature_films')
         .select('id')
         .eq('title', filmTitle)
+        .eq('festival_year', currentYear)
         .single()
-      
+
       if (featureData) return true
-      
+
       // Check short films
       const { data: shortData } = await supabase
         .from('short_films')
         .select('id')
         .eq('title', filmTitle)
+        .eq('festival_year', currentYear)
         .single()
-      
+
       if (shortData) return true
-      
+
       // Check programs
       const { data: programData } = await supabase
         .from('programs')
         .select('id')
         .eq('title', filmTitle)
+        .eq('festival_year', currentYear)
         .single()
-      
+
       return !!programData
     } catch {
       return false
@@ -326,6 +333,7 @@ export default function PhotoShootsPage() {
         .from('feature_films')
         .select('*')
         .eq('title', filmTitle)
+        .eq('festival_year', currentYear)
         .single()
 
       if (error) {
@@ -334,6 +342,7 @@ export default function PhotoShootsPage() {
           .from('short_films')
           .select('*')
           .eq('title', filmTitle)
+          .eq('festival_year', currentYear)
           .single()
 
         if (shortError) {
@@ -342,6 +351,7 @@ export default function PhotoShootsPage() {
             .from('programs')
             .select('*')
             .eq('title', filmTitle)
+            .eq('festival_year', currentYear)
             .single()
 
           if (programError) {
@@ -349,7 +359,7 @@ export default function PhotoShootsPage() {
             alert(`"${filmTitle}" not found in database`)
             return
           }
-          
+
           // Found a program - set it as filmData to display
           filmData = programData
         } else {
@@ -372,8 +382,9 @@ export default function PhotoShootsPage() {
         .from('guests')
         .select('id')
         .eq('name', guestName)
+        .eq('festival_year', currentYear)
         .single()
-      
+
       return !!data
     } catch {
       return false
@@ -390,6 +401,7 @@ export default function PhotoShootsPage() {
           guest_programs:guest_programs(program_title)
         `)
         .eq('name', guestName)
+        .eq('festival_year', currentYear)
         .single()
 
       if (error) {
