@@ -50,7 +50,7 @@ export default function PressRequestsPage() {
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'created_at', direction: 'desc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [filmContacts, setFilmContacts] = useState<FilmContact[]>([])
-  const [screenerAccessMap, setScreenerAccessMap] = useState<Record<string, string>>({})
+  const [screenerAccessMap, setScreenerAccessMap] = useState<Record<string, { access_type: string, link_url: string | null, link_password: string | null }>>({})
 
   const supabase = createClient()
 
@@ -94,7 +94,7 @@ export default function PressRequestsPage() {
       // Load screener access data for all these films
       const { data: screenerAccess, error: screenerError } = await supabase
         .from('screener_access')
-        .select('film_id, access_type')
+        .select('film_id, access_type, link_url, link_password')
         .in('film_id', filmIds)
 
       if (screenerError) {
@@ -105,14 +105,18 @@ export default function PressRequestsPage() {
       console.log('DEBUG: Shorts programs:', shortsPrograms)
       console.log('DEBUG: Screener access data:', screenerAccess)
 
-      // Create a map of film title to access type
-      const accessMap: Record<string, string> = {}
+      // Create a map of film title to screener access data
+      const accessMap: Record<string, { access_type: string, link_url: string | null, link_password: string | null }> = {}
 
       // Map feature films
       features?.forEach(film => {
         const access = screenerAccess?.find(sa => sa.film_id === film.id)
         if (access?.access_type) {
-          accessMap[film.title] = access.access_type
+          accessMap[film.title] = {
+            access_type: access.access_type,
+            link_url: access.link_url || null,
+            link_password: access.link_password || null
+          }
         }
       })
 
@@ -120,7 +124,11 @@ export default function PressRequestsPage() {
       shortsPrograms?.forEach(program => {
         const access = screenerAccess?.find(sa => sa.film_id === program.id)
         if (access?.access_type) {
-          accessMap[program.program_name] = access.access_type
+          accessMap[program.program_name] = {
+            access_type: access.access_type,
+            link_url: access.link_url || null,
+            link_password: access.link_password || null
+          }
         }
       })
 
@@ -255,8 +263,8 @@ export default function PressRequestsPage() {
 
       // Access Type filter
       if (accessTypeFilter !== 'all') {
-        const filmAccessType = screenerAccessMap[request.film_titles]
-        if (!filmAccessType || filmAccessType !== accessTypeFilter) return false
+        const filmAccessData = screenerAccessMap[request.film_titles]
+        if (!filmAccessData || filmAccessData.access_type !== accessTypeFilter) return false
       }
 
       return true
@@ -931,8 +939,8 @@ export default function PressRequestsPage() {
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['access_type'] || 120}px` }}>
                       {(() => {
-                        const accessType = screenerAccessMap[request.film_titles]
-                        if (!accessType) return <span className="text-gray-400">—</span>
+                        const accessData = screenerAccessMap[request.film_titles]
+                        if (!accessData) return <span className="text-gray-400">—</span>
 
                         const badgeConfig = {
                           'request_link': { text: 'Request Link', className: 'bg-yellow-100 text-yellow-800' },
@@ -940,13 +948,39 @@ export default function PressRequestsPage() {
                           'cinesend': { text: 'Cinesend', className: 'bg-blue-100 text-blue-800' }
                         }
 
-                        const config = badgeConfig[accessType as keyof typeof badgeConfig]
+                        const config = badgeConfig[accessData.access_type as keyof typeof badgeConfig]
                         if (!config) return <span className="text-gray-400">—</span>
 
+                        const handleCopyLink = async () => {
+                          if (!accessData.link_url) {
+                            alert('No link available to copy')
+                            return
+                          }
+                          const copyText = `Link: ${accessData.link_url}\nPassword: ${accessData.link_password || 'N/A'}`
+                          try {
+                            await navigator.clipboard.writeText(copyText)
+                            alert('Link and password copied to clipboard!')
+                          } catch (err) {
+                            console.error('Failed to copy:', err)
+                            alert('Failed to copy to clipboard')
+                          }
+                        }
+
                         return (
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.className}`}>
-                            {config.text}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.className}`}>
+                              {config.text}
+                            </span>
+                            {accessData.access_type === 'link_available' && accessData.link_url && (
+                              <button
+                                onClick={handleCopyLink}
+                                className="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-700"
+                                title="Copy link and password"
+                              >
+                                Copy
+                              </button>
+                            )}
+                          </div>
                         )
                       })()}
                     </td>
