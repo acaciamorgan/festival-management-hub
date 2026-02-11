@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { InterviewCard, InterviewStatus, PressCard, GuestCard } from '@/types'
@@ -73,6 +73,9 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
   
   // Multiple films selection
   const [selectedFilms, setSelectedFilms] = useState<string[]>([])
+
+  // Ref for film input to maintain focus
+  const filmInputRef = useRef<HTMLInputElement>(null)
 
   const supabase = createClient()
 
@@ -310,8 +313,20 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     }
     setFilmSearch('')
     setShowFilmDropdown(false)
+
+    // Refocus the input to allow continuous entry
+    setTimeout(() => {
+      filmInputRef.current?.focus()
+    }, 0)
   }
-  
+
+  const handleFilmKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && filteredFilms.length > 0) {
+      e.preventDefault()
+      handleFilmSelect(filteredFilms[0])
+    }
+  }
+
   // Remove film from selection
   const handleRemoveFilm = (title: string) => {
     const newFilms = selectedFilms.filter(t => t !== title)
@@ -553,6 +568,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
             
             <div className="relative">
               <input
+                ref={filmInputRef}
                 type="text"
                 value={filmSearch}
                 onChange={(e) => {
@@ -560,6 +576,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                   setShowFilmDropdown(true)
                 }}
                 onFocus={() => setShowFilmDropdown(true)}
+                onKeyDown={handleFilmKeyDown}
                 placeholder="Search films and programs to add..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required={selectedFilms.length === 0}

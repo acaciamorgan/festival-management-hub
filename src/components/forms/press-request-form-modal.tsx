@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 
@@ -97,6 +97,9 @@ export function PressRequestFormModal({
   const [isDragging, setIsDragging] = useState(false)
   const [position, setPosition] = useState({ x: 100, y: 100 })
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+
+  // Ref for film input to maintain focus
+  const filmInputRef = useRef<HTMLInputElement>(null)
 
   // Drag handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -429,10 +432,22 @@ export function PressRequestFormModal({
     setSelectedFilms([...selectedFilms, film])
     setFilmSearchTerm('')
     setShowFilmSuggestions(false)
-    
+
     // Load screenings if this is a ticket request and only one film is selected
     if (formData.request_type === 'screening_ticket' && selectedFilms.length === 0) {
       loadScreeningsForFilm(film.title)
+    }
+
+    // Refocus the input to allow continuous entry
+    setTimeout(() => {
+      filmInputRef.current?.focus()
+    }, 0)
+  }
+
+  const handleFilmKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && filteredFilmSuggestions.length > 0) {
+      e.preventDefault()
+      handleFilmSelection(filteredFilmSuggestions[0])
     }
   }
 
@@ -796,6 +811,7 @@ export function PressRequestFormModal({
                 <div>
                   <div className="relative">
                     <input
+                      ref={filmInputRef}
                       type="text"
                       value={filmSearchTerm}
                       onChange={(e) => {
@@ -804,6 +820,7 @@ export function PressRequestFormModal({
                       }}
                       onFocus={() => setShowFilmSuggestions(true)}
                       onBlur={() => setTimeout(() => setShowFilmSuggestions(false), 200)}
+                      onKeyDown={handleFilmKeyDown}
                       placeholder="Type to search for films..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
