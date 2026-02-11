@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { getFestivalYear } from '@/lib/smart-date-parser'
 
 interface PressRequest {
   id: string
@@ -445,9 +446,11 @@ export function PressRequestFormModal({
   }
 
   const handleFilmKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && filteredFilmSuggestions.length > 0) {
+    if (e.key === 'Enter') {
       e.preventDefault()
-      handleFilmSelection(filteredFilmSuggestions[0])
+      if (filteredFilmSuggestions.length > 0) {
+        handleFilmSelection(filteredFilmSuggestions[0])
+      }
     }
   }
 
@@ -469,26 +472,28 @@ export function PressRequestFormModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (selectedFilms.length === 0) {
       alert('Please select at least one film')
       return
     }
-    
+
     // For ticket requests with multiple films, require screening selection
     if (formData.request_type === 'screening_ticket' && selectedFilms.length > 1) {
       alert('For screening ticket requests, please select only one film at a time')
       return
     }
-    
+
     if (formData.request_type === 'screening_ticket' && !selectedScreening) {
       alert('Please select a screening for the ticket request')
       return
     }
-    
+
     setLoading(true)
 
     try {
+      // Get current festival year
+      const festivalYear = await getFestivalYear()
       if (request) {
         // Update existing request (single film only)
         const requestData = {
@@ -498,7 +503,8 @@ export function PressRequestFormModal({
           screening_type: selectedScreening?.screening_type || null,
           screening_date: selectedScreening?.screening_date || null,
           screening_time: selectedScreening?.start_time || null,
-          venue_short_code: selectedScreening?.venue_short_code || null
+          venue_short_code: selectedScreening?.venue_short_code || null,
+          festival_year: parseInt(festivalYear, 10)
         }
         
         const { data, error } = await supabase
@@ -534,7 +540,8 @@ export function PressRequestFormModal({
             venue_short_code: selectedScreening?.venue_short_code || null,
             created_by: user?.id,
             created_at: timestamp,
-            updated_at: timestamp
+            updated_at: timestamp,
+            festival_year: parseInt(festivalYear, 10)
           }
           
           const { data, error } = await supabase

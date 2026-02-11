@@ -321,9 +321,11 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
   }
 
   const handleFilmKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && filteredFilms.length > 0) {
+    if (e.key === 'Enter') {
       e.preventDefault()
-      handleFilmSelect(filteredFilms[0])
+      if (filteredFilms.length > 0) {
+        handleFilmSelect(filteredFilms[0])
+      }
     }
   }
 
