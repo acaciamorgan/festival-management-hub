@@ -443,6 +443,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     if (photoShoot) {
       await Promise.all([
         supabase.from('photo_shoot_films').delete().eq('photo_shoot_id', photoShootId),
+        supabase.from('photo_shoot_programs').delete().eq('photo_shoot_id', photoShootId),
         supabase.from('photo_shoot_subjects').delete().eq('photo_shoot_id', photoShootId)
       ])
     }
@@ -485,11 +486,10 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         if (!matched) {
           const program = availablePrograms.find(p => p.title === title)
           if (program) {
-            await supabase.from('photo_shoot_films').insert({
+            await supabase.from('photo_shoot_programs').insert({
               photo_shoot_id: photoShootId,
-              film_id: program.id,
-              film_title: title,
-              film_type: 'program',
+              program_id: program.id,
+              program_title: title,
               festival_year: parseInt(festivalYear, 10)
             })
             matched = true
