@@ -353,8 +353,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
 
       // Prepare the main photo shoot data
       const photoShootData = {
-        film_program_display: formData.film_program_titles.trim(),
-        subjects_display: formData.subjects.trim() || null,
+        film_program_description: formData.film_program_titles.trim(),
+        subjects_description: formData.subjects.trim() || null,
         venue_id: formData.venue_id || null,
         house: formData.house || null,
         shoot_date: normalizeDateValue(formData.shoot_date) || null,
