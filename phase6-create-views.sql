@@ -26,10 +26,10 @@ SELECT
         ORDER BY COALESCE(ff.title, sf.title, sp.program_name, p.title)
       )
       FROM photo_shoot_films psf
-      LEFT JOIN feature_films ff ON psf.film_id = ff.id AND psf.film_type = 'feature'
-      LEFT JOIN short_films sf ON psf.film_id = sf.id AND psf.film_type = 'short'
-      LEFT JOIN shorts_programs sp ON psf.film_id = sp.id AND psf.film_type = 'shorts_program'
-      LEFT JOIN programs p ON psf.film_id = p.id AND psf.film_type = 'program'
+      LEFT JOIN feature_films ff ON psf.film_id = ff.id AND psf.film_type = 'feature' AND ff.festival_year = ps.festival_year
+      LEFT JOIN short_films sf ON psf.film_id = sf.id AND psf.film_type = 'short' AND sf.festival_year = ps.festival_year
+      LEFT JOIN shorts_programs sp ON psf.film_id = sp.id AND psf.film_type = 'shorts_program' AND sp.festival_year = ps.festival_year
+      LEFT JOIN programs p ON psf.film_id = p.id AND psf.film_type = 'program' AND p.festival_year = ps.festival_year
       WHERE psf.photo_shoot_id = ps.id
     ),
     ''
@@ -39,7 +39,7 @@ SELECT
     (
       SELECT string_agg(g.name, ', ' ORDER BY g.name)
       FROM photo_shoot_subjects pss
-      LEFT JOIN guests g ON pss.guest_id = g.id
+      LEFT JOIN guests g ON pss.guest_id = g.id AND g.festival_year = ps.festival_year
       WHERE pss.photo_shoot_id = ps.id
     ),
     ''
@@ -147,10 +147,10 @@ SELECT
         ORDER BY COALESCE(ff.title, sf.title, sp.program_name, p.title)
       )
       FROM red_carpet_films rcf
-      LEFT JOIN feature_films ff ON rcf.film_id = ff.id AND rcf.film_type = 'feature'
-      LEFT JOIN short_films sf ON rcf.film_id = sf.id AND rcf.film_type = 'short'
-      LEFT JOIN shorts_programs sp ON rcf.film_id = sp.id AND rcf.film_type = 'shorts_program'
-      LEFT JOIN programs p ON rcf.film_id = p.id AND rcf.film_type = 'program'
+      LEFT JOIN feature_films ff ON rcf.film_id = ff.id AND rcf.film_type = 'feature' AND ff.festival_year = rc.festival_year
+      LEFT JOIN short_films sf ON rcf.film_id = sf.id AND rcf.film_type = 'short' AND sf.festival_year = rc.festival_year
+      LEFT JOIN shorts_programs sp ON rcf.film_id = sp.id AND rcf.film_type = 'shorts_program' AND sp.festival_year = rc.festival_year
+      LEFT JOIN programs p ON rcf.film_id = p.id AND rcf.film_type = 'program' AND p.festival_year = rc.festival_year
       WHERE rcf.red_carpet_id = rc.id
     ),
     ''
@@ -160,7 +160,7 @@ SELECT
     (
       SELECT string_agg(g.name, ', ' ORDER BY g.name)
       FROM red_carpet_subjects rcs
-      LEFT JOIN guests g ON rcs.guest_id = g.id
+      LEFT JOIN guests g ON rcs.guest_id = g.id AND g.festival_year = rc.festival_year
       WHERE rcs.red_carpet_id = rc.id
     ),
     ''
@@ -269,10 +269,10 @@ SELECT
         ORDER BY COALESCE(ff.title, sf.title, sp.program_name, p.title)
       )
       FROM special_event_films sef
-      LEFT JOIN feature_films ff ON sef.film_id = ff.id AND sef.film_type = 'feature'
-      LEFT JOIN short_films sf ON sef.film_id = sf.id AND sef.film_type = 'short'
-      LEFT JOIN shorts_programs sp ON sef.film_id = sp.id AND sef.film_type = 'shorts_program'
-      LEFT JOIN programs p ON sef.film_id = p.id AND sef.film_type = 'program'
+      LEFT JOIN feature_films ff ON sef.film_id = ff.id AND sef.film_type = 'feature' AND ff.festival_year = se.festival_year
+      LEFT JOIN short_films sf ON sef.film_id = sf.id AND sef.film_type = 'short' AND sf.festival_year = se.festival_year
+      LEFT JOIN shorts_programs sp ON sef.film_id = sp.id AND sef.film_type = 'shorts_program' AND sp.festival_year = se.festival_year
+      LEFT JOIN programs p ON sef.film_id = p.id AND sef.film_type = 'program' AND p.festival_year = se.festival_year
       WHERE sef.special_event_id = se.id
     ),
     ''
@@ -282,7 +282,7 @@ SELECT
     (
       SELECT string_agg(g.name, ', ' ORDER BY g.name)
       FROM special_event_guests seg
-      LEFT JOIN guests g ON seg.guest_id = g.id
+      LEFT JOIN guests g ON seg.guest_id = g.id AND g.festival_year = se.festival_year
       WHERE seg.special_event_id = se.id
     ),
     ''

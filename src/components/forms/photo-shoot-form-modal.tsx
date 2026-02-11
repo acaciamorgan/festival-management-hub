@@ -174,8 +174,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
   useEffect(() => {
     if (photoShoot) {
       setFormData({
-        film_program_titles: photoShoot.film_program_display || '',
-        subjects: photoShoot.subjects_display || '',
+        film_program_titles: photoShoot.film_program_display_combined || '',
+        subjects: photoShoot.subjects_display_combined || '',
         venue_id: photoShoot.venue_id || '',
         house: photoShoot.house || '',
         shoot_date: photoShoot.shoot_date || '',
@@ -351,10 +351,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
       // Get current festival year
       const festivalYear = await getFestivalYear()
 
-      // Prepare the main photo shoot data
+      // Prepare the main photo shoot data (without descriptions - will be added after matching)
       const photoShootData = {
-        film_program_description: formData.film_program_titles.trim(),
-        subjects_description: formData.subjects.trim() || null,
         venue_id: formData.venue_id || null,
         house: formData.house || null,
         shoot_date: normalizeDateValue(formData.shoot_date) || null,
@@ -416,8 +414,23 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         savedPhotoShoot = data
       }
 
-      // THE KEY FIX: Handle associations properly
-      await handleAssociations(savedPhotoShoot.id, formData.film_program_titles, formData.subjects, festivalYear)
+      // THE KEY FIX: Handle associations and get unmatched items
+      const { unmatchedFilms, unmatchedSubjects } = await handleAssociations(savedPhotoShoot.id, formData.film_program_titles, formData.subjects, festivalYear)
+
+      // Update photo shoot with only unmatched items in description fields
+      if (unmatchedFilms.length > 0 || unmatchedSubjects.length > 0) {
+        const { error: updateError } = await supabase
+          .from('photo_shoots')
+          .update({
+            film_program_description: unmatchedFilms.length > 0 ? unmatchedFilms.join(', ') : null,
+            subjects_description: unmatchedSubjects.length > 0 ? unmatchedSubjects.join(', ') : null
+          })
+          .eq('id', savedPhotoShoot.id)
+
+        if (updateError) {
+          console.error('Photo Shoot: Error updating descriptions:', updateError)
+        }
+      }
 
       // Special Event linking removed - to be implemented later
 
@@ -437,13 +450,15 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     }
   }
 
-  // THE CORE FIX: Proper association handling
+  // THE CORE FIX: Proper association handling - returns unmatched items
   const handleAssociations = async (photoShootId: string, filmProgramTitles: string, subjectNames: string, festivalYear: string) => {
+    const unmatchedFilms: string[] = []
+    const unmatchedSubjects: string[] = []
+
     // Clear existing associations if editing
     if (photoShoot) {
       await Promise.all([
         supabase.from('photo_shoot_films').delete().eq('photo_shoot_id', photoShootId),
-        supabase.from('photo_shoot_programs').delete().eq('photo_shoot_id', photoShootId),
         supabase.from('photo_shoot_subjects').delete().eq('photo_shoot_id', photoShootId)
       ])
     }
@@ -451,7 +466,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     // Handle Film/Program associations
     if (filmProgramTitles.trim()) {
       const titles = filmProgramTitles.split(',').map(title => title.trim()).filter(title => title)
-      
+
       for (const title of titles) {
         // Try to match with feature films
         let matched = false
@@ -486,25 +501,28 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         if (!matched) {
           const program = availablePrograms.find(p => p.title === title)
           if (program) {
-            await supabase.from('photo_shoot_programs').insert({
+            await supabase.from('photo_shoot_films').insert({
               photo_shoot_id: photoShootId,
-              program_id: program.id,
-              program_title: title,
+              film_id: program.id,
+              film_title: title,
+              film_type: 'program',
               festival_year: parseInt(festivalYear, 10)
             })
             matched = true
           }
         }
 
-        // Note: Short film programs and free text are preserved in the display field
-        // but don't create database associations (by design)
+        // If not matched, add to unmatched list
+        if (!matched) {
+          unmatchedFilms.push(title)
+        }
       }
     }
 
     // Handle Subject associations
     if (subjectNames.trim()) {
       const names = subjectNames.split(',').map(name => name.trim()).filter(name => name)
-      
+
       for (const name of names) {
         // Try to match with guests
         const guest = availableGuests.find(g => g.name === name)
@@ -515,10 +533,14 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
             guest_name: name,
             festival_year: parseInt(festivalYear, 10)
           })
+        } else {
+          // If not matched, add to unmatched list
+          unmatchedSubjects.push(name)
         }
-        // Free text names are preserved in subjects_display but don't create associations
       }
     }
+
+    return { unmatchedFilms, unmatchedSubjects }
   }
 
   // Special Event linking function removed - to be implemented later

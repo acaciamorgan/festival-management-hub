@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { GuestCard, FilmCard, InterviewCard } from '@/types'
 import { FilmCardPopup } from './film-card-popup'
 import { getInterviewsForGuestCard } from '@/lib/interviews-client'
+import { getFestivalYear } from '@/lib/smart-date-parser'
 
 interface GuestCardPopupProps {
   guest: GuestCard
@@ -69,19 +70,26 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           guestFilmsResult,
           guestProgramsResult
         ] = await Promise.all([
-          // Photo shoots query
-          supabase
-            .from('photo_shoots')
-            .select(`
-              id,
-              shoot_date,
-              shoot_time,
-              subjects_display,
-              film_program_display,
-              venue_id
-            `)
-            .or(`subjects_display.ilike.%${guest.name}%`)
-            .order('shoot_date', { ascending: false }),
+          // Photo shoots query - get junction IDs first
+          (async () => {
+            const festivalYear = await getFestivalYear()
+            const { data: junctionData } = await supabase
+              .from('photo_shoot_subjects')
+              .select('photo_shoot_id')
+              .eq('guest_id', guest.id)
+              .eq('festival_year', parseInt(festivalYear, 10))
+
+            if (junctionData && junctionData.length > 0) {
+              const photoShootIds = junctionData.map(j => j.photo_shoot_id)
+              return await supabase
+                .from('photo_shoots_with_details')
+                .select('*')
+                .in('id', photoShootIds)
+                .eq('festival_year', parseInt(festivalYear, 10))
+                .order('shoot_date', { ascending: false })
+            }
+            return { data: [], error: null }
+          })(),
 
           // Red carpets query
           supabase
@@ -120,12 +128,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           console.error('Error loading photo shoots:', photoShootsResult.error)
           setPhotoShoots([])
         } else {
-          const relevantShoots = (photoShootsResult.data || []).filter(shoot => {
-            if (!shoot.subjects_display) return false
-            const subjects = shoot.subjects_display.split(',').map((s: string) => s.trim())
-            return subjects.includes(guest.name)
-          })
-          setPhotoShoots(relevantShoots)
+          setPhotoShoots(photoShootsResult.data || [])
         }
 
         // Process red carpets
@@ -1021,8 +1024,8 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                   })() : 'TBD'
                   
                   const time = shoot.shoot_time ? formatTimeForDisplay(shoot.shoot_time) : 'TBD'
-                  const venue = shoot.venues?.name || 'TBD'
-                  const subjects = shoot.subjects_display || 'TBD'
+                  const venue = shoot.venue_name_from_fk || 'TBD'
+                  const subjects = shoot.subjects_display_combined || 'TBD'
                   
                   return (
                     <div key={`shoot-${shoot.id}`} className="text-sm text-gray-900">

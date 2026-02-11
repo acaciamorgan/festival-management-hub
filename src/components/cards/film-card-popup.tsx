@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { FilmContact, InterviewCard } from '@/types'
 import { GuestCardPopup } from './guest-card-popup'
 import { getInterviewsForFilmCard } from '@/lib/interviews-client'
+import { getFestivalYear } from '@/lib/smart-date-parser'
 
 interface FilmCardProps {
   film: {
@@ -243,47 +244,36 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
           }
         }
 
-        // Load photo shoots
-        const { data: shootsData, error: shootsError } = await supabase
-          .from('photo_shoots')
-          .select(`
-            id,
-            shoot_date,
-            shoot_time,
-            subjects_display,
-            film_program_display,
-            venue_id
-          `)
-          .or(`film_program_display.ilike.%${film.title}%${shortsProgramName ? `,film_program_display.ilike.%${shortsProgramName}%` : ''}`)
-          .order('shoot_date', { ascending: false })
+        // Load photo shoots using junction table
+        const festivalYear = await getFestivalYear()
 
-        if (shootsError) {
-          console.error('Error loading photo shoots:', shootsError)
+        // Get photo shoot IDs from junction table
+        const { data: junctionData, error: junctionError } = await supabase
+          .from('photo_shoot_films')
+          .select('photo_shoot_id')
+          .eq('film_id', film.id)
+          .eq('festival_year', parseInt(festivalYear, 10))
+
+        if (junctionError) {
+          console.error('Error loading photo shoot links:', junctionError)
+        } else if (junctionData && junctionData.length > 0) {
+          const photoShootIds = junctionData.map(j => j.photo_shoot_id)
+
+          // Get full photo shoot data from view
+          const { data: shootsData, error: shootsError } = await supabase
+            .from('photo_shoots_with_details')
+            .select('*')
+            .in('id', photoShootIds)
+            .eq('festival_year', parseInt(festivalYear, 10))
+            .order('shoot_date', { ascending: false })
+
+          if (shootsError) {
+            console.error('Error loading photo shoots:', shootsError)
+          } else {
+            setFilmPhotoShoots(shootsData || [])
+          }
         } else {
-          // Filter to only include shoots where this film or its shorts program is actually mentioned
-          const relevantShoots = (shootsData || []).filter(shoot => {
-            if (!shoot.film_program_display) return false
-            const titles = shoot.film_program_display.split(',').map((s: string) => s.trim())
-            return titles.includes(film.title) || (shortsProgramName && titles.includes(shortsProgramName))
-          })
-          
-          // Load venue names for the photo shoots
-          const shootsWithVenues = await Promise.all(
-            relevantShoots.map(async (shoot) => {
-              if (shoot.venue_id) {
-                const { data: venueData } = await supabase
-                  .from('venues')
-                  .select('name')
-                  .eq('id', shoot.venue_id)
-                  .single()
-                
-                return { ...shoot, venues: venueData }
-              }
-              return { ...shoot, venues: null }
-            })
-          )
-          
-          setFilmPhotoShoots(shootsWithVenues)
+          setFilmPhotoShoots([])
         }
 
         // Load red carpets
@@ -918,9 +908,9 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                     return (
                       <div key={`shoot-${shoot.id}`} className="text-sm text-gray-900">
                         📸 Photo Shoot - {date}, {time} at {venue} (
-                        {shoot.subjects_display ? (
+                        {shoot.subjects_display_combined ? (
                           <span>
-                            {shoot.subjects_display.split(', ').map((name, index) => {
+                            {shoot.subjects_display_combined.split(', ').map((name, index) => {
                               const trimmedName = name.trim()
                               return (
                                 <span key={index}>
@@ -933,7 +923,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                                   >
                                     {name}
                                   </button>
-                                  {index < shoot.subjects_display.split(', ').length - 1 && <span className="text-gray-400">, </span>}
+                                  {index < shoot.subjects_display_combined.split(', ').length - 1 && <span className="text-gray-400">, </span>}
                                 </span>
                               )
                             })}
