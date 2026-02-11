@@ -46,6 +46,7 @@ export default function PressRequestsPage() {
   const [selectedRequest, setSelectedRequest] = useState<PressRequest | null>(null)
   const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'requested' | 'fulfilled'>('all')
   const [typeFilter, setTypeFilter] = useState<'all' | 'screener_link' | 'screening_ticket'>('all')
+  const [accessTypeFilter, setAccessTypeFilter] = useState<'all' | 'tbd' | 'cinesend' | 'link_available' | 'request_link' | 'no_links'>('all')
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'created_at', direction: 'desc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [filmContacts, setFilmContacts] = useState<FilmContact[]>([])
@@ -252,9 +253,15 @@ export default function PressRequestsPage() {
       // Type filter
       if (typeFilter !== 'all' && request.request_type !== typeFilter) return false
 
+      // Access Type filter
+      if (accessTypeFilter !== 'all') {
+        const filmAccessType = screenerAccessMap[request.film_titles]
+        if (!filmAccessType || filmAccessType !== accessTypeFilter) return false
+      }
+
       return true
     })
-  }, [requests, searchTerm, statusFilter, typeFilter])
+  }, [requests, searchTerm, statusFilter, typeFilter, accessTypeFilter, screenerAccessMap])
 
   // Sort logic
   const sortedRequests = useMemo(() => {
@@ -781,13 +788,31 @@ export default function PressRequestsPage() {
             </select>
           </div>
 
+          {/* Access Type Filter */}
+          <div className="flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700">Access Type:</label>
+            <select
+              value={accessTypeFilter}
+              onChange={(e) => setAccessTypeFilter(e.target.value as typeof accessTypeFilter)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All</option>
+              <option value="tbd">TBD</option>
+              <option value="cinesend">Cinesend</option>
+              <option value="link_available">Link Available</option>
+              <option value="request_link">Request Link</option>
+              <option value="no_links">No Links</option>
+            </select>
+          </div>
+
           {/* Clear Filters */}
-          {(searchTerm || statusFilter !== 'all' || typeFilter !== 'all') && (
+          {(searchTerm || statusFilter !== 'all' || typeFilter !== 'all' || accessTypeFilter !== 'all') && (
             <button
               onClick={() => {
                 setSearchTerm('')
                 setStatusFilter('all')
                 setTypeFilter('all')
+                setAccessTypeFilter('all')
               }}
               className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 hover:border-gray-300"
             >
@@ -994,7 +1019,7 @@ export default function PressRequestsPage() {
                 {sortedRequests.length === 0 && (
                   <tr>
                     <td colSpan={canEditPressRequests ? 10 : 9} className="px-6 py-12 text-center text-gray-500">
-                      {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
+                      {searchTerm || statusFilter !== 'all' || typeFilter !== 'all' || accessTypeFilter !== 'all'
                         ? 'No screener requests match your filters.'
                         : 'No screener requests found. Click "Add Request" to create your first screener request.'}
                     </td>
