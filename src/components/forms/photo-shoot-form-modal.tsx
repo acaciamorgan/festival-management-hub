@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { getFestivalYear } from '@/lib/smart-date-parser'
 
 interface PhotoShootFormModalProps {
   photoShoot?: any | null
@@ -339,7 +340,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -347,6 +348,9 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     setIsSubmitting(true)
 
     try {
+      // Get current festival year
+      const festivalYear = await getFestivalYear()
+
       // Prepare the main photo shoot data
       const photoShootData = {
         film_program_display: formData.film_program_titles.trim(),
@@ -363,7 +367,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         // special_event: formData.special_event.trim() || null,  // Removed - to be implemented later
         selects_received: formData.selects_received,
         sent_to_pr: formData.sent_to_pr,
-        updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
+        updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
+        festival_year: parseInt(festivalYear, 10)
       }
 
       console.log('Photo Shoot: Attempting to save data:', photoShootData)
@@ -412,7 +417,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
       }
 
       // THE KEY FIX: Handle associations properly
-      await handleAssociations(savedPhotoShoot.id, formData.film_program_titles, formData.subjects)
+      await handleAssociations(savedPhotoShoot.id, formData.film_program_titles, formData.subjects, festivalYear)
 
       // Special Event linking removed - to be implemented later
 
@@ -433,7 +438,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
   }
 
   // THE CORE FIX: Proper association handling
-  const handleAssociations = async (photoShootId: string, filmProgramTitles: string, subjectNames: string) => {
+  const handleAssociations = async (photoShootId: string, filmProgramTitles: string, subjectNames: string, festivalYear: string) => {
     // Clear existing associations if editing
     if (photoShoot) {
       await Promise.all([
@@ -456,7 +461,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
             photo_shoot_id: photoShootId,
             film_id: featureFilm.id,
             film_title: title,
-            film_type: 'feature'
+            film_type: 'feature',
+            festival_year: parseInt(festivalYear, 10)
           })
           matched = true
         }
@@ -469,7 +475,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
               photo_shoot_id: photoShootId,
               film_id: shortFilm.id,
               film_title: title,
-              film_type: 'short'
+              film_type: 'short',
+              festival_year: parseInt(festivalYear, 10)
             })
             matched = true
           }
@@ -482,7 +489,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
             await supabase.from('photo_shoot_programs').insert({
               photo_shoot_id: photoShootId,
               program_id: program.id,
-              program_title: title
+              program_title: title,
+              festival_year: parseInt(festivalYear, 10)
             })
             matched = true
           }
@@ -504,7 +512,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
           await supabase.from('photo_shoot_subjects').insert({
             photo_shoot_id: photoShootId,
             guest_id: guest.id,
-            guest_name: name
+            guest_name: name,
+            festival_year: parseInt(festivalYear, 10)
           })
         }
         // Free text names are preserved in subjects_display but don't create associations
