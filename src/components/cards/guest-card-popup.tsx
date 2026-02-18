@@ -91,18 +91,25 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
             return { data: [], error: null }
           })(),
 
-          // Red carpets query
-          supabase
-            .from('red_carpets')
-            .select(`
-              id,
-              carpet_date,
-              carpet_start_time,
-              subjects_display,
-              venues(name)
-            `)
-            .or(`subjects_display.ilike.%${guest.name}%`)
-            .order('carpet_date', { ascending: false }),
+          // Red carpets query via junction table
+          (async () => {
+            const festivalYear = await getFestivalYear()
+            const { data: rcJunction } = await supabase
+              .from('red_carpet_subjects')
+              .select('red_carpet_id')
+              .eq('guest_id', guest.id)
+              .eq('festival_year', parseInt(festivalYear, 10))
+
+            if (rcJunction && rcJunction.length > 0) {
+              return await supabase
+                .from('red_carpets_with_details')
+                .select('*')
+                .in('id', rcJunction.map(j => j.red_carpet_id))
+                .eq('festival_year', parseInt(festivalYear, 10))
+                .order('carpet_date', { ascending: false })
+            }
+            return { data: [], error: null }
+          })(),
 
           // Interviews query
           getInterviewsForGuestCard(guest.id).catch(error => {
@@ -136,12 +143,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           console.error('Error loading red carpets:', redCarpetsResult.error)
           setRedCarpets([])
         } else {
-          const relevantCarpets = (redCarpetsResult.data || []).filter(carpet => {
-            if (!carpet.subjects_display) return false
-            const subjects = carpet.subjects_display.split(',').map((s: string) => s.trim())
-            return subjects.includes(guest.name)
-          })
-          setRedCarpets(relevantCarpets)
+          setRedCarpets(redCarpetsResult.data || [])
         }
 
         // Set interviews (already processed)
@@ -175,7 +177,6 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                       .single()
 
                     if (shortsProgram) {
-                      console.log(`DEBUG: Added shorts program screening for ${guestFilm.film_title}: ${shortsProgram.program_name}`)
                       return shortsProgram.program_name
                     }
                   }
@@ -644,11 +645,13 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
 
   const openFilmCard = async (filmTitle: string) => {
     try {
+      const festivalYear = await getFestivalYear()
       // Try to find the film in feature_films first
       let { data: filmData, error } = await supabase
         .from('feature_films')
         .select('*')
         .eq('title', filmTitle)
+        .eq('festival_year', parseInt(festivalYear, 10))
         .single()
 
       if (error) {
@@ -657,6 +660,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           .from('short_films')
           .select('*')
           .eq('title', filmTitle)
+          .eq('festival_year', parseInt(festivalYear, 10))
           .single()
 
         if (shortError) {
@@ -665,6 +669,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
             .from('programs')
             .select('*')
             .eq('title', filmTitle)
+            .eq('festival_year', parseInt(festivalYear, 10))
             .single()
 
           if (programError) {
@@ -1054,8 +1059,8 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     return `${hour12}:${minutes} ${ampm}`
                   })() : 'TBD'
                   
-                  const venue = carpet.venues?.name || 'TBD'
-                  const subjects = carpet.subjects_display || 'TBD'
+                  const venue = carpet.venue_name_from_fk || carpet.venues?.name || 'TBD'
+                  const subjects = carpet.subjects_display_combined || 'TBD'
                   
                   return (
                     <div key={`carpet-${carpet.id}`} className="text-sm text-gray-900">

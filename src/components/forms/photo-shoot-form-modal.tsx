@@ -292,12 +292,9 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     
     if (venueId) {
       const selectedVenue = availableVenues.find(v => v.id === venueId)
-      console.log('Selected venue:', selectedVenue) // Debug log
-      
+
       if (selectedVenue && selectedVenue.theater_houses && selectedVenue.theater_houses.length > 0) {
-        // Get the actual house names from the theater_houses relation
         const houses = selectedVenue.theater_houses.map(house => house.house_name)
-        console.log('Found theater houses:', houses) // Debug log
         setSelectedVenueHouses(houses)
         setShowHouseField(true)
       } else {
@@ -371,8 +368,6 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         festival_year: parseInt(festivalYear, 10)
       }
 
-      console.log('Photo Shoot: Attempting to save data:', photoShootData)
-
       let savedPhotoShoot: any
 
       if (photoShoot) {
@@ -384,20 +379,10 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
           .select()
           .single()
 
-        if (error) {
-          console.error('Photo Shoot: Error updating photo shoot:', error)
-          throw error
-        }
-        console.log('Photo Shoot: Updated successfully:', data)
+        if (error) throw error
         savedPhotoShoot = data
       } else {
         // Create new photo shoot
-        console.log('Photo Shoot: Creating new photo shoot:', {
-          ...photoShootData,
-          created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
-          created_by: user?.id
-        })
-        
         const { data, error } = await supabase
           .from('photo_shoots')
           .insert([{
@@ -408,11 +393,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
           .select()
           .single()
 
-        if (error) {
-          console.error('Photo Shoot: Error creating photo shoot:', error)
-          throw error
-        }
-        console.log('Photo Shoot: Created successfully:', data)
+        if (error) throw error
         savedPhotoShoot = data
       }
 
@@ -430,7 +411,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
           .eq('id', savedPhotoShoot.id)
 
         if (updateError) {
-          console.error('Photo Shoot: Error updating descriptions:', updateError)
+          console.error('Error updating photo shoot descriptions:', updateError)
         }
       }
 
@@ -532,8 +513,13 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
             festival_year: parseInt(festivalYear, 10)
           })
         } else {
-          // If not matched, add to unmatched list
-          unmatchedSubjects.push(name)
+          // Store one-off subjects in junction table with subject_name
+          await supabase.from('photo_shoot_subjects').insert({
+            photo_shoot_id: photoShootId,
+            guest_id: null,
+            subject_name: name,
+            festival_year: parseInt(festivalYear, 10)
+          })
         }
       }
     }

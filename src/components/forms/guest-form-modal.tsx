@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
+import { getFestivalYear } from '@/lib/smart-date-parser'
 import { GuestCard, GuestType, GuestFilm } from '@/types'
 
 interface GuestFormModalProps {
@@ -59,6 +61,7 @@ interface GuestFormData {
 
 export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModalProps) {
   const { user } = useAuth()
+  const { currentYear } = useFestivalYear()
   const [formData, setFormData] = useState<GuestFormData>({
     name: '',
     country: '',
@@ -106,9 +109,9 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
     const loadFilmsAndPrograms = async () => {
       try {
         const [featureFilms, shortFilms, programs] = await Promise.all([
-          supabase.from('feature_films').select('id, title').order('title'),
-          supabase.from('short_films').select('id, title').order('title'),
-          supabase.from('programs').select('id, title').order('title')
+          supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('short_films').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title')
         ])
         
         const allFilms = [
@@ -126,7 +129,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
     if (isOpen) {
       loadFilmsAndPrograms()
     }
-  }, [isOpen, supabase])
+  }, [isOpen, supabase, currentYear])
 
   // Drag handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -311,15 +314,21 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
     setIsSubmitting(true)
 
     try {
-      // Check for existing guest by name (case-insensitive)
+      const festivalYear = await getFestivalYear()
+
+      // Check for existing guest by name (case-insensitive) within current festival year
       const { data: existingGuests, error: checkError } = await supabase
         .from('guests')
         .select('id')
         .ilike('name', formData.name.trim())
+        .eq('festival_year', parseInt(festivalYear, 10))
 
       if (checkError) throw checkError
 
       const existingGuest = existingGuests && existingGuests.length > 0 ? existingGuests[0] : null
+
+      const now = new Date()
+      const nowStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0')
 
       const guestData = {
         name: formData.name.trim(),
@@ -350,10 +359,9 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         checked_in: formData.checked_in,
         notes: formData.notes.trim() || null,
         films_display: formData.film_titles.trim() || '—',
-        updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
+        festival_year: parseInt(festivalYear, 10),
+        updated_at: nowStr
       }
-
-      console.log('Attempting to save guest data:', guestData)
 
       let savedGuest: GuestCard
 
@@ -372,10 +380,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         // Update existing guest found by name
         const { data, error } = await supabase
           .from('guests')
-          .update({
-            ...guestData,
-            updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
-          })
+          .update({ ...guestData, updated_at: nowStr })
           .eq('id', existingGuest.id)
           .select()
           .single()
@@ -388,7 +393,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
           .from('guests')
           .insert([{
             ...guestData,
-            created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
+            created_at: nowStr,
             created_by: user?.id
           }])
           .select()
@@ -410,20 +415,13 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
         // Parse film/program titles and create associations
         const filmTitles = formData.film_titles.split(',').map(title => title.trim()).filter(title => title)
-        console.log('DEBUG GUEST: Film titles to search for:', filmTitles)
         
         if (filmTitles.length > 0) {
-          // Try to find matching films and programs
-          console.log('DEBUG GUEST: Searching in feature_films, short_films, and programs tables')
           const [featureFilms, shortFilms, programs] = await Promise.all([
-            supabase.from('feature_films').select('id, title').in('title', filmTitles),
-            supabase.from('short_films').select('id, title').in('title', filmTitles),
-            supabase.from('programs').select('id, title').in('title', filmTitles)
+            supabase.from('feature_films').select('id, title').eq('festival_year', parseInt(festivalYear, 10)).in('title', filmTitles),
+            supabase.from('short_films').select('id, title').eq('festival_year', parseInt(festivalYear, 10)).in('title', filmTitles),
+            supabase.from('programs').select('id, title').eq('festival_year', parseInt(festivalYear, 10)).in('title', filmTitles)
           ])
-          console.log('DEBUG GUEST: Query errors - Features:', featureFilms.error, 'Shorts:', shortFilms.error, 'Programs:', programs.error)
-          console.log('DEBUG GUEST: Feature films found:', featureFilms.data)
-          console.log('DEBUG GUEST: Short films found:', shortFilms.data)
-          console.log('DEBUG GUEST: Programs found:', programs.data)
 
           const allMatchedFilms = [
             ...(featureFilms.data || []),
@@ -441,40 +439,36 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
             const matchedProgram = allMatchedPrograms.find(p => p.title === title)
             
             if (matchedFilm) {
-              console.log('DEBUG GUEST: Creating film association for:', title, 'with film ID:', matchedFilm.id)
               filmAssociations.push({
                 guest_id: savedGuest.id,
                 film_id: matchedFilm.id,
-                film_title: title
+                film_title: title,
+                festival_year: parseInt(festivalYear, 10)
               })
             } else if (matchedProgram) {
               programAssociations.push({
                 guest_id: savedGuest.id,
                 program_id: matchedProgram.id,
-                program_title: title
+                program_title: title,
+                festival_year: parseInt(festivalYear, 10)
               })
             }
             // If neither matched, it's free text and will be preserved in films_display
           }
 
           // Save film associations
-          console.log('DEBUG GUEST: Film associations to insert:', filmAssociations)
           if (filmAssociations.length > 0) {
-            console.log('DEBUG GUEST: Attempting to insert into guest_films table...')
             const { data: guestFilmsData, error: guestFilmsError } = await supabase
               .from('guest_films')
               .insert(filmAssociations)
               .select()
 
             if (guestFilmsError) {
-              console.error('ERROR saving film associations:', guestFilmsError)
-              console.error('ERROR details:', JSON.stringify(guestFilmsError, null, 2))
+              console.error('Error saving film associations:', guestFilmsError)
             } else {
-              console.log('DEBUG GUEST: Successfully saved film associations:', guestFilmsData)
               savedGuest.films = guestFilmsData
             }
           } else {
-            console.log('DEBUG GUEST: No film associations to save - filmAssociations array is empty')
             savedGuest.films = []
           }
 

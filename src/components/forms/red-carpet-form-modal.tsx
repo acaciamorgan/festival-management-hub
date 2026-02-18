@@ -133,14 +133,12 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
                 .from('theater_houses')
                 .select('house_name, seat_count')
                 .eq('venue_id', venue.id)
-              
+
               return { ...venue, theater_houses: houses || [] }
             })
           )
-          console.log('Red Carpet: Loaded venues with houses:', venuesWithHouses)
           setAvailableVenues(venuesWithHouses)
         } else {
-          console.log('Red Carpet: Loaded venues without houses:', venues.data || [])
           setAvailableVenues(venues.data || [])
         }
 
@@ -338,12 +336,9 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     
     if (venueId) {
       const selectedVenue = availableVenues.find(v => v.id === venueId)
-      console.log('Selected venue:', selectedVenue) // Debug log
-      
+
       if (selectedVenue && selectedVenue.theater_houses && selectedVenue.theater_houses.length > 0) {
-        // Get the actual house names from the theater_houses relation
         const houses = selectedVenue.theater_houses.map(house => house.house_name)
-        console.log('Found theater houses:', houses) // Debug log
         setSelectedVenueHouses(houses)
         setShowHouseField(true)
       } else {
@@ -443,11 +438,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
           .select()
           .single()
 
-        if (error) {
-          console.error('Error inserting red carpet:', error)
-          console.error('Data being inserted:', redCarpetData)
-          throw error
-        }
+        if (error) throw error
 
         // Handle associations for this pair
         const { unmatchedFilms, unmatchedSubjects } = await handleAssociations(data.id, pair.film_program_title, pair.subjects, festivalYear)
@@ -560,7 +551,13 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
             festival_year: parseInt(festivalYear, 10)
           })
         } else {
-          unmatchedSubjects.push(name)
+          // Store one-off subjects in junction table with subject_name
+          await supabase.from('red_carpet_subjects').insert({
+            red_carpet_id: redCarpetId,
+            guest_id: null,
+            subject_name: name,
+            festival_year: parseInt(festivalYear, 10)
+          })
         }
       }
     }
@@ -888,7 +885,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
                         const { error } = await supabase
                           .from('red_carpets')
                           .delete()
-                          .eq('id', redCarpet.id)
+                          .in('id', redCarpet.map((c: any) => c.id))
                         
                         if (error) throw error
                         

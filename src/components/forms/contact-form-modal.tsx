@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ContactCard } from '@/types'
+import { useFestivalYear } from '@/contexts/FestivalYearContext'
+import { getFestivalYear } from '@/lib/smart-date-parser'
 
 // Film Search Select Component
 interface FilmSearchSelectProps {
@@ -154,14 +156,15 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
   const [loadingFilms, setLoadingFilms] = useState(false)
 
   const supabase = createClient()
+  const { currentYear } = useFestivalYear()
 
   // Load available films
   const loadFilms = async () => {
     setLoadingFilms(true)
     try {
       const [featuresResponse, shortsResponse] = await Promise.all([
-        supabase.from('feature_films').select('id, title, director').order('title'),
-        supabase.from('short_films').select('id, title, director').order('title')
+        supabase.from('feature_films').select('id, title, director').eq('festival_year', currentYear).order('title'),
+        supabase.from('short_films').select('id, title, director').eq('festival_year', currentYear).order('title')
       ])
 
       const allFilms = [
@@ -237,7 +240,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
         })
       }
     }
-  }, [contact, isOpen])
+  }, [contact, isOpen, currentYear])
 
   // Load existing film assignments for the contact
   const loadExistingFilmAssignments = async (contactId: string) => {
@@ -246,6 +249,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
         .from('film_contacts')
         .select('film_id')
         .eq('contact_id', contactId)
+        .eq('festival_year', currentYear)
 
       if (!error && data) {
         const filmIds = new Set(data.map(fc => fc.film_id))
@@ -315,6 +319,8 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
 
     setIsSubmitting(true)
     try {
+      const festivalYear = await getFestivalYear()
+
       const contactData = {
         contact_name: formData.contact_name.trim(),
         contact_company: formData.contact_company.trim() || null,
@@ -375,6 +381,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
           .from('film_contacts')
           .delete()
           .eq('contact_id', contactId)
+          .eq('festival_year', parseInt(festivalYear, 10))
 
         if (deleteError) {
           console.error('Error deleting existing film assignments:', deleteError)
@@ -393,7 +400,8 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
               company: contactData.contact_company,
               email: contactData.contact_email,
               contact_type: 'Other',
-              contact_id: contactId
+              contact_id: contactId,
+              festival_year: parseInt(festivalYear, 10)
             }
           })
 

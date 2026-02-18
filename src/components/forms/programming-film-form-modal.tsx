@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/contexts/FestivalYearContext'
+import { getFestivalYear } from '@/lib/smart-date-parser'
 
 interface Contact {
   id: string
@@ -62,6 +64,7 @@ interface ProgrammingFilm {
     contact: Contact
     role: string | null
   }>
+  festival_year: number
   created_at: string
   updated_at: string
   created_by: string
@@ -110,6 +113,9 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
     premiere_status: '',
     cards_made: false,
     color_highlight: '',
+    travel_notes: '',
+    synopsis_notes: '',
+    materials_notes: '',
     programming_notes: '',
     contacts: [
       {
@@ -126,6 +132,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
   })
 
   const supabase = createClient()
+  const { currentYear } = useFestivalYear()
 
   // Load existing contacts for autocomplete
   useEffect(() => {
@@ -172,6 +179,9 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
         premiere_status: film.premiere_status || '',
         cards_made: film.cards_made || false,
         color_highlight: film.color_highlight || '',
+        travel_notes: '',
+        synopsis_notes: '',
+        materials_notes: '',
         programming_notes: film.programming_notes || '',
         contacts: film.contacts.length > 0 
           ? film.contacts.map(c => ({
@@ -217,6 +227,9 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
         premiere_status: '',
         cards_made: false,
         color_highlight: '',
+        travel_notes: '',
+        synopsis_notes: '',
+        materials_notes: '',
         programming_notes: '',
         contacts: [{
           company: '',
@@ -337,6 +350,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
     setLoading(true)
 
     try {
+      const festivalYear = await getFestivalYear()
       let filmId: string
 
       if (film) {
@@ -396,6 +410,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
             cards_made: formData.cards_made,
             color_highlight: formData.color_highlight.trim() || null,
             programming_notes: formData.programming_notes.trim() || null,
+            festival_year: parseInt(festivalYear, 10),
             created_by: user?.id
           })
           .select()

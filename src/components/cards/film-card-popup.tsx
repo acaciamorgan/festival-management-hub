@@ -133,6 +133,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
   const openGuestCard = async (guestName: string) => {
     try {
+      const festivalYear = await getFestivalYear()
       const { data: guestData, error } = await supabase
         .from('guests')
         .select(`
@@ -141,6 +142,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
           guest_programs:guest_programs(program_title)
         `)
         .eq('name', guestName)
+        .eq('festival_year', parseInt(festivalYear, 10))
         .single()
 
       if (error || !guestData) {
@@ -221,18 +223,22 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
   // Load photo shoots and red carpets for this film
   useEffect(() => {
-    console.log('DEBUG: Film Card useEffect triggered for film:', film.title, 'ID:', film.id)
     const loadEvents = async () => {
       try {
+        const festivalYear = await getFestivalYear()
+
         // Check if this is a short film and get its program name
         let shortsProgramName: string | null = null
+        let shortsProgramId: string | null = null
         const { data: shortFilm } = await supabase
           .from('short_films')
           .select('shorts_program_id')
           .eq('title', film.title)
+          .eq('festival_year', parseInt(festivalYear, 10))
           .single()
 
         if (shortFilm && shortFilm.shorts_program_id) {
+          shortsProgramId = shortFilm.shorts_program_id
           const { data: shortsProgram } = await supabase
             .from('shorts_programs')
             .select('program_name')
@@ -245,7 +251,6 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
         }
 
         // Load photo shoots using junction table
-        const festivalYear = await getFestivalYear()
 
         // Get photo shoot IDs from junction table
         const { data: junctionData, error: junctionError } = await supabase
@@ -276,30 +281,48 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
           setFilmPhotoShoots([])
         }
 
-        // Load red carpets
-        const { data: carpetsData, error: carpetsError } = await supabase
-          .from('red_carpets')
-          .select(`
-            id,
-            carpet_date,
-            carpet_start_time,
-            subjects_display,
-            film_program_display,
-            venues(name)
-          `)
-          .or(`film_program_display.ilike.%${film.title}%${shortsProgramName ? `,film_program_display.ilike.%${shortsProgramName}%` : ''}`)
-          .order('carpet_date', { ascending: false })
+        // Load red carpets via junction table
+        const redCarpetIds = new Set<string>()
 
-        if (carpetsError) {
-          console.error('Error loading red carpets:', carpetsError)
+        const { data: rcFilmJunction } = await supabase
+          .from('red_carpet_films')
+          .select('red_carpet_id')
+          .eq('film_id', film.id)
+          .eq('film_type', 'feature')
+          .eq('festival_year', parseInt(festivalYear, 10))
+
+        if (rcFilmJunction) {
+          rcFilmJunction.forEach(j => redCarpetIds.add(j.red_carpet_id))
+        }
+
+        if (shortsProgramId) {
+          const { data: rcProgramJunction } = await supabase
+            .from('red_carpet_films')
+            .select('red_carpet_id')
+            .eq('film_id', shortsProgramId)
+            .eq('film_type', 'shorts_program')
+            .eq('festival_year', parseInt(festivalYear, 10))
+
+          if (rcProgramJunction) {
+            rcProgramJunction.forEach(j => redCarpetIds.add(j.red_carpet_id))
+          }
+        }
+
+        if (redCarpetIds.size > 0) {
+          const { data: carpetsData, error: carpetsError } = await supabase
+            .from('red_carpets_with_details')
+            .select('*')
+            .in('id', [...redCarpetIds])
+            .eq('festival_year', parseInt(festivalYear, 10))
+            .order('carpet_date', { ascending: false })
+
+          if (carpetsError) {
+            console.error('Error loading red carpets:', carpetsError)
+          } else {
+            setFilmRedCarpets(carpetsData || [])
+          }
         } else {
-          // Filter to only include carpets where this film or its shorts program is actually mentioned
-          const relevantCarpets = (carpetsData || []).filter(carpet => {
-            if (!carpet.film_program_display) return false
-            const titles = carpet.film_program_display.split(',').map((s: string) => s.trim())
-            return titles.includes(film.title) || (shortsProgramName && titles.includes(shortsProgramName))
-          })
-          setFilmRedCarpets(relevantCarpets)
+          setFilmRedCarpets([])
         }
 
         // Load press screenings
@@ -323,7 +346,6 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
         if (screeningsError) {
           console.error('Error loading press screenings:', screeningsError)
         } else {
-          console.log('DEBUG: Press screenings loaded:', screeningsData)
           setFilmPressScreenings(screeningsData || [])
         }
 
@@ -361,6 +383,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               `)
               .eq('film_id', film.id)
               .eq('film_type', filmType)
+              .eq('festival_year', parseInt(festivalYear, 10))
               .order('contact_type, name')
 
             if (contactsError) {
@@ -390,7 +413,6 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               .single()
 
             if (!shortFilmError && shortFilm && shortFilm.shorts_program_id) {
-              console.log('DEBUG: This is a short film, checking shorts program guests')
 
               // Get guests associated with the shorts program
               const { data: shortsProgram, error: shortsProgramError } = await supabase
@@ -420,26 +442,6 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                 if (!guestProgramsError && guestPrograms) {
                   const programGuests = guestPrograms.map((gp: any) => gp.guests).filter(Boolean)
                   allGuests = [...allGuests, ...programGuests]
-                  console.log('DEBUG: Found shorts program guests:', programGuests)
-                }
-
-                // ALSO check for guests directly associated with this short film via films_display
-                const { data: shortFilmGuests, error: shortFilmGuestsError } = await supabase
-                  .from('guests')
-                  .select(`
-                    id,
-                    name,
-                    role,
-                    arrival_date,
-                    departure_date,
-                    confirmed,
-                    checked_in
-                  `)
-                  .eq('films_display', film.title)
-
-                if (!shortFilmGuestsError && shortFilmGuests) {
-                  allGuests = [...allGuests, ...shortFilmGuests]
-                  console.log('DEBUG: Found short film direct guests:', shortFilmGuests)
                 }
               }
             }
@@ -494,7 +496,6 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             )
 
             setFilmGuests(uniqueGuests)
-            console.log('DEBUG: Final unique guests for film:', uniqueGuests)
 
             // Calculate which screenings have attending guests
             await calculateScreeningsWithGuests(uniqueGuests)
@@ -541,6 +542,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
           .from('screener_access')
           .select('*')
           .eq('film_id', film.id)
+          .eq('festival_year', parseInt(festivalYear, 10))
           .single()
 
         if (!screenerError && screenerAccessData) {
@@ -569,8 +571,6 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               .single()
 
             if (shortFilm && shortFilm.shorts_program_id) {
-              console.log('DEBUG: This is a short film, loading shorts program screenings')
-
               // Get the shorts program
               const { data: shortsProgram } = await supabase
                 .from('shorts_programs')
@@ -598,7 +598,6 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
                 if (programScreenings) {
                   allScreenings.push(...programScreenings)
-                  console.log(`DEBUG: Found ${programScreenings.length} shorts program screenings for ${shortsProgram.program_name}`)
                 }
               }
             }
@@ -938,7 +937,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                   {/* Red Carpets */}
                   {filmRedCarpets.map((carpet) => {
                     const date = formatDateForDisplay(carpet.carpet_date)
-                    
+
                     const time = carpet.carpet_start_time ? (() => {
                       const [hours, minutes] = carpet.carpet_start_time.split(':')
                       const hour24 = parseInt(hours, 10)
@@ -946,10 +945,10 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                       const ampm = hour24 >= 12 ? 'PM' : 'AM'
                       return `${hour12}:${minutes} ${ampm}`
                     })() : 'TBD'
-                    
-                    const venue = carpet.venues?.name || 'TBD'
-                    const subjects = carpet.subjects_display || 'TBD'
-                    
+
+                    const venue = carpet.venue_name_from_fk || carpet.venues?.name || 'TBD'
+                    const subjects = carpet.subjects_display_combined || 'TBD'
+
                     return (
                       <div key={`carpet-${carpet.id}`} className="text-sm text-gray-900">
                         🎭 Red Carpet - {date}, {time} at {venue} ({subjects})

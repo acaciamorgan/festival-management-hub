@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ProgramCard, FilmCard, InterviewCard } from '@/types'
 import { FilmCardPopup } from './film-card-popup'
 import { GuestCardPopup } from './guest-card-popup'
+import { useFestivalYear } from '@/contexts/FestivalYearContext'
 
 interface ProgramCardPopupProps {
   program: ProgramCard
@@ -65,6 +66,7 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
   const [pressScreenings, setPressScreenings] = useState<any[]>([])
   const [scheduleItems, setScheduleItems] = useState<any[]>([])
   const supabase = createClient()
+  const { currentYear } = useFestivalYear()
 
   // Load all related data
   useEffect(() => {
@@ -75,6 +77,7 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
           .from('feature_films')
           .select('*')
           .or(`program_1.eq.${program.title},program_2.eq.${program.title},program_3.eq.${program.title},program_4.eq.${program.title}`)
+          .eq('festival_year', currentYear)
 
         setFilms(filmsData || [])
 
@@ -83,32 +86,56 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
           .from('interviews')
           .select('*')
           .eq('program_title', program.title)
+          .eq('festival_year', currentYear)
 
         setInterviews(interviewsData || [])
 
-        // Load guests
-        const { data: guestsData } = await supabase
-          .from('guests')
-          .select('*')
-          .ilike('films_display', `%${program.title}%`)
+        // Load guests via junction table
+        const { data: guestJunction } = await supabase
+          .from('guest_programs')
+          .select('guest_id, guests(*)')
+          .eq('program_title', program.title)
+          .eq('festival_year', currentYear)
 
-        setGuests(guestsData || [])
+        setGuests(guestJunction?.map((j: any) => j.guests).filter(Boolean) || [])
 
-        // Load photo shoots
-        const { data: shootsData } = await supabase
-          .from('photo_shoots')
-          .select('*, venues(name)')
-          .ilike('film_program_display', `%${program.title}%`)
+        // Load photo shoots via junction table
+        const { data: psJunction } = await supabase
+          .from('photo_shoot_films')
+          .select('photo_shoot_id')
+          .eq('film_id', program.id)
+          .eq('film_type', 'program')
+          .eq('festival_year', currentYear)
 
-        setPhotoShoots(shootsData || [])
+        if (psJunction && psJunction.length > 0) {
+          const { data: shootsData } = await supabase
+            .from('photo_shoots_with_details')
+            .select('*')
+            .in('id', psJunction.map((j: any) => j.photo_shoot_id))
+            .eq('festival_year', currentYear)
+          setPhotoShoots(shootsData || [])
+        } else {
+          setPhotoShoots([])
+        }
 
-        // Load red carpets
-        const { data: carpetsData } = await supabase
-          .from('red_carpets')
-          .select('*, venues(name)')
-          .ilike('film_program_display', `%${program.title}%`)
+        // Load red carpets via junction table
+        const { data: rcJunction } = await supabase
+          .from('red_carpet_films')
+          .select('red_carpet_id')
+          .eq('film_id', program.id)
+          .eq('film_type', 'program')
+          .eq('festival_year', currentYear)
 
-        setRedCarpets(carpetsData || [])
+        if (rcJunction && rcJunction.length > 0) {
+          const { data: carpetsData } = await supabase
+            .from('red_carpets_with_details')
+            .select('*')
+            .in('id', rcJunction.map((j: any) => j.red_carpet_id))
+            .eq('festival_year', currentYear)
+          setRedCarpets(carpetsData || [])
+        } else {
+          setRedCarpets([])
+        }
 
         // Load schedule items (ticketing screenings + special events)
         const [ticketingResponse, specialEventsResponse] = await Promise.all([
@@ -147,7 +174,7 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
     }
 
     loadRelatedData()
-  }, [program.id, program.title])
+  }, [program.id, program.title, currentYear])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button, input, select, textarea, .no-drag')) return
@@ -318,7 +345,7 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
                             <p className="text-sm text-gray-600">
                               {carpet.carpet_date} at {carpet.carpet_start_time}
                             </p>
-                            <p className="text-sm text-gray-600">{carpet.venues?.name}</p>
+                            <p className="text-sm text-gray-600">{carpet.venue_name_from_fk || carpet.venues?.name}</p>
                           </div>
                         </div>
                       </div>
@@ -331,7 +358,7 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
                             <p className="text-sm text-gray-600">
                               {shoot.shoot_date} at {shoot.shoot_time}
                             </p>
-                            <p className="text-sm text-gray-600">{shoot.venues?.name}</p>
+                            <p className="text-sm text-gray-600">{shoot.venue_name_from_fk || shoot.venues?.name}</p>
                           </div>
                         </div>
                       </div>
