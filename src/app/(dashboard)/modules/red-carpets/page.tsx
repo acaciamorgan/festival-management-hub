@@ -7,6 +7,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { RedCarpetFormModal } from '@/components/forms/red-carpet-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import * as XLSX from 'xlsx-js-style'
 
@@ -74,6 +75,7 @@ export default function RedCarpetsPage() {
   const [existingGuests, setExistingGuests] = useState<Set<string>>(new Set())
 
   const supabase = createClient()
+  const { currentYear } = useFestivalYear()
 
   // Check if user has edit permissions for red carpets
   const canEditRedCarpets = permissions?.modulePermissions?.['redCarpets']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
@@ -139,6 +141,7 @@ export default function RedCarpetsPage() {
       const { data: carpetsData, error } = await supabase
         .from('red_carpets_with_details')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('carpet_date', { ascending: false })
 
       if (error) throw error
@@ -152,7 +155,7 @@ export default function RedCarpetsPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   const checkExistingItems = async (carpets: RedCarpet[]) => {
     const allFilmTitles = new Set<string>()
@@ -174,6 +177,7 @@ export default function RedCarpetsPage() {
       const { data: guestsData } = await supabase
         .from('guests')
         .select('name')
+        .eq('festival_year', currentYear)
 
       const actualGuestNames = new Set((guestsData || []).map(g => g.name))
       setExistingGuests(actualGuestNames)
@@ -446,33 +450,22 @@ export default function RedCarpetsPage() {
 
   const openGuestCard = async (guestName: string) => {
     try {
-      const { data: guestData, error } = await supabase
+      const { data: guestsData, error } = await supabase
         .from('guests')
-        .select(`
-          *,
-          guest_films:guest_films(film_title),
-          guest_programs:guest_programs(program_title)
-        `)
+        .select('*')
         .eq('name', guestName)
-        .single()
+        .eq('festival_year', currentYear)
+        .limit(1)
 
-      if (error) {
+      const guestData = guestsData?.[0]
+
+      if (error || !guestData) {
         console.warn('Guest not found in database:', guestName)
         alert(`Guest "${guestName}" not found in database`)
         return
       }
 
-      // Format the guest data for the popup
-      const formattedGuest = {
-        ...guestData,
-        films: guestData.guest_films || [],
-        films_display: [
-          ...(guestData.guest_films || []).map((f: any) => f.film_title),
-          ...(guestData.guest_programs || []).map((p: any) => p.program_title)
-        ].join(', ') || '—'
-      }
-
-      setShowGuestCard(formattedGuest)
+      setShowGuestCard(guestData)
     } catch (error) {
       console.error('Error fetching guest:', error)
       alert('Error loading guest details')
@@ -803,16 +796,8 @@ export default function RedCarpetsPage() {
           setShowAddModal(false)
           setSelectedCarpet(null)
         }}
-        onSave={(savedCarpet) => {
-          if (selectedCarpet) {
-            // Update existing carpet in the list
-            setRedCarpets(prev => prev.map(carpet => 
-              carpet.id === savedCarpet.id ? savedCarpet : carpet
-            ))
-          } else {
-            // Add new carpet to the list
-            setRedCarpets(prev => [savedCarpet, ...prev])
-          }
+        onSave={() => {
+          loadRedCarpets()
         }}
       />
 

@@ -393,34 +393,22 @@ export default function PhotoShootsPage() {
 
   const openGuestCard = async (guestName: string) => {
     try {
-      const { data: guestData, error } = await supabase
+      const { data: guestsData, error } = await supabase
         .from('guests')
-        .select(`
-          *,
-          guest_films:guest_films(film_title),
-          guest_programs:guest_programs(program_title)
-        `)
+        .select('*')
         .eq('name', guestName)
         .eq('festival_year', currentYear)
-        .single()
+        .limit(1)
 
-      if (error) {
+      const guestData = guestsData?.[0]
+
+      if (error || !guestData) {
         console.warn('Guest not found in database:', guestName)
         alert(`Guest "${guestName}" not found in database`)
         return
       }
 
-      // Format the guest data for the popup
-      const formattedGuest = {
-        ...guestData,
-        films: guestData.guest_films || [],
-        films_display: [
-          ...(guestData.guest_films || []).map((f: any) => f.film_title),
-          ...(guestData.guest_programs || []).map((p: any) => p.program_title)
-        ].join(', ') || '—'
-      }
-
-      setShowGuestCard(formattedGuest)
+      setShowGuestCard(guestData)
     } catch (error) {
       console.error('Error fetching guest:', error)
       alert('Error loading guest details')
@@ -766,16 +754,8 @@ export default function PhotoShootsPage() {
           setShowAddModal(false)
           setSelectedShoot(null)
         }}
-        onSave={(savedShoot) => {
-          if (selectedShoot) {
-            // Update existing shoot in the list
-            setPhotoShoots(prev => prev.map(shoot => 
-              shoot.id === savedShoot.id ? savedShoot : shoot
-            ))
-          } else {
-            // Add new shoot to the list
-            setPhotoShoots(prev => [savedShoot, ...prev])
-          }
+        onSave={() => {
+          loadPhotoShoots()
         }}
       />
 
