@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { getFestivalYear } from '@/lib/smart-date-parser'
 
 interface PressRequest {
@@ -65,6 +66,7 @@ export function PressRequestFormModal({
   onSave
 }: PressRequestFormModalProps) {
   const { user } = useAuth()
+  const { currentYear } = useFestivalYear()
   const supabase = createClient()
   
   // Form data
@@ -137,17 +139,12 @@ export function PressRequestFormModal({
 
   // Load data on mount and reset state for new requests
   useEffect(() => {
-    console.log('Modal state changed:', { isOpen, request: !!request })
     if (isOpen) {
-      console.log('Modal opened, loading data...')
-      console.log('About to call loadPressContacts and loadAvailableFilms')
-      
       loadPressContacts()
       loadAvailableFilms()
       
       // If this is a new request (no request prop), ensure everything is reset
       if (!request) {
-        console.log('New request - resetting all form state')
         setFormData({
           requester_name: '',
           requester_outlet: '',
@@ -165,7 +162,7 @@ export function PressRequestFormModal({
         setFilteredPressSuggestions([])
       }
     }
-  }, [isOpen, request])
+  }, [isOpen, request, currentYear])
 
   // Initialize form data when request changes
   useEffect(() => {
@@ -222,6 +219,7 @@ export function PressRequestFormModal({
       const { data } = await supabase
         .from('press')
         .select('id, name, media_outlet, email')
+        .eq('festival_year', currentYear)
         .order('name')
 
       setPressContacts(data || [])
@@ -262,67 +260,23 @@ export function PressRequestFormModal({
   }
 
   const loadAvailableFilms = async () => {
-    console.log('=== STARTING FILM LOAD ===')
-    console.log('Supabase client initialized:', !!supabase)
-    
     try {
-      // First, load films without joins to see if basic queries work
-      console.log('Loading films without joins first...')
-      
-      const { data: features, error: featuresError } = await supabase
-        .from('feature_films')
-        .select('id, title')
-        .order('title')
+      const [
+        { data: features },
+        { data: shortsPrograms },
+        { data: programs },
+        { data: screenerAccess }
+      ] = await Promise.all([
+        supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
+        supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear).order('program_number'),
+        supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
+        supabase.from('screener_access').select('film_id, access_type').eq('festival_year', currentYear)
+      ])
 
-      console.log('Features basic result:', {
-        count: features?.length || 0,
-        hasError: !!featuresError,
-        error: featuresError
-      })
-
-      // Load shorts programs
-      const { data: shortsPrograms, error: shortsProgramsError } = await supabase
-        .from('shorts_programs')
-        .select('id, program_name')
-        .order('program_number')
-
-      console.log('Shorts programs result:', {
-        count: shortsPrograms?.length || 0,
-        hasError: !!shortsProgramsError,
-        error: shortsProgramsError
-      })
-
-      const { data: programs, error: programsError } = await supabase
-        .from('programs')
-        .select('id, title')
-        .order('title')
-
-      console.log('Programs basic result:', {
-        count: programs?.length || 0,
-        hasError: !!programsError,
-        error: programsError
-      })
-
-      // Now load screener access data separately
-      console.log('Loading screener access data...')
-      const { data: screenerAccess, error: accessError } = await supabase
-        .from('screener_access')
-        .select('film_id, access_type')
-
-      console.log('Screener access result:', {
-        count: screenerAccess?.length || 0,
-        hasError: !!accessError,
-        error: accessError,
-        sampleData: screenerAccess?.slice(0, 3)
-      })
-
-      // Create a map of film_id to access_type
       const accessMap = new Map()
-      if (screenerAccess) {
-        screenerAccess.forEach(access => {
-          accessMap.set(access.film_id, access.access_type)
-        })
-      }
+      screenerAccess?.forEach(access => {
+        accessMap.set(access.film_id, access.access_type)
+      })
 
       const allFilms: Film[] = [
         ...(features || []).map(f => ({
@@ -343,32 +297,9 @@ export function PressRequestFormModal({
         }))
       ]
 
-      console.log('=== FILM LOAD COMPLETE ===')
-      console.log('Total films loaded:', allFilms.length)
-      console.log('Film breakdown:', {
-        features: features?.length || 0,
-        shortsPrograms: shortsPrograms?.length || 0,
-        programs: programs?.length || 0
-      })
-      console.log('Access type breakdown:', {
-        link_available: allFilms.filter(f => f.access_type === 'link_available').length,
-        request_link: allFilms.filter(f => f.access_type === 'request_link').length,
-        no_links: allFilms.filter(f => f.access_type === 'no_links').length,
-        other: allFilms.filter(f => !['link_available', 'request_link', 'no_links'].includes(f.access_type || '')).length
-      })
-      
-      // Debug specific films
-      const alberta = allFilms.find(f => f.title.includes('Alberta Number One'))
-      const afterStorm = allFilms.find(f => f.title.includes('After the Storm'))
-      console.log('SPECIFIC FILM DEBUG:', {
-        alberta: alberta ? { title: alberta.title, access_type: alberta.access_type } : 'NOT FOUND',
-        afterStorm: afterStorm ? { title: afterStorm.title, access_type: afterStorm.access_type } : 'NOT FOUND'
-      })
-      
       setAvailableFilms(allFilms)
     } catch (error) {
-      console.error('=== FILM LOAD FAILED ===')
-      console.error('Unexpected error loading films:', error)
+      console.error('Error loading films:', error)
     }
   }
 
@@ -386,35 +317,13 @@ export function PressRequestFormModal({
 
   // Filter film suggestions based on search and request type
   useEffect(() => {
-    console.log('=== FILM FILTERING ===')
-    console.log('Filter inputs:', { 
-      filmSearchTerm, 
-      availableFilmsCount: availableFilms.length, 
-      requestType: formData.request_type,
-      selectedFilmsCount: selectedFilms.length
-    })
-    
     if (filmSearchTerm && availableFilms.length > 0) {
-      console.log('Applying filters...')
-      
-      // Basic text and exclusion filtering
-      let filtered = availableFilms.filter(film =>
+      const filtered = availableFilms.filter(film =>
         film.title.toLowerCase().includes(filmSearchTerm.toLowerCase()) &&
         !selectedFilms.some(selected => selected.id === film.id)
       )
-      
-      console.log('After text + exclusion filtering:', filtered.length)
-
-      // Show all films regardless of access type - the UI will display the access type
-      // Users can request screener links OR in-person tickets for any film/program
-      console.log('Showing all matching films/programs')
-
       setFilteredFilmSuggestions(filtered)
-      console.log('=== FILTERING COMPLETE ===')
-      console.log('Final filtered suggestions:', filtered.length)
-      console.log('Sample filtered films:', filtered.slice(0, 3).map(f => f.title))
     } else {
-      console.log('No search term or no films available')
       setFilteredFilmSuggestions([])
     }
   }, [filmSearchTerm, availableFilms, selectedFilms, formData.request_type])

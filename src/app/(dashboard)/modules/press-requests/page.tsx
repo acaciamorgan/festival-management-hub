@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PressRequestFormModal } from '@/components/forms/press-request-form-modal'
 import { Document, Packer, Paragraph, TextRun } from 'docx'
@@ -38,6 +39,7 @@ interface FilmContact {
 
 export default function PressRequestsPage() {
   const { user } = useAuth()
+  const { currentYear } = useFestivalYear()
   const { permissions } = usePermissions()
   const [requests, setRequests] = useState<PressRequest[]>([])
   const [loading, setLoading] = useState(false)
@@ -63,11 +65,11 @@ export default function PressRequestsPage() {
       const { data, error } = await supabase
         .from('press_requests_with_films')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
-      console.log('DEBUG: Loaded requests from database:', data?.map(r => ({ id: r.id, film: r.film_titles })))
       setRequests(data || [])
 
       // Load screener access data for all unique film titles
@@ -77,12 +79,14 @@ export default function PressRequestsPage() {
       const { data: features } = await supabase
         .from('feature_films')
         .select('id, title')
+        .eq('festival_year', currentYear)
         .in('title', uniqueTitles)
 
       // Load shorts programs and their IDs
       const { data: shortsPrograms } = await supabase
         .from('shorts_programs')
         .select('id, program_name')
+        .eq('festival_year', currentYear)
         .in('program_name', uniqueTitles)
 
       // Get all film IDs (features + programs)
@@ -91,24 +95,25 @@ export default function PressRequestsPage() {
         ...(shortsPrograms?.map(p => p.id) || [])
       ]
 
+      if (filmIds.length === 0) {
+        setScreenerAccessMap({})
+        return
+      }
+
       // Load screener access data for all these films
       const { data: screenerAccess, error: screenerError } = await supabase
         .from('screener_access')
         .select('film_id, access_type, link_url, link_password')
+        .eq('festival_year', currentYear)
         .in('film_id', filmIds)
 
       if (screenerError) {
         console.error('Error loading screener access:', screenerError)
       }
 
-      console.log('DEBUG: Features:', features)
-      console.log('DEBUG: Shorts programs:', shortsPrograms)
-      console.log('DEBUG: Screener access data:', screenerAccess)
-
       // Create a map of film title to screener access data
       const accessMap: Record<string, { access_type: string, link_url: string | null, link_password: string | null }> = {}
 
-      // Map feature films
       features?.forEach(film => {
         const access = screenerAccess?.find(sa => sa.film_id === film.id)
         if (access?.access_type) {
@@ -120,7 +125,6 @@ export default function PressRequestsPage() {
         }
       })
 
-      // Map shorts programs
       shortsPrograms?.forEach(program => {
         const access = screenerAccess?.find(sa => sa.film_id === program.id)
         if (access?.access_type) {
@@ -132,7 +136,6 @@ export default function PressRequestsPage() {
         }
       })
 
-      console.log('DEBUG: Screener access map:', accessMap)
       setScreenerAccessMap(accessMap)
 
     } catch (error) {
@@ -140,7 +143,7 @@ export default function PressRequestsPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   const loadFilmContacts = useCallback(async () => {
     try {
@@ -159,11 +162,13 @@ export default function PressRequestsPage() {
             access_type
           )
         `)
+        .eq('festival_year', currentYear)
 
       // Load shorts programs with contacts
       const { data: shortsPrograms } = await supabase
         .from('shorts_programs')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('program_number')
 
       // Filter for films that are "request_link" type and format the data
@@ -229,7 +234,7 @@ export default function PressRequestsPage() {
     } catch (error) {
       console.error('Error loading film contacts:', error)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   useEffect(() => {
     loadRequests()
@@ -396,33 +401,19 @@ export default function PressRequestsPage() {
   }
 
   const deleteRequest = async (requestId: string) => {
-    console.log('DEBUG: Delete function called with ID:', requestId)
-    console.log('DEBUG: Current requests before delete:', requests.map(r => ({ id: r.id, film: r.film_titles })))
-    
     if (!confirm('Are you sure you want to delete this request?')) {
       return
     }
 
     try {
-      // Since requests are now individual per film, we can delete directly
-      console.log('DEBUG: About to delete request with ID:', requestId)
       const { error } = await supabase
         .from('press_requests')
         .delete()
         .eq('id', requestId)
 
-      if (error) {
-        console.error('DEBUG: Database delete error:', error)
-        throw error
-      }
+      if (error) throw error
 
-      console.log('DEBUG: Database delete successful, updating local state')
-      // Update local state - remove only this specific request
-      setRequests(prev => {
-        const filtered = prev.filter(req => req.id !== requestId)
-        console.log('DEBUG: Filtered requests:', filtered.map(r => ({ id: r.id, film: r.film_titles })))
-        return filtered
-      })
+      setRequests(prev => prev.filter(req => req.id !== requestId))
     } catch (error) {
       console.error('Error deleting request:', error)
       alert('Error deleting request. Please try again.')
@@ -461,67 +452,36 @@ export default function PressRequestsPage() {
         r => r.request_type === 'screener_link' && r.status !== 'fulfilled'
       )
 
-      console.log('DEBUG: Screener requests found:', screenerRequests.length, screenerRequests)
-      
       if (screenerRequests.length === 0) {
         alert('No screener link requests to report')
         return
       }
 
-      // Load films with request_link access type - separate queries to avoid nested join issues
-      const { data: features, error: featuresError } = await supabase
-        .from('feature_films')
-        .select('id, title')
-      
-      if (featuresError) {
-        console.log('DEBUG: Features query error:', featuresError)
-      }
-      
-      // Load all screener access data
-      const { data: screenerAccessData, error: screenerError } = await supabase
-        .from('screener_access')
-        .select('film_id, access_type')
-        
-      if (screenerError) {
-        console.log('DEBUG: Screener access query error:', screenerError)
-      }
-      
-      // Load all film contacts
-      const { data: filmContactsData, error: contactsError } = await supabase
-        .from('film_contacts')
-        .select('film_id, film_type, name, email, company, contact_type')
-        .eq('film_type', 'feature')
-        
-      if (contactsError) {
-        console.log('DEBUG: Film contacts query error:', contactsError)
-      }
-
-      const { data: shortsPrograms } = await supabase
-        .from('shorts_programs')
-        .select('id, program_name')
-
-      console.log('DEBUG: Features data:', features)
-      console.log('DEBUG: Shorts programs data:', shortsPrograms)
+      // Load films with request_link access type
+      const [
+        { data: features },
+        { data: screenerAccessData },
+        { data: filmContactsData },
+        { data: shortsPrograms }
+      ] = await Promise.all([
+        supabase.from('feature_films').select('id, title').eq('festival_year', currentYear),
+        supabase.from('screener_access').select('film_id, access_type').eq('festival_year', currentYear),
+        supabase.from('film_contacts').select('film_id, film_type, name, email, company, contact_type').eq('film_type', 'feature'),
+        supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear)
+      ])
       
       // Filter for request_link films only
       const requestLinkFilms: any[] = []
-      
+
       // Add features with request_link
       features?.forEach(film => {
-        // Find screener access for this film
         const screenerAccess = screenerAccessData?.find(sa => sa.film_id === film.id)
-        console.log('DEBUG: Checking film:', film.title, 'screener_access:', screenerAccess)
-        
         if (screenerAccess?.access_type === 'request_link') {
-          console.log('DEBUG: Added request_link film:', film.title)
-          
-          // Find contacts for this film
           const contacts = filmContactsData?.filter(fc => fc.film_id === film.id) || []
-          
           requestLinkFilms.push({
             id: film.id,
             title: film.title,
-            contacts: contacts,
+            contacts,
             isProgram: false
           })
         }
@@ -563,11 +523,9 @@ export default function PressRequestsPage() {
         }
       }
 
-      console.log('DEBUG: Request link films found:', requestLinkFilms)
-      
       // Group requests by film
       const filmRequestsMap = new Map<string, any[]>()
-      
+
       screenerRequests.forEach(request => {
         const filmTitle = request.film_titles
         if (!filmRequestsMap.has(filmTitle)) {
@@ -575,8 +533,6 @@ export default function PressRequestsPage() {
         }
         filmRequestsMap.get(filmTitle)!.push(request)
       })
-      
-      console.log('DEBUG: Film requests map:', Array.from(filmRequestsMap.entries()))
       
 
       // Create Word document
@@ -596,11 +552,8 @@ export default function PressRequestsPage() {
         )
         
         if (!filmData) {
-          console.log('DEBUG: Film not found in request_link films:', filmTitle)
           return // Skip if not a request_link film
         }
-        
-        console.log('DEBUG: Processing film:', filmTitle, 'with', filmRequests.length, 'requests')
 
         // Sort requests: requested first, then new
         const sortedRequests = filmRequests.sort((a, b) => {

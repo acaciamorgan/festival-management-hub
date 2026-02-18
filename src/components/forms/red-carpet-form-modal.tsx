@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
+import { getFestivalYear } from '@/lib/smart-date-parser'
 
 interface RedCarpetFormModalProps {
   redCarpet?: any[] | null
@@ -31,6 +33,7 @@ interface RedCarpetFormData {
 
 export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCarpetFormModalProps) {
   const { user } = useAuth()
+  const { currentYear } = useFestivalYear()
   const [formData, setFormData] = useState<RedCarpetFormData>({
     film_subject_pairs: [{ film_program_title: '', subjects: '' }],
     venue_id: '',
@@ -105,13 +108,13 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     const loadSuggestionData = async () => {
       try {
         const [featureFilms, shortFilms, programs, guests, venues, shortFilmProgramsData] = await Promise.all([
-          supabase.from('feature_films').select('id, title').order('title'),
-          supabase.from('short_films').select('id, title').order('title'),
-          supabase.from('programs').select('id, title').order('title'),
-          supabase.from('guests').select('id, name').order('name'),
+          supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('short_films').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('guests').select('id, name').eq('festival_year', currentYear).order('name'),
           supabase.from('venues').select('*').order('name'),
           // Get unique short film program names
-          supabase.from('short_films').select('programs').not('programs', 'is', null)
+          supabase.from('short_films').select('programs').eq('festival_year', currentYear).not('programs', 'is', null)
         ])
 
         // Process films
@@ -162,15 +165,15 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     if (isOpen) {
       loadSuggestionData()
     }
-  }, [isOpen, supabase])
+  }, [isOpen, supabase, currentYear])
 
   // Initialize form data when redCarpet changes
   useEffect(() => {
     if (redCarpet && redCarpet.length > 0) {
       // For editing, convert all records to pairs
       const pairs: FilmSubjectPair[] = redCarpet.map(carpet => ({
-        film_program_title: carpet.film_program_display || '',
-        subjects: carpet.subjects_display || ''
+        film_program_title: carpet.film_program_display_combined || '',
+        subjects: carpet.subjects_display_combined || ''
       })).filter(pair => pair.film_program_title.trim()) // Remove empty pairs
 
       // Use the first record for shared fields (venue, date, times)
@@ -400,6 +403,8 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     setIsSubmitting(true)
 
     try {
+      const festivalYear = await getFestivalYear()
+
       // If editing, delete all existing records from this carpet event
       if (redCarpet && redCarpet.length > 0) {
         const idsToDelete = redCarpet.map(carpet => carpet.id)
@@ -418,8 +423,6 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
         if (!pair.film_program_title.trim()) continue // Skip empty pairs
 
         const redCarpetData = {
-          film_program_display: pair.film_program_title.trim(),
-          subjects_display: pair.subjects.trim() || null,
           venue_id: formData.venue_id || null,
           house: formData.house || null,
           carpet_date: normalizeDateValue(formData.carpet_date) || null,
@@ -429,6 +432,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
           rsvp_form_url: (formData.rsvp_form_url && formData.rsvp_form_url.trim()) || null,
           rsvp_responses_url: (formData.rsvp_responses_url && formData.rsvp_responses_url.trim()) || null,
           run_of_show_url: (formData.run_of_show_url && formData.run_of_show_url.trim()) || null,
+          festival_year: parseInt(festivalYear, 10),
           created_by: user?.id
         }
 
@@ -446,7 +450,18 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
         }
 
         // Handle associations for this pair
-        await handleAssociations(data.id, pair.film_program_title, pair.subjects)
+        const { unmatchedFilms, unmatchedSubjects } = await handleAssociations(data.id, pair.film_program_title, pair.subjects, festivalYear)
+
+        // Save only unmatched items to description fields
+        if (unmatchedFilms.length > 0 || unmatchedSubjects.length > 0) {
+          await supabase
+            .from('red_carpets')
+            .update({
+              film_program_description: unmatchedFilms.length > 0 ? unmatchedFilms.join(', ') : null,
+              subjects_description: unmatchedSubjects.length > 0 ? unmatchedSubjects.join(', ') : null
+            })
+            .eq('id', data.id)
+        }
 
         // Add venue name for display
         if (data.venue_id) {
@@ -468,31 +483,32 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     }
   }
 
-  // Handle associations (same logic as photo shoots)
-  const handleAssociations = async (redCarpetId: string, filmProgramTitles: string, subjectNames: string) => {
-    // Clear existing associations if editing
-    if (redCarpet) {
-      await Promise.all([
-        supabase.from('red_carpet_films').delete().eq('red_carpet_id', redCarpetId),
-        supabase.from('red_carpet_programs').delete().eq('red_carpet_id', redCarpetId),
-        supabase.from('red_carpet_subjects').delete().eq('red_carpet_id', redCarpetId)
-      ])
-    }
+  // Handle associations
+  const handleAssociations = async (redCarpetId: string, filmProgramTitles: string, subjectNames: string, festivalYear: string) => {
+    const unmatchedFilms: string[] = []
+    const unmatchedSubjects: string[] = []
+
+    // Clear existing associations
+    await Promise.all([
+      supabase.from('red_carpet_films').delete().eq('red_carpet_id', redCarpetId),
+      supabase.from('red_carpet_subjects').delete().eq('red_carpet_id', redCarpetId)
+    ])
 
     // Handle Film/Program associations
     if (filmProgramTitles.trim()) {
       const titles = filmProgramTitles.split(',').map(title => title.trim()).filter(title => title)
-      
+
       for (const title of titles) {
-        // Try to match with feature films
         let matched = false
+
+        // Try to match with feature films
         const featureFilm = availableFilms.find(f => f.type === 'feature' && f.title === title)
         if (featureFilm) {
           await supabase.from('red_carpet_films').insert({
             red_carpet_id: redCarpetId,
             film_id: featureFilm.id,
-            film_title: title,
-            film_type: 'feature'
+            film_type: 'feature',
+            festival_year: parseInt(festivalYear, 10)
           })
           matched = true
         }
@@ -504,8 +520,8 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
             await supabase.from('red_carpet_films').insert({
               red_carpet_id: redCarpetId,
               film_id: shortFilm.id,
-              film_title: title,
-              film_type: 'short'
+              film_type: 'short',
+              festival_year: parseInt(festivalYear, 10)
             })
             matched = true
           }
@@ -515,37 +531,41 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
         if (!matched) {
           const program = availablePrograms.find(p => p.title === title)
           if (program) {
-            await supabase.from('red_carpet_programs').insert({
+            await supabase.from('red_carpet_films').insert({
               red_carpet_id: redCarpetId,
-              program_id: program.id,
-              program_title: title
+              film_id: program.id,
+              film_type: 'program',
+              festival_year: parseInt(festivalYear, 10)
             })
             matched = true
           }
         }
 
-        // Note: Short film programs and free text are preserved in the display field
-        // but don't create database associations (by design)
+        if (!matched) {
+          unmatchedFilms.push(title)
+        }
       }
     }
 
     // Handle Subject associations
     if (subjectNames.trim()) {
       const names = subjectNames.split(',').map(name => name.trim()).filter(name => name)
-      
+
       for (const name of names) {
-        // Try to match with guests
         const guest = availableGuests.find(g => g.name === name)
         if (guest) {
           await supabase.from('red_carpet_subjects').insert({
             red_carpet_id: redCarpetId,
             guest_id: guest.id,
-            guest_name: name
+            festival_year: parseInt(festivalYear, 10)
           })
+        } else {
+          unmatchedSubjects.push(name)
         }
-        // Free text names are preserved in subjects_display but don't create associations
       }
     }
+
+    return { unmatchedFilms, unmatchedSubjects }
   }
 
   if (!isOpen) return null

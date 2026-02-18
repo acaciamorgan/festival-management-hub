@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
+import { getFestivalYear } from '@/lib/smart-date-parser'
 import { InterviewCard, InterviewStatus, PressCard, GuestCard } from '@/types'
 import { getGuestSuggestions } from '@/lib/guest-matching'
 
@@ -23,6 +25,7 @@ interface FilmOption {
 
 export function InterviewFormModal({ interview, isOpen, onClose, onSave }: InterviewFormModalProps) {
   const { user } = useAuth()
+  const { currentYear } = useFestivalYear()
   const [formData, setFormData] = useState({
     film_id: '',
     shorts_program_id: '',
@@ -87,12 +90,14 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         const { data: featureFilms, error: featureError } = await supabase
           .from('feature_films')
           .select('id, title')
+          .eq('festival_year', currentYear)
           .order('title')
 
         // Load shorts programs
         const { data: shortsPrograms, error: shortsError } = await supabase
           .from('shorts_programs')
           .select('id, program_name')
+          .eq('festival_year', currentYear)
           .order('program_name')
 
         // Load individual short films with program context
@@ -104,24 +109,28 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
             shorts_program_id,
             shorts_programs!inner(id, program_name)
           `)
+          .eq('festival_year', currentYear)
           .order('title')
 
         // Load programs
         const { data: programs, error: programsError } = await supabase
           .from('programs')
           .select('id, title')
+          .eq('festival_year', currentYear)
           .order('title')
 
         // Load press cards
         const { data: press, error: pressError } = await supabase
           .from('press')
           .select('id, name, media_outlet, email')
+          .eq('festival_year', currentYear)
           .order('name')
 
         // Load guest cards
         const { data: guests, error: guestsError } = await supabase
           .from('guests')
           .select('id, name')
+          .eq('festival_year', currentYear)
           .order('name')
 
         // Load venues
@@ -173,7 +182,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     if (isOpen) {
       loadData()
     }
-  }, [isOpen, supabase])
+  }, [isOpen, supabase, currentYear])
 
   // Initialize form data when interview changes
   useEffect(() => {
@@ -366,7 +375,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
 
     setLoadingSuggestions(true)
     try {
-      const suggestions = await getGuestSuggestions(query)
+      const suggestions = await getGuestSuggestions(query, currentYear)
       setGuestSuggestions(suggestions)
     } catch (error) {
       console.error('Error loading guest suggestions:', error)
@@ -446,6 +455,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
 
     setLoading(true)
     try {
+      const festivalYear = await getFestivalYear()
       const interviewData = {
         film_id: formData.film_id || null,
         shorts_program_id: formData.shorts_program_id || null,
@@ -466,6 +476,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         location: formData.location || null,
         show_on_special_events: formData.show_on_special_events,
         notes: formData.notes || null,
+        festival_year: parseInt(festivalYear, 10),
         created_by: user?.id
       }
 

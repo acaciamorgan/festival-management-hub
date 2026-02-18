@@ -282,26 +282,25 @@ export default function InterviewManagementPage() {
         const allMatches = new Map<string, string>()
         
         for (const [filmTitle, subjects] of subjectsByFilm.entries()) {
-          const result = await matchSubjectsToGuests(subjects, filmTitle)
+          const result = await matchSubjectsToGuests(subjects, filmTitle, currentYear)
           result.matches.forEach(match => {
             allMatches.set(match.name, match.guestId)
           })
         }
 
         // Match any remaining unmatched subjects without film context
-        const unmatchedGlobal = Array.from(allSubjectNames).filter(name => 
+        const unmatchedGlobal = Array.from(allSubjectNames).filter(name =>
           !allMatches.has(name)
         )
-        
+
         if (unmatchedGlobal.length > 0) {
-          const globalResult = await matchSubjectsToGuests(unmatchedGlobal)
+          const globalResult = await matchSubjectsToGuests(unmatchedGlobal, undefined, currentYear)
           globalResult.matches.forEach(match => {
             allMatches.set(match.name, match.guestId)
           })
         }
 
         setGuestMatches(allMatches)
-        console.log(`Guest matching complete: ${allMatches.size} matches found from ${allSubjectNames.size} subjects`)
       } catch (error) {
         console.error('Error matching guests:', error)
       } finally {

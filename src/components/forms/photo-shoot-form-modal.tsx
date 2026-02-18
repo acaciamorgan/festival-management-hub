@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { getFestivalYear } from '@/lib/smart-date-parser'
 
 interface PhotoShootFormModalProps {
@@ -31,6 +32,7 @@ interface PhotoShootFormData {
 
 export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: PhotoShootFormModalProps) {
   const { user } = useAuth()
+  const { currentYear } = useFestivalYear()
   const [formData, setFormData] = useState<PhotoShootFormData>({
     film_program_titles: '',
     subjects: '',
@@ -113,13 +115,13 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     const loadSuggestionData = async () => {
       try {
         const [featureFilms, shortFilms, programs, guests, venues, shortFilmProgramsData] = await Promise.all([
-          supabase.from('feature_films').select('id, title').order('title'),
-          supabase.from('short_films').select('id, title').order('title'),
-          supabase.from('programs').select('id, title').order('title'),
-          supabase.from('guests').select('id, name').order('name'),
+          supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('short_films').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('guests').select('id, name').eq('festival_year', currentYear).order('name'),
           supabase.from('venues').select('*').order('name'),
           // Get unique short film program names
-          supabase.from('short_films').select('programs').not('programs', 'is', null)
+          supabase.from('short_films').select('programs').eq('festival_year', currentYear).not('programs', 'is', null)
         ])
 
         // Process films
@@ -168,7 +170,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     if (isOpen) {
       loadSuggestionData()
     }
-  }, [isOpen, supabase])
+  }, [isOpen, supabase, currentYear])
 
   // Initialize form data when photoShoot changes
   useEffect(() => {
@@ -475,7 +477,6 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
           await supabase.from('photo_shoot_films').insert({
             photo_shoot_id: photoShootId,
             film_id: featureFilm.id,
-            film_title: title,
             film_type: 'feature',
             festival_year: parseInt(festivalYear, 10)
           })
@@ -489,7 +490,6 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
             await supabase.from('photo_shoot_films').insert({
               photo_shoot_id: photoShootId,
               film_id: shortFilm.id,
-              film_title: title,
               film_type: 'short',
               festival_year: parseInt(festivalYear, 10)
             })
@@ -504,7 +504,6 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
             await supabase.from('photo_shoot_films').insert({
               photo_shoot_id: photoShootId,
               film_id: program.id,
-              film_title: title,
               film_type: 'program',
               festival_year: parseInt(festivalYear, 10)
             })
@@ -530,7 +529,6 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
           await supabase.from('photo_shoot_subjects').insert({
             photo_shoot_id: photoShootId,
             guest_id: guest.id,
-            guest_name: name,
             festival_year: parseInt(festivalYear, 10)
           })
         } else {

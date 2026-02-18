@@ -17,7 +17,8 @@ export interface GuestMatchResult {
  */
 export async function matchSubjectsToGuests(
   subjectNames: string[],
-  filmTitle?: string
+  filmTitle?: string,
+  festivalYear?: number
 ): Promise<GuestMatchResult> {
   const supabase = createClient()
   const matches: GuestMatch[] = []
@@ -25,7 +26,7 @@ export async function matchSubjectsToGuests(
 
   try {
     // Get all guests with their film/program associations including short films
-    const { data: guestsData, error: guestsError } = await supabase
+    let query = supabase
       .from('guests')
       .select(`
         id,
@@ -34,6 +35,12 @@ export async function matchSubjectsToGuests(
         guest_programs:guest_programs(program_title),
         guest_short_films:guest_short_films(film_title)
       `)
+
+    if (festivalYear) {
+      query = query.eq('festival_year', festivalYear)
+    }
+
+    const { data: guestsData, error: guestsError } = await query
 
     if (guestsError) throw guestsError
 
@@ -100,7 +107,7 @@ export async function matchSubjectsToGuests(
 /**
  * Get guest suggestions for autocomplete in forms
  */
-export async function getGuestSuggestions(query: string): Promise<Array<{
+export async function getGuestSuggestions(query: string, festivalYear?: number): Promise<Array<{
   id: string
   name: string
   films_display: string
@@ -109,9 +116,9 @@ export async function getGuestSuggestions(query: string): Promise<Array<{
   if (!query || query.length < 2) return []
 
   const supabase = createClient()
-  
+
   try {
-    const { data, error } = await supabase
+    let dbQuery = supabase
       .from('guests')
       .select(`
         id,
@@ -122,6 +129,12 @@ export async function getGuestSuggestions(query: string): Promise<Array<{
       `)
       .ilike('name', `%${query}%`)
       .limit(10)
+
+    if (festivalYear) {
+      dbQuery = dbQuery.eq('festival_year', festivalYear)
+    }
+
+    const { data, error } = await dbQuery
 
     if (error) throw error
 

@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
+import { getFestivalYear } from '@/lib/smart-date-parser'
 import { PressScreeningCard, VenueCard, TheaterHouse } from '@/types'
 import { normalizeDateValue } from '@/lib/date-utils'
 
@@ -22,6 +24,7 @@ interface FilmOption {
 
 export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: PressScreeningFormModalProps) {
   const { user } = useAuth()
+  const { currentYear } = useFestivalYear()
   const [formData, setFormData] = useState({
     film_id: '',
     film_type: 'feature' as 'feature' | 'short',
@@ -63,6 +66,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         const { data: featureFilms, error: filmsError } = await supabase
           .from('feature_films')
           .select('id, title, run_time')
+          .eq('festival_year', currentYear)
           .order('title')
 
         if (filmsError) {
@@ -70,14 +74,12 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         }
 
         // Only feature films for press screenings
-        const allFilms: FilmOption[] = (featureFilms || []).map(film => ({ 
-          ...film, 
+        const allFilms: FilmOption[] = (featureFilms || []).map(film => ({
+          ...film,
           runtime: film.run_time,
-          type: 'feature' as const 
+          type: 'feature' as const
         }))
 
-        console.log('Loaded films:', allFilms) // Debug log
-        console.log('Feature films:', featureFilms?.length || 0)
         setFilms(allFilms)
 
         // Load venue short codes
@@ -103,33 +105,19 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
     if (isOpen) {
       loadData()
     }
-  }, [isOpen, supabase])
+  }, [isOpen, supabase, currentYear])
 
   // Filter films based on search with better matching
   const filteredFilms = filmSearch
     ? films.filter(film => {
         const searchLower = filmSearch.toLowerCase().trim()
         const titleLower = film.title.toLowerCase().trim()
-        
-        // Try multiple match strategies
+
         return titleLower.includes(searchLower) ||
                titleLower.startsWith(searchLower) ||
-               // Remove special characters and try again
                titleLower.replace(/[^\w\s]/g, '').includes(searchLower.replace(/[^\w\s]/g, ''))
       })
-    : films.slice(0, 10) // Show first 10 films if no search term
-  
-  // Debug logs
-  console.log('Film search term:', filmSearch)
-  console.log('Total films:', films.length)
-  console.log('Filtered films:', filteredFilms.length)
-  console.log('Show dropdown:', showFilmDropdown)
-  
-  // Log actual film titles to help debug
-  if (filmSearch && filmSearch.toLowerCase().includes('after')) {
-    console.log('Films containing "after":', films.filter(f => f.title.toLowerCase().includes('after')))
-    console.log('All film titles:', films.map(f => f.title))
-  }
+    : films.slice(0, 10)
 
   // Initialize form when screening changes
   useEffect(() => {
@@ -291,6 +279,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
 
     setLoading(true)
     try {
+      const festivalYear = await getFestivalYear()
       const screeningData = {
         film_id: formData.film_id,
         film_type: formData.film_type,
@@ -307,6 +296,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         notes: formData.notes || null,
         rsvp_form_url: formData.rsvp_form_url || null,
         rsvp_responses_url: formData.rsvp_responses_url || null,
+        festival_year: parseInt(festivalYear, 10),
         created_by: user?.id
       }
 

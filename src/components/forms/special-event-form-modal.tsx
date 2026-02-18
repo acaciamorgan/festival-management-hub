@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
+import { getFestivalYear } from '@/lib/smart-date-parser'
 import { SpecialEventCard, EventType, OpenPressType } from '@/types'
 
 interface SpecialEventFormModalProps {
@@ -44,6 +46,7 @@ interface SpecialEventFormData {
 
 export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: SpecialEventFormModalProps) {
   const { user } = useAuth()
+  const { currentYear } = useFestivalYear()
   const [formData, setFormData] = useState<SpecialEventFormData>({
     title: '',
     event_type: '',
@@ -139,12 +142,12 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     const loadSuggestionData = async () => {
       try {
         const [featureFilms, shortFilms, programs, guests, venues, existingEvents] = await Promise.all([
-          supabase.from('feature_films').select('id, title').order('title'),
-          supabase.from('short_films').select('id, title').order('title'),
-          supabase.from('programs').select('id, title').order('title'),
-          supabase.from('guests').select('id, name').order('name'),
+          supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('short_films').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('guests').select('id, name').eq('festival_year', currentYear).order('name'),
           supabase.from('venues').select('id, name, address, contact_names, contact_phones').order('name'),
-          supabase.from('special_events').select('invited_tags').not('invited_tags', 'is', null)
+          supabase.from('special_events').select('invited_tags').eq('festival_year', currentYear).not('invited_tags', 'is', null)
         ])
 
         // Process films
@@ -177,7 +180,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     if (isOpen) {
       loadSuggestionData()
     }
-  }, [isOpen, supabase])
+  }, [isOpen, supabase, currentYear])
 
   // Initialize form data when event changes
   useEffect(() => {
@@ -193,8 +196,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         venue_contact_name: event.venue_contact_name || '',
         venue_contact_phone: event.venue_contact_phone || '',
         location_details: event.location_details || '',
-        films_programs_display: event.films_programs_display || '',
-        guests_display: event.guests_display || '',
+        films_programs_display: event.films_programs_display_combined || '',
+        guests_display: event.guests_display_combined || '',
         lead_staff: event.lead_staff || '',
         lead_volunteer: event.lead_volunteer || '',
         number_of_vols: event.number_of_vols || '',
@@ -364,6 +367,10 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     setIsSubmitting(true)
 
     try {
+      const festivalYear = await getFestivalYear()
+      const now = new Date()
+      const nowStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0')
+
       // Prepare the event data (excluding venue contact fields which are derived)
       const eventData: any = {
         title: formData.title?.trim?.() || '',
@@ -376,8 +383,6 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         venue_contact_name: formData.venue_contact_name?.trim?.() || null,
         venue_contact_phone: formData.venue_contact_phone?.trim?.() || null,
         location_details: formData.location_details?.trim?.() || null,
-        films_programs_display: formData.films_programs_display?.trim?.() || null,
-        guests_display: formData.guests_display?.trim?.() || null,
         lead_staff: formData.lead_staff?.trim?.() || null,
         lead_volunteer: formData.lead_volunteer?.trim?.() || null,
         number_of_vols: formData.number_of_vols?.trim?.() || null,
@@ -393,7 +398,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         rsvp_response_link: formData.rsvp_response_link?.trim?.() || null,
         actual_attendance: formData.actual_attendance?.trim?.() || null,
         notes: formData.notes?.trim?.() || null,
-        updated_at: new Date().toISOString()
+        festival_year: parseInt(festivalYear, 10),
+        updated_at: nowStr
       }
 
       // Get venue info for caching
@@ -424,7 +430,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
           .from('special_events')
           .insert([{
             ...eventData,
-            created_at: new Date().toISOString(),
+            created_at: nowStr,
             created_by: user?.id
           }])
           .select()
@@ -434,7 +440,19 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         savedEvent = data
       }
 
-      // Photography integration removed - to be implemented later
+      // Handle junction table associations
+      const { unmatchedFilms, unmatchedGuests } = await handleAssociations(savedEvent.id, formData.films_programs_display, formData.guests_display, festivalYear)
+
+      // Save only unmatched items to description fields
+      if (unmatchedFilms.length > 0 || unmatchedGuests.length > 0) {
+        await supabase
+          .from('special_events')
+          .update({
+            film_program_description: unmatchedFilms.length > 0 ? unmatchedFilms.join(', ') : null,
+            guests_description: unmatchedGuests.length > 0 ? unmatchedGuests.join(', ') : null
+          })
+          .eq('id', savedEvent.id)
+      }
 
       onSave(savedEvent)
     } catch (error: any) {
@@ -446,7 +464,86 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     }
   }
 
-  // Photo shoot integration functions removed - to be implemented later
+  const handleAssociations = async (eventId: string, filmProgramTitles: string, guestNames: string, festivalYear: string) => {
+    const unmatchedFilms: string[] = []
+    const unmatchedGuests: string[] = []
+
+    // Clear existing junction table entries for this event
+    await Promise.all([
+      supabase.from('special_event_films').delete().eq('special_event_id', eventId),
+      supabase.from('special_event_guests').delete().eq('special_event_id', eventId)
+    ])
+
+    // Process film/program titles
+    if (filmProgramTitles?.trim()) {
+      const titles = filmProgramTitles.split(',').map(t => t.trim()).filter(t => t)
+
+      for (const title of titles) {
+        const titleLower = title.toLowerCase()
+
+        // Try feature films first
+        const featureFilm = availableFilms.find(f => f.type === 'feature' && f.title.toLowerCase() === titleLower)
+        if (featureFilm) {
+          await supabase.from('special_event_films').insert({
+            special_event_id: eventId,
+            film_id: featureFilm.id,
+            film_type: 'feature',
+            festival_year: parseInt(festivalYear, 10)
+          })
+          continue
+        }
+
+        // Try short films
+        const shortFilm = availableFilms.find(f => f.type === 'short' && f.title.toLowerCase() === titleLower)
+        if (shortFilm) {
+          await supabase.from('special_event_films').insert({
+            special_event_id: eventId,
+            film_id: shortFilm.id,
+            film_type: 'short',
+            festival_year: parseInt(festivalYear, 10)
+          })
+          continue
+        }
+
+        // Try programs
+        const program = availablePrograms.find(p => p.title.toLowerCase() === titleLower)
+        if (program) {
+          await supabase.from('special_event_films').insert({
+            special_event_id: eventId,
+            film_id: program.id,
+            film_type: 'program',
+            festival_year: parseInt(festivalYear, 10)
+          })
+          continue
+        }
+
+        // No match found
+        unmatchedFilms.push(title)
+      }
+    }
+
+    // Process guest names
+    if (guestNames?.trim()) {
+      const names = guestNames.split(',').map(n => n.trim()).filter(n => n)
+
+      for (const name of names) {
+        const nameLower = name.toLowerCase()
+        const guest = availableGuests.find(g => g.name.toLowerCase() === nameLower)
+
+        if (guest) {
+          await supabase.from('special_event_guests').insert({
+            special_event_id: eventId,
+            guest_id: guest.id,
+            festival_year: parseInt(festivalYear, 10)
+          })
+        } else {
+          unmatchedGuests.push(name)
+        }
+      }
+    }
+
+    return { unmatchedFilms, unmatchedGuests }
+  }
 
   if (!isOpen) return null
 
