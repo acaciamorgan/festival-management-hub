@@ -156,7 +156,7 @@ export default function PhotoShootsPage() {
     // Collect all unique titles from combined display
     shoots.forEach(shoot => {
       if (shoot.film_program_display_combined) {
-        shoot.film_program_display_combined.split(',').forEach(title => {
+        shoot.film_program_display_combined.split(' || ').forEach(title => {
           allFilmTitles.add(title.trim())
         })
       }
@@ -614,7 +614,7 @@ export default function PhotoShootsPage() {
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-0 bg-white z-10" style={{ minWidth: `${columnWidths['film_program_display'] || 200}px`, maxWidth: `${columnWidths['film_program_display'] || 200}px` }}>
                       {shoot.film_program_display_combined ? (
                         <div className="flex flex-wrap gap-1">
-                          {shoot.film_program_display_combined.split(', ').map((title, index) => {
+                          {shoot.film_program_display_combined.split(' || ').map((title, index) => {
                             const trimmedTitle = title.trim()
                             const exists = existingFilms.has(trimmedTitle)
                             return (
@@ -632,7 +632,7 @@ export default function PhotoShootsPage() {
                                 ) : (
                                   <span className="text-gray-900">{title}</span>
                                 )}
-                                {index < shoot.film_program_display_combined.split(', ').length - 1 && <span className="text-gray-400">, </span>}
+                                {index < shoot.film_program_display_combined.split(' || ').length - 1 && <span className="text-gray-400">, </span>}
                               </span>
                             )
                           })}

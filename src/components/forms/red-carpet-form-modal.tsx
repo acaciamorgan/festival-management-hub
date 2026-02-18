@@ -485,56 +485,53 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
       supabase.from('red_carpet_subjects').delete().eq('red_carpet_id', redCarpetId)
     ])
 
-    // Handle Film/Program associations
+    // Handle Film/Program associations (single title per pair — no comma splitting needed)
     if (filmProgramTitles.trim()) {
-      const titles = filmProgramTitles.split(',').map(title => title.trim()).filter(title => title)
+      const title = filmProgramTitles.trim()
+      let matched = false
 
-      for (const title of titles) {
-        let matched = false
+      // Try to match with feature films
+      const featureFilm = availableFilms.find(f => f.type === 'feature' && f.title === title)
+      if (featureFilm) {
+        await supabase.from('red_carpet_films').insert({
+          red_carpet_id: redCarpetId,
+          film_id: featureFilm.id,
+          film_type: 'feature',
+          festival_year: parseInt(festivalYear, 10)
+        })
+        matched = true
+      }
 
-        // Try to match with feature films
-        const featureFilm = availableFilms.find(f => f.type === 'feature' && f.title === title)
-        if (featureFilm) {
+      // Try to match with short films
+      if (!matched) {
+        const shortFilm = availableFilms.find(f => f.type === 'short' && f.title === title)
+        if (shortFilm) {
           await supabase.from('red_carpet_films').insert({
             red_carpet_id: redCarpetId,
-            film_id: featureFilm.id,
-            film_type: 'feature',
+            film_id: shortFilm.id,
+            film_type: 'short',
             festival_year: parseInt(festivalYear, 10)
           })
           matched = true
         }
+      }
 
-        // Try to match with short films
-        if (!matched) {
-          const shortFilm = availableFilms.find(f => f.type === 'short' && f.title === title)
-          if (shortFilm) {
-            await supabase.from('red_carpet_films').insert({
-              red_carpet_id: redCarpetId,
-              film_id: shortFilm.id,
-              film_type: 'short',
-              festival_year: parseInt(festivalYear, 10)
-            })
-            matched = true
-          }
+      // Try to match with programs
+      if (!matched) {
+        const program = availablePrograms.find(p => p.title === title)
+        if (program) {
+          await supabase.from('red_carpet_films').insert({
+            red_carpet_id: redCarpetId,
+            film_id: program.id,
+            film_type: 'program',
+            festival_year: parseInt(festivalYear, 10)
+          })
+          matched = true
         }
+      }
 
-        // Try to match with programs
-        if (!matched) {
-          const program = availablePrograms.find(p => p.title === title)
-          if (program) {
-            await supabase.from('red_carpet_films').insert({
-              red_carpet_id: redCarpetId,
-              film_id: program.id,
-              film_type: 'program',
-              festival_year: parseInt(festivalYear, 10)
-            })
-            matched = true
-          }
-        }
-
-        if (!matched) {
-          unmatchedFilms.push(title)
-        }
+      if (!matched) {
+        unmatchedFilms.push(title)
       }
     }
 

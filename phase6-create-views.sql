@@ -13,7 +13,7 @@ SELECT
     (
       SELECT string_agg(
         COALESCE(ff.title, sf.title, sp.program_name, p.title),
-        ', '
+        ' || '
         ORDER BY COALESCE(ff.title, sf.title, sp.program_name, p.title)
       )
       FROM photo_shoot_films psf
@@ -39,7 +39,7 @@ SELECT
       (
         SELECT string_agg(
           COALESCE(ff.title, sf.title, sp.program_name, p.title),
-          ', '
+          ' || '
         )
         FROM photo_shoot_films psf
         LEFT JOIN feature_films ff ON psf.film_id = ff.id AND psf.film_type = 'feature' AND ff.festival_year = ps.festival_year
@@ -54,7 +54,7 @@ SELECT
       (
         SELECT string_agg(
           COALESCE(ff.title, sf.title, sp.program_name, p.title),
-          ', '
+          ' || '
         )
         FROM photo_shoot_films psf
         LEFT JOIN feature_films ff ON psf.film_id = ff.id AND psf.film_type = 'feature' AND ff.festival_year = ps.festival_year
@@ -62,13 +62,13 @@ SELECT
         LEFT JOIN shorts_programs sp ON psf.film_id = sp.id AND psf.film_type = 'shorts_program' AND sp.festival_year = ps.festival_year
         LEFT JOIN programs p ON psf.film_id = p.id AND psf.film_type = 'program' AND p.festival_year = ps.festival_year
         WHERE psf.photo_shoot_id = ps.id
-      ) || ', ' || ps.film_program_description
+      ) || ' || ' || ps.film_program_description
     ELSE
       COALESCE(
         (
           SELECT string_agg(
             COALESCE(ff.title, sf.title, sp.program_name, p.title),
-            ', '
+            ' || '
           )
           FROM photo_shoot_films psf
           LEFT JOIN feature_films ff ON psf.film_id = ff.id AND psf.film_type = 'feature' AND ff.festival_year = ps.festival_year
@@ -122,7 +122,7 @@ SELECT
     (
       SELECT string_agg(
         COALESCE(ff.title, sf.title, sp.program_name, p.title),
-        ', '
+        ' || '
         ORDER BY COALESCE(ff.title, sf.title, sp.program_name, p.title)
       )
       FROM red_carpet_films rcf
@@ -148,7 +148,7 @@ SELECT
       (
         SELECT string_agg(
           COALESCE(ff.title, sf.title, sp.program_name, p.title),
-          ', '
+          ' || '
         )
         FROM red_carpet_films rcf
         LEFT JOIN feature_films ff ON rcf.film_id = ff.id AND rcf.film_type = 'feature' AND ff.festival_year = rc.festival_year
@@ -163,7 +163,7 @@ SELECT
       (
         SELECT string_agg(
           COALESCE(ff.title, sf.title, sp.program_name, p.title),
-          ', '
+          ' || '
         )
         FROM red_carpet_films rcf
         LEFT JOIN feature_films ff ON rcf.film_id = ff.id AND rcf.film_type = 'feature' AND ff.festival_year = rc.festival_year
@@ -171,13 +171,13 @@ SELECT
         LEFT JOIN shorts_programs sp ON rcf.film_id = sp.id AND rcf.film_type = 'shorts_program' AND sp.festival_year = rc.festival_year
         LEFT JOIN programs p ON rcf.film_id = p.id AND rcf.film_type = 'program' AND p.festival_year = rc.festival_year
         WHERE rcf.red_carpet_id = rc.id
-      ) || ', ' || rc.film_program_description
+      ) || ' || ' || rc.film_program_description
     ELSE
       COALESCE(
         (
           SELECT string_agg(
             COALESCE(ff.title, sf.title, sp.program_name, p.title),
-            ', '
+            ' || '
           )
           FROM red_carpet_films rcf
           LEFT JOIN feature_films ff ON rcf.film_id = ff.id AND rcf.film_type = 'feature' AND ff.festival_year = rc.festival_year
@@ -233,7 +233,7 @@ SELECT
     (
       SELECT string_agg(
         COALESCE(ff.title, sf.title, sp.program_name, p.title),
-        ', '
+        ' || '
         ORDER BY COALESCE(ff.title, sf.title, sp.program_name, p.title)
       )
       FROM special_event_films sef
@@ -259,7 +259,7 @@ SELECT
       (
         SELECT string_agg(
           COALESCE(ff.title, sf.title, sp.program_name, p.title),
-          ', '
+          ' || '
         )
         FROM special_event_films sef
         LEFT JOIN feature_films ff ON sef.film_id = ff.id AND sef.film_type = 'feature' AND ff.festival_year = se.festival_year
@@ -274,7 +274,7 @@ SELECT
       (
         SELECT string_agg(
           COALESCE(ff.title, sf.title, sp.program_name, p.title),
-          ', '
+          ' || '
         )
         FROM special_event_films sef
         LEFT JOIN feature_films ff ON sef.film_id = ff.id AND sef.film_type = 'feature' AND ff.festival_year = se.festival_year
@@ -282,13 +282,13 @@ SELECT
         LEFT JOIN shorts_programs sp ON sef.film_id = sp.id AND sef.film_type = 'shorts_program' AND sp.festival_year = se.festival_year
         LEFT JOIN programs p ON sef.film_id = p.id AND sef.film_type = 'program' AND p.festival_year = se.festival_year
         WHERE sef.special_event_id = se.id
-      ) || ', ' || se.film_program_description
+      ) || ' || ' || se.film_program_description
     ELSE
       COALESCE(
         (
           SELECT string_agg(
             COALESCE(ff.title, sf.title, sp.program_name, p.title),
-            ', '
+            ' || '
           )
           FROM special_event_films sef
           LEFT JOIN feature_films ff ON sef.film_id = ff.id AND sef.film_type = 'feature' AND ff.festival_year = se.festival_year

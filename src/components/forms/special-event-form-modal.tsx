@@ -474,52 +474,43 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
       supabase.from('special_event_guests').delete().eq('special_event_id', eventId)
     ])
 
-    // Process film/program titles
+    // Process film/program titles using greedy longest-match (handles commas in titles)
     if (filmProgramTitles?.trim()) {
-      const titles = filmProgramTitles.split(',').map(t => t.trim()).filter(t => t)
+      // Build combined list sorted longest-first for greedy matching
+      const allKnownFilms = [
+        ...availableFilms.map(f => ({ id: f.id, title: f.title, type: f.type as string })),
+        ...availablePrograms.map(p => ({ id: p.id, title: p.title, type: 'program' }))
+      ].sort((a, b) => b.title.length - a.title.length)
 
-      for (const title of titles) {
-        const titleLower = title.toLowerCase()
+      const matchedFilms: { id: string, title: string, type: string }[] = []
+      let remainingText = filmProgramTitles.trim()
 
-        // Try feature films first
-        const featureFilm = availableFilms.find(f => f.type === 'feature' && f.title.toLowerCase() === titleLower)
-        if (featureFilm) {
-          await supabase.from('special_event_films').insert({
-            special_event_id: eventId,
-            film_id: featureFilm.id,
-            film_type: 'feature',
-            festival_year: parseInt(festivalYear, 10)
-          })
-          continue
+      for (const film of allKnownFilms) {
+        const escaped = film.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const regex = new RegExp(escaped, 'i')
+        if (regex.test(remainingText)) {
+          matchedFilms.push(film)
+          remainingText = remainingText
+            .replace(regex, '')
+            .replace(/^\s*[,|]+\s*|\s*[,|]+\s*$/g, '')
+            .replace(/\s*[,|]+\s*/g, ',')
+            .trim()
         }
-
-        // Try short films
-        const shortFilm = availableFilms.find(f => f.type === 'short' && f.title.toLowerCase() === titleLower)
-        if (shortFilm) {
-          await supabase.from('special_event_films').insert({
-            special_event_id: eventId,
-            film_id: shortFilm.id,
-            film_type: 'short',
-            festival_year: parseInt(festivalYear, 10)
-          })
-          continue
-        }
-
-        // Try programs
-        const program = availablePrograms.find(p => p.title.toLowerCase() === titleLower)
-        if (program) {
-          await supabase.from('special_event_films').insert({
-            special_event_id: eventId,
-            film_id: program.id,
-            film_type: 'program',
-            festival_year: parseInt(festivalYear, 10)
-          })
-          continue
-        }
-
-        // No match found
-        unmatchedFilms.push(title)
       }
+
+      // Insert matched films into junction table
+      for (const film of matchedFilms) {
+        await supabase.from('special_event_films').insert({
+          special_event_id: eventId,
+          film_id: film.id,
+          film_type: film.type,
+          festival_year: parseInt(festivalYear, 10)
+        })
+      }
+
+      // Any remaining comma-separated tokens are unmatched (free-text)
+      const tokens = remainingText.split(',').map(t => t.trim()).filter(t => t)
+      unmatchedFilms.push(...tokens)
     }
 
     // Process guest names

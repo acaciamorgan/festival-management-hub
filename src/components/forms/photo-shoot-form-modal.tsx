@@ -446,57 +446,43 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
       ])
     }
 
-    // Handle Film/Program associations
+    // Handle Film/Program associations using greedy longest-match (handles commas in titles)
     if (filmProgramTitles.trim()) {
-      const titles = filmProgramTitles.split(',').map(title => title.trim()).filter(title => title)
+      // Build combined list sorted longest-first for greedy matching
+      const allKnownFilms = [
+        ...availableFilms.map(f => ({ id: f.id, title: f.title, type: f.type as string })),
+        ...availablePrograms.map(p => ({ id: p.id, title: p.title, type: 'program' }))
+      ].sort((a, b) => b.title.length - a.title.length)
 
-      for (const title of titles) {
-        // Try to match with feature films
-        let matched = false
-        const featureFilm = availableFilms.find(f => f.type === 'feature' && f.title === title)
-        if (featureFilm) {
-          await supabase.from('photo_shoot_films').insert({
-            photo_shoot_id: photoShootId,
-            film_id: featureFilm.id,
-            film_type: 'feature',
-            festival_year: parseInt(festivalYear, 10)
-          })
-          matched = true
-        }
+      const matchedFilms: { id: string, title: string, type: string }[] = []
+      let remainingText = filmProgramTitles.trim()
 
-        // Try to match with short films
-        if (!matched) {
-          const shortFilm = availableFilms.find(f => f.type === 'short' && f.title === title)
-          if (shortFilm) {
-            await supabase.from('photo_shoot_films').insert({
-              photo_shoot_id: photoShootId,
-              film_id: shortFilm.id,
-              film_type: 'short',
-              festival_year: parseInt(festivalYear, 10)
-            })
-            matched = true
-          }
-        }
-
-        // Try to match with programs
-        if (!matched) {
-          const program = availablePrograms.find(p => p.title === title)
-          if (program) {
-            await supabase.from('photo_shoot_films').insert({
-              photo_shoot_id: photoShootId,
-              film_id: program.id,
-              film_type: 'program',
-              festival_year: parseInt(festivalYear, 10)
-            })
-            matched = true
-          }
-        }
-
-        // If not matched, add to unmatched list
-        if (!matched) {
-          unmatchedFilms.push(title)
+      for (const film of allKnownFilms) {
+        const escaped = film.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const regex = new RegExp(escaped, 'i')
+        if (regex.test(remainingText)) {
+          matchedFilms.push(film)
+          remainingText = remainingText
+            .replace(regex, '')
+            .replace(/^\s*[,|]+\s*|\s*[,|]+\s*$/g, '')
+            .replace(/\s*[,|]+\s*/g, ',')
+            .trim()
         }
       }
+
+      // Insert matched films into junction table
+      for (const film of matchedFilms) {
+        await supabase.from('photo_shoot_films').insert({
+          photo_shoot_id: photoShootId,
+          film_id: film.id,
+          film_type: film.type,
+          festival_year: parseInt(festivalYear, 10)
+        })
+      }
+
+      // Any remaining comma-separated tokens are unmatched (free-text)
+      const tokens = remainingText.split(',').map(t => t.trim()).filter(t => t)
+      unmatchedFilms.push(...tokens)
     }
 
     // Handle Subject associations

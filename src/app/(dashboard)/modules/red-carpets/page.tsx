@@ -163,7 +163,7 @@ export default function RedCarpetsPage() {
     // Collect all unique titles from combined display
     carpets.forEach(carpet => {
       if (carpet.film_program_display_combined) {
-        carpet.film_program_display_combined.split(',').forEach(title => {
+        carpet.film_program_display_combined.split(' || ').forEach(title => {
           allFilmTitles.add(title.trim())
         })
       }
@@ -217,7 +217,7 @@ export default function RedCarpetsPage() {
       
       // Add films with their subjects
       if (carpet.film_program_display_combined) {
-        const titles = carpet.film_program_display_combined.split(',').map(t => t.trim())
+        const titles = carpet.film_program_display_combined.split(' || ').map(t => t.trim())
         titles.forEach(title => {
           const existingFilm = group.films.find(f => f.title === title)
           const subjects = carpet.subjects_display_combined ? carpet.subjects_display_combined.split(',').map(s => s.trim()) : []
