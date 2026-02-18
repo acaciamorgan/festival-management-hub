@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
-import { useFestivalYear } from '@/contexts/FestivalYearContext'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { getFestivalYear } from '@/lib/smart-date-parser'
 
 interface Contact {

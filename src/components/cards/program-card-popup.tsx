@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ProgramCard, FilmCard, InterviewCard } from '@/types'
 import { FilmCardPopup } from './film-card-popup'
 import { GuestCardPopup } from './guest-card-popup'
-import { useFestivalYear } from '@/contexts/FestivalYearContext'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 
 interface ProgramCardPopupProps {
   program: ProgramCard

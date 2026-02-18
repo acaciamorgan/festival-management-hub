@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ContactCard } from '@/types'
-import { useFestivalYear } from '@/contexts/FestivalYearContext'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { getFestivalYear } from '@/lib/smart-date-parser'
 
 // Film Search Select Component
