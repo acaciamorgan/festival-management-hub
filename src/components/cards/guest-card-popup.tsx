@@ -55,6 +55,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
   const [guestInterviews, setGuestInterviews] = useState<InterviewCard[]>([])
   const [filmScreenings, setFilmScreenings] = useState<any[]>([])
   const [specialEvents, setSpecialEvents] = useState<any[]>([])
+  const [guestFilmTitles, setGuestFilmTitles] = useState<string[]>([])
 
   const supabase = createClient()
 
@@ -149,6 +150,9 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
         // Set interviews (already processed)
         setGuestInterviews(interviewsResult)
 
+        // Store individual film titles from junction table (avoids comma-in-title split issues)
+        setGuestFilmTitles(guestFilmsResult.data?.map(gf => gf.film_title) || [])
+
         // Load film screenings and program schedules for all films/programs this guest is associated with
         const loadFilmScreenings = async () => {
           try {
@@ -194,20 +198,17 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
               programTitles.push(...guestProgramsResult.data.map(gp => gp.program_title))
             }
 
-            // Also check films_display field for program associations in parallel
-            if (guest.films_display) {
-              const displayFilms = guest.films_display.split(', ').map(f => f.trim())
-
-              // Check all display films in parallel
+            // Check junction table film titles for program associations (avoids comma-in-title split)
+            if (guestFilmsResult.data && guestFilmsResult.data.length > 0) {
               const programChecks = await Promise.all(
-                displayFilms.map(async (displayFilm) => {
+                guestFilmsResult.data.map(async (gf) => {
                   const { data: programCheck } = await supabase
                     .from('programs')
                     .select('title')
-                    .eq('title', displayFilm)
+                    .eq('title', gf.film_title)
                     .single()
 
-                  return programCheck ? displayFilm : null
+                  return programCheck ? gf.film_title : null
                 })
               )
 
@@ -447,20 +448,17 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
               allTitles.push(...guestPrograms.map(gp => gp.program_title))
             }
 
-            // Also check films_display field for program associations
-            if (guest.films_display) {
-              const displayFilms = guest.films_display.split(', ').map(f => f.trim())
-
-              // Check if any of these are programs
-              for (const displayFilm of displayFilms) {
+            // Check junction table film titles for program associations (avoids comma-in-title split)
+            if (guestFilms && guestFilms.length > 0) {
+              for (const guestFilm of guestFilms) {
                 const { data: programCheck } = await supabase
                   .from('programs')
                   .select('title')
-                  .eq('title', displayFilm)
+                  .eq('title', guestFilm.film_title)
                   .single()
 
                 if (programCheck) {
-                  allTitles.push(displayFilm)
+                  allTitles.push(guestFilm.film_title)
                 }
               }
             }
@@ -695,11 +693,30 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
   }
 
   const renderFilmTitles = (filmsDisplay: string | undefined) => {
+    // Prefer individual titles from junction table — each is unambiguous, handles commas in titles
+    if (guestFilmTitles.length > 0) {
+      return (
+        <div className="flex flex-wrap gap-1">
+          {guestFilmTitles.map((title, index) => (
+            <span key={index}>
+              <button
+                onClick={() => openFilmCard(title)}
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                {title}
+              </button>
+              {index < guestFilmTitles.length - 1 && <span className="text-gray-400">, </span>}
+            </span>
+          ))}
+        </div>
+      )
+    }
+
     if (!filmsDisplay || filmsDisplay === '—') {
       return <span className="text-gray-500">No films assigned</span>
     }
-    
-    // Split by comma and make each film title clickable
+
+    // Fallback: split display string (may mishandle commas in film titles)
     const filmTitles = filmsDisplay.split(', ')
     return (
       <div className="flex flex-wrap gap-1">

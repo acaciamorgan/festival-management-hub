@@ -499,13 +499,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
             festival_year: parseInt(festivalYear, 10)
           })
         } else {
-          // Store one-off subjects in junction table with subject_name
-          await supabase.from('photo_shoot_subjects').insert({
-            photo_shoot_id: photoShootId,
-            guest_id: null,
-            subject_name: name,
-            festival_year: parseInt(festivalYear, 10)
-          })
+          // Unmatched subjects go to subjects_description (view handles display)
+          unmatchedSubjects.push(name)
         }
       }
     }
