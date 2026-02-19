@@ -157,14 +157,8 @@ export interface GuestFilm {
   id: string
   guest_id: string
   film_id: string
-  film_title: string
-}
-
-export interface GuestProgram {
-  id: string
-  guest_id: string
-  program_id?: string
-  program_title: string
+  film_type: string // 'feature' | 'short' | 'shorts_program' | 'program'
+  film_title?: string // resolved from guest_film_titles view (not a stored cache)
 }
 
 export interface GuestCard {
@@ -212,9 +206,9 @@ export interface GuestCard {
   
   // Relationships
   films?: GuestFilm[]
-  programs?: GuestProgram[]
   screenings?: any[] // Array of screening objects for this guest's films
-  films_display?: string // "Film A, Film B, Film C"
+  films_display?: string // Legacy convenience cache; use films_display_combined from guests_with_details view for fresh data
+  films_display_combined?: string // Computed from guest_film_titles view via guests_with_details
 
   created_at: string
   updated_at: string

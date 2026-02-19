@@ -31,9 +31,7 @@ export async function matchSubjectsToGuests(
       .select(`
         id,
         name,
-        guest_films:guest_films(film_title),
-        guest_programs:guest_programs(program_title),
-        guest_short_films:guest_short_films(film_title)
+        guest_film_titles:guest_film_titles(film_title)
       `)
 
     if (festivalYear) {
@@ -71,13 +69,9 @@ export async function matchSubjectsToGuests(
       // Multiple matches - use film context for disambiguation
       if (filmTitle && potentialMatches.length > 1) {
         const contextualMatch = potentialMatches.find(guest => {
-          const guestFilms = [
-            ...(guest.guest_films || []).map((f: any) => f.film_title),
-            ...(guest.guest_programs || []).map((p: any) => p.program_title),
-            ...(guest.guest_short_films || []).map((sf: any) => sf.film_title)
-          ]
-          return guestFilms.some(title =>
-            title.toLowerCase() === filmTitle.toLowerCase()
+          const guestFilms = (guest.guest_film_titles || []).map((f: any) => f.film_title)
+          return guestFilms.some((title: string) =>
+            title?.toLowerCase() === filmTitle.toLowerCase()
           )
         })
 
@@ -123,9 +117,7 @@ export async function getGuestSuggestions(query: string, festivalYear?: number):
       .select(`
         id,
         name,
-        guest_films:guest_films(film_title),
-        guest_programs:guest_programs(program_title),
-        guest_short_films:guest_short_films(film_title)
+        guest_film_titles:guest_film_titles(film_title)
       `)
       .ilike('name', `%${query}%`)
       .limit(10)
@@ -139,11 +131,7 @@ export async function getGuestSuggestions(query: string, festivalYear?: number):
     if (error) throw error
 
     return (data || []).map(guest => {
-      const films = [
-        ...(guest.guest_films || []).map((f: any) => f.film_title),
-        ...(guest.guest_programs || []).map((p: any) => p.program_title),
-        ...(guest.guest_short_films || []).map((sf: any) => sf.film_title)
-      ]
+      const films = (guest.guest_film_titles || []).map((f: any) => f.film_title).filter(Boolean)
       const films_display = films.join(', ') || 'No films assigned'
 
       return {

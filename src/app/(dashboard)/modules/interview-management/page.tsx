@@ -319,11 +319,7 @@ export default function InterviewManagementPage() {
     try {
       const { data: guestData, error } = await supabase
         .from('guests')
-        .select(`
-          *,
-          guest_films:guest_films(film_title),
-          guest_programs:guest_programs(program_title)
-        `)
+        .select('*')
         .eq('name', guestName)
         .eq('festival_year', currentYear)
         .single()
@@ -335,11 +331,8 @@ export default function InterviewManagementPage() {
 
       const formattedGuest = {
         ...guestData,
-        films: guestData.guest_films || [],
-        films_display: [
-          ...(guestData.guest_films || []).map((f: any) => f.film_title),
-          ...(guestData.guest_programs || []).map((p: any) => p.program_title)
-        ].join(', ') || '—'
+        films: [],
+        films_display: guestData.films_display || '—'
       }
 
       setSelectedGuest(formattedGuest)

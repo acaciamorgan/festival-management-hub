@@ -355,27 +355,21 @@ export default function InAttendancePage() {
       // Load all the data we need in parallel
       const [
         guestFilmsResponse,
-        guestProgramsResponse,
         screeningsResponse,
         shortFilmsResponse,
-        guestShortFilmsResponse,
         shortsProgramsResponse
       ] = await Promise.all([
-        supabase.from('guest_films_with_details').select('*'),
-        supabase.from('guest_programs').select('*'),
+        supabase.from('guest_film_titles').select('*'),
         supabase.from('ticketing_screenings_with_films').select('*').eq('is_published', true),
         supabase.from('short_films').select('id, title, shorts_program_id'),
-        supabase.from('guest_short_films').select('*'),
         supabase.from('shorts_programs').select('id, program_name')
       ])
 
       if (guestFilmsResponse.error) throw guestFilmsResponse.error
-      if (guestProgramsResponse.error) throw guestProgramsResponse.error
       if (screeningsResponse.error) throw screeningsResponse.error
 
       const allScreenings = screeningsResponse.data || []
       const shortFilms = shortFilmsResponse.data || []
-      const guestShortFilms = guestShortFilmsResponse.data || []
       const shortsPrograms = shortsProgramsResponse.data || []
 
       // Create a map for quick short film -> program lookup
@@ -389,28 +383,30 @@ export default function InAttendancePage() {
 
       // Process each guest with their screening data
       const guestsWithFilmsAndScreenings = (guestsData || []).map(guest => {
+        // guest_film_titles view returns one row per (guest, film) with resolved film_title
         const guestFilms = (guestFilmsResponse.data || []).filter(gf => gf.guest_id === guest.id)
-        const guestPrograms = (guestProgramsResponse.data || []).filter(gp => gp.guest_id === guest.id)
-        const guestShortFilmsList = guestShortFilms.filter(gsf => gsf.guest_id === guest.id)
 
         // Calculate screenings for this guest
         const guestScreeningsList: any[] = []
 
-        // Get screenings for feature films
+        // Get screenings for all film types
         guestFilms.forEach(gf => {
-          const filmScreenings = allScreenings.filter(s => s.film_title === gf.film_title)
-          guestScreeningsList.push(...filmScreenings)
-        })
+          if (!gf.film_title) return
 
-        // Get screenings for short films (through their programs)
-        guestShortFilmsList.forEach(gsf => {
-          const programName = shortFilmToProgramMap.get(gsf.film_title)
-          if (programName) {
-            const programScreenings = allScreenings.filter(s =>
-              s.film_title === programName ||
-              (s.film_title && s.film_title.includes(programName))
-            )
-            guestScreeningsList.push(...programScreenings)
+          if (gf.film_type === 'short') {
+            // For short films, look up their shorts program for screenings
+            const programName = shortFilmToProgramMap.get(gf.film_title)
+            if (programName) {
+              const programScreenings = allScreenings.filter(s =>
+                s.film_title === programName ||
+                (s.film_title && s.film_title.includes(programName))
+              )
+              guestScreeningsList.push(...programScreenings)
+            }
+          } else {
+            // Features, programs, shorts_programs: match screenings by title
+            const filmScreenings = allScreenings.filter(s => s.film_title === gf.film_title)
+            guestScreeningsList.push(...filmScreenings)
           }
         })
 
@@ -426,7 +422,7 @@ export default function InAttendancePage() {
         return {
           ...guest,
           films: guestFilms,
-          programs: guestPrograms,
+          programs: [],
           screenings: uniqueScreenings, // Add screenings directly to guest object
           films_display: guest.films_display || '—',
           database_match: '—'
@@ -1085,11 +1081,7 @@ export default function InAttendancePage() {
 
               if (!findError && existingGuest) {
                 // Delete all associated records first
-                await Promise.all([
-                  supabase.from('guest_films').delete().eq('guest_id', existingGuest.id),
-                  supabase.from('guest_programs').delete().eq('guest_id', existingGuest.id),
-                  supabase.from('guest_short_films').delete().eq('guest_id', existingGuest.id)
-                ])
+                await supabase.from('guest_films').delete().eq('guest_id', existingGuest.id)
 
                 // Delete the guest
                 await supabase.from('guests').delete().eq('id', existingGuest.id)

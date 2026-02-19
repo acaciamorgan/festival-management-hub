@@ -377,11 +377,7 @@ export default function TitlesPage() {
     try {
       const { data: guestData, error } = await supabase
         .from('guests')
-        .select(`
-          *,
-          guest_films:guest_films(film_title),
-          guest_programs:guest_programs(program_title)
-        `)
+        .select('*')
         .eq('name', guestName)
         .eq('festival_year', currentYear)
         .single()
@@ -393,11 +389,8 @@ export default function TitlesPage() {
 
       const formattedGuest = {
         ...guestData,
-        films: guestData.guest_films || [],
-        films_display: [
-          ...(guestData.guest_films || []).map((f: any) => f.film_title),
-          ...(guestData.guest_programs || []).map((p: any) => p.program_title)
-        ].join(', ') || '—'
+        films: [],
+        films_display: guestData.films_display || '—'
       }
 
       setShowGuestCard(formattedGuest)
@@ -573,25 +566,26 @@ export default function TitlesPage() {
 
       // Then get guest_programs relationships with guest names
       const { data: guestProgramsData, error: guestProgramsError } = await supabase
-        .from('guest_programs')
+        .from('guest_films')
         .select(`
-          program_id,
+          film_id,
           guests (
             name
           )
         `)
+        .eq('film_type', 'program')
         .eq('festival_year', currentYear)
 
       if (!guestProgramsError && guestProgramsData) {
-        // Create a map of program_id to participant names
+        // Create a map of program film_id to participant names
         const participantMap = new Map<string, string[]>()
 
         guestProgramsData.forEach((gp: any) => {
-          if (gp.program_id && gp.guests?.name) {
-            if (!participantMap.has(gp.program_id)) {
-              participantMap.set(gp.program_id, [])
+          if (gp.film_id && gp.guests?.name) {
+            if (!participantMap.has(gp.film_id)) {
+              participantMap.set(gp.film_id, [])
             }
-            participantMap.get(gp.program_id)!.push(gp.guests.name)
+            participantMap.get(gp.film_id)!.push(gp.guests.name)
           }
         })
 

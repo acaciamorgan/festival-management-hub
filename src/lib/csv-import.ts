@@ -288,24 +288,19 @@ export async function removeFilmAssociations(removals: Array<{guestName: string,
       continue
     }
 
-    // Remove film associations
+    // Remove film associations — look up film_id from title across all film tables
     for (const filmTitle of removal.removedFilms) {
-      // Try to remove from guest_films
-      const { error: filmError } = await supabase
-        .from('guest_films')
-        .delete()
-        .eq('guest_id', guest.id)
-        .eq('film_title', filmTitle)
+      const [featureMatch, shortMatch, programMatch] = await Promise.all([
+        supabase.from('feature_films').select('id').eq('title', filmTitle).maybeSingle(),
+        supabase.from('short_films').select('id').eq('title', filmTitle).maybeSingle(),
+        supabase.from('programs').select('id').eq('title', filmTitle).maybeSingle()
+      ])
 
-      // Try to remove from guest_programs if not in films
-      const { error: programError } = await supabase
-        .from('guest_programs')
-        .delete()
-        .eq('guest_id', guest.id)
-        .eq('program_title', filmTitle)
-
-      if (filmError && programError) {
-        errors.push(`Could not remove ${filmTitle} from ${removal.guestName}`)
+      const filmId = featureMatch.data?.id || shortMatch.data?.id || programMatch.data?.id
+      if (filmId) {
+        await supabase.from('guest_films').delete().eq('guest_id', guest.id).eq('film_id', filmId)
+      } else {
+        errors.push(`Could not find "${filmTitle}" to remove from ${removal.guestName}`)
       }
     }
   }
@@ -609,23 +604,18 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
 
         // Get existing film associations if guest already existed
         let existingFilmAssociations: any[] = []
-        let existingProgramAssociations: any[] = []
 
         if (existingGuest) {
-          const [existingFilms, existingPrograms] = await Promise.all([
-            supabase.from('guest_films').select('*').eq('guest_id', savedGuest.id),
-            supabase.from('guest_programs').select('*').eq('guest_id', savedGuest.id)
-          ])
-          existingFilmAssociations = existingFilms.data || []
-          existingProgramAssociations = existingPrograms.data || []
+          const { data: existingFilms } = await supabase
+            .from('guest_films')
+            .select('*')
+            .eq('guest_id', savedGuest.id)
+          existingFilmAssociations = existingFilms || []
         }
 
-        // Process film associations - SIMPLIFIED APPROACH
-        // Process EACH ROW individually for this guest
-        const filmAssociations = []
-        const shortFilmAssociations = []
-        const programAssociations = []
-        const matchedTitlesForDisplay = [] // Collect actual database titles for display
+        // Process film associations — all go into guest_films with film_type
+        const filmAssociations: { guest_id: string, film_id: string, film_type: string, festival_year?: number }[] = []
+        const matchedTitlesForDisplay: string[] = [] // Collect actual database titles for display
 
         // Get ALL database titles once for matching
         const [allFeatureFilms, allShortFilms, allProgramsFromDb] = await Promise.all([
@@ -731,6 +721,10 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
             // Add to display titles (always add, even if association exists)
             matchedTitlesForDisplay.push(matchedFilm.title)
 
+            // Determine film_type: 'short' if found in short_films, else 'feature'
+            const isShortFilm = allShortFilms.data?.some(sf => sf.id === matchedFilm.id)
+            const filmType = isShortFilm ? 'short' : 'feature'
+
             // Check if association doesn't already exist
             const exists = existingFilmAssociations.some(
               a => a.film_id === matchedFilm.id
@@ -739,20 +733,14 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
               filmAssociations.push({
                 guest_id: savedGuest.id,
                 film_id: matchedFilm.id,
-                film_title: matchedFilm.title
+                film_type: filmType
               })
             }
 
-            // Check if this is a short film - if so, create guest_short_films association
-            const shortFilm = allShortFilms.data?.find(sf => sf.title === matchedFilm.title)
+            const shortFilm = isShortFilm ? allShortFilms.data?.find(sf => sf.id === matchedFilm.id) : null
             if (shortFilm) {
               console.log(`  ✓ This is a short film: "${shortFilm.title}"`)
-
-              // Add to guest_short_films associations
-              shortFilmAssociations.push({
-                guest_id: savedGuest.id,
-                film_title: shortFilm.title
-              })
+              // Short film association already included above with film_type = 'short'
 
               // Also associate with its program if it has one
               if (shortFilm.shorts_program_id) {
@@ -766,11 +754,16 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
                     a => a.program_id === shortsProgram.id
                   )
                   if (!programExists) {
-                    programAssociations.push({
-                      guest_id: savedGuest.id,
-                      program_id: shortsProgram.id,
-                      program_title: shortsProgram.title
-                    })
+                    const spExists = existingFilmAssociations.some(
+                      a => a.film_id === shortsProgram.id && a.film_type === 'shorts_program'
+                    )
+                    if (!spExists) {
+                      filmAssociations.push({
+                        guest_id: savedGuest.id,
+                        film_id: shortsProgram.id,
+                        film_type: 'shorts_program'
+                      })
+                    }
                   }
                 }
               }
@@ -781,15 +774,15 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
             // Add to display titles (always add, even if association exists)
             matchedTitlesForDisplay.push(matchedProgram.title)
 
-            // Check if association doesn't already exist
-            const exists = existingProgramAssociations.some(
-              a => a.program_id === matchedProgram.id
+            // Check if program association doesn't already exist
+            const programExists = existingFilmAssociations.some(
+              a => a.film_id === matchedProgram.id && a.film_type === 'program'
             )
-            if (!exists) {
-              programAssociations.push({
+            if (!programExists) {
+              filmAssociations.push({
                 guest_id: savedGuest.id,
-                program_id: matchedProgram.id,
-                program_title: matchedProgram.title
+                film_id: matchedProgram.id,
+                film_type: 'program'
               })
             }
           } else {
@@ -827,27 +820,6 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           }
         }
 
-        // Insert new short film associations only
-        if (shortFilmAssociations.length > 0) {
-          const { error: shortFilmAssocError } = await supabase
-            .from('guest_short_films')
-            .insert(shortFilmAssociations)
-
-          if (shortFilmAssocError) {
-            warnings.push(`Warning: Could not create short film associations for ${guestName}: ${shortFilmAssocError.message}`)
-          }
-        }
-
-        // Insert new program associations only
-        if (programAssociations.length > 0) {
-          const { error: programAssocError } = await supabase
-            .from('guest_programs')
-            .insert(programAssociations)
-
-          if (programAssocError) {
-            warnings.push(`Warning: Could not create program associations for ${guestName}: ${programAssocError.message}`)
-          }
-        }
 
         savedGuest.films_display = filmsDisplay
         savedGuest.films = []

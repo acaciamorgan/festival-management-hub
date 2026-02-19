@@ -136,11 +136,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
       const festivalYear = await getFestivalYear()
       const { data: guestData, error } = await supabase
         .from('guests')
-        .select(`
-          *,
-          guest_films:guest_films(film_title),
-          guest_programs:guest_programs(program_title)
-        `)
+        .select('*')
         .eq('name', guestName)
         .eq('festival_year', parseInt(festivalYear, 10))
         .single()
@@ -152,11 +148,8 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
       const formattedGuest = {
         ...guestData,
-        films: guestData.guest_films || [],
-        films_display: [
-          ...(guestData.guest_films || []).map((f: any) => f.film_title),
-          ...(guestData.guest_programs || []).map((p: any) => p.program_title)
-        ].join(', ') || '—'
+        films: [],
+        films_display: guestData.films_display || '—'
       }
 
       setShowGuestCard(formattedGuest)
@@ -422,9 +415,9 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                 .single()
 
               if (!shortsProgramError && shortsProgram) {
-                // Check guest_programs table using the shorts program name
+                // Find guests associated with this shorts program via guest_films junction
                 const { data: guestPrograms, error: guestProgramsError } = await supabase
-                  .from('guest_programs')
+                  .from('guest_films')
                   .select(`
                     guest_id,
                     guests (
@@ -437,7 +430,8 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                       checked_in
                     )
                   `)
-                  .eq('program_title', shortsProgram.program_name)
+                  .eq('film_id', shortsProgram.id)
+                  .eq('film_type', 'shorts_program')
 
                 if (!guestProgramsError && guestPrograms) {
                   const programGuests = guestPrograms.map((gp: any) => gp.guests).filter(Boolean)
@@ -468,9 +462,9 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               allGuests = [...allGuests, ...filmGuests]
             }
 
-            // Also check for guests associated via guest_programs if this is a regular program
+            // Also check for guests associated with this film as a program via guest_films junction
             const { data: guestPrograms, error: guestProgramsError } = await supabase
-              .from('guest_programs')
+              .from('guest_films')
               .select(`
                 guest_id,
                 guests (
@@ -483,7 +477,8 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                   checked_in
                 )
               `)
-              .eq('program_title', film.title)
+              .eq('film_id', film.id)
+              .eq('film_type', 'program')
 
             if (!guestProgramsError && guestPrograms) {
               const programGuests = guestPrograms.map((gp: any) => gp.guests).filter(Boolean)

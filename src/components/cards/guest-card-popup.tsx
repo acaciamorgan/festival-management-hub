@@ -68,8 +68,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           photoShootsResult,
           redCarpetsResult,
           interviewsResult,
-          guestFilmsResult,
-          guestProgramsResult
+          guestFilmsResult
         ] = await Promise.all([
           // Photo shoots query - get junction IDs first
           (async () => {
@@ -118,16 +117,10 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
             return []
           }),
 
-          // Guest films query
+          // Guest film titles query — resolves title from film card (single source of truth)
           supabase
-            .from('guest_films')
-            .select('film_title')
-            .eq('guest_id', guest.id),
-
-          // Guest programs query
-          supabase
-            .from('guest_programs')
-            .select('program_title')
+            .from('guest_film_titles')
+            .select('film_title, film_type')
             .eq('guest_id', guest.id)
         ])
 
@@ -156,64 +149,45 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
         // Load film screenings and program schedules for all films/programs this guest is associated with
         const loadFilmScreenings = async () => {
           try {
-            // Get all film titles for this guest
+            // Categorize titles using film_type from guest_film_titles view
             const filmTitles: string[] = []
             const programTitles: string[] = []
 
-            // Use the already loaded guest films and programs
             if (guestFilmsResult.data) {
-              filmTitles.push(...guestFilmsResult.data.map(gf => gf.film_title))
+              for (const gf of guestFilmsResult.data) {
+                if (!gf.film_title) continue
+                if (gf.film_type === 'program' || gf.film_type === 'shorts_program') {
+                  programTitles.push(gf.film_title)
+                } else {
+                  filmTitles.push(gf.film_title)
+                }
+              }
 
-              // Check all films in parallel to see if they're short films
+              // For short films, also look up their shorts program for screenings
               const shortFilmChecks = await Promise.all(
-                guestFilmsResult.data.map(async (guestFilm) => {
-                  const { data: shortFilm } = await supabase
-                    .from('short_films')
-                    .select('shorts_program_id')
-                    .eq('title', guestFilm.film_title)
-                    .single()
-
-                  if (shortFilm && shortFilm.shorts_program_id) {
-                    const { data: shortsProgram } = await supabase
-                      .from('shorts_programs')
-                      .select('program_name')
-                      .eq('id', shortFilm.shorts_program_id)
+                guestFilmsResult.data
+                  .filter(gf => gf.film_type === 'short')
+                  .map(async (gf) => {
+                    const { data: shortFilm } = await supabase
+                      .from('short_films')
+                      .select('shorts_program_id')
+                      .eq('title', gf.film_title)
                       .single()
 
-                    if (shortsProgram) {
-                      return shortsProgram.program_name
-                    }
-                  }
-                  return null
-                })
-              )
+                    if (shortFilm && shortFilm.shorts_program_id) {
+                      const { data: shortsProgram } = await supabase
+                        .from('shorts_programs')
+                        .select('program_name')
+                        .eq('id', shortFilm.shorts_program_id)
+                        .single()
 
-              // Add shorts program names to filmTitles
+                      if (shortsProgram) return shortsProgram.program_name
+                    }
+                    return null
+                  })
+              )
               shortFilmChecks.forEach(programName => {
                 if (programName) filmTitles.push(programName)
-              })
-            }
-
-            if (guestProgramsResult.data) {
-              programTitles.push(...guestProgramsResult.data.map(gp => gp.program_title))
-            }
-
-            // Check junction table film titles for program associations (avoids comma-in-title split)
-            if (guestFilmsResult.data && guestFilmsResult.data.length > 0) {
-              const programChecks = await Promise.all(
-                guestFilmsResult.data.map(async (gf) => {
-                  const { data: programCheck } = await supabase
-                    .from('programs')
-                    .select('title')
-                    .eq('title', gf.film_title)
-                    .single()
-
-                  return programCheck ? gf.film_title : null
-                })
-              )
-
-              programChecks.forEach(program => {
-                if (program) programTitles.push(program)
               })
             }
 
@@ -403,62 +377,38 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
         // Load special events for all films/programs this guest is associated with
         const loadSpecialEvents = async () => {
           try {
-            // Get all film and program titles for this guest
+            // Get all film and program titles for this guest from the view
             const allTitles: string[] = []
 
-            // Get films from guest_films
             const { data: guestFilms } = await supabase
-              .from('guest_films')
-              .select('film_title')
+              .from('guest_film_titles')
+              .select('film_title, film_type')
               .eq('guest_id', guest.id)
 
             if (guestFilms) {
-              allTitles.push(...guestFilms.map(gf => gf.film_title))
+              for (const gf of guestFilms) {
+                if (!gf.film_title) continue
+                allTitles.push(gf.film_title)
 
-              // For each film, check if it's a short film and add its shorts program
-              for (const guestFilm of guestFilms) {
-                const { data: shortFilm } = await supabase
-                  .from('short_films')
-                  .select('shorts_program_id')
-                  .eq('title', guestFilm.film_title)
-                  .single()
-
-                if (shortFilm && shortFilm.shorts_program_id) {
-                  // Get the shorts program name
-                  const { data: shortsProgram } = await supabase
-                    .from('shorts_programs')
-                    .select('program_name')
-                    .eq('id', shortFilm.shorts_program_id)
+                // For short films, also look up the shorts program name
+                if (gf.film_type === 'short') {
+                  const { data: shortFilm } = await supabase
+                    .from('short_films')
+                    .select('shorts_program_id')
+                    .eq('title', gf.film_title)
                     .single()
 
-                  if (shortsProgram) {
-                    allTitles.push(shortsProgram.program_name)
+                  if (shortFilm && shortFilm.shorts_program_id) {
+                    const { data: shortsProgram } = await supabase
+                      .from('shorts_programs')
+                      .select('program_name')
+                      .eq('id', shortFilm.shorts_program_id)
+                      .single()
+
+                    if (shortsProgram) {
+                      allTitles.push(shortsProgram.program_name)
+                    }
                   }
-                }
-              }
-            }
-
-            // Get programs from guest_programs
-            const { data: guestPrograms } = await supabase
-              .from('guest_programs')
-              .select('program_title')
-              .eq('guest_id', guest.id)
-
-            if (guestPrograms) {
-              allTitles.push(...guestPrograms.map(gp => gp.program_title))
-            }
-
-            // Check junction table film titles for program associations (avoids comma-in-title split)
-            if (guestFilms && guestFilms.length > 0) {
-              for (const guestFilm of guestFilms) {
-                const { data: programCheck } = await supabase
-                  .from('programs')
-                  .select('title')
-                  .eq('title', guestFilm.film_title)
-                  .single()
-
-                if (programCheck) {
-                  allTitles.push(guestFilm.film_title)
                 }
               }
             }

@@ -90,11 +90,12 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
 
         setInterviews(interviewsData || [])
 
-        // Load guests via junction table
+        // Load guests via guest_films junction (film_type = 'program', keyed by film_id = program.id)
         const { data: guestJunction } = await supabase
-          .from('guest_programs')
+          .from('guest_films')
           .select('guest_id, guests(*)')
-          .eq('program_title', program.title)
+          .eq('film_id', program.id)
+          .eq('film_type', 'program')
           .eq('festival_year', currentYear)
 
         setGuests(guestJunction?.map((j: any) => j.guests).filter(Boolean) || [])

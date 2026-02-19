@@ -97,7 +97,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
   const [isDragging, setIsDragging] = useState(false)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const [availableFilms, setAvailableFilms] = useState<{id: string, title: string}[]>([])
+  const [availableFilms, setAvailableFilms] = useState<{id: string, title: string, type: 'feature' | 'short'}[]>([])
   const [availablePrograms, setAvailablePrograms] = useState<{id: string, title: string}[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [filteredSuggestions, setFilteredSuggestions] = useState<{id: string, title: string, type: 'film' | 'program'}[]>([])
@@ -115,10 +115,10 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         ])
         
         const allFilms = [
-          ...(featureFilms.data || []),
-          ...(shortFilms.data || [])
+          ...(featureFilms.data || []).map(f => ({ ...f, type: 'feature' as const })),
+          ...(shortFilms.data || []).map(f => ({ ...f, type: 'short' as const }))
         ]
-        
+
         setAvailableFilms(allFilms)
         setAvailablePrograms(programs.data || [])
       } catch (error) {
@@ -358,7 +358,6 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         hotel_confirmation_number: formData.hotel_confirmation_number.trim() || null,
         checked_in: formData.checked_in,
         notes: formData.notes.trim() || null,
-        films_display: formData.film_titles.trim() || '—',
         festival_year: parseInt(festivalYear, 10),
         updated_at: nowStr
       }
@@ -404,96 +403,81 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
       }
 
       // Handle film and program associations
+      // Delete existing associations if editing or updating existing guest
+      if (guest || existingGuest) {
+        await supabase.from('guest_films').delete().eq('guest_id', savedGuest.id)
+      }
+
       if (formData.film_titles.trim()) {
-        // Delete existing film and program associations if editing or updating existing guest
-        if (guest || existingGuest) {
-          await Promise.all([
-            supabase.from('guest_films').delete().eq('guest_id', savedGuest.id),
-            supabase.from('guest_programs').delete().eq('guest_id', savedGuest.id)
-          ])
+        // Greedy longest-match algorithm: sort known titles by length desc,
+        // find each as regex in remaining input text, remove and repeat.
+        // This correctly handles film titles containing commas.
+        const allKnownFilms = [
+          ...availableFilms.map(f => ({ id: f.id, title: f.title, type: f.type as string })),
+          ...availablePrograms.map(p => ({ id: p.id, title: p.title, type: 'program' as string }))
+        ].sort((a, b) => b.title.length - a.title.length)
+
+        let remainingText = formData.film_titles.trim()
+        const matchedFilms: { id: string, title: string, type: string }[] = []
+
+        for (const known of allKnownFilms) {
+          const escaped = known.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const regex = new RegExp(escaped, 'i')
+          if (regex.test(remainingText)) {
+            matchedFilms.push(known)
+            remainingText = remainingText
+              .replace(regex, '')
+              .replace(/^\s*[,|]+\s*|\s*[,|]+\s*$/g, '')
+              .replace(/\s*[,|]+\s*/g, ',')
+              .trim()
+          }
         }
 
-        // Parse film/program titles and create associations
-        const filmTitles = formData.film_titles.split(',').map(title => title.trim()).filter(title => title)
-        
-        if (filmTitles.length > 0) {
-          const [featureFilms, shortFilms, programs] = await Promise.all([
-            supabase.from('feature_films').select('id, title').eq('festival_year', parseInt(festivalYear, 10)).in('title', filmTitles),
-            supabase.from('short_films').select('id, title').eq('festival_year', parseInt(festivalYear, 10)).in('title', filmTitles),
-            supabase.from('programs').select('id, title').eq('festival_year', parseInt(festivalYear, 10)).in('title', filmTitles)
-          ])
+        // Build films_display from matched titles + any unmatched free text for backward compat
+        const unmatchedTokens = remainingText
+          ? remainingText.split(',').map(t => t.trim()).filter(t => t)
+          : []
+        const allTitlesForDisplay = [
+          ...matchedFilms.map(f => f.title),
+          ...unmatchedTokens
+        ]
+        const filmsDisplayValue = allTitlesForDisplay.join(', ') || formData.film_titles.trim()
 
-          const allMatchedFilms = [
-            ...(featureFilms.data || []),
-            ...(shortFilms.data || [])
-          ]
-          
-          const allMatchedPrograms = programs.data || []
+        // Update films_display on the guest record for backward compatibility
+        await supabase
+          .from('guests')
+          .update({ films_display: filmsDisplayValue })
+          .eq('id', savedGuest.id)
 
-          // Create associations based on where each title is found
-          const filmAssociations = []
-          const programAssociations = []
-          
-          for (const title of filmTitles) {
-            const matchedFilm = allMatchedFilms.find(f => f.title === title)
-            const matchedProgram = allMatchedPrograms.find(p => p.title === title)
-            
-            if (matchedFilm) {
-              filmAssociations.push({
-                guest_id: savedGuest.id,
-                film_id: matchedFilm.id,
-                film_title: title,
-                festival_year: parseInt(festivalYear, 10)
-              })
-            } else if (matchedProgram) {
-              programAssociations.push({
-                guest_id: savedGuest.id,
-                program_id: matchedProgram.id,
-                program_title: title,
-                festival_year: parseInt(festivalYear, 10)
-              })
-            }
-            // If neither matched, it's free text and will be preserved in films_display
-          }
+        // Insert matched film associations into guest_films with film_type
+        if (matchedFilms.length > 0) {
+          const associations = matchedFilms.map(film => ({
+            guest_id: savedGuest.id,
+            film_id: film.id,
+            film_type: film.type,
+            festival_year: parseInt(festivalYear, 10)
+          }))
 
-          // Save film associations
-          if (filmAssociations.length > 0) {
-            const { data: guestFilmsData, error: guestFilmsError } = await supabase
-              .from('guest_films')
-              .insert(filmAssociations)
-              .select()
+          const { data: guestFilmsData, error: guestFilmsError } = await supabase
+            .from('guest_films')
+            .insert(associations)
+            .select()
 
-            if (guestFilmsError) {
-              console.error('Error saving film associations:', guestFilmsError)
-            } else {
-              savedGuest.films = guestFilmsData
-            }
-          } else {
+          if (guestFilmsError) {
+            console.error('Error saving film associations:', guestFilmsError)
             savedGuest.films = []
+          } else {
+            savedGuest.films = guestFilmsData || []
           }
-
-          // Save program associations
-          if (programAssociations.length > 0) {
-            const { error: guestProgramsError } = await supabase
-              .from('guest_programs')
-              .insert(programAssociations)
-
-            if (guestProgramsError) {
-              console.warn('Error saving program associations:', guestProgramsError)
-            }
-          }
-
         } else {
           savedGuest.films = []
         }
       } else {
-        // Clear associations when no titles provided
-        if (guest || existingGuest) {
-          await Promise.all([
-            supabase.from('guest_films').delete().eq('guest_id', savedGuest.id),
-            supabase.from('guest_programs').delete().eq('guest_id', savedGuest.id)
-          ])
-        }
+        // No titles — clear films_display and leave guest_films empty
+        await supabase
+          .from('guests')
+          .update({ films_display: '—' })
+          .eq('id', savedGuest.id)
         savedGuest.films = []
       }
 
