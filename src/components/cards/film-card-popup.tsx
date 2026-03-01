@@ -963,8 +963,8 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                     <div key={interview.id} className="bg-gray-50 rounded-lg px-3 py-2">
                       {/* Single Line Display */}
                       <div className="text-sm text-gray-900 flex items-center flex-wrap gap-2">
-                        <span className="font-medium">{interview.journalist_name || 'Journalist TBD'}</span>
-                        {interview.outlet && <span className="text-gray-600">| {interview.outlet}</span>}
+                        <span className="font-medium">{interview.resolved_journalist_name || interview.journalist_name || 'Journalist TBD'}</span>
+                        {(interview.resolved_outlet || interview.outlet) && <span className="text-gray-600">| {interview.resolved_outlet || interview.outlet}</span>}
                         {interview.subject_names && <span className="text-gray-600">| {interview.subject_names}</span>}
                         <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
                           interview.status === 'Complete' ? 'bg-green-100 text-green-800' :

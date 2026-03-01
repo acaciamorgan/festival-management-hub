@@ -952,9 +952,9 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                   <div key={interview.id} className="bg-gray-50 rounded-lg p-3">
                     {/* Single Line: Main Info + Status Badge */}  
                     <div className="text-sm text-gray-900 mb-1 flex items-center flex-wrap gap-2">
-                      <span className="font-medium">{interview.film_title}</span>
-                      {interview.journalist_name && <span> | Journalist: {interview.journalist_name}</span>}
-                      {interview.outlet && <span> | Outlet: {interview.outlet}</span>}
+                      <span className="font-medium">{interview.title}</span>
+                      {(interview.resolved_journalist_name || interview.journalist_name) && <span> | Journalist: {interview.resolved_journalist_name || interview.journalist_name}</span>}
+                      {(interview.resolved_outlet || interview.outlet) && <span> | Outlet: {interview.resolved_outlet || interview.outlet}</span>}
                       <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
                         interview.status === 'Complete' ? 'bg-green-100 text-green-800' :
                         interview.status === 'Scheduled' ? 'bg-blue-100 text-blue-800' :

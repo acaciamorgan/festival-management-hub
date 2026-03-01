@@ -171,8 +171,14 @@ export function InterviewCardPopup({ interview, onClose, onEdit, onDelete }: Int
     return `${hour12}:${minutes} ${ampm}`
   }
 
+  // Use resolved data from view joins, falling back to cached fields
+  const displayTitle = interview.title || ''
+  const displayJournalist = interview.resolved_journalist_name || interview.journalist_name || ''
+  const displayOutlet = interview.resolved_outlet || interview.outlet || ''
+  const displayEmail = interview.resolved_email || interview.email || ''
+
   const handleDelete = () => {
-    if (confirm(`Are you sure you want to delete this interview for "${interview.film_title}"?`)) {
+    if (confirm(`Are you sure you want to delete this interview for "${displayTitle}"?`)) {
       onDelete?.(interview.id)
       onClose()
     }
@@ -231,11 +237,11 @@ export function InterviewCardPopup({ interview, onClose, onEdit, onDelete }: Int
               <div className="space-y-4">
                 <div>
                   <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                    {interview.film_title}
+                    {displayTitle}
                   </h2>
-                  {interview.journalist_name && (
+                  {displayJournalist && (
                     <p className="text-lg text-gray-600 font-medium">
-                      Interview with {interview.journalist_name}
+                      Interview with {displayJournalist}
                     </p>
                   )}
                 </div>
@@ -249,12 +255,12 @@ export function InterviewCardPopup({ interview, onClose, onEdit, onDelete }: Int
                   </div>
                 </div>
 
-                {interview.outlet && (
+                {displayOutlet && (
                   <div>
                     <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Outlet</span>
                     <p className="text-lg text-gray-900 mt-1">
                       <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                        {interview.outlet}
+                        {displayOutlet}
                       </span>
                     </p>
                   </div>
@@ -269,12 +275,12 @@ export function InterviewCardPopup({ interview, onClose, onEdit, onDelete }: Int
               </div>
               
               <div className="space-y-4">
-                {interview.email && (
+                {displayEmail && (
                   <div>
                     <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Email</span>
                     <p className="text-lg text-gray-900 mt-1">
-                      <a href={`mailto:${interview.email}`} className="text-blue-600 hover:text-blue-800">
-                        {interview.email}
+                      <a href={`mailto:${displayEmail}`} className="text-blue-600 hover:text-blue-800">
+                        {displayEmail}
                       </a>
                     </p>
                   </div>

@@ -2,15 +2,15 @@ import { createClient } from '@/lib/supabase/client'
 import { InterviewCard } from '@/types'
 
 // Client-side interview functions for use in client components
+
 export async function getInterviewsForCard(
   cardType: 'feature_films' | 'shorts_programs' | 'programs' | 'press' | 'guests',
   cardId: string
 ): Promise<InterviewCard[]> {
   const supabase = createClient()
-  
-  let query = supabase.from('interviews').select('*')
-  
-  // Filter based on card type
+
+  let query = supabase.from('interviews_with_films').select('*')
+
   switch (cardType) {
     case 'feature_films':
       query = query.eq('film_id', cardId)
@@ -42,52 +42,25 @@ export async function getInterviewsForCard(
 export async function getInterviewsForFilmCard(filmId: string): Promise<InterviewCard[]> {
   const supabase = createClient()
 
-  // First, determine if this is a feature film or short film
-  const { data: featureFilm } = await supabase
-    .from('feature_films')
-    .select('id, title')
-    .eq('id', filmId)
-    .single()
-
-  if (featureFilm) {
-    // It's a feature film - query by film_id OR film_title contains this film's title
-    const { data, error } = await supabase
-      .from('interviews')
-      .select('*')
-      .or(`film_id.eq.${filmId},film_title.ilike.%${featureFilm.title}%`)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error(`Error fetching interviews for feature film ${filmId}:`, error)
-      return []
-    }
-
-    return data || []
-  }
-
-  // It's a short film - get the title and query by short_film_id OR film_title
-  const { data: shortFilm } = await supabase
-    .from('short_films')
-    .select('id, title')
-    .eq('id', filmId)
-    .single()
-
-  if (!shortFilm) {
-    return []
-  }
-
-  const { data, error } = await supabase
-    .from('interviews')
+  // Query by film_id FK directly — no text fallback needed
+  const { data: featureData } = await supabase
+    .from('interviews_with_films')
     .select('*')
-    .or(`short_film_id.eq.${filmId},film_title.ilike.%${shortFilm.title}%`)
+    .eq('film_id', filmId)
     .order('created_at', { ascending: false })
 
-  if (error) {
-    console.error(`Error fetching interviews for short film ${filmId}:`, error)
-    return []
+  if (featureData && featureData.length > 0) {
+    return featureData
   }
 
-  return data || []
+  // Try as a short film
+  const { data: shortData } = await supabase
+    .from('interviews_with_films')
+    .select('*')
+    .eq('short_film_id', filmId)
+    .order('created_at', { ascending: false })
+
+  return shortData || []
 }
 
 export async function getInterviewsForShortsProgram(programId: string): Promise<InterviewCard[]> {

@@ -490,7 +490,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                       
                       {/* Line 2: Main Info */}
                       <div className="text-sm text-gray-900 mb-1">
-                        <span className="font-medium">{interview.film_title}</span>
+                        <span className="font-medium">{interview.title}</span>
                         {interview.subject_names && <span> | Subject(s): {interview.subject_names}</span>}
                       </div>
                       

@@ -71,7 +71,7 @@ export interface SocialMedia {
 
 // Press Management Types
 export type OutletType = 'Print/Online' | 'Magazine' | 'TV' | 'Radio' | 'College' | 'Trade' | 'Podcast'
-export type AccreditationLevel = 'P' | 'G' | 'Unassigned'
+export type AccreditationLevel = 'P' | 'G' | 'S' | 'Unassigned'
 
 export interface PressCard {
   id: string
@@ -331,32 +331,44 @@ export type InterviewStatus = 'TBD' | 'Pitching' | 'Subject Pending' | 'Schedule
 
 export interface InterviewCard {
   id: string
-  
+
   // Film/Program reference (required - at least one must be present)
   film_id?: string | null
   shorts_program_id?: string | null
   program_id?: string | null
   short_film_id?: string | null
-  film_title: string // Cached for display
-  
+
+  // Resolved from view join (interviews_with_films)
+  title?: string | null           // Film/program title resolved from source tables
+  reference_type?: 'feature' | 'short' | 'shorts_program' | 'program' | null
+
   // Journalist (can link to press card or be open text)
   press_id?: string | null
-  journalist_name?: string | null
-  outlet?: string | null
-  email?: string | null
-  
+  journalist_name?: string | null  // Cached text (used when no press_id)
+  outlet?: string | null           // Cached text (used when no press_id)
+  email?: string | null            // Cached text (used when no press_id)
+
+  // Resolved press data from view join (prefer these over cached text)
+  resolved_journalist_name?: string | null
+  resolved_outlet?: string | null
+  resolved_email?: string | null
+
   // Subjects (can link to guest cards or be open text)
   subject_names?: string | null
   subject_guest_ids?: string[] | null
-  
+
   // Interview details
   status: InterviewStatus
   interview_date?: string | null
   interview_time?: string | null
+  duration_minutes?: number | null
+  venue_id?: string | null
   location?: string | null
-  
+  show_on_special_events?: boolean
+
   // Metadata
   notes?: string | null
+  festival_year?: number
   created_at: string
   updated_at: string
   created_by: string

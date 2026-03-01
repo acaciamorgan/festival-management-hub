@@ -5,13 +5,13 @@ import { createClient } from '@/lib/supabase/client'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
-import { InterviewCard, FilmCard, PressCard, GuestCard, ProgramCard } from '@/types'
+import { InterviewCard, InterviewStatus, PressCard, GuestCard } from '@/types'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { PressCardPopup } from '@/components/cards/press-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { InterviewFormModal } from '@/components/forms/interview-form-modal'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
-import { matchSubjectsToGuests, GuestMatch } from '@/lib/guest-matching'
+import { matchSubjectsToGuests } from '@/lib/guest-matching'
 
 export default function InterviewManagementPage() {
   const { user } = useAuth()
@@ -23,7 +23,7 @@ export default function InterviewManagementPage() {
   const canEditInterviews = permissions?.modulePermissions?.['interviewManagement']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('All')
-  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'film_title', direction: 'asc' })
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'title', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingInterview, setEditingInterview] = useState<InterviewCard | null>(null)
@@ -32,11 +32,11 @@ export default function InterviewManagementPage() {
   const [showFilms, setShowFilms] = useState(false)
   const [showGuests, setShowGuests] = useState(false)
   const [showJournalists, setShowJournalists] = useState(false)
-  
-  // Guest matching state
-  const [guestMatches, setGuestMatches] = useState<Map<string, string>>(new Map())
+
+  // Guest matching for old records without subject_guest_ids
+  const [textMatchedGuests, setTextMatchedGuests] = useState<Map<string, string>>(new Map())
   const [matchingGuests, setMatchingGuests] = useState(false)
-  
+
   // Card popup states
   const [selectedFilm, setSelectedFilm] = useState<any>(null)
   const [selectedPress, setSelectedPress] = useState<PressCard | null>(null)
@@ -89,9 +89,9 @@ export default function InterviewManagementPage() {
           searchTerm,
           (interview) => [
             interview.title,
-            interview.journalist_name,
-            interview.outlet,
-            interview.email,
+            interview.resolved_journalist_name || interview.journalist_name,
+            interview.resolved_outlet || interview.outlet,
+            interview.resolved_email || interview.email,
             interview.subject_names,
             interview.status,
             interview.location,
@@ -126,8 +126,18 @@ export default function InterviewManagementPage() {
       // If same status priority group, apply regular sorting
       if (!sortConfig) return 0
 
-      const aValue = a[sortConfig.key as keyof InterviewCard]
-      const bValue = b[sortConfig.key as keyof InterviewCard]
+      // Use resolved fields for journalist data when sorting
+      const getSortValue = (interview: InterviewCard, key: string) => {
+        switch (key) {
+          case 'journalist_name': return interview.resolved_journalist_name || interview.journalist_name
+          case 'outlet': return interview.resolved_outlet || interview.outlet
+          case 'email': return interview.resolved_email || interview.email
+          default: return interview[key as keyof InterviewCard]
+        }
+      }
+
+      const aValue = getSortValue(a, sortConfig.key)
+      const bValue = getSortValue(b, sortConfig.key)
 
       if (aValue === null && bValue === null) return 0
       if (aValue === null) return 1
@@ -164,7 +174,7 @@ export default function InterviewManagementPage() {
   }
 
   const handleDeleteInterview = async (interview: InterviewCard) => {
-    if (!confirm(`Are you sure you want to delete the interview for "${interview.title}" with ${interview.journalist_name}?`)) {
+    if (!confirm(`Are you sure you want to delete the interview for "${interview.title}" with ${interview.resolved_journalist_name || interview.journalist_name}?`)) {
       return
     }
 
@@ -183,18 +193,13 @@ export default function InterviewManagementPage() {
     }
   }
 
-  // Film card click handler
+  // Film card click handler — supports all reference types
   const handleFilmClick = async (interview: InterviewCard) => {
     if (!showFilms) return
-    
-    // Don't open film card if multiple films (comma-separated)
-    if (interview.title && interview.title.includes(',')) {
-      return // Multiple films - can't open single film card
-    }
 
     try {
       let filmData = null
-      
+
       if (interview.film_id) {
         const { data, error } = await supabase
           .from('feature_films')
@@ -203,12 +208,17 @@ export default function InterviewManagementPage() {
           .eq('festival_year', currentYear)
           .single()
 
-        if (!error && data) {
-          filmData = data
-        }
-      }
+        if (!error && data) filmData = data
+      } else if (interview.short_film_id) {
+        const { data, error } = await supabase
+          .from('short_films')
+          .select('*')
+          .eq('id', interview.short_film_id)
+          .eq('festival_year', currentYear)
+          .single()
 
-      if (interview.shorts_program_id) {
+        if (!error && data) filmData = data
+      } else if (interview.shorts_program_id) {
         const { data, error } = await supabase
           .from('shorts_programs')
           .select('*')
@@ -216,9 +226,16 @@ export default function InterviewManagementPage() {
           .eq('festival_year', currentYear)
           .single()
 
-        if (!error && data) {
-          filmData = data
-        }
+        if (!error && data) filmData = data
+      } else if (interview.program_id) {
+        const { data, error } = await supabase
+          .from('programs')
+          .select('*')
+          .eq('id', interview.program_id)
+          .eq('festival_year', currentYear)
+          .single()
+
+        if (!error && data) filmData = data
       }
 
       if (filmData) {
@@ -251,81 +268,84 @@ export default function InterviewManagementPage() {
     }
   }
 
-  // Perform guest matching when Show Guests is clicked
+  // Toggle showing guest links — uses subject_guest_ids when available,
+  // falls back to text matching for old records without IDs
   const handleShowGuestsToggle = async () => {
     if (!showGuests && interviews.length > 0) {
-      // Turning on - perform matching
       setMatchingGuests(true)
-      
+
       try {
-        // Get all unique subject names from current interviews
-        const allSubjectNames = new Set<string>()
-        interviews.forEach(interview => {
-          if (interview.subject_names && interview.subject_names !== '—') {
-            interview.subject_names.split(', ').forEach(name => {
-              allSubjectNames.add(name.trim())
-            })
-          }
-        })
-
-        // Group subjects by film for contextual matching
-        const subjectsByFilm = new Map<string, string[]>()
-        interviews.forEach(interview => {
-          if (interview.subject_names && interview.title) {
-            const names = interview.subject_names.split(', ').map(n => n.trim())
-            const existing = subjectsByFilm.get(interview.title) || []
-            subjectsByFilm.set(interview.title, [...new Set([...existing, ...names])])
-          }
-        })
-
-        // Perform contextual matching for each film
-        const allMatches = new Map<string, string>()
-        
-        for (const [filmTitle, subjects] of subjectsByFilm.entries()) {
-          const result = await matchSubjectsToGuests(subjects, filmTitle, currentYear)
-          result.matches.forEach(match => {
-            allMatches.set(match.name, match.guestId)
-          })
-        }
-
-        // Match any remaining unmatched subjects without film context
-        const unmatchedGlobal = Array.from(allSubjectNames).filter(name =>
-          !allMatches.has(name)
+        // Find interviews that have subject_names but no subject_guest_ids
+        const needsMatching = interviews.filter(i =>
+          i.subject_names && i.subject_names !== '—' &&
+          (!i.subject_guest_ids || i.subject_guest_ids.length === 0 || i.subject_guest_ids.every(id => !id))
         )
 
-        if (unmatchedGlobal.length > 0) {
-          const globalResult = await matchSubjectsToGuests(unmatchedGlobal, undefined, currentYear)
-          globalResult.matches.forEach(match => {
-            allMatches.set(match.name, match.guestId)
-          })
-        }
+        if (needsMatching.length > 0) {
+          const allMatches = new Map<string, string>()
 
-        setGuestMatches(allMatches)
+          // Group subjects by film for contextual matching
+          const subjectsByFilm = new Map<string, string[]>()
+          needsMatching.forEach(interview => {
+            if (interview.subject_names && interview.title) {
+              const names = interview.subject_names.split(', ').map(n => n.trim())
+              const existing = subjectsByFilm.get(interview.title) || []
+              subjectsByFilm.set(interview.title, [...new Set([...existing, ...names])])
+            }
+          })
+
+          for (const [filmTitle, subjects] of subjectsByFilm.entries()) {
+            const result = await matchSubjectsToGuests(subjects, filmTitle, currentYear)
+            result.matches.forEach(match => {
+              allMatches.set(match.name, match.guestId)
+            })
+          }
+
+          // Match remaining subjects without film context
+          const allSubjectNames = new Set<string>()
+          needsMatching.forEach(i => {
+            if (i.subject_names) {
+              i.subject_names.split(', ').forEach(n => allSubjectNames.add(n.trim()))
+            }
+          })
+          const unmatched = Array.from(allSubjectNames).filter(n => !allMatches.has(n))
+
+          if (unmatched.length > 0) {
+            const globalResult = await matchSubjectsToGuests(unmatched, undefined, currentYear)
+            globalResult.matches.forEach(match => {
+              allMatches.set(match.name, match.guestId)
+            })
+          }
+
+          setTextMatchedGuests(allMatches)
+        }
       } catch (error) {
         console.error('Error matching guests:', error)
       } finally {
         setMatchingGuests(false)
       }
     } else if (showGuests) {
-      // Turning off - clear matches
-      setGuestMatches(new Map())
+      setTextMatchedGuests(new Map())
     }
-    
+
     setShowGuests(!showGuests)
   }
 
-  // Open guest card by name
-  const openGuestCard = async (guestName: string) => {
+  // Open guest card by ID (preferred) or name fallback
+  const openGuestCard = async (guestName: string, guestId?: string) => {
     try {
-      const { data: guestData, error } = await supabase
-        .from('guests')
-        .select('*')
-        .eq('name', guestName)
-        .eq('festival_year', currentYear)
-        .single()
+      let query = supabase.from('guests').select('*').eq('festival_year', currentYear)
+
+      if (guestId) {
+        query = query.eq('id', guestId)
+      } else {
+        query = query.eq('name', guestName)
+      }
+
+      const { data: guestData, error } = await query.single()
 
       if (error || !guestData) {
-        console.warn('Guest not found in database:', guestName)
+        console.warn('Guest not found in database:', guestId || guestName)
         return
       }
 
@@ -343,7 +363,7 @@ export default function InterviewManagementPage() {
   }
 
   // Status change handler
-  const handleStatusChange = async (interviewId: string, newStatus: string) => {
+  const handleStatusChange = async (interviewId: string, newStatus: InterviewStatus) => {
     try {
       const { error } = await supabase
         .from('interviews')
@@ -444,7 +464,7 @@ export default function InterviewManagementPage() {
         <div className="relative">
           <select
             value={interview.status}
-            onChange={(e) => handleStatusChange(interview.id, e.target.value)}
+            onChange={(e) => handleStatusChange(interview.id, e.target.value as InterviewStatus)}
             onBlur={() => setEditingStatus(null)}
             className="w-full px-2 py-1 text-sm border border-blue-500 rounded focus:outline-none bg-white"
             autoFocus
@@ -616,8 +636,8 @@ export default function InterviewManagementPage() {
             onClick={handleShowGuestsToggle}
             disabled={matchingGuests}
             className={`px-3 py-1 text-sm font-medium rounded-md border ${
-              showGuests 
-                ? 'bg-blue-600 text-white border-blue-600' 
+              showGuests
+                ? 'bg-blue-600 text-white border-blue-600'
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
             } ${matchingGuests ? 'opacity-50 cursor-wait' : ''}`}
           >
@@ -644,7 +664,7 @@ export default function InterviewManagementPage() {
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
                   {[
-                    { key: 'film_title', label: 'Title', width: 200 },
+                    { key: 'title', label: 'Title', width: 200 },
                     { key: 'journalist_name', label: 'Journalist', width: 150 },
                     { key: 'outlet', label: 'Outlet', width: 150 },
                     { key: 'email', label: 'Email', width: 200 },
@@ -678,7 +698,7 @@ export default function InterviewManagementPage() {
                 {sortedInterviews.map((interview) => (
                   <tr key={interview.id} className="hover:bg-gray-50">
                     {/* Title */}
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['film_title'] || 200}px` }}>
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['title'] || 200}px` }}>
                       {showFilms && interview.title && !interview.title.includes(',') ? (
                         <button
                           onClick={() => handleFilmClick(interview)}
@@ -691,60 +711,67 @@ export default function InterviewManagementPage() {
                       )}
                     </td>
                     
-                    {/* Journalist */}
+                    {/* Journalist — prefer resolved data from press table */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['journalist_name'] || 150}px` }}>
                       {showJournalists && interview.press_id ? (
                         <button
                           onClick={() => handleJournalistClick(interview)}
                           className="text-blue-600 hover:text-blue-800 hover:underline text-left"
                         >
-                          {interview.journalist_name || '—'}
+                          {interview.resolved_journalist_name || interview.journalist_name || '—'}
                         </button>
                       ) : (
-                        <span>{interview.journalist_name || '—'}</span>
+                        <span>{interview.resolved_journalist_name || interview.journalist_name || '—'}</span>
                       )}
                     </td>
-                    
-                    {/* Outlet */}
+
+                    {/* Outlet — prefer resolved from press table */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['outlet'] || 150}px` }}>
-                      {interview.outlet || '—'}
+                      {interview.resolved_outlet || interview.outlet || '—'}
                     </td>
-                    
-                    {/* Email */}
+
+                    {/* Email — prefer resolved from press table */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['email'] || 200}px` }}>
-                      {interview.email || '—'}
+                      {interview.resolved_email || interview.email || '—'}
                     </td>
                     
-                    {/* Subject(s) */}
+                    {/* Subject(s) — uses subject_guest_ids for FK links, text matching for old records */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['subject_names'] || 180}px` }}>
                       {interview.subject_names && interview.subject_names !== '—' ? (
                         <div className="flex flex-wrap gap-1">
                           {interview.subject_names.split(', ').map((name, index) => {
                             const trimmedName = name.trim()
-                            const hasGuestMatch = showGuests && guestMatches.has(trimmedName)
-                            
+                            const guestIds = interview.subject_guest_ids || []
+
+                            // Check for FK-based guest link (positionally aligned)
+                            const hasIdLink = index < guestIds.length && !!guestIds[index]
+                            // Fall back to text-matched guest for old records without IDs
+                            const textMatchId = !hasIdLink ? textMatchedGuests.get(trimmedName) : undefined
+                            const hasGuestLink = showGuests && (hasIdLink || !!textMatchId)
+                            const guestIdToUse = hasIdLink ? guestIds[index] : textMatchId
+
                             return (
                               <span key={index}>
-                                {hasGuestMatch ? (
+                                {hasGuestLink ? (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      openGuestCard(trimmedName)
+                                      openGuestCard(trimmedName, guestIdToUse)
                                     }}
                                     className="text-blue-600 hover:text-blue-800 hover:underline text-left"
-                                    title={`${trimmedName} ✓ Guest`}
+                                    title={`${trimmedName} — Guest card ${hasIdLink ? 'linked' : 'matched'}`}
                                   >
                                     {name}
                                   </button>
                                 ) : (
-                                  <span 
+                                  <span
                                     className={showGuests ? "text-gray-600" : "text-gray-900"}
-                                    title={showGuests ? `${trimmedName} ⚬ Text only` : undefined}
+                                    title={showGuests ? `${trimmedName} — Free text` : undefined}
                                   >
                                     {name}
                                   </span>
                                 )}
-                                {index < interview.subject_names.split(', ').length - 1 && <span className="text-gray-400">, </span>}
+                                {index < interview.subject_names!.split(', ').length - 1 && <span className="text-gray-400">, </span>}
                               </span>
                             )
                           })}

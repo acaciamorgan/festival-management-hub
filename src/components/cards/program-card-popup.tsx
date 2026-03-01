@@ -81,11 +81,11 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
 
         setFilms(filmsData || [])
 
-        // Load interviews
+        // Load interviews via FK reference
         const { data: interviewsData } = await supabase
-          .from('interviews')
+          .from('interviews_with_films')
           .select('*')
-          .eq('program_title', program.title)
+          .eq('program_id', program.id)
           .eq('festival_year', currentYear)
 
         setInterviews(interviewsData || [])
@@ -377,12 +377,12 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
                       <div key={interview.id} className="border-l-4 border-green-400 pl-4 py-2">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium text-gray-900">{interview.subject_name}</p>
-                            <p className="text-sm text-gray-600">{interview.film_title}</p>
+                            <p className="font-medium text-gray-900">{interview.subject_names}</p>
+                            <p className="text-sm text-gray-600">{interview.title}</p>
                           </div>
                           <div className="text-right">
                             <p className="text-sm text-gray-900">
-                              {interview.interview_date} at {interview.interview_time}
+                              {interview.interview_date ? formatDate(interview.interview_date) : '—'} at {interview.interview_time ? formatTime(interview.interview_time) : '—'}
                             </p>
                             <p className="text-xs text-gray-500 capitalize">{interview.status}</p>
                           </div>

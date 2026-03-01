@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { getFestivalYear } from '@/lib/smart-date-parser'
-import { InterviewCard, InterviewStatus, PressCard, GuestCard } from '@/types'
-import { getGuestSuggestions } from '@/lib/guest-matching'
+import { InterviewCard, InterviewStatus, PressCard } from '@/types'
+import { ChipSelect, ChipItem, ChipSelectSuggestion } from '@/components/ui/chip-select'
 
 interface InterviewFormModalProps {
   interview: InterviewCard | null
@@ -19,251 +19,183 @@ interface FilmOption {
   id: string
   title: string
   type: 'feature' | 'short' | 'program' | 'shorts_program'
-  contextInfo?: string // For displaying additional context like "from Shorts Program A"
-  shorts_program_id?: string // For individual shorts
+  contextInfo?: string
+  shorts_program_id?: string
 }
 
 export function InterviewFormModal({ interview, isOpen, onClose, onSave }: InterviewFormModalProps) {
   const { user } = useAuth()
   const { currentYear } = useFestivalYear()
-  const [formData, setFormData] = useState({
-    film_id: '',
-    shorts_program_id: '',
-    program_id: '',
-    short_film_id: '',
-    film_title: '',
-    press_id: '',
-    journalist_name: '',
-    outlet: '',
-    email: '',
-    subject_names: '',
-    subject_guest_ids: [] as string[],
-    status: 'TBD' as InterviewStatus,
-    interview_date: '',
-    interview_time: '',
-    duration_minutes: '',
-    venue_id: '',
-    location: '',
-    show_on_special_events: false,
-    notes: ''
-  })
+
+  // Selected films as chip items (each will become a separate interview record)
+  const [selectedFilms, setSelectedFilms] = useState<(ChipItem & { filmType: string; shorts_program_id?: string })[]>([])
+
+  // Subject chips - guest-linked (with id) and free-text (without id)
+  const [subjectChips, setSubjectChips] = useState<ChipItem[]>([])
+
+  // Journalist - either linked to press card or manual text
+  const [pressId, setPressId] = useState<string>('')
+  const [journalistName, setJournalistName] = useState('')
+  const [outlet, setOutlet] = useState('')
+  const [email, setEmail] = useState('')
+  const [journalistSearch, setJournalistSearch] = useState('')
+  const [showJournalistDropdown, setShowJournalistDropdown] = useState(false)
+
+  // Other form fields
+  const [status, setStatus] = useState<InterviewStatus>('TBD')
+  const [interviewDate, setInterviewDate] = useState('')
+  const [interviewTime, setInterviewTime] = useState('')
+  const [durationMinutes, setDurationMinutes] = useState('')
+  const [venueId, setVenueId] = useState('')
+  const [location, setLocation] = useState('')
+  const [showOnSpecialEvents, setShowOnSpecialEvents] = useState(false)
+  const [notes, setNotes] = useState('')
+
   const [loading, setLoading] = useState(false)
   const [position, setPosition] = useState({ x: 100, y: 100 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const [size, setSize] = useState({ width: 600, height: 700 })
-  
-  // Data for dropdowns
-  const [films, setFilms] = useState<FilmOption[]>([])
-  const [pressOptions, setPressOptions] = useState<PressCard[]>([])
-  const [guestOptions, setGuestOptions] = useState<GuestCard[]>([])
-  const [venues, setVenues] = useState<Array<{id: string, name: string}>>([])
-  
-  // Search states
-  const [filmSearch, setFilmSearch] = useState('')
-  const [journalistSearch, setJournalistSearch] = useState('')
-  const [subjectSearch, setSubjectSearch] = useState('')
-  const [showFilmDropdown, setShowFilmDropdown] = useState(false)
-  const [showJournalistDropdown, setShowJournalistDropdown] = useState(false)
-  const [showSubjectDropdown, setShowSubjectDropdown] = useState(false)
-  const [guestSuggestions, setGuestSuggestions] = useState<Array<{
-    id: string
-    name: string
-    films_display: string
-    label: string
-  }>>([])
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
-  
-  // Multiple films selection
-  const [selectedFilms, setSelectedFilms] = useState<string[]>([])
+  const [size] = useState({ width: 600, height: 700 })
 
-  // Ref for film input to maintain focus
-  const filmInputRef = useRef<HTMLInputElement>(null)
+  // Data for dropdowns
+  const [allFilms, setAllFilms] = useState<FilmOption[]>([])
+  const [pressOptions, setPressOptions] = useState<PressCard[]>([])
+  const [venues, setVenues] = useState<Array<{ id: string; name: string }>>([])
 
   const supabase = createClient()
 
-  // Load dropdown data with unified film search
+  // Load dropdown data
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load feature films
-        const { data: featureFilms, error: featureError } = await supabase
-          .from('feature_films')
-          .select('id, title')
-          .eq('festival_year', currentYear)
-          .order('title')
+        const [
+          { data: featureFilms },
+          { data: shortsPrograms },
+          { data: shortFilms },
+          { data: programs },
+          { data: press },
+          { data: venuesData },
+        ] = await Promise.all([
+          supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear).order('program_name'),
+          supabase.from('short_films').select('id, title, shorts_program_id, shorts_programs!inner(id, program_name)').eq('festival_year', currentYear).order('title'),
+          supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('press').select('id, name, media_outlet, email').eq('festival_year', currentYear).order('name'),
+          supabase.from('venues').select('id, name').order('name'),
+        ])
 
-        // Load shorts programs
-        const { data: shortsPrograms, error: shortsError } = await supabase
-          .from('shorts_programs')
-          .select('id, program_name')
-          .eq('festival_year', currentYear)
-          .order('program_name')
-
-        // Load individual short films with program context
-        const { data: shortFilms, error: shortFilmsError } = await supabase
-          .from('short_films')
-          .select(`
-            id,
-            title,
-            shorts_program_id,
-            shorts_programs!inner(id, program_name)
-          `)
-          .eq('festival_year', currentYear)
-          .order('title')
-
-        // Load programs
-        const { data: programs, error: programsError } = await supabase
-          .from('programs')
-          .select('id, title')
-          .eq('festival_year', currentYear)
-          .order('title')
-
-        // Load press cards
-        const { data: press, error: pressError } = await supabase
-          .from('press')
-          .select('id, name, media_outlet, email')
-          .eq('festival_year', currentYear)
-          .order('name')
-
-        // Load guest cards
-        const { data: guests, error: guestsError } = await supabase
-          .from('guests')
-          .select('id, name')
-          .eq('festival_year', currentYear)
-          .order('name')
-
-        // Load venues
-        const { data: venuesData, error: venuesError } = await supabase
-          .from('venues')
-          .select('id, name')
-          .order('name')
-
-        // Combine all films/programs with smart context
-        const allFilms: FilmOption[] = [
-          // Feature films
-          ...(featureFilms || []).map(film => ({
-            id: film.id,
-            title: film.title,
-            type: 'feature' as const
-          })),
-          // Individual short films with program context
-          ...(shortFilms || []).map(short => ({
-            id: short.id,
-            title: short.title,
+        const films: FilmOption[] = [
+          ...(featureFilms || []).map(f => ({ id: f.id, title: f.title, type: 'feature' as const })),
+          ...(shortFilms || []).map(s => ({
+            id: s.id,
+            title: s.title,
             type: 'short' as const,
-            contextInfo: `from ${short.shorts_programs.program_name}`,
-            shorts_program_id: short.shorts_program_id
+            contextInfo: `from ${s.shorts_programs.program_name}`,
+            shorts_program_id: s.shorts_program_id,
           })),
-          // Shorts programs (containers)
-          ...(shortsPrograms || []).map(program => ({
-            id: program.id,
-            title: program.program_name,
+          ...(shortsPrograms || []).map(p => ({
+            id: p.id,
+            title: p.program_name,
             type: 'shorts_program' as const,
-            contextInfo: 'entire program'
+            contextInfo: 'entire program',
           })),
-          // Regular programs
-          ...(programs || []).map(program => ({
-            id: program.id,
-            title: program.title,
-            type: 'program' as const
-          }))
+          ...(programs || []).map(p => ({ id: p.id, title: p.title, type: 'program' as const })),
         ]
 
-        setFilms(allFilms)
+        setAllFilms(films)
         setPressOptions(press || [])
-        setGuestOptions(guests || [])
         setVenues(venuesData || [])
       } catch (error) {
         console.error('Error loading data:', error)
       }
     }
 
-    if (isOpen) {
-      loadData()
-    }
+    if (isOpen) loadData()
   }, [isOpen, supabase, currentYear])
 
-  // Initialize form data when interview changes
+  // Initialize form when editing
   useEffect(() => {
     if (interview) {
-      setFormData({
-        film_id: interview.film_id || '',
-        shorts_program_id: interview.shorts_program_id || '',
-        program_id: interview.program_id || '',
-        short_film_id: interview.short_film_id || '',
-        film_title: interview.film_title || '',
-        press_id: interview.press_id || '',
-        journalist_name: interview.journalist_name || '',
-        outlet: interview.outlet || '',
-        email: interview.email || '',
-        subject_names: interview.subject_names || '',
-        subject_guest_ids: interview.subject_guest_ids || [],
-        status: interview.status,
-        interview_date: interview.interview_date || '',
-        interview_time: interview.interview_time || '',
-        duration_minutes: (interview as any).duration_minutes?.toString() || '',
-        venue_id: (interview as any).venue_id || '',
-        location: interview.location || '',
-        show_on_special_events: (interview as any).show_on_special_events || false,
-        notes: interview.notes || ''
+      // Determine the film for this interview
+      const filmTitle = interview.title || ''
+      const filmChips: (ChipItem & { filmType: string; shorts_program_id?: string })[] = []
+
+      if (interview.film_id) {
+        filmChips.push({ id: interview.film_id, label: filmTitle, filmType: 'feature' })
+      } else if (interview.short_film_id) {
+        filmChips.push({ id: interview.short_film_id, label: filmTitle, filmType: 'short', shorts_program_id: interview.shorts_program_id || undefined })
+      } else if (interview.shorts_program_id) {
+        filmChips.push({ id: interview.shorts_program_id, label: filmTitle, filmType: 'shorts_program' })
+      } else if (interview.program_id) {
+        filmChips.push({ id: interview.program_id, label: filmTitle, filmType: 'program' })
+      }
+      setSelectedFilms(filmChips)
+
+      // Build subject chips from guest IDs and text names
+      const chips: ChipItem[] = []
+      const guestIds = interview.subject_guest_ids || []
+      const nameText = interview.subject_names || ''
+      const names = nameText ? nameText.split(',').map(n => n.trim()).filter(n => n && n !== '—') : []
+
+      // For each name, check if there's a corresponding guest ID
+      // Guest IDs are ordered to match the names list
+      names.forEach((name, i) => {
+        if (i < guestIds.length && guestIds[i]) {
+          chips.push({ id: guestIds[i], label: name })
+        } else {
+          chips.push({ label: name })
+        }
       })
-      setFilmSearch(interview.film_title || '')
-      setJournalistSearch(interview.journalist_name || '')
-      setSubjectSearch(interview.subject_names || '')
-      // Initialize selectedFilms from comma-separated film_title
-      const titles = interview.film_title ? interview.film_title.split(',').map(t => t.trim()).filter(t => t) : []
-      setSelectedFilms(titles)
+      setSubjectChips(chips)
+
+      // Journalist - use resolved data if available, fall back to cached
+      setPressId(interview.press_id || '')
+      setJournalistName(interview.resolved_journalist_name || interview.journalist_name || '')
+      setOutlet(interview.resolved_outlet || interview.outlet || '')
+      setEmail(interview.resolved_email || interview.email || '')
+      setJournalistSearch(interview.resolved_journalist_name || interview.journalist_name || '')
+
+      setStatus(interview.status)
+      setInterviewDate(interview.interview_date || '')
+      setInterviewTime(interview.interview_time || '')
+      setDurationMinutes(interview.duration_minutes?.toString() || '')
+      setVenueId(interview.venue_id || '')
+      setLocation(interview.location || '')
+      setShowOnSpecialEvents(interview.show_on_special_events || false)
+      setNotes(interview.notes || '')
     } else {
-      setFormData({
-        film_id: '',
-        shorts_program_id: '',
-        program_id: '',
-        short_film_id: '',
-        film_title: '',
-        press_id: '',
-        journalist_name: '',
-        outlet: '',
-        email: '',
-        subject_names: '',
-        subject_guest_ids: [],
-        status: 'TBD',
-        interview_date: '',
-        interview_time: '',
-        duration_minutes: '',
-        venue_id: '',
-        location: '',
-        show_on_special_events: false,
-        notes: ''
-      })
-      setFilmSearch('')
-      setJournalistSearch('')
-      setSubjectSearch('')
+      // Reset form for new interview
       setSelectedFilms([])
+      setSubjectChips([])
+      setPressId('')
+      setJournalistName('')
+      setOutlet('')
+      setEmail('')
+      setJournalistSearch('')
+      setStatus('TBD')
+      setInterviewDate('')
+      setInterviewTime('')
+      setDurationMinutes('')
+      setVenueId('')
+      setLocation('')
+      setShowOnSpecialEvents(false)
+      setNotes('')
     }
   }, [interview])
 
-  // Mouse event handlers for dragging
+  // Dragging handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    })
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
   }
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (isDragging) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      })
+      setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y })
     }
   }, [isDragging, dragStart])
 
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false)
-  }, [])
+  const handleMouseUp = useCallback(() => setIsDragging(false), [])
 
   useEffect(() => {
     if (isDragging) {
@@ -276,224 +208,199 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     }
   }, [isDragging, handleMouseMove, handleMouseUp])
 
-  // Film selection handlers
-  const handleFilmSelect = (film: FilmOption) => {
-    // Add to selected films if not already there
-    if (!selectedFilms.includes(film.title)) {
-      const newFilms = [...selectedFilms, film.title]
-      setSelectedFilms(newFilms)
+  // Film search for ChipSelect
+  const handleFilmSearch = useCallback(async (query: string): Promise<ChipSelectSuggestion[]> => {
+    const lower = query.toLowerCase()
+    return allFilms
+      .filter(f => f.title.toLowerCase().includes(lower))
+      .slice(0, 15)
+      .map(f => ({
+        id: f.id,
+        label: f.title,
+        sublabel: f.contextInfo || f.type,
+        type: f.type,
+      }))
+  }, [allFilms])
 
-      // Update form data with comma-separated titles
-      setFormData(prev => {
-        // For first film, set its ID. For additional films, keep the first film's ID
-        const isFirstFilm = newFilms.length === 1
+  // Handle film chip changes
+  const handleFilmsChange = useCallback((items: ChipItem[]) => {
+    const enriched = items.map(item => {
+      // Find the film option to get its type info
+      const filmOption = allFilms.find(f => f.id === item.id)
+      return {
+        ...item,
+        filmType: filmOption?.type || item.type || 'feature',
+        shorts_program_id: filmOption?.shorts_program_id,
+      }
+    })
+    setSelectedFilms(enriched)
+  }, [allFilms])
 
-        // If this is the first film, set the appropriate ID field based on type
-        // If adding additional films, preserve existing IDs from the first film
-        let film_id = prev.film_id
-        let shorts_program_id = prev.shorts_program_id
-        let program_id = prev.program_id
-        let short_film_id = prev.short_film_id
+  // Subject search — queries guest list, with auto-suggestions from selected film's guests
+  const handleSubjectSearch = useCallback(async (query: string): Promise<ChipSelectSuggestion[]> => {
+    if (query.length < 2) return []
 
-        if (isFirstFilm) {
-          // First film - set the appropriate ID
-          if (film.type === 'feature') {
-            film_id = film.id
-          } else if (film.type === 'shorts_program') {
-            shorts_program_id = film.id
-          } else if (film.type === 'program') {
-            program_id = film.id
-          } else if (film.type === 'short') {
-            short_film_id = film.id
-            shorts_program_id = film.shorts_program_id || ''
-          }
-        }
-        // For additional films, keep existing IDs unchanged
+    try {
+      // Search guests matching the query
+      let dbQuery = supabase
+        .from('guests')
+        .select('id, name, guest_film_titles:guest_film_titles(film_title)')
+        .ilike('name', `%${query}%`)
+        .eq('festival_year', currentYear)
+        .limit(10)
 
+      const { data, error } = await dbQuery
+      if (error) throw error
+
+      return (data || []).map(guest => {
+        const films = (guest.guest_film_titles || []).map((f: any) => f.film_title).filter(Boolean)
         return {
-          ...prev,
-          film_id,
-          shorts_program_id,
-          program_id,
-          short_film_id,
-          film_title: newFilms.join(', ')
+          id: guest.id,
+          label: guest.name,
+          sublabel: films.join(', ') || 'No films assigned',
         }
       })
+    } catch (error) {
+      console.error('Error searching guests:', error)
+      return []
     }
-    setFilmSearch('')
-    setShowFilmDropdown(false)
+  }, [supabase, currentYear])
 
-    // Refocus the input to allow continuous entry
-    setTimeout(() => {
-      filmInputRef.current?.focus()
-    }, 0)
-  }
+  // Auto-suggest subjects when a film is selected
+  const loadFilmGuests = useCallback(async (filmId: string, filmType: string) => {
+    try {
+      let guests: Array<{ id: string; name: string }> = []
 
-  const handleFilmKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      if (filteredFilms.length > 0) {
-        handleFilmSelect(filteredFilms[0])
+      if (filmType === 'feature') {
+        const { data } = await supabase
+          .from('guest_films')
+          .select('guest_id, guests!inner(id, name)')
+          .eq('film_id', filmId)
+
+        guests = (data || []).map((gf: any) => ({
+          id: gf.guests.id,
+          name: gf.guests.name,
+        }))
+      } else if (filmType === 'short') {
+        const { data } = await supabase
+          .from('guest_short_films')
+          .select('guest_id, guests!inner(id, name)')
+          .eq('short_film_id', filmId)
+
+        guests = (data || []).map((gf: any) => ({
+          id: gf.guests.id,
+          name: gf.guests.name,
+        }))
+      }
+
+      if (guests.length > 0) {
+        // Use functional update to avoid stale closure over subjectChips
+        setSubjectChips(prev => {
+          const newChips: ChipItem[] = []
+          for (const guest of guests) {
+            const alreadyAdded = prev.some(c => c.id === guest.id)
+            if (!alreadyAdded) {
+              newChips.push({ id: guest.id, label: guest.name })
+            }
+          }
+          return newChips.length > 0 ? [...prev, ...newChips] : prev
+        })
+      }
+    } catch (error) {
+      console.error('Error loading film guests:', error)
+    }
+  }, [supabase])
+
+  // When films change (new film added), auto-suggest guests
+  useEffect(() => {
+    if (selectedFilms.length > 0 && !interview) {
+      const latestFilm = selectedFilms[selectedFilms.length - 1]
+      if (latestFilm.id) {
+        loadFilmGuests(latestFilm.id, latestFilm.filmType)
       }
     }
-  }
+  }, [selectedFilms.length, loadFilmGuests, interview])
 
-  // Remove film from selection
-  const handleRemoveFilm = (title: string) => {
-    const newFilms = selectedFilms.filter(t => t !== title)
-    setSelectedFilms(newFilms)
-    
-    setFormData(prev => ({
-      ...prev,
-      film_id: '',
-      shorts_program_id: '',
-      program_id: '',
-      short_film_id: '',
-      film_title: newFilms.join(', ')
-    }))
-  }
-
-  // Journalist selection handlers
+  // Journalist selection
   const handleJournalistSelect = (press: PressCard) => {
-    setFormData(prev => ({
-      ...prev,
-      press_id: press.id,
-      journalist_name: press.name,
-      outlet: press.media_outlet,
-      email: press.email
-    }))
+    setPressId(press.id)
+    setJournalistName(press.name)
+    setOutlet(press.media_outlet)
+    setEmail(press.email)
     setJournalistSearch(press.name)
     setShowJournalistDropdown(false)
   }
 
-  // Load guest suggestions
-  const loadGuestSuggestions = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
-      setGuestSuggestions([])
-      return
-    }
-
-    setLoadingSuggestions(true)
-    try {
-      const suggestions = await getGuestSuggestions(query, currentYear)
-      setGuestSuggestions(suggestions)
-    } catch (error) {
-      console.error('Error loading guest suggestions:', error)
-      setGuestSuggestions([])
-    } finally {
-      setLoadingSuggestions(false)
-    }
-  }, [])
-
-  // Subject selection handlers
-  const handleSubjectSelect = (guest: GuestCard | { id: string, name: string }) => {
-    setFormData(prev => {
-      // Get existing names, split by comma
-      const existingNames = prev.subject_names ? prev.subject_names.split(',').map(s => s.trim()).filter(s => s) : []
-      // Remove the last incomplete entry (what was being typed)
-      existingNames.pop()
-      // Add the selected guest name
-      existingNames.push(guest.name)
-      const newSubjectNames = existingNames.join(', ')
-
-      // Update guest IDs - add this guest if not already in the list
-      const newGuestIds = [...prev.subject_guest_ids]
-      if (!newGuestIds.includes(guest.id)) {
-        newGuestIds.push(guest.id)
-      }
-
-      return {
-        ...prev,
-        subject_names: newSubjectNames,
-        subject_guest_ids: newGuestIds
-      }
-    })
-    setSubjectSearch(formData.subject_names ? formData.subject_names.split(',').map(s => s.trim()).filter(s => s).slice(0, -1).join(', ') + ', ' + guest.name : guest.name)
-    setShowSubjectDropdown(false)
-  }
-
-  // Handle subject input changes with debounced suggestions
-  const handleSubjectInputChange = useCallback(async (value: string) => {
-    setSubjectSearch(value)
-    setFormData(prev => ({ ...prev, subject_names: value }))
-
-    // Extract the current name being typed (after the last comma)
-    const parts = value.split(',').map(s => s.trim())
-    const currentName = parts[parts.length - 1]
-
-    if (currentName.length >= 2) {
-      setShowSubjectDropdown(true)
-      await loadGuestSuggestions(currentName)
-    } else {
-      setShowSubjectDropdown(false)
-      setGuestSuggestions([])
-    }
-  }, [loadGuestSuggestions])
-
-  // Clear linked press data when typing manually
   const handleJournalistNameChange = (value: string) => {
     setJournalistSearch(value)
-    setFormData(prev => ({
-      ...prev,
-      journalist_name: value,
-      press_id: '' // Clear link when typing manually
-    }))
+    setJournalistName(value)
+    setPressId('') // Clear link when typing manually
   }
 
-  // Handle form input changes
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-  }
+  const filteredPress = pressOptions.filter(p =>
+    p.name.toLowerCase().includes(journalistSearch.toLowerCase())
+  )
 
+  // Submit handler — creates one record per film (batch)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!formData.film_title) {
-      alert('Please select a film or program')
+
+    if (selectedFilms.length === 0) {
+      alert('Please select at least one film or program')
       return
     }
 
     setLoading(true)
     try {
       const festivalYear = await getFestivalYear()
-      const interviewData = {
-        film_id: formData.film_id || null,
-        shorts_program_id: formData.shorts_program_id || null,
-        program_id: formData.program_id || null,
-        short_film_id: formData.short_film_id || null,
-        film_title: formData.film_title,
-        press_id: formData.press_id || null,
-        journalist_name: formData.journalist_name || null,
-        outlet: formData.outlet || null,
-        email: formData.email || null,
-        subject_names: formData.subject_names || null,
-        subject_guest_ids: formData.subject_guest_ids.length > 0 ? formData.subject_guest_ids : null,
-        status: formData.status,
-        interview_date: formData.interview_date || null,
-        interview_time: formData.interview_time || null,
-        duration_minutes: formData.duration_minutes ? parseInt(formData.duration_minutes) : null,
-        venue_id: formData.venue_id || null,
-        location: formData.location || null,
-        show_on_special_events: formData.show_on_special_events,
-        notes: formData.notes || null,
+
+      // Build subject data from chips — positionally aligned arrays
+      // subject_guest_ids[i] corresponds to subject_names.split(', ')[i]
+      // Free-text entries get null in the IDs array to maintain alignment
+      const allNames = subjectChips.map(c => c.label)
+      const subjectGuestIds = subjectChips.map(c => c.id || null)
+      const subjectNames = allNames.join(', ') || null
+      const hasAnyGuestIds = subjectGuestIds.some(id => id !== null)
+
+      // Shared fields across all records
+      const sharedData = {
+        press_id: pressId || null,
+        journalist_name: pressId ? null : (journalistName || null), // Only cache if no press link
+        outlet: pressId ? null : (outlet || null),
+        email: pressId ? null : (email || null),
+        subject_names: subjectNames,
+        subject_guest_ids: hasAnyGuestIds ? subjectGuestIds : null,
+        status,
+        interview_date: interviewDate || null,
+        interview_time: interviewTime || null,
+        duration_minutes: durationMinutes ? parseInt(durationMinutes) : null,
+        venue_id: venueId || null,
+        location: location || null,
+        show_on_special_events: showOnSpecialEvents,
+        notes: notes || null,
         festival_year: parseInt(festivalYear, 10),
-        created_by: user?.id
+        created_by: user?.id,
       }
 
       if (interview) {
-        // Update existing interview
+        // Editing: update the single existing record
+        const film = selectedFilms[0]
+        const filmFields = getFilmFields(film)
+
         const { error } = await supabase
           .from('interviews')
-          .update(interviewData)
+          .update({ ...sharedData, ...filmFields })
           .eq('id', interview.id)
 
         if (error) throw error
       } else {
-        // Create new interview
-        const { error } = await supabase
-          .from('interviews')
-          .insert(interviewData)
+        // Creating: one record per selected film
+        const records = selectedFilms.map(film => ({
+          ...sharedData,
+          ...getFilmFields(film),
+        }))
 
+        const { error } = await supabase.from('interviews').insert(records)
         if (error) throw error
       }
 
@@ -508,33 +415,51 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     }
   }
 
-  // Filter functions for dropdowns
-  const filteredFilms = films.filter(film =>
-    film.title.toLowerCase().includes(filmSearch.toLowerCase())
-  )
+  // Map a film chip to the correct FK fields
+  function getFilmFields(film: ChipItem & { filmType: string; shorts_program_id?: string }) {
+    const fields: Record<string, string | null> = {
+      film_id: null,
+      short_film_id: null,
+      shorts_program_id: null,
+      program_id: null,
+    }
 
-  const filteredPress = pressOptions.filter(press =>
-    press.name.toLowerCase().includes(journalistSearch.toLowerCase())
-  )
+    switch (film.filmType) {
+      case 'feature':
+        fields.film_id = film.id || null
+        break
+      case 'short':
+        fields.short_film_id = film.id || null
+        fields.shorts_program_id = film.shorts_program_id || null
+        break
+      case 'shorts_program':
+        fields.shorts_program_id = film.id || null
+        break
+      case 'program':
+        fields.program_id = film.id || null
+        break
+    }
 
+    return fields
+  }
 
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 pointer-events-none">
-      <div 
+      <div
         className="bg-white rounded-lg shadow-2xl border border-gray-300 overflow-y-auto pointer-events-auto"
-        style={{ 
-          left: `${position.x}px`, 
+        style={{
+          left: `${position.x}px`,
           top: `${position.y}px`,
           width: `${size.width}px`,
           maxHeight: `${size.height}px`,
           position: 'fixed',
-          cursor: isDragging ? 'grabbing' : 'default'
+          cursor: isDragging ? 'grabbing' : 'default',
         }}
       >
         {/* Draggable Header */}
-        <div 
+        <div
           className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 cursor-grab active:cursor-grabbing"
           onMouseDown={handleMouseDown}
         >
@@ -551,83 +476,61 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
 
         {/* Form Content */}
         <form onSubmit={handleSubmit} className="p-6">
-          {/* Film/Program Selection */}
+          {/* Film/Program Selection — chips with autocomplete */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Title(s) <span className="text-red-500">*</span>
-              <span className="text-xs text-gray-500 ml-2">Select multiple films if needed</span>
-            </label>
-            
-            {/* Selected Films Display */}
-            {selectedFilms.length > 0 && (
-              <div className="mb-2 flex flex-wrap gap-2">
-                {selectedFilms.map((title) => (
-                  <span 
-                    key={title}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
-                  >
-                    {title}
+            <ChipSelect
+              items={selectedFilms}
+              onChange={handleFilmsChange}
+              onSearch={handleFilmSearch}
+              label={interview ? 'Title' : 'Title(s)'}
+              placeholder="Search films and programs..."
+              required
+              helpText={interview ? undefined : 'Select multiple films to create one interview record per film'}
+              disabled={!!interview} // Don't change film when editing
+            />
+            {!interview && selectedFilms.length > 1 && (
+              <p className="mt-1 text-xs text-blue-600 font-medium">
+                {selectedFilms.length} separate interview records will be created
+              </p>
+            )}
+          </div>
+
+          {/* Journalist Selection */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Journalist</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={journalistSearch}
+                onChange={(e) => {
+                  handleJournalistNameChange(e.target.value)
+                  setShowJournalistDropdown(true)
+                }}
+                onFocus={() => setShowJournalistDropdown(true)}
+                onBlur={() => setTimeout(() => setShowJournalistDropdown(false), 150)}
+                placeholder="Search journalists or enter name..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {pressId && (
+                <div className="mt-1 flex items-center">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+                    Linked to press card
                     <button
                       type="button"
-                      onClick={() => handleRemoveFilm(title)}
+                      onClick={() => {
+                        setPressId('')
+                        setJournalistSearch('')
+                        setJournalistName('')
+                        setOutlet('')
+                        setEmail('')
+                      }}
                       className="ml-2 text-blue-600 hover:text-blue-800"
                     >
                       ×
                     </button>
                   </span>
-                ))}
-              </div>
-            )}
-            
-            <div className="relative">
-              <input
-                ref={filmInputRef}
-                type="text"
-                value={filmSearch}
-                onChange={(e) => {
-                  setFilmSearch(e.target.value)
-                  setShowFilmDropdown(true)
-                }}
-                onFocus={() => setShowFilmDropdown(true)}
-                onKeyDown={handleFilmKeyDown}
-                placeholder="Search films and programs to add..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required={selectedFilms.length === 0}
-              />
-              {showFilmDropdown && filteredFilms.length > 0 && (
-                <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                  {filteredFilms.map((film) => (
-                    <button
-                      key={`${film.type}-${film.id}`}
-                      type="button"
-                      onClick={() => handleFilmSelect(film)}
-                      className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
-                    >
-                      <span className="font-medium">{film.title}</span>
-                      <span className="text-gray-500 ml-2">
-                        {film.contextInfo ? `(${film.contextInfo})` : `(${film.type})`}
-                      </span>
-                    </button>
-                  ))}
                 </div>
               )}
-            </div>
-          </div>
-
-          {/* Journalist Selection */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Journalist
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={journalistSearch}
-                onChange={(e) => handleJournalistNameChange(e.target.value)}
-                onFocus={() => setShowJournalistDropdown(true)}
-                placeholder="Search journalists or enter name..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
               {showJournalistDropdown && filteredPress.length > 0 && journalistSearch && (
                 <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
                   {filteredPress.map((press) => (
@@ -647,91 +550,50 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
-            {/* Outlet */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Outlet
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Outlet</label>
               <input
                 type="text"
-                value={formData.outlet}
-                onChange={(e) => handleInputChange('outlet', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={outlet}
+                onChange={(e) => setOutlet(e.target.value)}
+                readOnly={!!pressId}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${pressId ? 'bg-gray-100 text-gray-600' : ''}`}
               />
+              {pressId && <p className="mt-1 text-xs text-gray-500">Auto-filled from press card</p>}
             </div>
-
-            {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
               <input
                 type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                readOnly={!!pressId}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${pressId ? 'bg-gray-100 text-gray-600' : ''}`}
               />
+              {pressId && <p className="mt-1 text-xs text-gray-500">Auto-filled from press card</p>}
             </div>
           </div>
 
-          {/* Subject Selection */}
+          {/* Subject Selection — chip-based with guest autocomplete */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Subject(s)
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={subjectSearch}
-                onChange={(e) => handleSubjectInputChange(e.target.value)}
-                onFocus={() => {
-                  if (subjectSearch.length >= 2) {
-                    setShowSubjectDropdown(true)
-                  }
-                }}
-                onBlur={() => {
-                  // Delay hiding to allow click on dropdown
-                  setTimeout(() => setShowSubjectDropdown(false), 150)
-                }}
-                placeholder="Search guests or enter names..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {showSubjectDropdown && subjectSearch.length >= 2 && (
-                <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                  {loadingSuggestions ? (
-                    <div className="px-3 py-2 text-sm text-gray-500">
-                      Loading suggestions...
-                    </div>
-                  ) : guestSuggestions.length > 0 ? (
-                    guestSuggestions.map((suggestion) => (
-                      <button
-                        key={suggestion.id}
-                        type="button"
-                        onClick={() => handleSubjectSelect(suggestion)}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm border-b border-gray-100 last:border-b-0"
-                      >
-                        <div className="font-medium text-blue-600">{suggestion.name}</div>
-                        <div className="text-xs text-gray-500">{suggestion.films_display}</div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-3 py-2 text-sm text-gray-500">
-                      No guest matches found. You can still type any name.
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            <ChipSelect
+              items={subjectChips}
+              onChange={setSubjectChips}
+              onSearch={handleSubjectSearch}
+              label="Subject(s)"
+              placeholder="Search guests or type a name..."
+              allowFreeText
+              minSearchLength={2}
+              helpText="Select from guest cards or type free-text names. Guests auto-suggested when you select a film."
+            />
           </div>
 
           {/* Status */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Status
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
             <select
-              value={formData.status}
-              onChange={(e) => handleInputChange('status', e.target.value)}
+              value={status}
+              onChange={(e) => setStatus(e.target.value as InterviewStatus)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="TBD">TBD</option>
@@ -744,132 +606,105 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
             </select>
           </div>
 
-          {/* Interview Details - always visible */}
+          {/* Interview Details */}
           <div className="mb-4 p-4 bg-gray-50 rounded-lg">
             <h3 className="text-sm font-medium text-gray-700 mb-3">
               Interview Details
-              {formData.status === 'Complete' && (
+              {status === 'Complete' && (
                 <span className="ml-2 text-xs text-green-600 font-normal">(Historical Record)</span>
               )}
             </h3>
-              
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                {/* Date */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.interview_date}
-                    onChange={(e) => handleInputChange('interview_date', e.target.value)}
-                    placeholder="MM/DD/YYYY or any date format"
-                    readOnly={formData.status === 'Complete'}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formData.status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
-                  />
-                </div>
 
-                {/* Time */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Time
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.interview_time}
-                    onChange={(e) => handleInputChange('interview_time', e.target.value)}
-                    placeholder="e.g. 3:00 PM"
-                    readOnly={formData.status === 'Complete'}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formData.status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
-                  />
-                </div>
-
-                {/* Duration */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Length (mins)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.duration_minutes}
-                    onChange={(e) => handleInputChange('duration_minutes', e.target.value)}
-                    placeholder="30"
-                    min="1"
-                    readOnly={formData.status === 'Complete'}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formData.status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
-                  />
-                </div>
-              </div>
-
-              {/* Venue Selection */}
+            <div className="grid grid-cols-3 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Venue (Optional)
-                </label>
-                <select
-                  value={formData.venue_id}
-                  onChange={(e) => handleInputChange('venue_id', e.target.value)}
-                  disabled={formData.status === 'Complete'}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formData.status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
-                >
-                  <option value="">No venue</option>
-                  {venues.map((venue) => (
-                    <option key={venue.id} value={venue.id}>
-                      {venue.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-gray-500">
-                  Select a venue for structured locations like Filmmakers Lounge
-                </p>
-              </div>
-
-              {/* Location */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Location (Text)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
                 <input
                   type="text"
-                  value={formData.location}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
-                  placeholder="Phone, Zoom link, or other details..."
-                  readOnly={formData.status === 'Complete'}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formData.status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
+                  value={interviewDate}
+                  onChange={(e) => setInterviewDate(e.target.value)}
+                  placeholder="MM/DD/YYYY or any date format"
+                  readOnly={status === 'Complete'}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  For non-venue locations (phone, Zoom, etc.)
-                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
+                <input
+                  type="text"
+                  value={interviewTime}
+                  onChange={(e) => setInterviewTime(e.target.value)}
+                  placeholder="e.g. 3:00 PM"
+                  readOnly={status === 'Complete'}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Length (mins)</label>
+                <input
+                  type="number"
+                  value={durationMinutes}
+                  onChange={(e) => setDurationMinutes(e.target.value)}
+                  placeholder="30"
+                  min="1"
+                  readOnly={status === 'Complete'}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
+                />
               </div>
             </div>
 
-            {/* Show on Special Events Calendar */}
-            <div className="mt-4">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.show_on_special_events}
-                  onChange={(e) => handleInputChange('show_on_special_events', e.target.checked)}
-                  disabled={formData.status === 'Complete'}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <span className="ml-2 text-sm font-medium text-gray-700">
-                  Add to Special Events Calendar
-                </span>
-              </label>
-              <p className="ml-6 text-xs text-gray-500">
-                When checked, this interview will appear on the Special Events calendar and timeline
-              </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Venue (Optional)</label>
+              <select
+                value={venueId}
+                onChange={(e) => setVenueId(e.target.value)}
+                disabled={status === 'Complete'}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
+              >
+                <option value="">No venue</option>
+                {venues.map((v) => (
+                  <option key={v.id} value={v.id}>{v.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Select a venue for structured locations like Filmmakers Lounge</p>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Location (Text)</label>
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Phone, Zoom link, or other details..."
+                readOnly={status === 'Complete'}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
+              />
+              <p className="mt-1 text-xs text-gray-500">For non-venue locations (phone, Zoom, etc.)</p>
+            </div>
+          </div>
+
+          {/* Show on Special Events Calendar */}
+          <div className="mt-4">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={showOnSpecialEvents}
+                onChange={(e) => setShowOnSpecialEvents(e.target.checked)}
+                disabled={status === 'Complete'}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <span className="ml-2 text-sm font-medium text-gray-700">Add to Special Events Calendar</span>
+            </label>
+            <p className="ml-6 text-xs text-gray-500">
+              When checked, this interview will appear on the Special Events calendar and timeline
+            </p>
+          </div>
 
           {/* Notes */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notes
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
             <textarea
-              value={formData.notes}
-              onChange={(e) => handleInputChange('notes', e.target.value)}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -889,7 +724,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
               disabled={loading}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              {loading ? 'Saving...' : interview ? 'Update Interview' : 'Add Interview'}
+              {loading ? 'Saving...' : interview ? 'Update Interview' : selectedFilms.length > 1 ? `Add ${selectedFilms.length} Interviews` : 'Add Interview'}
             </button>
           </div>
         </form>
