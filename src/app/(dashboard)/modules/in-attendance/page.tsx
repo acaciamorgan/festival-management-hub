@@ -347,6 +347,7 @@ export default function InAttendancePage() {
       const { data: guestsData, error: guestsError } = await supabase
         .from('guests')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('name', { ascending: true })
         .limit(1000) // Explicitly set a high limit to fetch all records
 
@@ -359,10 +360,10 @@ export default function InAttendancePage() {
         shortFilmsResponse,
         shortsProgramsResponse
       ] = await Promise.all([
-        supabase.from('guest_film_titles').select('*'),
-        supabase.from('ticketing_screenings_with_films').select('*').eq('is_published', true),
-        supabase.from('short_films').select('id, title, shorts_program_id'),
-        supabase.from('shorts_programs').select('id, program_name')
+        supabase.from('guest_film_titles').select('*').eq('festival_year', currentYear),
+        supabase.from('ticketing_screenings_with_films').select('*').eq('is_published', true).eq('festival_year', currentYear),
+        supabase.from('short_films').select('id, title, shorts_program_id').eq('festival_year', currentYear),
+        supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear)
       ])
 
       if (guestFilmsResponse.error) throw guestFilmsResponse.error
@@ -436,7 +437,7 @@ export default function InAttendancePage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
 
   // Get unique guest types for filtering
