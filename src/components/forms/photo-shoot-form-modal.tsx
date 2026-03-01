@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { getFestivalYear } from '@/lib/smart-date-parser'
+import { ChipSelect, ChipItem, ChipSelectSuggestion } from '@/components/ui/chip-select'
 
 interface PhotoShootFormModalProps {
   photoShoot?: any | null
@@ -13,9 +14,15 @@ interface PhotoShootFormModalProps {
   onSave: (photoShoot: any) => void
 }
 
+interface FilmOption {
+  id: string
+  title: string
+  type: 'feature' | 'short' | 'shorts_program' | 'program'
+}
+
 interface PhotoShootFormData {
-  film_program_titles: string
-  subjects: string
+  filmChips: (ChipItem & { filmType?: string })[]
+  subjectChips: ChipItem[]
   venue_id: string
   house: string
   shoot_date: string
@@ -25,7 +32,6 @@ interface PhotoShootFormData {
   photographer: string
   videographer: string
   intro_qa: string
-  // special_event: string  // Removed - to be implemented later
   selects_received: boolean
   sent_to_pr: boolean
 }
@@ -34,8 +40,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
   const { user } = useAuth()
   const { currentYear } = useFestivalYear()
   const [formData, setFormData] = useState<PhotoShootFormData>({
-    film_program_titles: '',
-    subjects: '',
+    filmChips: [],
+    subjectChips: [],
     venue_id: '',
     house: '',
     shoot_date: '',
@@ -45,7 +51,6 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     photographer: '',
     videographer: '',
     intro_qa: '',
-    // special_event: '',  // Removed - to be implemented later
     selects_received: false,
     sent_to_pr: false
   })
@@ -54,25 +59,14 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
   const [isDragging, setIsDragging] = useState(false)
   const [position, setPosition] = useState({ x: 100, y: 100 })
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  
-  // Suggestion states for Film/Program field
-  const [availableFilms, setAvailableFilms] = useState<{id: string, title: string, type: 'feature' | 'short'}[]>([])
-  const [availablePrograms, setAvailablePrograms] = useState<{id: string, title: string}[]>([])
-  const [shortFilmPrograms, setShortFilmPrograms] = useState<string[]>([])
-  const [showFilmSuggestions, setShowFilmSuggestions] = useState(false)
-  const [filteredFilmSuggestions, setFilteredFilmSuggestions] = useState<{id: string, title: string, type: 'feature' | 'short' | 'program' | 'short_program'}[]>([])
 
-  // Suggestion states for Subjects field
-  const [availableGuests, setAvailableGuests] = useState<{id: string, name: string}[]>([])
-  const [showSubjectSuggestions, setShowSubjectSuggestions] = useState(false)
-  const [filteredSubjectSuggestions, setFilteredSubjectSuggestions] = useState<{id: string, name: string}[]>([])
+  // Data for suggestions
+  const [allFilms, setAllFilms] = useState<FilmOption[]>([])
 
   // Venues
   const [availableVenues, setAvailableVenues] = useState<{id: string, name: string, theater_houses?: {house_name: string, seat_count: number}[]}[]>([])
   const [selectedVenueHouses, setSelectedVenueHouses] = useState<string[]>([])
   const [showHouseField, setShowHouseField] = useState(false)
-
-  // Special Events - removed, to be implemented later
 
   const supabase = createClient()
 
@@ -103,7 +97,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
       document.addEventListener('mousemove', handleMouseMove)
       document.addEventListener('mouseup', handleMouseUp)
     }
-    
+
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
@@ -114,25 +108,24 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
   useEffect(() => {
     const loadSuggestionData = async () => {
       try {
-        const [featureFilms, shortFilms, programs, guests, venues, shortFilmProgramsData] = await Promise.all([
+        const [featureFilms, shortFilms, shortsPrograms, programs, venues] = await Promise.all([
           supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
           supabase.from('short_films').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear).order('program_name'),
           supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
-          supabase.from('guests').select('id, name').eq('festival_year', currentYear).order('name'),
           supabase.from('venues').select('*').order('name'),
-          // Get unique short film program names
-          supabase.from('short_films').select('programs').eq('festival_year', currentYear).not('programs', 'is', null)
         ])
 
-        // Process films
-        const films = [
-          ...(featureFilms.data || []).map(f => ({ ...f, type: 'feature' as const })),
-          ...(shortFilms.data || []).map(f => ({ ...f, type: 'short' as const }))
+        // Build unified film options
+        const films: FilmOption[] = [
+          ...(featureFilms.data || []).map(f => ({ id: f.id, title: f.title, type: 'feature' as const })),
+          ...(shortFilms.data || []).map(f => ({ id: f.id, title: f.title, type: 'short' as const })),
+          ...(shortsPrograms.data || []).map(p => ({ id: p.id, title: p.program_name, type: 'shorts_program' as const })),
+          ...(programs.data || []).map(p => ({ id: p.id, title: p.title, type: 'program' as const })),
         ]
-        setAvailableFilms(films)
-        setAvailablePrograms(programs.data || [])
-        setAvailableGuests(guests.data || [])
-        // Load theater houses for venues separately
+        setAllFilms(films)
+
+        // Load theater houses for venues
         if (venues.data && venues.data.length > 0) {
           const venuesWithHouses = await Promise.all(
             venues.data.map(async (venue) => {
@@ -140,7 +133,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
                 .from('theater_houses')
                 .select('house_name, seat_count')
                 .eq('venue_id', venue.id)
-              
+
               return { ...venue, theater_houses: houses || [] }
             })
           )
@@ -148,148 +141,175 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         } else {
           setAvailableVenues(venues.data || [])
         }
-
-        // Extract unique short film program names
-        const uniquePrograms = new Set<string>()
-        shortFilmProgramsData.data?.forEach(item => {
-          if (item.programs) {
-            // Split by comma and trim
-            const programNames = item.programs.split(',').map((p: string) => p.trim())
-            programNames.forEach(name => {
-              if (name) uniquePrograms.add(name)
-            })
-          }
-        })
-        setShortFilmPrograms(Array.from(uniquePrograms))
-
       } catch (error) {
         console.error('Error loading suggestion data:', error)
       }
     }
-    
+
     if (isOpen) {
       loadSuggestionData()
     }
   }, [isOpen, supabase, currentYear])
 
-  // Initialize form data when photoShoot changes
+  // Initialize form data when photoShoot changes (edit mode)
   useEffect(() => {
-    if (photoShoot) {
-      setFormData({
-        film_program_titles: photoShoot.film_program_display_combined || '',
-        subjects: photoShoot.subjects_display_combined || '',
-        venue_id: photoShoot.venue_id || '',
-        house: photoShoot.house || '',
-        shoot_date: photoShoot.shoot_date || '',
-        call_time: photoShoot.call_time || '',
-        shoot_time: photoShoot.shoot_time || '',
-        film_program_start_time: photoShoot.film_program_start_time || '',
-        photographer: photoShoot.photographer || '',
-        videographer: photoShoot.videographer || '',
-        intro_qa: photoShoot.intro_qa || '',
-        // special_event: photoShoot.special_event || '',  // Removed - to be implemented later
-        selects_received: photoShoot.selects_received || false,
-        sent_to_pr: photoShoot.sent_to_pr || false
-      })
-      
-      // Set up house field if venue has houses
-      if (photoShoot.venue_id) {
-        const selectedVenue = availableVenues.find(v => v.id === photoShoot.venue_id)
-        if (selectedVenue && selectedVenue.theater_houses && selectedVenue.theater_houses.length > 0) {
-          const houses = selectedVenue.theater_houses.map(house => house.house_name)
-          setSelectedVenueHouses(houses)
-          setShowHouseField(true)
+    const initEditForm = async () => {
+      if (photoShoot) {
+        // Load junction data to reconstruct chips
+        const [{ data: junctionFilms }, { data: junctionSubjects }] = await Promise.all([
+          supabase
+            .from('photo_shoot_films')
+            .select('film_id, film_type')
+            .eq('photo_shoot_id', photoShoot.id),
+          supabase
+            .from('photo_shoot_subjects')
+            .select('guest_id, guests!inner(id, name)')
+            .eq('photo_shoot_id', photoShoot.id),
+        ])
+
+        // Build film chips from junction data
+        const filmChips: (ChipItem & { filmType?: string })[] = (junctionFilms || []).map(jf => {
+          const filmOption = allFilms.find(f => f.id === jf.film_id && f.type === jf.film_type)
+          return {
+            id: jf.film_id,
+            label: filmOption?.title || 'Unknown',
+            type: jf.film_type,
+            filmType: jf.film_type,
+          }
+        })
+
+        // Add free-text films from film_program_description
+        if (photoShoot.film_program_description) {
+          photoShoot.film_program_description.split(',').map((t: string) => t.trim()).filter(Boolean).forEach((title: string) => {
+            filmChips.push({ label: title })
+          })
         }
+
+        // Build subject chips from junction data
+        const subjectChips: ChipItem[] = (junctionSubjects || []).map((js: any) => ({
+          id: js.guest_id,
+          label: js.guests?.name || 'Unknown',
+        }))
+
+        // Add free-text subjects from subjects_description
+        if (photoShoot.subjects_description) {
+          photoShoot.subjects_description.split(',').map((s: string) => s.trim()).filter(Boolean).forEach((name: string) => {
+            subjectChips.push({ label: name })
+          })
+        }
+
+        setFormData({
+          filmChips,
+          subjectChips,
+          venue_id: photoShoot.venue_id || '',
+          house: photoShoot.house || '',
+          shoot_date: photoShoot.shoot_date || '',
+          call_time: photoShoot.call_time || '',
+          shoot_time: photoShoot.shoot_time || '',
+          film_program_start_time: photoShoot.film_program_start_time || '',
+          photographer: photoShoot.photographer || '',
+          videographer: photoShoot.videographer || '',
+          intro_qa: photoShoot.intro_qa || '',
+          selects_received: photoShoot.selects_received || false,
+          sent_to_pr: photoShoot.sent_to_pr || false
+        })
+
+        // Set up house field if venue has houses
+        if (photoShoot.venue_id) {
+          const selectedVenue = availableVenues.find(v => v.id === photoShoot.venue_id)
+          if (selectedVenue && selectedVenue.theater_houses && selectedVenue.theater_houses.length > 0) {
+            const houses = selectedVenue.theater_houses.map(house => house.house_name)
+            setSelectedVenueHouses(houses)
+            setShowHouseField(true)
+          }
+        }
+      } else {
+        setFormData({
+          filmChips: [],
+          subjectChips: [],
+          venue_id: '',
+          house: '',
+          shoot_date: '',
+          call_time: '',
+          shoot_time: '',
+          film_program_start_time: '',
+          photographer: '',
+          videographer: '',
+          intro_qa: '',
+          selects_received: false,
+          sent_to_pr: false
+        })
       }
-    } else {
-      setFormData({
-        film_program_titles: '',
-        subjects: '',
-        venue_id: '',
-        house: '',
-        shoot_date: '',
-        call_time: '',
-        shoot_time: '',
-        film_program_start_time: '',
-        photographer: '',
-        videographer: '',
-        intro_qa: '',
-        // special_event: '',  // Removed - to be implemented later
-        selects_received: false,
-        sent_to_pr: false
-      })
+      setErrors({})
     }
-    setErrors({})
-  }, [photoShoot, isOpen, availableVenues])
 
-  // Handle Film/Program autocomplete filtering
-  const handleFilmProgramInput = (value: string) => {
-    setFormData(prev => ({ ...prev, film_program_titles: value }))
-    
-    // Get the last entered term (after last comma)
-    const terms = value.split(',').map(t => t.trim())
-    const lastTerm = terms[terms.length - 1]
-    
-    if (lastTerm.length >= 1) {
-      const filmSuggestions = availableFilms
-        .filter(film => film.title.toLowerCase().includes(lastTerm.toLowerCase()))
-        .map(film => ({ ...film, type: film.type }))
-      
-      const programSuggestions = availablePrograms
-        .filter(program => program.title.toLowerCase().includes(lastTerm.toLowerCase()))
-        .map(program => ({ ...program, type: 'program' as const }))
-
-      const shortProgramSuggestions = shortFilmPrograms
-        .filter(program => program.toLowerCase().includes(lastTerm.toLowerCase()))
-        .map(program => ({ id: program, title: program, type: 'short_program' as const }))
-      
-      const allSuggestions = [...filmSuggestions, ...programSuggestions, ...shortProgramSuggestions]
-      setFilteredFilmSuggestions(allSuggestions.slice(0, 8)) // Limit to 8 suggestions
-      setShowFilmSuggestions(allSuggestions.length > 0)
-    } else {
-      setShowFilmSuggestions(false)
+    if (isOpen) {
+      initEditForm()
     }
+  }, [photoShoot, isOpen, availableVenues, allFilms, supabase])
+
+  // Film search for ChipSelect
+  const handleFilmSearch = useCallback(async (query: string): Promise<ChipSelectSuggestion[]> => {
+    const lower = query.toLowerCase()
+    return allFilms
+      .filter(f => f.title.toLowerCase().includes(lower))
+      .slice(0, 15)
+      .map(f => ({
+        id: f.id,
+        label: f.title,
+        sublabel: f.type === 'feature' ? 'Feature Film' :
+                  f.type === 'short' ? 'Short Film' :
+                  f.type === 'shorts_program' ? 'Shorts Program' : 'Program',
+        type: f.type,
+      }))
+  }, [allFilms])
+
+  // Subject search for ChipSelect — queries guests table
+  const handleSubjectSearch = useCallback(async (query: string): Promise<ChipSelectSuggestion[]> => {
+    if (query.length < 1) return []
+
+    try {
+      const { data, error } = await supabase
+        .from('guests')
+        .select('id, name')
+        .ilike('name', `%${query}%`)
+        .eq('festival_year', currentYear)
+        .limit(10)
+
+      if (error) throw error
+
+      return (data || []).map(guest => ({
+        id: guest.id,
+        label: guest.name,
+        sublabel: 'Guest',
+      }))
+    } catch (error) {
+      console.error('Error searching guests:', error)
+      return []
+    }
+  }, [supabase, currentYear])
+
+  // Handle film chips change
+  const handleFilmChipsChange = (items: ChipItem[]) => {
+    const enriched = items.map(item => {
+      const filmOption = allFilms.find(f => f.id === item.id)
+      return {
+        ...item,
+        filmType: filmOption?.type || item.type || undefined,
+      }
+    })
+    setFormData(prev => ({ ...prev, filmChips: enriched }))
   }
 
-  // Handle Film/Program suggestion selection
-  const handleFilmSuggestionSelect = (suggestion: {id: string, title: string, type: 'feature' | 'short' | 'program' | 'short_program'}) => {
-    const terms = formData.film_program_titles.split(',').map(t => t.trim())
-    terms[terms.length - 1] = suggestion.title
-    setFormData(prev => ({ ...prev, film_program_titles: terms.join(', ') }))
-    setShowFilmSuggestions(false)
-  }
-
-  // Handle Subjects autocomplete filtering
-  const handleSubjectsInput = (value: string) => {
-    setFormData(prev => ({ ...prev, subjects: value }))
-    
-    // Get the last entered term (after last comma)
-    const terms = value.split(',').map(t => t.trim())
-    const lastTerm = terms[terms.length - 1]
-    
-    if (lastTerm.length >= 1) {
-      const guestSuggestions = availableGuests
-        .filter(guest => guest.name.toLowerCase().includes(lastTerm.toLowerCase()))
-      
-      setFilteredSubjectSuggestions(guestSuggestions.slice(0, 8)) // Limit to 8 suggestions
-      setShowSubjectSuggestions(guestSuggestions.length > 0)
-    } else {
-      setShowSubjectSuggestions(false)
-    }
-  }
-
-  // Handle Subjects suggestion selection
-  const handleSubjectSuggestionSelect = (suggestion: {id: string, name: string}) => {
-    const terms = formData.subjects.split(',').map(t => t.trim())
-    terms[terms.length - 1] = suggestion.name
-    setFormData(prev => ({ ...prev, subjects: terms.join(', ') }))
-    setShowSubjectSuggestions(false)
+  // Handle subject chips change
+  const handleSubjectChipsChange = (items: ChipItem[]) => {
+    setFormData(prev => ({ ...prev, subjectChips: items }))
   }
 
   // Handle venue selection and show house field if venue has houses
   const handleVenueChange = (venueId: string) => {
     setFormData(prev => ({ ...prev, venue_id: venueId, house: '' }))
-    
+
     if (venueId) {
       const selectedVenue = availableVenues.find(v => v.id === venueId)
 
@@ -307,30 +327,28 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     }
   }
 
-  // Special Event functions removed - to be implemented later
-
   // Handle 2-digit year conversion for date fields
   const normalizeDateValue = (dateValue: string): string => {
     if (!dateValue) return dateValue
-    
+
     // Check if it's in MM/DD/YY or similar format
     const dateRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/
     const match = dateValue.match(dateRegex)
-    
+
     if (match) {
       const [, month, day, year] = match
       const fullYear = `20${year}` // Convert YY to 20YY
       return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
     }
-    
+
     return dateValue
   }
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
 
-    if (!formData.film_program_titles.trim()) {
-      newErrors.film_program_titles = 'Film/Program is required'
+    if (formData.filmChips.length === 0) {
+      newErrors.films = 'At least one Film/Program is required'
     }
 
     setErrors(newErrors)
@@ -350,7 +368,13 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
       // Get current festival year
       const festivalYear = await getFestivalYear()
 
-      // Prepare the main photo shoot data (without descriptions - will be added after matching)
+      // Separate FK-linked and free-text items
+      const fkFilms = formData.filmChips.filter(chip => chip.id)
+      const freeTextFilms = formData.filmChips.filter(chip => !chip.id)
+      const fkSubjects = formData.subjectChips.filter(chip => chip.id)
+      const freeTextSubjects = formData.subjectChips.filter(chip => !chip.id)
+
+      // Prepare the main photo shoot data
       const photoShootData = {
         venue_id: formData.venue_id || null,
         house: formData.house || null,
@@ -361,7 +385,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         photographer: formData.photographer.trim() || null,
         videographer: formData.videographer.trim() || null,
         intro_qa: formData.intro_qa || null,
-        // special_event: formData.special_event.trim() || null,  // Removed - to be implemented later
+        film_program_description: freeTextFilms.length > 0 ? freeTextFilms.map(c => c.label).join(', ') : null,
+        subjects_description: freeTextSubjects.length > 0 ? freeTextSubjects.map(c => c.label).join(', ') : null,
         selects_received: formData.selects_received,
         sent_to_pr: formData.sent_to_pr,
         updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
@@ -381,6 +406,12 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
 
         if (error) throw error
         savedPhotoShoot = data
+
+        // Clear existing associations
+        await Promise.all([
+          supabase.from('photo_shoot_films').delete().eq('photo_shoot_id', photoShoot.id),
+          supabase.from('photo_shoot_subjects').delete().eq('photo_shoot_id', photoShoot.id)
+        ])
       } else {
         // Create new photo shoot
         const { data, error } = await supabase
@@ -397,30 +428,31 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         savedPhotoShoot = data
       }
 
-      // THE KEY FIX: Handle associations and get unmatched items
-      const { unmatchedFilms, unmatchedSubjects } = await handleAssociations(savedPhotoShoot.id, formData.film_program_titles, formData.subjects, festivalYear)
-
-      // Update photo shoot with only unmatched items in description fields
-      if (unmatchedFilms.length > 0 || unmatchedSubjects.length > 0) {
-        const { error: updateError } = await supabase
-          .from('photo_shoots')
-          .update({
-            film_program_description: unmatchedFilms.length > 0 ? unmatchedFilms.join(', ') : null,
-            subjects_description: unmatchedSubjects.length > 0 ? unmatchedSubjects.join(', ') : null
-          })
-          .eq('id', savedPhotoShoot.id)
-
-        if (updateError) {
-          console.error('Error updating photo shoot descriptions:', updateError)
-        }
+      // Insert FK-linked films into junction table
+      if (fkFilms.length > 0) {
+        const filmInserts = fkFilms.map(chip => ({
+          photo_shoot_id: savedPhotoShoot.id,
+          film_id: chip.id!,
+          film_type: chip.type || chip.filmType || 'feature',
+          festival_year: parseInt(festivalYear, 10),
+        }))
+        const { error: filmError } = await supabase
+          .from('photo_shoot_films')
+          .insert(filmInserts)
+        if (filmError) console.error('Error inserting photo shoot films:', filmError)
       }
 
-      // Special Event linking removed - to be implemented later
-
-      // Add venue name for display
-      if (savedPhotoShoot.venue_id) {
-        const venue = availableVenues.find(v => v.id === savedPhotoShoot.venue_id)
-        savedPhotoShoot.venue_name = venue?.name
+      // Insert FK-linked subjects into junction table
+      if (fkSubjects.length > 0) {
+        const subjectInserts = fkSubjects.map(chip => ({
+          photo_shoot_id: savedPhotoShoot.id,
+          guest_id: chip.id!,
+          festival_year: parseInt(festivalYear, 10),
+        }))
+        const { error: subjectError } = await supabase
+          .from('photo_shoot_subjects')
+          .insert(subjectInserts)
+        if (subjectError) console.error('Error inserting photo shoot subjects:', subjectError)
       }
 
       onSave(savedPhotoShoot)
@@ -433,92 +465,15 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     }
   }
 
-  // THE CORE FIX: Proper association handling - returns unmatched items
-  const handleAssociations = async (photoShootId: string, filmProgramTitles: string, subjectNames: string, festivalYear: string) => {
-    const unmatchedFilms: string[] = []
-    const unmatchedSubjects: string[] = []
-
-    // Clear existing associations if editing
-    if (photoShoot) {
-      await Promise.all([
-        supabase.from('photo_shoot_films').delete().eq('photo_shoot_id', photoShootId),
-        supabase.from('photo_shoot_subjects').delete().eq('photo_shoot_id', photoShootId)
-      ])
-    }
-
-    // Handle Film/Program associations using greedy longest-match (handles commas in titles)
-    if (filmProgramTitles.trim()) {
-      // Build combined list sorted longest-first for greedy matching
-      const allKnownFilms = [
-        ...availableFilms.map(f => ({ id: f.id, title: f.title, type: f.type as string })),
-        ...availablePrograms.map(p => ({ id: p.id, title: p.title, type: 'program' }))
-      ].sort((a, b) => b.title.length - a.title.length)
-
-      const matchedFilms: { id: string, title: string, type: string }[] = []
-      let remainingText = filmProgramTitles.trim()
-
-      for (const film of allKnownFilms) {
-        const escaped = film.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const regex = new RegExp(escaped, 'i')
-        if (regex.test(remainingText)) {
-          matchedFilms.push(film)
-          remainingText = remainingText
-            .replace(regex, '')
-            .replace(/^\s*[,|]+\s*|\s*[,|]+\s*$/g, '')
-            .replace(/\s*[,|]+\s*/g, ',')
-            .trim()
-        }
-      }
-
-      // Insert matched films into junction table
-      for (const film of matchedFilms) {
-        await supabase.from('photo_shoot_films').insert({
-          photo_shoot_id: photoShootId,
-          film_id: film.id,
-          film_type: film.type,
-          festival_year: parseInt(festivalYear, 10)
-        })
-      }
-
-      // Any remaining comma-separated tokens are unmatched (free-text)
-      const tokens = remainingText.split(',').map(t => t.trim()).filter(t => t)
-      unmatchedFilms.push(...tokens)
-    }
-
-    // Handle Subject associations
-    if (subjectNames.trim()) {
-      const names = subjectNames.split(',').map(name => name.trim()).filter(name => name)
-
-      for (const name of names) {
-        // Try to match with guests
-        const guest = availableGuests.find(g => g.name === name)
-        if (guest) {
-          await supabase.from('photo_shoot_subjects').insert({
-            photo_shoot_id: photoShootId,
-            guest_id: guest.id,
-            festival_year: parseInt(festivalYear, 10)
-          })
-        } else {
-          // Unmatched subjects go to subjects_description (view handles display)
-          unmatchedSubjects.push(name)
-        }
-      }
-    }
-
-    return { unmatchedFilms, unmatchedSubjects }
-  }
-
-  // Special Event linking function removed - to be implemented later
-
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 pointer-events-none">
-      <div 
+      <div
         className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto pointer-events-auto"
         onClick={(e) => e.stopPropagation()}
-        style={{ 
-          left: `${position.x}px`, 
+        style={{
+          left: `${position.x}px`,
           top: `${position.y}px`,
           cursor: isDragging ? 'grabbing' : 'default',
           maxWidth: '1000px',
@@ -528,7 +483,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
       >
         <form onSubmit={handleSubmit}>
           {/* Draggable Header */}
-          <div 
+          <div
             className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg cursor-grab active:cursor-grabbing flex justify-between items-center"
             onMouseDown={handleMouseDown}
           >
@@ -545,97 +500,32 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
           </div>
 
           <div className="p-6 space-y-6">
-            {/* Film/Program Field - REQUIRED */}
+            {/* Film/Program ChipSelect */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Film / Program <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={formData.film_program_titles}
-                  onChange={(e) => handleFilmProgramInput(e.target.value)}
-                  onFocus={() => {
-                    if (filteredFilmSuggestions.length > 0) {
-                      setShowFilmSuggestions(true)
-                    }
-                  }}
-                  onBlur={() => {
-                    setTimeout(() => setShowFilmSuggestions(false), 200)
-                  }}
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.film_program_titles ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter film or program titles separated by commas"
-                />
-                
-                {/* Film/Program suggestions */}
-                {showFilmSuggestions && filteredFilmSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                    {filteredFilmSuggestions.map((suggestion, index) => (
-                      <div
-                        key={`${suggestion.type}-${suggestion.id}`}
-                        className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                        onClick={() => handleFilmSuggestionSelect(suggestion)}
-                      >
-                        <span className="font-medium">{suggestion.title}</span>
-                        <span className="text-gray-500 text-xs ml-2">
-                          ({suggestion.type === 'feature' ? 'Feature Film' : 
-                            suggestion.type === 'short' ? 'Short Film' :
-                            suggestion.type === 'program' ? 'Program' : 'Short Film Program'})
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {errors.film_program_titles && <p className="text-sm text-red-600 mt-1">{errors.film_program_titles}</p>}
-              <p className="text-sm text-gray-500 mt-1">
-                Separate multiple films/programs with commas. Matched items will be linked to existing records.
-              </p>
+              <ChipSelect
+                items={formData.filmChips}
+                onChange={handleFilmChipsChange}
+                onSearch={handleFilmSearch}
+                placeholder="Search films or programs..."
+                label="Film / Program"
+                required={true}
+                allowFreeText={true}
+                helpText="Search for existing titles or type to add free text."
+              />
+              {errors.films && <p className="text-sm text-red-600 mt-1">{errors.films}</p>}
             </div>
 
-            {/* Subjects Field */}
+            {/* Subjects ChipSelect */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Subject(s)
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={formData.subjects}
-                  onChange={(e) => handleSubjectsInput(e.target.value)}
-                  onFocus={() => {
-                    if (filteredSubjectSuggestions.length > 0) {
-                      setShowSubjectSuggestions(true)
-                    }
-                  }}
-                  onBlur={() => {
-                    setTimeout(() => setShowSubjectSuggestions(false), 200)
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter subject names separated by commas"
-                />
-                
-                {/* Subject suggestions */}
-                {showSubjectSuggestions && filteredSubjectSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                    {filteredSubjectSuggestions.map((suggestion, index) => (
-                      <div
-                        key={suggestion.id}
-                        className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                        onClick={() => handleSubjectSuggestionSelect(suggestion)}
-                      >
-                        <span className="font-medium">{suggestion.name}</span>
-                        <span className="text-gray-500 text-xs ml-2">(Guest)</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <p className="text-sm text-gray-500 mt-1">
-                Separate multiple subjects with commas. Matched names will be linked to Guest Cards.
-              </p>
+              <ChipSelect
+                items={formData.subjectChips}
+                onChange={handleSubjectChipsChange}
+                onSearch={handleSubjectSearch}
+                placeholder="Search guests..."
+                label="Subject(s)"
+                allowFreeText={true}
+                helpText="Search for guests or type to add free text."
+              />
             </div>
 
             {/* Venue and House */}
@@ -655,7 +545,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
                   ))}
                 </select>
               </div>
-              
+
               {/* House field - only shown for movie theaters */}
               {showHouseField && (
                 <div>
@@ -760,8 +650,6 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
               </div>
             </div>
 
-            {/* Special Event Field removed - to be implemented later */}
-
             {/* Checkboxes */}
             <div className="flex items-center space-x-6">
               <div className="flex items-center">
@@ -804,9 +692,9 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
                           .from('photo_shoots')
                           .delete()
                           .eq('id', photoShoot.id)
-                        
+
                         if (error) throw error
-                        
+
                         // Close modal and refresh the list
                         onClose()
                         window.location.reload() // Temporary - should update parent state

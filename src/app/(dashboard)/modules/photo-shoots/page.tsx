@@ -9,61 +9,39 @@ import { PhotoShootFormModal } from '@/components/forms/photo-shoot-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import { PhotoShootCard } from '@/types'
 import * as XLSX from 'xlsx-js-style'
 
-interface PhotoShoot {
-  id: string
-  film_program_display_combined: string // Hybrid: relational + free text
-  subjects_display_combined: string // Hybrid: relational + free text
-  venue_id: string | null
-  venue_name_from_fk: string | null // From view
-  house: string | null
-  shoot_date: string | null
-  call_time: string | null
-  shoot_time: string | null
-  film_program_start_time: string | null
-  photographer: string | null
-  videographer: string | null
-  intro_qa: string | null
-  selects_received: boolean
-  sent_to_pr: boolean
-  created_at: string
-  updated_at: string
-  created_by: string
+interface JunctionFilm {
+  photo_shoot_id: string
+  film_id: string
+  film_type: string
 }
 
-interface PhotoShootFormData {
-  film_program_titles: string
-  subjects: string
-  venue_id: string
-  shoot_date: string
-  call_time: string
-  shoot_time: string
-  film_program_start_time: string
-  photographer: string
-  videographer: string
-  intro_qa: string
-  selects_received: boolean
-  sent_to_pr: boolean
+interface JunctionSubject {
+  photo_shoot_id: string
+  guest_id: string
 }
 
 export default function PhotoShootsPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
   const { currentYear } = useFestivalYear()
-  const [photoShoots, setPhotoShoots] = useState<PhotoShoot[]>([])
+  const [photoShoots, setPhotoShoots] = useState<PhotoShootCard[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
-  const [selectedShoot, setSelectedShoot] = useState<PhotoShoot | null>(null)
+  const [selectedShoot, setSelectedShoot] = useState<PhotoShootCard | null>(null)
   const [selectsFilter, setSelectsFilter] = useState<'all' | 'pending' | 'received'>('all')
   const [prFilter, setPrFilter] = useState<'all' | 'pending' | 'sent'>('all')
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'shoot_date', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [showFilmCard, setShowFilmCard] = useState<any>(null)
   const [showGuestCard, setShowGuestCard] = useState<any>(null)
-  const [existingFilms, setExistingFilms] = useState<Set<string>>(new Set())
-  const [existingGuests, setExistingGuests] = useState<Set<string>>(new Set())
+
+  // Junction data maps: shoot_id -> films/subjects with IDs
+  const [junctionFilmsMap, setJunctionFilmsMap] = useState<Map<string, JunctionFilm[]>>(new Map())
+  const [junctionSubjectsMap, setJunctionSubjectsMap] = useState<Map<string, JunctionSubject[]>>(new Map())
 
   const supabase = createClient()
 
@@ -88,16 +66,16 @@ export default function PhotoShootsPage() {
       { field: 'selects_received', display: 'Selects Received' },
       { field: 'sent_to_pr', display: 'Sent to PR' }
     ]
-    
+
     const headers = headerMapping.map(h => h.display)
-    
+
     // Create workbook and worksheet
     const wb = XLSX.utils.book_new()
     const ws = XLSX.utils.aoa_to_sheet([headers])
-    
+
     // Style headers - bold with light grey background
-    const headerStyle = { 
-      font: { bold: true, sz: 12, name: 'Arial' }, 
+    const headerStyle = {
+      font: { bold: true, sz: 12, name: 'Arial' },
       fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
       alignment: { horizontal: "center", vertical: "center" },
       border: {
@@ -107,23 +85,23 @@ export default function PhotoShootsPage() {
         right: { style: "thin", color: { rgb: "CCCCCC" } }
       }
     }
-    
+
     // Apply styles and set column widths based on header length
     const cols: any[] = []
     headers.forEach((header, index) => {
       const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
       if (!ws[cellRef]) ws[cellRef] = {}
       ws[cellRef].s = headerStyle
-      
+
       // Calculate column width based on header length (min 15, max 30)
       cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
     })
-    
+
     ws['!cols'] = cols
-    
+
     // Freeze the header row
     ws['!freeze'] = { xSplit: 0, ySplit: 1 }
-    
+
     XLSX.utils.book_append_sheet(wb, ws, 'Photo Shoots Template')
     XLSX.writeFile(wb, 'photo_shoots_import_template.xlsx')
   }
@@ -139,46 +117,50 @@ export default function PhotoShootsPage() {
 
       if (error) throw error
 
-      setPhotoShoots(shootsData || [])
+      const shoots: PhotoShootCard[] = shootsData || []
+      setPhotoShoots(shoots)
 
-      // Check which films/programs and guests exist in database
-      await checkExistingItems(shootsData || [])
+      // Load junction data for all loaded shoot IDs
+      if (shoots.length > 0) {
+        const shootIds = shoots.map(s => s.id)
+
+        const [{ data: filmsData }, { data: subjectsData }] = await Promise.all([
+          supabase
+            .from('photo_shoot_films')
+            .select('photo_shoot_id, film_id, film_type')
+            .in('photo_shoot_id', shootIds),
+          supabase
+            .from('photo_shoot_subjects')
+            .select('photo_shoot_id, guest_id')
+            .in('photo_shoot_id', shootIds),
+        ])
+
+        // Build maps
+        const filmsMap = new Map<string, JunctionFilm[]>()
+        ;(filmsData || []).forEach(jf => {
+          const list = filmsMap.get(jf.photo_shoot_id) || []
+          list.push(jf)
+          filmsMap.set(jf.photo_shoot_id, list)
+        })
+        setJunctionFilmsMap(filmsMap)
+
+        const subjectsMap = new Map<string, JunctionSubject[]>()
+        ;(subjectsData || []).forEach(js => {
+          const list = subjectsMap.get(js.photo_shoot_id) || []
+          list.push(js)
+          subjectsMap.set(js.photo_shoot_id, list)
+        })
+        setJunctionSubjectsMap(subjectsMap)
+      } else {
+        setJunctionFilmsMap(new Map())
+        setJunctionSubjectsMap(new Map())
+      }
     } catch (error) {
       console.error('Error loading photo shoots:', error)
     } finally {
       setLoading(false)
     }
   }, [supabase, currentYear])
-
-  const checkExistingItems = async (shoots: PhotoShoot[]) => {
-    const allFilmTitles = new Set<string>()
-
-    // Collect all unique titles from combined display
-    shoots.forEach(shoot => {
-      if (shoot.film_program_display_combined) {
-        shoot.film_program_display_combined.split(' || ').forEach(title => {
-          allFilmTitles.add(title.trim())
-        })
-      }
-    })
-
-    // For films, assume all items exist and make them clickable
-    // We'll check existence when clicked instead of preloading
-    setExistingFilms(allFilmTitles)
-
-    // For guests, load actual guest names from the database
-    try {
-      const { data: guestsData } = await supabase
-        .from('guests')
-        .select('name')
-        .eq('festival_year', currentYear)
-
-      const actualGuestNames = new Set((guestsData || []).map(g => g.name))
-      setExistingGuests(actualGuestNames)
-    } catch (error) {
-      console.error('Error loading guests:', error)
-    }
-  }
 
   useEffect(() => {
     loadPhotoShoots()
@@ -189,7 +171,7 @@ export default function PhotoShootsPage() {
     return photoShoots.filter(shoot => {
       // Search filter with accent-insensitive search
       if (searchTerm) {
-        const searchFilter = createAccentInsensitiveFilter<PhotoShoot>(
+        const searchFilter = createAccentInsensitiveFilter<PhotoShootCard>(
           searchTerm,
           (shoot) => [
             shoot.film_program_display_combined,
@@ -206,7 +188,7 @@ export default function PhotoShootsPage() {
       if (selectsFilter === 'pending' && shoot.selects_received) return false
       if (selectsFilter === 'received' && !shoot.selects_received) return false
 
-      // PR filter  
+      // PR filter
       if (prFilter === 'pending' && shoot.sent_to_pr) return false
       if (prFilter === 'sent' && !shoot.sent_to_pr) return false
 
@@ -219,12 +201,12 @@ export default function PhotoShootsPage() {
     if (!sortConfig) return filteredPhotoShoots
 
     return [...filteredPhotoShoots].sort((a, b) => {
-      const aValue = a[sortConfig.key as keyof PhotoShoot]
-      const bValue = b[sortConfig.key as keyof PhotoShoot]
-      
+      const aValue = a[sortConfig.key as keyof PhotoShootCard]
+      const bValue = b[sortConfig.key as keyof PhotoShootCard]
+
       if (aValue === null) return 1
       if (bValue === null) return -1
-      
+
       if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
       if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
       return 0
@@ -246,27 +228,27 @@ export default function PhotoShootsPage() {
 
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return '—'
-    
+
     // Parse YYYY-MM-DD format with string manipulation only
     const parts = dateString.split('-')
     if (parts.length !== 3) return dateString // Return as-is if not expected format
-    
+
     const year = parts[0].slice(-2) // Get last 2 digits
     const month = parts[1]
     const day = parts[2]
-    
+
     return `${month}/${day}/${year}`
   }
 
   const formatTime = (timeString: string | null): string => {
     if (!timeString) return '—'
-    
+
     // Convert 24-hour format to 12-hour AM/PM format
     const [hours, minutes] = timeString.split(':')
     const hour24 = parseInt(hours, 10)
     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
     const ampm = hour24 >= 12 ? 'PM' : 'AM'
-    
+
     return `${hour12}:${minutes} ${ampm}`
   }
 
@@ -279,9 +261,9 @@ export default function PhotoShootsPage() {
 
       if (error) throw error
 
-      setPhotoShoots(prev => prev.map(shoot => 
-        shoot.id === shootId 
-          ? { ...shoot, [field]: !currentValue } 
+      setPhotoShoots(prev => prev.map(shoot =>
+        shoot.id === shootId
+          ? { ...shoot, [field]: !currentValue }
           : shoot
       ))
     } catch (error) {
@@ -290,129 +272,140 @@ export default function PhotoShootsPage() {
     }
   }
 
-  const checkIfFilmExists = async (filmTitle: string): Promise<boolean> => {
+  // Open film card by ID — queries the correct source table
+  const openFilmCard = async (filmId: string, filmType: string) => {
     try {
-      // Check feature films
-      const { data: featureData } = await supabase
-        .from('feature_films')
-        .select('id')
-        .eq('title', filmTitle)
-        .eq('festival_year', currentYear)
-        .single()
+      let tableName: string
 
-      if (featureData) return true
-
-      // Check short films
-      const { data: shortData } = await supabase
-        .from('short_films')
-        .select('id')
-        .eq('title', filmTitle)
-        .eq('festival_year', currentYear)
-        .single()
-
-      if (shortData) return true
-
-      // Check programs
-      const { data: programData } = await supabase
-        .from('programs')
-        .select('id')
-        .eq('title', filmTitle)
-        .eq('festival_year', currentYear)
-        .single()
-
-      return !!programData
-    } catch {
-      return false
-    }
-  }
-
-  const openFilmCard = async (filmTitle: string) => {
-    try {
-      // Try to find the film in feature_films first
-      let { data: filmData, error } = await supabase
-        .from('feature_films')
-        .select('*')
-        .eq('title', filmTitle)
-        .eq('festival_year', currentYear)
-        .single()
-
-      if (error) {
-        // If not found in feature films, try short films
-        const { data: shortFilmData, error: shortError } = await supabase
-          .from('short_films')
-          .select('*')
-          .eq('title', filmTitle)
-          .eq('festival_year', currentYear)
-          .single()
-
-        if (shortError) {
-          // If not found in films, try programs
-          const { data: programData, error: programError } = await supabase
-            .from('programs')
-            .select('*')
-            .eq('title', filmTitle)
-            .eq('festival_year', currentYear)
-            .single()
-
-          if (programError) {
-            console.warn('Title not found in database:', filmTitle)
-            alert(`"${filmTitle}" not found in database`)
-            return
-          }
-
-          // Found a program - set it as filmData to display
-          filmData = programData
-        } else {
-          filmData = shortFilmData
-        }
+      switch (filmType) {
+        case 'feature':
+          tableName = 'feature_films'
+          break
+        case 'short':
+          tableName = 'short_films'
+          break
+        case 'shorts_program':
+          tableName = 'shorts_programs'
+          break
+        case 'program':
+          tableName = 'programs'
+          break
+        default:
+          tableName = 'feature_films'
       }
 
-      if (filmData) {
-        setShowFilmCard(filmData)
-      }
-    } catch (error) {
-      console.error('Error fetching title:', error)
-      alert('Error loading details')
-    }
-  }
-
-  const checkIfGuestExists = async (guestName: string): Promise<boolean> => {
-    try {
-      const { data } = await supabase
-        .from('guests')
-        .select('id')
-        .eq('name', guestName)
-        .eq('festival_year', currentYear)
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('id', filmId)
         .single()
 
-      return !!data
-    } catch {
-      return false
-    }
-  }
-
-  const openGuestCard = async (guestName: string) => {
-    try {
-      const { data: guestsData, error } = await supabase
-        .from('guests')
-        .select('*')
-        .eq('name', guestName)
-        .eq('festival_year', currentYear)
-        .limit(1)
-
-      const guestData = guestsData?.[0]
-
-      if (error || !guestData) {
-        console.warn('Guest not found in database:', guestName)
-        alert(`Guest "${guestName}" not found in database`)
+      if (error || !data) {
+        console.warn('Film not found:', filmId, filmType)
+        alert('Film not found in database')
         return
       }
 
-      setShowGuestCard(guestData)
+      setShowFilmCard(data)
+    } catch (error) {
+      console.error('Error fetching film:', error)
+      alert('Error loading film details')
+    }
+  }
+
+  // Open guest card by ID
+  const openGuestCard = async (guestId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('guests')
+        .select('*')
+        .eq('id', guestId)
+        .single()
+
+      if (error || !data) {
+        console.warn('Guest not found:', guestId)
+        alert('Guest not found in database')
+        return
+      }
+
+      setShowGuestCard(data)
     } catch (error) {
       console.error('Error fetching guest:', error)
       alert('Error loading guest details')
     }
+  }
+
+  // Helper: render film titles with clickable links for FK-linked items
+  const renderFilmTitles = (shoot: PhotoShootCard) => {
+    if (!shoot.film_program_display_combined) return '—'
+
+    const titles = shoot.film_program_display_combined.split(' || ').map(t => t.trim())
+    const junctionFilms = junctionFilmsMap.get(shoot.id) || []
+
+    return (
+      <div className="flex flex-wrap gap-1">
+        {titles.map((title, index) => {
+          // Try to match this title to a junction film by position
+          // Junction films are ordered, display titles from view are ordered the same way
+          const jf = index < junctionFilms.length ? junctionFilms[index] : undefined
+
+          return (
+            <span key={index}>
+              {jf ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openFilmCard(jf.film_id, jf.film_type)
+                  }}
+                  className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                >
+                  {title}
+                </button>
+              ) : (
+                <span className="text-gray-900">{title}</span>
+              )}
+              {index < titles.length - 1 && <span className="text-gray-400">, </span>}
+            </span>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // Helper: render subject names with clickable links for FK-linked items
+  const renderSubjectNames = (shoot: PhotoShootCard) => {
+    if (!shoot.subjects_display_combined) return '—'
+
+    const names = shoot.subjects_display_combined.split(', ').map(n => n.trim())
+    const junctionSubjects = junctionSubjectsMap.get(shoot.id) || []
+
+    return (
+      <div className="flex flex-wrap gap-1">
+        {names.map((name, index) => {
+          // Match by position — junction subjects are ordered, display names are ordered the same way
+          const js = index < junctionSubjects.length ? junctionSubjects[index] : undefined
+
+          return (
+            <span key={index}>
+              {js ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openGuestCard(js.guest_id)
+                  }}
+                  className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                >
+                  {name}
+                </button>
+              ) : (
+                <span className="text-gray-900">{name}</span>
+              )}
+              {index < names.length - 1 && <span className="text-gray-400">, </span>}
+            </span>
+          )
+        })}
+      </div>
+    )
   }
 
   return (
@@ -475,7 +468,7 @@ export default function PhotoShootsPage() {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-        
+
         {/* Filters Row */}
         <div className="flex flex-wrap items-center gap-4">
           {/* Selects Filter */}
@@ -552,10 +545,10 @@ export default function PhotoShootsPage() {
                       className={`px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative ${
                         column.sortable ? 'cursor-pointer hover:bg-gray-100' : ''
                       } ${
-                        column.key === 'film_program_display' ? 'sticky left-0 bg-gray-50 z-10' : 
+                        column.key === 'film_program_display' ? 'sticky left-0 bg-gray-50 z-10' :
                         column.key === 'subjects_display' ? 'sticky bg-gray-50 z-9' : ''
                       }`}
-                      style={{ 
+                      style={{
                         width: columnWidths[column.key] || column.width,
                         minWidth: column.key === 'film_program_display' || column.key === 'subjects_display' ? `${column.width}px` : '100px',
                         maxWidth: column.key === 'film_program_display' || column.key === 'subjects_display' ? `${columnWidths[column.key] || column.width}px` : 'none',
@@ -579,7 +572,7 @@ export default function PhotoShootsPage() {
                         onMouseDown={(e) => {
                           e.preventDefault()
                           e.stopPropagation()
-                          
+
                           const startX = e.pageX
                           const startWidth = columnWidths[column.key] || column.width || 150
 
@@ -612,64 +605,10 @@ export default function PhotoShootsPage() {
                 {sortedPhotoShoots.map((shoot) => (
                   <tr key={shoot.id} className="hover:bg-gray-50">
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-0 bg-white z-10" style={{ minWidth: `${columnWidths['film_program_display'] || 200}px`, maxWidth: `${columnWidths['film_program_display'] || 200}px` }}>
-                      {shoot.film_program_display_combined ? (
-                        <div className="flex flex-wrap gap-1">
-                          {shoot.film_program_display_combined.split(' || ').map((title, index) => {
-                            const trimmedTitle = title.trim()
-                            const exists = existingFilms.has(trimmedTitle)
-                            return (
-                              <span key={index}>
-                                {exists ? (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      openFilmCard(trimmedTitle)
-                                    }}
-                                    className="text-blue-600 hover:text-blue-800 hover:underline text-left"
-                                  >
-                                    {title}
-                                  </button>
-                                ) : (
-                                  <span className="text-gray-900">{title}</span>
-                                )}
-                                {index < shoot.film_program_display_combined.split(' || ').length - 1 && <span className="text-gray-400">, </span>}
-                              </span>
-                            )
-                          })}
-                        </div>
-                      ) : (
-                        '—'
-                      )}
+                      {renderFilmTitles(shoot)}
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-200px bg-white z-9" style={{ minWidth: `${columnWidths['subjects_display'] || 200}px`, maxWidth: `${columnWidths['subjects_display'] || 200}px`, left: `${columnWidths['film_program_display'] || 200}px` }}>
-                      {shoot.subjects_display_combined ? (
-                        <div className="flex flex-wrap gap-1">
-                          {shoot.subjects_display_combined.split(', ').map((name, index) => {
-                            const trimmedName = name.trim()
-                            const exists = existingGuests.has(trimmedName)
-                            return (
-                              <span key={index}>
-                                {exists ? (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      openGuestCard(trimmedName)
-                                    }}
-                                    className="text-blue-600 hover:text-blue-800 hover:underline text-left"
-                                  >
-                                    {name}
-                                  </button>
-                                ) : (
-                                  <span className="text-gray-900">{name}</span>
-                                )}
-                                {index < shoot.subjects_display_combined.split(', ').length - 1 && <span className="text-gray-400">, </span>}
-                              </span>
-                            )
-                          })}
-                        </div>
-                      ) : (
-                        '—'
-                      )}
+                      {renderSubjectNames(shoot)}
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['venue_name'] || 150}px` }}>
                       {shoot.venue_name_from_fk ? (
@@ -733,7 +672,7 @@ export default function PhotoShootsPage() {
                 {sortedPhotoShoots.length === 0 && (
                   <tr>
                     <td colSpan={canEditPhotoShoots ? 13 : 12} className="px-6 py-12 text-center text-gray-500">
-                      {searchTerm || selectsFilter !== 'all' || prFilter !== 'all' 
+                      {searchTerm || selectsFilter !== 'all' || prFilter !== 'all'
                         ? 'No photo shoots match your filters.'
                         : 'No photo shoots found. Click "Add Shoot" to create your first photo shoot.'
                       }
