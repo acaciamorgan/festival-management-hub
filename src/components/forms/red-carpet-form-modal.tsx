@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { getFestivalYear } from '@/lib/smart-date-parser'
+import { ChipSelect, ChipItem, ChipSelectSuggestion } from '@/components/ui/chip-select'
 
 interface RedCarpetFormModalProps {
   redCarpet?: any[] | null
@@ -13,9 +14,15 @@ interface RedCarpetFormModalProps {
   onSave: (redCarpet: any) => void
 }
 
+interface FilmOption {
+  id: string
+  title: string
+  type: 'feature' | 'short' | 'shorts_program' | 'program'
+}
+
 interface FilmSubjectPair {
-  film_program_title: string
-  subjects: string
+  filmChips: (ChipItem & { filmType?: string })[]
+  subjectChips: ChipItem[]
 }
 
 interface RedCarpetFormData {
@@ -35,7 +42,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
   const { user } = useAuth()
   const { currentYear } = useFestivalYear()
   const [formData, setFormData] = useState<RedCarpetFormData>({
-    film_subject_pairs: [{ film_program_title: '', subjects: '' }],
+    film_subject_pairs: [{ filmChips: [], subjectChips: [] }],
     venue_id: '',
     house: '',
     carpet_date: '',
@@ -51,16 +58,9 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
   const [isDragging, setIsDragging] = useState(false)
   const [position, setPosition] = useState({ x: 100, y: 100 })
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  
-  // Suggestion states - now handled per pair
-  const [availableFilms, setAvailableFilms] = useState<{id: string, title: string, type: 'feature' | 'short'}[]>([])
-  const [availablePrograms, setAvailablePrograms] = useState<{id: string, title: string}[]>([])
-  const [shortFilmPrograms, setShortFilmPrograms] = useState<string[]>([])
-  const [availableGuests, setAvailableGuests] = useState<{id: string, name: string}[]>([])
-  
-  // Track suggestions for each pair
-  const [filmSuggestions, setFilmSuggestions] = useState<Record<number, {suggestions: any[], show: boolean}>>({})
-  const [subjectSuggestions, setSubjectSuggestions] = useState<Record<number, {suggestions: any[], show: boolean}>>({})
+
+  // Data for suggestions
+  const [allFilms, setAllFilms] = useState<FilmOption[]>([])
 
   // Venues
   const [availableVenues, setAvailableVenues] = useState<{id: string, name: string, theater_houses?: {house_name: string, seat_count: number}[]}[]>([])
@@ -96,7 +96,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
       document.addEventListener('mousemove', handleMouseMove)
       document.addEventListener('mouseup', handleMouseUp)
     }
-    
+
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
@@ -107,25 +107,24 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
   useEffect(() => {
     const loadSuggestionData = async () => {
       try {
-        const [featureFilms, shortFilms, programs, guests, venues, shortFilmProgramsData] = await Promise.all([
+        const [featureFilms, shortFilms, shortsPrograms, programs, venues] = await Promise.all([
           supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
           supabase.from('short_films').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear).order('program_name'),
           supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
-          supabase.from('guests').select('id, name').eq('festival_year', currentYear).order('name'),
           supabase.from('venues').select('*').order('name'),
-          // Get unique short film program names
-          supabase.from('short_films').select('programs').eq('festival_year', currentYear).not('programs', 'is', null)
         ])
 
-        // Process films
-        const films = [
-          ...(featureFilms.data || []).map(f => ({ ...f, type: 'feature' as const })),
-          ...(shortFilms.data || []).map(f => ({ ...f, type: 'short' as const }))
+        // Build unified film options
+        const films: FilmOption[] = [
+          ...(featureFilms.data || []).map(f => ({ id: f.id, title: f.title, type: 'feature' as const })),
+          ...(shortFilms.data || []).map(f => ({ id: f.id, title: f.title, type: 'short' as const })),
+          ...(shortsPrograms.data || []).map(p => ({ id: p.id, title: p.program_name, type: 'shorts_program' as const })),
+          ...(programs.data || []).map(p => ({ id: p.id, title: p.title, type: 'program' as const })),
         ]
-        setAvailableFilms(films)
-        setAvailablePrograms(programs.data || [])
-        setAvailableGuests(guests.data || [])
-        // Load theater houses for venues separately
+        setAllFilms(films)
+
+        // Load theater houses for venues
         if (venues.data && venues.data.length > 0) {
           const venuesWithHouses = await Promise.all(
             venues.data.map(async (venue) => {
@@ -141,174 +140,183 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
         } else {
           setAvailableVenues(venues.data || [])
         }
-
-        // Extract unique short film program names
-        const uniquePrograms = new Set<string>()
-        shortFilmProgramsData.data?.forEach(item => {
-          if (item.programs) {
-            // Split by comma and trim
-            const programNames = item.programs.split(',').map((p: string) => p.trim())
-            programNames.forEach(name => {
-              if (name) uniquePrograms.add(name)
-            })
-          }
-        })
-        setShortFilmPrograms(Array.from(uniquePrograms))
-
       } catch (error) {
         console.error('Error loading suggestion data:', error)
       }
     }
-    
+
     if (isOpen) {
       loadSuggestionData()
     }
   }, [isOpen, supabase, currentYear])
 
-  // Initialize form data when redCarpet changes
+  // Initialize form data when redCarpet changes (edit mode)
   useEffect(() => {
-    if (redCarpet && redCarpet.length > 0) {
-      // For editing, convert all records to pairs
-      const pairs: FilmSubjectPair[] = redCarpet.map(carpet => ({
-        film_program_title: carpet.film_program_display_combined || '',
-        subjects: carpet.subjects_display_combined || ''
-      })).filter(pair => pair.film_program_title.trim()) // Remove empty pairs
+    const initEditForm = async () => {
+      if (redCarpet && redCarpet.length > 0) {
+        // Load junction data to reconstruct chips
+        const carpetIds = redCarpet.map(c => c.id)
 
-      // Use the first record for shared fields (venue, date, times)
-      const firstRecord = redCarpet[0]
+        const [{ data: junctionFilms }, { data: junctionSubjects }] = await Promise.all([
+          supabase
+            .from('red_carpet_films')
+            .select('red_carpet_id, film_id, film_type')
+            .in('red_carpet_id', carpetIds),
+          supabase
+            .from('red_carpet_subjects')
+            .select('red_carpet_id, guest_id, guests!inner(id, name)')
+            .in('red_carpet_id', carpetIds),
+        ])
 
-      setFormData({
-        film_subject_pairs: pairs.length > 0 ? pairs : [{ film_program_title: '', subjects: '' }],
-        venue_id: firstRecord.venue_id || '',
-        house: firstRecord.house || '',
-        carpet_date: firstRecord.carpet_date || '',
-        call_time: firstRecord.call_time || '',
-        carpet_start_time: firstRecord.carpet_start_time || '',
-        film_program_start_time: firstRecord.film_program_start_time || '',
-        rsvp_form_url: firstRecord.rsvp_form_url || '',
-        rsvp_responses_url: firstRecord.rsvp_responses_url || '',
-        run_of_show_url: firstRecord.run_of_show_url || ''
-      })
+        // Build pairs from each red carpet record
+        const pairs: FilmSubjectPair[] = redCarpet.map(carpet => {
+          // Film chips: junction-linked films for this carpet
+          const linkedFilms = (junctionFilms || []).filter(jf => jf.red_carpet_id === carpet.id)
+          const filmChips: (ChipItem & { filmType?: string })[] = linkedFilms.map(jf => {
+            const filmOption = allFilms.find(f => f.id === jf.film_id && f.type === jf.film_type)
+            return {
+              id: jf.film_id,
+              label: filmOption?.title || 'Unknown',
+              type: jf.film_type,
+              filmType: jf.film_type,
+            }
+          })
 
-      // Set up house field if venue has houses
-      if (firstRecord.venue_id) {
-        const selectedVenue = availableVenues.find(v => v.id === firstRecord.venue_id)
-        if (selectedVenue && selectedVenue.theater_houses && selectedVenue.theater_houses.length > 0) {
-          const houses = selectedVenue.theater_houses.map(house => house.house_name)
-          setSelectedVenueHouses(houses)
-          setShowHouseField(true)
+          // Add free-text films from film_program_description
+          if (carpet.film_program_description) {
+            carpet.film_program_description.split(',').map((t: string) => t.trim()).filter(Boolean).forEach((title: string) => {
+              filmChips.push({ label: title })
+            })
+          }
+
+          // Subject chips: junction-linked guests for this carpet
+          const linkedSubjects = (junctionSubjects || []).filter((js: any) => js.red_carpet_id === carpet.id)
+          const subjectChips: ChipItem[] = linkedSubjects.map((js: any) => ({
+            id: js.guest_id,
+            label: js.guests?.name || 'Unknown',
+          }))
+
+          // Add free-text subjects from subjects_description
+          if (carpet.subjects_description) {
+            carpet.subjects_description.split(',').map((s: string) => s.trim()).filter(Boolean).forEach((name: string) => {
+              subjectChips.push({ label: name })
+            })
+          }
+
+          return { filmChips, subjectChips }
+        }).filter(pair => pair.filmChips.length > 0 || pair.subjectChips.length > 0)
+
+        const firstRecord = redCarpet[0]
+
+        setFormData({
+          film_subject_pairs: pairs.length > 0 ? pairs : [{ filmChips: [], subjectChips: [] }],
+          venue_id: firstRecord.venue_id || '',
+          house: firstRecord.house || '',
+          carpet_date: firstRecord.carpet_date || '',
+          call_time: firstRecord.call_time || '',
+          carpet_start_time: firstRecord.carpet_start_time || '',
+          film_program_start_time: firstRecord.film_program_start_time || '',
+          rsvp_form_url: firstRecord.rsvp_form_url || '',
+          rsvp_responses_url: firstRecord.rsvp_responses_url || '',
+          run_of_show_url: firstRecord.run_of_show_url || ''
+        })
+
+        // Set up house field if venue has houses
+        if (firstRecord.venue_id) {
+          const selectedVenue = availableVenues.find(v => v.id === firstRecord.venue_id)
+          if (selectedVenue && selectedVenue.theater_houses && selectedVenue.theater_houses.length > 0) {
+            const houses = selectedVenue.theater_houses.map(house => house.house_name)
+            setSelectedVenueHouses(houses)
+            setShowHouseField(true)
+          }
         }
+      } else {
+        setFormData({
+          film_subject_pairs: [{ filmChips: [], subjectChips: [] }],
+          venue_id: '',
+          house: '',
+          carpet_date: '',
+          call_time: '',
+          carpet_start_time: '',
+          film_program_start_time: '',
+          rsvp_form_url: '',
+          rsvp_responses_url: '',
+          run_of_show_url: ''
+        })
       }
-    } else {
-      setFormData({
-        film_subject_pairs: [{ film_program_title: '', subjects: '' }],
-        venue_id: '',
-        house: '',
-        carpet_date: '',
-        call_time: '',
-        carpet_start_time: '',
-        film_program_start_time: '',
-        rsvp_form_url: '',
-        rsvp_responses_url: '',
-        run_of_show_url: ''
-      })
+      setErrors({})
     }
-    setErrors({})
-  }, [redCarpet, isOpen, availableVenues])
 
-  // Handle Film/Program input for specific pair
-  const handleFilmProgramInput = (pairIndex: number, value: string) => {
+    if (isOpen) {
+      initEditForm()
+    }
+  }, [redCarpet, isOpen, availableVenues, allFilms, supabase])
+
+  // Film search for ChipSelect
+  const handleFilmSearch = useCallback(async (query: string): Promise<ChipSelectSuggestion[]> => {
+    const lower = query.toLowerCase()
+    return allFilms
+      .filter(f => f.title.toLowerCase().includes(lower))
+      .slice(0, 15)
+      .map(f => ({
+        id: f.id,
+        label: f.title,
+        sublabel: f.type === 'feature' ? 'Feature Film' :
+                  f.type === 'short' ? 'Short Film' :
+                  f.type === 'shorts_program' ? 'Shorts Program' : 'Program',
+        type: f.type,
+      }))
+  }, [allFilms])
+
+  // Subject search for ChipSelect — queries guests table
+  const handleSubjectSearch = useCallback(async (query: string): Promise<ChipSelectSuggestion[]> => {
+    if (query.length < 1) return []
+
+    try {
+      const { data, error } = await supabase
+        .from('guests')
+        .select('id, name')
+        .ilike('name', `%${query}%`)
+        .eq('festival_year', currentYear)
+        .limit(10)
+
+      if (error) throw error
+
+      return (data || []).map(guest => ({
+        id: guest.id,
+        label: guest.name,
+        sublabel: 'Guest',
+      }))
+    } catch (error) {
+      console.error('Error searching guests:', error)
+      return []
+    }
+  }, [supabase, currentYear])
+
+  // Handle film chips change for a specific pair
+  const handleFilmChipsChange = (pairIndex: number, items: ChipItem[]) => {
+    const enriched = items.map(item => {
+      const filmOption = allFilms.find(f => f.id === item.id)
+      return {
+        ...item,
+        filmType: filmOption?.type || item.type || undefined,
+      }
+    })
     setFormData(prev => ({
       ...prev,
-      film_subject_pairs: prev.film_subject_pairs.map((pair, index) => 
-        index === pairIndex ? { ...pair, film_program_title: value } : pair
+      film_subject_pairs: prev.film_subject_pairs.map((pair, index) =>
+        index === pairIndex ? { ...pair, filmChips: enriched } : pair
       )
     }))
-    
-    if (value.length >= 1) {
-      const filmSuggs = availableFilms
-        .filter(film => film.title.toLowerCase().includes(value.toLowerCase()))
-        .map(film => ({ ...film, type: film.type }))
-      
-      const programSuggs = availablePrograms
-        .filter(program => program.title.toLowerCase().includes(value.toLowerCase()))
-        .map(program => ({ ...program, type: 'program' as const }))
-
-      const shortProgramSuggs = shortFilmPrograms
-        .filter(program => program.toLowerCase().includes(value.toLowerCase()))
-        .map(program => ({ id: program, title: program, type: 'short_program' as const }))
-      
-      const allSuggestions = [...filmSuggs, ...programSuggs, ...shortProgramSuggs]
-      setFilmSuggestions(prev => ({
-        ...prev,
-        [pairIndex]: { suggestions: allSuggestions.slice(0, 8), show: allSuggestions.length > 0 }
-      }))
-    } else {
-      setFilmSuggestions(prev => ({
-        ...prev,
-        [pairIndex]: { suggestions: [], show: false }
-      }))
-    }
   }
 
-  // Handle Film/Program suggestion selection
-  const handleFilmSuggestionSelect = (pairIndex: number, suggestion: {id: string, title: string, type: 'feature' | 'short' | 'program' | 'short_program'}) => {
+  // Handle subject chips change for a specific pair
+  const handleSubjectChipsChange = (pairIndex: number, items: ChipItem[]) => {
     setFormData(prev => ({
       ...prev,
-      film_subject_pairs: prev.film_subject_pairs.map((pair, index) => 
-        index === pairIndex ? { ...pair, film_program_title: suggestion.title } : pair
+      film_subject_pairs: prev.film_subject_pairs.map((pair, index) =>
+        index === pairIndex ? { ...pair, subjectChips: items } : pair
       )
-    }))
-    setFilmSuggestions(prev => ({
-      ...prev,
-      [pairIndex]: { suggestions: [], show: false }
-    }))
-  }
-
-  // Handle Subjects input for specific pair
-  const handleSubjectsInput = (pairIndex: number, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      film_subject_pairs: prev.film_subject_pairs.map((pair, index) => 
-        index === pairIndex ? { ...pair, subjects: value } : pair
-      )
-    }))
-    
-    // Get the last entered term (after last comma)
-    const terms = value.split(',').map(t => t.trim())
-    const lastTerm = terms[terms.length - 1]
-    
-    if (lastTerm.length >= 1) {
-      const guestSuggs = availableGuests
-        .filter(guest => guest.name.toLowerCase().includes(lastTerm.toLowerCase()))
-      
-      setSubjectSuggestions(prev => ({
-        ...prev,
-        [pairIndex]: { suggestions: guestSuggs.slice(0, 8), show: guestSuggs.length > 0 }
-      }))
-    } else {
-      setSubjectSuggestions(prev => ({
-        ...prev,
-        [pairIndex]: { suggestions: [], show: false }
-      }))
-    }
-  }
-
-  // Handle Subjects suggestion selection
-  const handleSubjectSuggestionSelect = (pairIndex: number, suggestion: {id: string, name: string}) => {
-    const currentPair = formData.film_subject_pairs[pairIndex]
-    const terms = currentPair.subjects.split(',').map(t => t.trim())
-    terms[terms.length - 1] = suggestion.name
-    
-    setFormData(prev => ({
-      ...prev,
-      film_subject_pairs: prev.film_subject_pairs.map((pair, index) => 
-        index === pairIndex ? { ...pair, subjects: terms.join(', ') } : pair
-      )
-    }))
-    setSubjectSuggestions(prev => ({
-      ...prev,
-      [pairIndex]: { suggestions: [], show: false }
     }))
   }
 
@@ -316,7 +324,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
   const addFilmSubjectPair = () => {
     setFormData(prev => ({
       ...prev,
-      film_subject_pairs: [...prev.film_subject_pairs, { film_program_title: '', subjects: '' }]
+      film_subject_pairs: [...prev.film_subject_pairs, { filmChips: [], subjectChips: [] }]
     }))
   }
 
@@ -333,7 +341,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
   // Handle venue selection and show house field if venue has houses
   const handleVenueChange = (venueId: string) => {
     setFormData(prev => ({ ...prev, venue_id: venueId, house: '' }))
-    
+
     if (venueId) {
       const selectedVenue = availableVenues.find(v => v.id === venueId)
 
@@ -354,17 +362,16 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
   // Handle 2-digit year conversion for date fields
   const normalizeDateValue = (dateValue: string): string => {
     if (!dateValue) return dateValue
-    
-    // Check if it's in MM/DD/YY or similar format
+
     const dateRegex = /^(\d{1,2})[\\/\-](\d{1,2})[\\/\-](\d{2})$/
     const match = dateValue.match(dateRegex)
-    
+
     if (match) {
       const [, month, day, year] = match
-      const fullYear = `20${year}` // Convert YY to 20YY
+      const fullYear = `20${year}`
       return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
     }
-    
+
     return dateValue
   }
 
@@ -372,14 +379,14 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     const newErrors: Record<string, string> = {}
 
     // Check that at least one pair has a film/program
-    const hasValidPair = formData.film_subject_pairs.some(pair => pair.film_program_title.trim())
+    const hasValidPair = formData.film_subject_pairs.some(pair => pair.filmChips.length > 0)
     if (!hasValidPair) {
       newErrors.film_pairs = 'At least one Film/Program is required'
     }
 
-    // Check each pair for film/program
+    // Check each pair for film/program when subjects are specified
     formData.film_subject_pairs.forEach((pair, index) => {
-      if (pair.subjects.trim() && !pair.film_program_title.trim()) {
+      if (pair.subjectChips.length > 0 && pair.filmChips.length === 0) {
         newErrors[`film_${index}`] = 'Film/Program is required when subjects are specified'
       }
     })
@@ -390,7 +397,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -412,10 +419,12 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
       }
 
       // Now create new records for all pairs
-      const savedRedCarpets = []
-
       for (const pair of formData.film_subject_pairs) {
-        if (!pair.film_program_title.trim()) continue // Skip empty pairs
+        if (pair.filmChips.length === 0) continue // Skip empty pairs
+
+        // Separate FK-linked films and free-text films
+        const fkFilms = pair.filmChips.filter(chip => chip.id)
+        const freeTextFilms = pair.filmChips.filter(chip => !chip.id)
 
         const redCarpetData = {
           venue_id: formData.venue_id || null,
@@ -424,6 +433,10 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
           call_time: formData.call_time || null,
           carpet_start_time: formData.carpet_start_time || null,
           film_program_start_time: formData.film_program_start_time || null,
+          film_program_description: freeTextFilms.length > 0 ? freeTextFilms.map(c => c.label).join(', ') : null,
+          subjects_description: pair.subjectChips.filter(c => !c.id).length > 0
+            ? pair.subjectChips.filter(c => !c.id).map(c => c.label).join(', ')
+            : null,
           rsvp_form_url: (formData.rsvp_form_url && formData.rsvp_form_url.trim()) || null,
           rsvp_responses_url: (formData.rsvp_responses_url && formData.rsvp_responses_url.trim()) || null,
           run_of_show_url: (formData.run_of_show_url && formData.run_of_show_url.trim()) || null,
@@ -431,7 +444,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
           created_by: user?.id
         }
 
-        // Create new red carpet record
+        // Create red carpet record
         const { data, error } = await supabase
           .from('red_carpets')
           .insert([redCarpetData])
@@ -440,32 +453,38 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
 
         if (error) throw error
 
-        // Handle associations for this pair
-        const { unmatchedFilms, unmatchedSubjects } = await handleAssociations(data.id, pair.film_program_title, pair.subjects, festivalYear)
-
-        // Save only unmatched items to description fields
-        if (unmatchedFilms.length > 0 || unmatchedSubjects.length > 0) {
-          await supabase
-            .from('red_carpets')
-            .update({
-              film_program_description: unmatchedFilms.length > 0 ? unmatchedFilms.join(', ') : null,
-              subjects_description: unmatchedSubjects.length > 0 ? unmatchedSubjects.join(', ') : null
-            })
-            .eq('id', data.id)
+        // Insert FK-linked films into junction table
+        if (fkFilms.length > 0) {
+          const filmInserts = fkFilms.map(chip => ({
+            red_carpet_id: data.id,
+            film_id: chip.id!,
+            film_type: chip.type || chip.filmType || 'feature',
+            festival_year: parseInt(festivalYear, 10),
+          }))
+          const { error: filmError } = await supabase
+            .from('red_carpet_films')
+            .insert(filmInserts)
+          if (filmError) console.error('Error inserting red carpet films:', filmError)
         }
 
-        // Add venue name for display
-        if (data.venue_id) {
-          const venue = availableVenues.find(v => v.id === data.venue_id)
-          data.venue_name = venue?.name
+        // Insert FK-linked subjects into junction table (only those with guest_id)
+        const fkSubjects = pair.subjectChips.filter(chip => chip.id)
+        if (fkSubjects.length > 0) {
+          const subjectInserts = fkSubjects.map(chip => ({
+            red_carpet_id: data.id,
+            guest_id: chip.id!,
+            festival_year: parseInt(festivalYear, 10),
+          }))
+          const { error: subjectError } = await supabase
+            .from('red_carpet_subjects')
+            .insert(subjectInserts)
+          if (subjectError) console.error('Error inserting red carpet subjects:', subjectError)
         }
-
-        savedRedCarpets.push(data)
+        // Free-text subjects are already stored in subjects_description on the red_carpets row
       }
 
-      // Trigger a refresh instead of trying to update individual records
       onClose()
-      window.location.reload() // Force refresh to show all new records
+      window.location.reload()
     } catch (error) {
       console.error('Error saving red carpet:', error)
       alert('Error saving red carpet. Please try again.')
@@ -474,103 +493,15 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     }
   }
 
-  // Handle associations
-  const handleAssociations = async (redCarpetId: string, filmProgramTitles: string, subjectNames: string, festivalYear: string) => {
-    const unmatchedFilms: string[] = []
-    const unmatchedSubjects: string[] = []
-
-    // Clear existing associations
-    await Promise.all([
-      supabase.from('red_carpet_films').delete().eq('red_carpet_id', redCarpetId),
-      supabase.from('red_carpet_subjects').delete().eq('red_carpet_id', redCarpetId)
-    ])
-
-    // Handle Film/Program associations (single title per pair — no comma splitting needed)
-    if (filmProgramTitles.trim()) {
-      const title = filmProgramTitles.trim()
-      let matched = false
-
-      // Try to match with feature films
-      const featureFilm = availableFilms.find(f => f.type === 'feature' && f.title === title)
-      if (featureFilm) {
-        await supabase.from('red_carpet_films').insert({
-          red_carpet_id: redCarpetId,
-          film_id: featureFilm.id,
-          film_type: 'feature',
-          festival_year: parseInt(festivalYear, 10)
-        })
-        matched = true
-      }
-
-      // Try to match with short films
-      if (!matched) {
-        const shortFilm = availableFilms.find(f => f.type === 'short' && f.title === title)
-        if (shortFilm) {
-          await supabase.from('red_carpet_films').insert({
-            red_carpet_id: redCarpetId,
-            film_id: shortFilm.id,
-            film_type: 'short',
-            festival_year: parseInt(festivalYear, 10)
-          })
-          matched = true
-        }
-      }
-
-      // Try to match with programs
-      if (!matched) {
-        const program = availablePrograms.find(p => p.title === title)
-        if (program) {
-          await supabase.from('red_carpet_films').insert({
-            red_carpet_id: redCarpetId,
-            film_id: program.id,
-            film_type: 'program',
-            festival_year: parseInt(festivalYear, 10)
-          })
-          matched = true
-        }
-      }
-
-      if (!matched) {
-        unmatchedFilms.push(title)
-      }
-    }
-
-    // Handle Subject associations
-    if (subjectNames.trim()) {
-      const names = subjectNames.split(',').map(name => name.trim()).filter(name => name)
-
-      for (const name of names) {
-        const guest = availableGuests.find(g => g.name === name)
-        if (guest) {
-          await supabase.from('red_carpet_subjects').insert({
-            red_carpet_id: redCarpetId,
-            guest_id: guest.id,
-            festival_year: parseInt(festivalYear, 10)
-          })
-        } else {
-          // Store one-off subjects in junction table with subject_name
-          await supabase.from('red_carpet_subjects').insert({
-            red_carpet_id: redCarpetId,
-            guest_id: null,
-            subject_name: name,
-            festival_year: parseInt(festivalYear, 10)
-          })
-        }
-      }
-    }
-
-    return { unmatchedFilms, unmatchedSubjects }
-  }
-
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 pointer-events-none">
-      <div 
+      <div
         className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto pointer-events-auto"
         onClick={(e) => e.stopPropagation()}
-        style={{ 
-          left: `${position.x}px`, 
+        style={{
+          left: `${position.x}px`,
           top: `${position.y}px`,
           cursor: isDragging ? 'grabbing' : 'default',
           maxWidth: '1000px',
@@ -580,7 +511,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
       >
         <form onSubmit={handleSubmit}>
           {/* Draggable Header */}
-          <div 
+          <div
             className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg cursor-grab active:cursor-grabbing flex justify-between items-center"
             onMouseDown={handleMouseDown}
           >
@@ -611,9 +542,9 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
                   + Add Another Film/Program
                 </button>
               </div>
-              
+
               {errors.film_pairs && <p className="text-sm text-red-600 mb-2">{errors.film_pairs}</p>}
-              
+
               <div className="space-y-4">
                 {formData.film_subject_pairs.map((pair, pairIndex) => (
                   <div key={pairIndex} className="border border-gray-200 rounded-lg p-4">
@@ -631,118 +562,39 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
                         </button>
                       )}
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Film/Program Field */}
+                      {/* Film/Program ChipSelect */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Film / Program
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={pair.film_program_title}
-                            onChange={(e) => handleFilmProgramInput(pairIndex, e.target.value)}
-                            onFocus={() => {
-                              if (filmSuggestions[pairIndex]?.suggestions.length > 0) {
-                                setFilmSuggestions(prev => ({
-                                  ...prev,
-                                  [pairIndex]: { ...prev[pairIndex], show: true }
-                                }))
-                              }
-                            }}
-                            onBlur={() => {
-                              setTimeout(() => {
-                                setFilmSuggestions(prev => ({
-                                  ...prev,
-                                  [pairIndex]: { ...prev[pairIndex], show: false }
-                                }))
-                              }, 200)
-                            }}
-                            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                              errors[`film_${pairIndex}`] ? 'border-red-300' : 'border-gray-300'
-                            }`}
-                            placeholder="Enter film or program title"
-                          />
-                          
-                          {/* Film/Program suggestions */}
-                          {filmSuggestions[pairIndex]?.show && filmSuggestions[pairIndex]?.suggestions.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                              {filmSuggestions[pairIndex].suggestions.map((suggestion, index) => (
-                                <div
-                                  key={`${suggestion.type}-${suggestion.id}`}
-                                  className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                                  onClick={() => handleFilmSuggestionSelect(pairIndex, suggestion)}
-                                >
-                                  <span className="font-medium">{suggestion.title}</span>
-                                  <span className="text-gray-500 text-xs ml-2">
-                                    ({suggestion.type === 'feature' ? 'Feature Film' : 
-                                      suggestion.type === 'short' ? 'Short Film' :
-                                      suggestion.type === 'program' ? 'Program' : 'Short Film Program'})
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        <ChipSelect
+                          items={pair.filmChips}
+                          onChange={(items) => handleFilmChipsChange(pairIndex, items)}
+                          onSearch={handleFilmSearch}
+                          placeholder="Search films or programs..."
+                          label="Film / Program"
+                          allowFreeText={true}
+                          helpText="Search for existing titles or type to add free text."
+                        />
                         {errors[`film_${pairIndex}`] && <p className="text-sm text-red-600 mt-1">{errors[`film_${pairIndex}`]}</p>}
                       </div>
-                      
-                      {/* Subjects Field */}
+
+                      {/* Subjects ChipSelect */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Subject(s)
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={pair.subjects}
-                            onChange={(e) => handleSubjectsInput(pairIndex, e.target.value)}
-                            onFocus={() => {
-                              if (subjectSuggestions[pairIndex]?.suggestions.length > 0) {
-                                setSubjectSuggestions(prev => ({
-                                  ...prev,
-                                  [pairIndex]: { ...prev[pairIndex], show: true }
-                                }))
-                              }
-                            }}
-                            onBlur={() => {
-                              setTimeout(() => {
-                                setSubjectSuggestions(prev => ({
-                                  ...prev,
-                                  [pairIndex]: { ...prev[pairIndex], show: false }
-                                }))
-                              }, 200)
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Enter subject names separated by commas"
-                          />
-                          
-                          {/* Subject suggestions */}
-                          {subjectSuggestions[pairIndex]?.show && subjectSuggestions[pairIndex]?.suggestions.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                              {subjectSuggestions[pairIndex].suggestions.map((suggestion, index) => (
-                                <div
-                                  key={suggestion.id}
-                                  className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                                  onClick={() => handleSubjectSuggestionSelect(pairIndex, suggestion)}
-                                >
-                                  <span className="font-medium">{suggestion.name}</span>
-                                  <span className="text-gray-500 text-xs ml-2">(Guest)</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-500 mt-1">
-                          Separate multiple subjects with commas.
-                        </p>
+                        <ChipSelect
+                          items={pair.subjectChips}
+                          onChange={(items) => handleSubjectChipsChange(pairIndex, items)}
+                          onSearch={handleSubjectSearch}
+                          placeholder="Search guests..."
+                          label="Subject(s)"
+                          allowFreeText={true}
+                          helpText="Search for guests or type to add free text."
+                        />
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-              
+
               <p className="text-sm text-gray-500 mt-2">
                 Each film/program can have its own subjects. Matched items will be linked to existing records.
               </p>
@@ -765,7 +617,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
                   ))}
                 </select>
               </div>
-              
+
               {/* House field - only shown for movie theaters */}
               {showHouseField && (
                 <div>
@@ -883,12 +735,11 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
                           .from('red_carpets')
                           .delete()
                           .in('id', redCarpet.map((c: any) => c.id))
-                        
+
                         if (error) throw error
-                        
-                        // Close modal and refresh the list
+
                         onClose()
-                        window.location.reload() // Temporary - should update parent state
+                        window.location.reload()
                       } catch (error) {
                         console.error('Error deleting red carpet:', error)
                         alert('Error deleting red carpet. Please try again.')

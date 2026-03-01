@@ -9,38 +9,28 @@ import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import { RedCarpetCard } from '@/types'
 import * as XLSX from 'xlsx-js-style'
 
-interface RedCarpet {
-  id: string
-  film_program_display_combined: string // Hybrid: relational + free text
-  subjects_display_combined: string // Hybrid: relational + free text
-  venue_id: string | null
-  venue_name_from_fk: string | null
-  house: string | null
-  carpet_date: string | null
-  call_time: string | null
-  carpet_start_time: string | null
-  film_program_start_time: string | null
-  rsvp_form_url: string | null
-  rsvp_responses_url: string | null
-  run_of_show_url: string | null
-  created_at: string
-  updated_at: string
-  created_by: string
+interface JunctionFilm {
+  red_carpet_id: string
+  film_id: string
+  film_type: string
 }
 
-interface RedCarpetFormData {
-  film_program_titles: string
-  subjects: string
-  venue_id: string
-  carpet_date: string
-  call_time: string
-  carpet_start_time: string
-  film_program_start_time: string
-  rsvp_form_url: string
-  rsvp_responses_url: string
-  run_of_show_url: string
+interface JunctionSubject {
+  red_carpet_id: string
+  guest_id: string
+}
+
+interface GroupedFilm {
+  title: string
+  film_id?: string
+  film_type?: string
+  subjects: {
+    name: string
+    guest_id?: string
+  }[]
 }
 
 interface GroupedRedCarpetEvent {
@@ -52,27 +42,26 @@ interface GroupedRedCarpetEvent {
   rsvp_form_url: string | null
   rsvp_responses_url: string | null
   run_of_show_url: string | null
-  films: {
-    title: string
-    subjects: string[]
-  }[]
-  rawEvents: RedCarpet[]
+  films: GroupedFilm[]
+  rawEvents: RedCarpetCard[]
 }
 
 export default function RedCarpetsPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
-  const [redCarpets, setRedCarpets] = useState<RedCarpet[]>([])
+  const [redCarpets, setRedCarpets] = useState<RedCarpetCard[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
-  const [selectedCarpet, setSelectedCarpet] = useState<RedCarpet[] | null>(null)
+  const [selectedCarpet, setSelectedCarpet] = useState<RedCarpetCard[] | null>(null)
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'carpet_date', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [showFilmCard, setShowFilmCard] = useState<any>(null)
   const [showGuestCard, setShowGuestCard] = useState<any>(null)
-  const [existingFilms, setExistingFilms] = useState<Set<string>>(new Set())
-  const [existingGuests, setExistingGuests] = useState<Set<string>>(new Set())
+
+  // Junction data maps: carpet_id -> films/subjects with IDs
+  const [junctionFilmsMap, setJunctionFilmsMap] = useState<Map<string, JunctionFilm[]>>(new Map())
+  const [junctionSubjectsMap, setJunctionSubjectsMap] = useState<Map<string, JunctionSubject[]>>(new Map())
 
   const supabase = createClient()
   const { currentYear } = useFestivalYear()
@@ -82,7 +71,6 @@ export default function RedCarpetsPage() {
 
   // Export template function for Red Carpets
   const exportRedCarpetsTemplate = () => {
-    // Define headers with proper display names
     const headerMapping = [
       { field: 'film_program_display_combined', display: 'Film/Program' },
       { field: 'subjects_display_combined', display: 'Subjects' },
@@ -95,16 +83,14 @@ export default function RedCarpetsPage() {
       { field: 'rsvp_form_url', display: 'RSVP Form URL' },
       { field: 'rsvp_responses_url', display: 'RSVP Responses URL' }
     ]
-    
+
     const headers = headerMapping.map(h => h.display)
-    
-    // Create workbook and worksheet
+
     const wb = XLSX.utils.book_new()
     const ws = XLSX.utils.aoa_to_sheet([headers])
-    
-    // Style headers - bold with light grey background
-    const headerStyle = { 
-      font: { bold: true, sz: 12, name: 'Arial' }, 
+
+    const headerStyle = {
+      font: { bold: true, sz: 12, name: 'Arial' },
       fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
       alignment: { horizontal: "center", vertical: "center" },
       border: {
@@ -114,23 +100,19 @@ export default function RedCarpetsPage() {
         right: { style: "thin", color: { rgb: "CCCCCC" } }
       }
     }
-    
-    // Apply styles and set column widths based on header length
+
     const cols: any[] = []
     headers.forEach((header, index) => {
       const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
       if (!ws[cellRef]) ws[cellRef] = {}
       ws[cellRef].s = headerStyle
-      
-      // Calculate column width based on header length (min 15, max 30)
+
       cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
     })
-    
+
     ws['!cols'] = cols
-    
-    // Freeze the header row
     ws['!freeze'] = { xSplit: 0, ySplit: 1 }
-    
+
     XLSX.utils.book_append_sheet(wb, ws, 'Red Carpets Template')
     XLSX.writeFile(wb, 'red_carpets_import_template.xlsx')
   }
@@ -146,45 +128,50 @@ export default function RedCarpetsPage() {
 
       if (error) throw error
 
-      setRedCarpets(carpetsData || [])
+      const carpets: RedCarpetCard[] = carpetsData || []
+      setRedCarpets(carpets)
 
-      // Check which films/programs and guests exist in database
-      await checkExistingItems(carpetsData || [])
+      // Load junction data for all loaded carpet IDs
+      if (carpets.length > 0) {
+        const carpetIds = carpets.map(c => c.id)
+
+        const [{ data: filmsData }, { data: subjectsData }] = await Promise.all([
+          supabase
+            .from('red_carpet_films')
+            .select('red_carpet_id, film_id, film_type')
+            .in('red_carpet_id', carpetIds),
+          supabase
+            .from('red_carpet_subjects')
+            .select('red_carpet_id, guest_id')
+            .in('red_carpet_id', carpetIds),
+        ])
+
+        // Build maps
+        const filmsMap = new Map<string, JunctionFilm[]>()
+        ;(filmsData || []).forEach(jf => {
+          const list = filmsMap.get(jf.red_carpet_id) || []
+          list.push(jf)
+          filmsMap.set(jf.red_carpet_id, list)
+        })
+        setJunctionFilmsMap(filmsMap)
+
+        const subjectsMap = new Map<string, JunctionSubject[]>()
+        ;(subjectsData || []).forEach(js => {
+          const list = subjectsMap.get(js.red_carpet_id) || []
+          list.push(js)
+          subjectsMap.set(js.red_carpet_id, list)
+        })
+        setJunctionSubjectsMap(subjectsMap)
+      } else {
+        setJunctionFilmsMap(new Map())
+        setJunctionSubjectsMap(new Map())
+      }
     } catch (error) {
       console.error('Error loading red carpets:', error)
     } finally {
       setLoading(false)
     }
   }, [supabase, currentYear])
-
-  const checkExistingItems = async (carpets: RedCarpet[]) => {
-    const allFilmTitles = new Set<string>()
-
-    // Collect all unique titles from combined display
-    carpets.forEach(carpet => {
-      if (carpet.film_program_display_combined) {
-        carpet.film_program_display_combined.split(' || ').forEach(title => {
-          allFilmTitles.add(title.trim())
-        })
-      }
-    })
-
-    // For films, assume all items exist and make them clickable
-    setExistingFilms(allFilmTitles)
-
-    // For guests, load actual guest names from the database
-    try {
-      const { data: guestsData } = await supabase
-        .from('guests')
-        .select('name')
-        .eq('festival_year', currentYear)
-
-      const actualGuestNames = new Set((guestsData || []).map(g => g.name))
-      setExistingGuests(actualGuestNames)
-    } catch (error) {
-      console.error('Error loading guests:', error)
-    }
-  }
 
   useEffect(() => {
     loadRedCarpets()
@@ -193,7 +180,7 @@ export default function RedCarpetsPage() {
   // Group red carpets by date + time + venue = one event
   const groupedEvents = useMemo(() => {
     const groups = new Map<string, GroupedRedCarpetEvent>()
-    
+
     redCarpets.forEach(carpet => {
       const eventKey = `${carpet.carpet_date || ''}-${carpet.carpet_start_time || ''}-${carpet.venue_name_from_fk || ''}-${carpet.house || ''}`
 
@@ -211,37 +198,63 @@ export default function RedCarpetsPage() {
           rawEvents: []
         })
       }
-      
+
       const group = groups.get(eventKey)!
       group.rawEvents.push(carpet)
-      
-      // Add films with their subjects
-      if (carpet.film_program_display_combined) {
-        const titles = carpet.film_program_display_combined.split(' || ').map(t => t.trim())
-        titles.forEach(title => {
-          const existingFilm = group.films.find(f => f.title === title)
-          const subjects = carpet.subjects_display_combined ? carpet.subjects_display_combined.split(',').map(s => s.trim()) : []
-          
-          if (existingFilm) {
-            // Add unique subjects to existing film
-            subjects.forEach(subject => {
-              if (!existingFilm.subjects.includes(subject)) {
-                existingFilm.subjects.push(subject)
-              }
-            })
-          } else {
-            // Add new film
-            group.films.push({
-              title,
-              subjects
-            })
-          }
-        })
-      }
+
+      // Get junction films for this carpet
+      const carpetJunctionFilms = junctionFilmsMap.get(carpet.id) || []
+      // Get junction subjects for this carpet
+      const carpetJunctionSubjects = junctionSubjectsMap.get(carpet.id) || []
+
+      // Parse display strings for titles and subjects (from the view)
+      const filmTitles = carpet.film_program_display_combined
+        ? carpet.film_program_display_combined.split(' || ').map(t => t.trim())
+        : []
+      const subjectNames = carpet.subjects_display_combined
+        ? carpet.subjects_display_combined.split(',').map(s => s.trim())
+        : []
+
+      // Build structured film objects with IDs from junction data
+      filmTitles.forEach(title => {
+        const existingFilm = group.films.find(f => f.title === title)
+
+        // Match display title to junction film by position
+        // Each red_carpets row typically has one film, so junction films align with filmTitles
+        let filmId: string | undefined
+        let filmType: string | undefined
+        const titleIndex = filmTitles.indexOf(title)
+        if (titleIndex >= 0 && titleIndex < carpetJunctionFilms.length) {
+          filmId = carpetJunctionFilms[titleIndex].film_id
+          filmType = carpetJunctionFilms[titleIndex].film_type
+        }
+
+        // Build subjects with guest IDs, matched by position
+        const subjects = subjectNames.map((name, idx) => ({
+          name,
+          guest_id: idx < carpetJunctionSubjects.length ? carpetJunctionSubjects[idx].guest_id : undefined,
+        }))
+
+        if (existingFilm) {
+          // Add unique subjects to existing film
+          subjects.forEach(subject => {
+            if (!existingFilm.subjects.some(s => s.name === subject.name)) {
+              existingFilm.subjects.push(subject)
+            }
+          })
+        } else {
+          group.films.push({
+            title,
+            film_id: filmId,
+            film_type: filmType,
+            subjects
+          })
+        }
+      })
     })
-    
+
     return Array.from(groups.values())
-  }, [redCarpets])
+  }, [redCarpets, junctionFilmsMap, junctionSubjectsMap])
 
   // Filter and search logic
   const filteredEvents = useMemo(() => {
@@ -251,7 +264,7 @@ export default function RedCarpetsPage() {
           searchTerm,
           (event) => [
             ...event.films.map((f: any) => f.title),
-            ...event.films.flatMap((f: any) => f.subjects),
+            ...event.films.flatMap((f: any) => f.subjects.map((s: any) => s.name)),
             event.venue_name_from_fk
           ]
         )
@@ -267,7 +280,7 @@ export default function RedCarpetsPage() {
 
     return [...filteredEvents].sort((a, b) => {
       let aValue: any, bValue: any
-      
+
       switch (sortConfig.key) {
         case 'carpet_date':
           aValue = a.carpet_date
@@ -285,10 +298,10 @@ export default function RedCarpetsPage() {
           aValue = a[sortConfig.key as keyof GroupedRedCarpetEvent]
           bValue = b[sortConfig.key as keyof GroupedRedCarpetEvent]
       }
-      
+
       if (aValue === null) return 1
       if (bValue === null) return -1
-      
+
       if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
       if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
       return 0
@@ -321,7 +334,6 @@ export default function RedCarpetsPage() {
   const formatTime = (timeString: string | null): string => {
     if (!timeString) return '—'
 
-    // Convert 24-hour format to 12-hour AM/PM format
     const [hours, minutes] = timeString.split(':')
     const hour24 = parseInt(hours, 10)
     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
@@ -337,7 +349,6 @@ export default function RedCarpetsPage() {
     }
 
     try {
-      // Delete all records from this grouped event
       const idsToDelete = event.rawEvents.map(carpet => carpet.id)
       const { error } = await supabase
         .from('red_carpets')
@@ -346,7 +357,6 @@ export default function RedCarpetsPage() {
 
       if (error) throw error
 
-      // Remove from local state
       setRedCarpets(prev => prev.filter(carpet => !idsToDelete.includes(carpet.id)))
     } catch (error) {
       console.error('Error deleting red carpet event:', error)
@@ -354,118 +364,64 @@ export default function RedCarpetsPage() {
     }
   }
 
-  const checkIfFilmExists = async (filmTitle: string): Promise<boolean> => {
+  // Open film card by ID — queries the correct source table
+  const openFilmCard = async (filmId: string, filmType: string) => {
     try {
-      // Check feature films
-      const { data: featureData } = await supabase
-        .from('feature_films')
-        .select('id')
-        .eq('title', filmTitle)
-        .single()
-      
-      if (featureData) return true
-      
-      // Check short films
-      const { data: shortData } = await supabase
-        .from('short_films')
-        .select('id')
-        .eq('title', filmTitle)
-        .single()
-      
-      if (shortData) return true
-      
-      // Check programs
-      const { data: programData } = await supabase
-        .from('programs')
-        .select('id')
-        .eq('title', filmTitle)
-        .single()
-      
-      return !!programData
-    } catch {
-      return false
-    }
-  }
+      let tableName: string
+      let selectFields = '*'
 
-  const openFilmCard = async (filmTitle: string) => {
-    try {
-      // Try to find the film in feature_films first
-      let { data: filmData, error } = await supabase
-        .from('feature_films')
-        .select('*')
-        .eq('title', filmTitle)
-        .single()
-
-      if (error) {
-        // If not found in feature films, try short films
-        const { data: shortFilmData, error: shortError } = await supabase
-          .from('short_films')
-          .select('*')
-          .eq('title', filmTitle)
-          .single()
-
-        if (shortError) {
-          // If not found in films, try programs
-          const { data: programData, error: programError } = await supabase
-            .from('programs')
-            .select('*')
-            .eq('title', filmTitle)
-            .single()
-
-          if (programError) {
-            console.warn('Title not found in database:', filmTitle)
-            alert(`"${filmTitle}" not found in database`)
-            return
-          }
-          
-          // Found a program - set it as filmData to display
-          filmData = programData
-        } else {
-          filmData = shortFilmData
-        }
+      switch (filmType) {
+        case 'feature':
+          tableName = 'feature_films'
+          break
+        case 'short':
+          tableName = 'short_films'
+          break
+        case 'shorts_program':
+          tableName = 'shorts_programs'
+          break
+        case 'program':
+          tableName = 'programs'
+          break
+        default:
+          tableName = 'feature_films'
       }
 
-      if (filmData) {
-        setShowFilmCard(filmData)
-      }
-    } catch (error) {
-      console.error('Error fetching title:', error)
-      alert('Error loading details')
-    }
-  }
-
-  const checkIfGuestExists = async (guestName: string): Promise<boolean> => {
-    try {
-      const { data } = await supabase
-        .from('guests')
-        .select('id')
-        .eq('name', guestName)
+      const { data, error } = await supabase
+        .from(tableName)
+        .select(selectFields)
+        .eq('id', filmId)
         .single()
-      
-      return !!data
-    } catch {
-      return false
-    }
-  }
 
-  const openGuestCard = async (guestName: string) => {
-    try {
-      const { data: guestsData, error } = await supabase
-        .from('guests')
-        .select('*')
-        .eq('name', guestName)
-        .eq('festival_year', currentYear)
-        .limit(1)
-
-      const guestData = guestsData?.[0]
-
-      if (error || !guestData) {
-        console.warn('Guest not found in database:', guestName)
-        alert(`Guest "${guestName}" not found in database`)
+      if (error || !data) {
+        console.warn('Film not found:', filmId, filmType)
+        alert('Film not found in database')
         return
       }
 
-      setShowGuestCard(guestData)
+      setShowFilmCard(data)
+    } catch (error) {
+      console.error('Error fetching film:', error)
+      alert('Error loading film details')
+    }
+  }
+
+  // Open guest card by ID
+  const openGuestCard = async (guestId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('guests')
+        .select('*')
+        .eq('id', guestId)
+        .single()
+
+      if (error || !data) {
+        console.warn('Guest not found:', guestId)
+        alert('Guest not found in database')
+        return
+      }
+
+      setShowGuestCard(data)
     } catch (error) {
       console.error('Error fetching guest:', error)
       alert('Error loading guest details')
@@ -478,7 +434,7 @@ export default function RedCarpetsPage() {
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">🎭 Red Carpets</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">Red Carpets</h1>
             <p className="text-sm text-gray-600 mt-1">
               {sortedEvents.length} red carpet events
             </p>
@@ -489,7 +445,7 @@ export default function RedCarpetsPage() {
                 onClick={exportRedCarpetsTemplate}
                 className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
               >
-                📄 Create Red Carpets Template
+                Create Red Carpets Template
               </button>
             )}
             {canEditRedCarpets && (
@@ -507,7 +463,6 @@ export default function RedCarpetsPage() {
                   accept=".csv"
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   onChange={(e) => {
-                    // TODO: Implement CSV import
                     console.log('CSV import not yet implemented')
                   }}
                 />
@@ -522,7 +477,6 @@ export default function RedCarpetsPage() {
 
       {/* Search and Filters */}
       <div className="bg-white px-6 py-4 border-b border-gray-200">
-        {/* Search Bar */}
         <div className="mb-4">
           <input
             type="text"
@@ -532,8 +486,7 @@ export default function RedCarpetsPage() {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-        
-        {/* Clear Filters */}
+
         {searchTerm && (
           <button
             onClick={() => setSearchTerm('')}
@@ -572,7 +525,7 @@ export default function RedCarpetsPage() {
                       } ${
                         column.key === 'films_subjects' ? 'sticky left-0 bg-gray-50 z-10' : ''
                       }`}
-                      style={{ 
+                      style={{
                         width: columnWidths[column.key] || column.width,
                         minWidth: column.key === 'films_subjects' ? `${column.width}px` : '100px',
                         maxWidth: column.key === 'films_subjects' ? `${columnWidths[column.key] || column.width}px` : 'none'
@@ -595,7 +548,7 @@ export default function RedCarpetsPage() {
                         onMouseDown={(e) => {
                           e.preventDefault()
                           e.stopPropagation()
-                          
+
                           const startX = e.pageX
                           const startWidth = columnWidths[column.key] || column.width || 150
 
@@ -632,11 +585,11 @@ export default function RedCarpetsPage() {
                         {event.films.map((film, filmIndex) => (
                           <div key={filmIndex} className="border-l-2 border-blue-200 pl-2">
                             <div className="font-medium">
-                              {existingFilms.has(film.title) ? (
+                              {film.film_id ? (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    openFilmCard(film.title)
+                                    openFilmCard(film.film_id!, film.film_type!)
                                   }}
                                   className="text-blue-600 hover:text-blue-800 hover:underline text-left"
                                 >
@@ -649,18 +602,18 @@ export default function RedCarpetsPage() {
                             <div className="text-xs text-gray-600 ml-2">
                               {film.subjects.map((subject, subjectIndex) => (
                                 <span key={subjectIndex}>
-                                  {existingGuests.has(subject) ? (
+                                  {subject.guest_id ? (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation()
-                                        openGuestCard(subject)
+                                        openGuestCard(subject.guest_id!)
                                       }}
                                       className="text-blue-600 hover:text-blue-800 hover:underline"
                                     >
-                                      {subject}
+                                      {subject.name}
                                     </button>
                                   ) : (
-                                    <span className="text-gray-900">{subject}</span>
+                                    <span className="text-gray-900">{subject.name}</span>
                                   )}
                                   {subjectIndex < film.subjects.length - 1 && <span className="text-gray-400">, </span>}
                                 </span>
@@ -720,7 +673,6 @@ export default function RedCarpetsPage() {
                               onClick={(e) => {
                                 e.stopPropagation()
                                 navigator.clipboard.writeText(event.rsvp_form_url!)
-                                // Show temporary feedback
                                 const btn = e.target as HTMLButtonElement
                                 const originalText = btn.textContent
                                 btn.textContent = 'Copied!'
@@ -775,7 +727,7 @@ export default function RedCarpetsPage() {
                 {sortedEvents.length === 0 && (
                   <tr>
                     <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
-                      {searchTerm 
+                      {searchTerm
                         ? 'No red carpets match your search.'
                         : 'No red carpets found. Click "Add Carpet" to create your first red carpet event.'
                       }

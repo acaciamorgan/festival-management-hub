@@ -374,6 +374,29 @@ export interface InterviewCard {
   created_by: string
 }
 
+// Red Carpet Types
+export interface RedCarpetCard {
+  id: string
+  film_program_display_combined: string
+  subjects_display_combined: string
+  film_program_description?: string | null
+  subjects_description?: string | null
+  venue_id: string | null
+  venue_name_from_fk: string | null
+  house: string | null
+  carpet_date: string | null
+  call_time: string | null
+  carpet_start_time: string | null
+  film_program_start_time: string | null
+  rsvp_form_url: string | null
+  rsvp_responses_url: string | null
+  run_of_show_url: string | null
+  festival_year: number
+  created_at: string
+  updated_at: string
+  created_by: string
+}
+
 // Sticky Notes Types
 export interface StickyNote {
   id: string
