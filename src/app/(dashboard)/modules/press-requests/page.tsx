@@ -9,6 +9,7 @@ import { PressRequestFormModal } from '@/components/forms/press-request-form-mod
 import { Document, Packer, Paragraph, TextRun } from 'docx'
 import { saveAs } from 'file-saver'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import { FilmCardPopup } from '@/components/cards/film-card-popup'
 
 interface PressRequest {
   id: string
@@ -17,6 +18,9 @@ interface PressRequest {
   requester_email: string
   request_type: 'screener_link' | 'screening_ticket'
   film_titles: string
+  film_id: string | null
+  film_type: string | null
+  film_title_resolved: string | null
   screening_id: string | null
   screening_type: string | null
   screening_date: string | null
@@ -53,11 +57,40 @@ export default function PressRequestsPage() {
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [filmContacts, setFilmContacts] = useState<FilmContact[]>([])
   const [screenerAccessMap, setScreenerAccessMap] = useState<Record<string, { access_type: string, link_url: string | null, link_password: string | null }>>({})
+  const [showFilmCard, setShowFilmCard] = useState<any>(null)
 
   const supabase = createClient()
 
   // Check if user has edit permissions for press requests
   const canEditPressRequests = permissions?.modulePermissions?.['pressRequests']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
+
+  const openFilmCard = async (filmId: string, filmType: string) => {
+    try {
+      let tableName: string
+      switch (filmType) {
+        case 'feature': tableName = 'feature_films'; break
+        case 'shorts_program': tableName = 'shorts_programs'; break
+        default: tableName = 'feature_films'
+      }
+
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('id', filmId)
+        .single()
+
+      if (error || !data) {
+        console.warn('Film not found:', filmId, filmType)
+        alert('Film not found in database')
+        return
+      }
+
+      setShowFilmCard(data)
+    } catch (error) {
+      console.error('Error fetching film:', error)
+      alert('Error loading film details')
+    }
+  }
 
   const loadRequests = useCallback(async () => {
     setLoading(true)
@@ -72,63 +105,31 @@ export default function PressRequestsPage() {
 
       setRequests(data || [])
 
-      // Load screener access data for all unique film titles
-      const uniqueTitles = [...new Set((data || []).map(r => r.film_titles))]
+      // Load screener access data using film_id directly from requests
+      const uniqueFilmIds = [...new Set((data || []).map(r => r.film_id).filter(Boolean))]
 
-      // Load feature films and their IDs
-      const { data: features } = await supabase
-        .from('feature_films')
-        .select('id, title')
-        .eq('festival_year', currentYear)
-        .in('title', uniqueTitles)
-
-      // Load shorts programs and their IDs
-      const { data: shortsPrograms } = await supabase
-        .from('shorts_programs')
-        .select('id, program_name')
-        .eq('festival_year', currentYear)
-        .in('program_name', uniqueTitles)
-
-      // Get all film IDs (features + programs)
-      const filmIds = [
-        ...(features?.map(f => f.id) || []),
-        ...(shortsPrograms?.map(p => p.id) || [])
-      ]
-
-      if (filmIds.length === 0) {
+      if (uniqueFilmIds.length === 0) {
         setScreenerAccessMap({})
         return
       }
 
-      // Load screener access data for all these films
+      // Load screener access data for all film IDs
       const { data: screenerAccess, error: screenerError } = await supabase
         .from('screener_access')
         .select('film_id, access_type, link_url, link_password')
         .eq('festival_year', currentYear)
-        .in('film_id', filmIds)
+        .in('film_id', uniqueFilmIds)
 
       if (screenerError) {
         console.error('Error loading screener access:', screenerError)
       }
 
-      // Create a map of film title to screener access data
+      // Create a map of film_id to screener access data
       const accessMap: Record<string, { access_type: string, link_url: string | null, link_password: string | null }> = {}
 
-      features?.forEach(film => {
-        const access = screenerAccess?.find(sa => sa.film_id === film.id)
-        if (access?.access_type) {
-          accessMap[film.title] = {
-            access_type: access.access_type,
-            link_url: access.link_url || null,
-            link_password: access.link_password || null
-          }
-        }
-      })
-
-      shortsPrograms?.forEach(program => {
-        const access = screenerAccess?.find(sa => sa.film_id === program.id)
-        if (access?.access_type) {
-          accessMap[program.program_name] = {
+      screenerAccess?.forEach(access => {
+        if (access.access_type) {
+          accessMap[access.film_id] = {
             access_type: access.access_type,
             link_url: access.link_url || null,
             link_password: access.link_password || null
@@ -254,7 +255,7 @@ export default function PressRequestsPage() {
             req.requester_name,
             req.requester_outlet,
             req.requester_email,
-            req.film_titles
+            req.film_title_resolved || req.film_titles
           ]
         )
         if (!searchFilter(request)) return false
@@ -268,7 +269,7 @@ export default function PressRequestsPage() {
 
       // Access Type filter
       if (accessTypeFilter !== 'all') {
-        const filmAccessData = screenerAccessMap[request.film_titles]
+        const filmAccessData = request.film_id ? screenerAccessMap[request.film_id] : null
         if (!filmAccessData || filmAccessData.access_type !== accessTypeFilter) return false
       }
 
@@ -888,11 +889,20 @@ export default function PressRequestsPage() {
                       </a>
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['film_titles'] || 300}px` }}>
-                      {request.film_titles}
+                      {request.film_id && request.film_type ? (
+                        <button
+                          onClick={() => openFilmCard(request.film_id!, request.film_type!)}
+                          className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                        >
+                          {request.film_title_resolved || request.film_titles}
+                        </button>
+                      ) : (
+                        request.film_titles
+                      )}
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['access_type'] || 120}px` }}>
                       {(() => {
-                        const accessData = screenerAccessMap[request.film_titles]
+                        const accessData = request.film_id ? screenerAccessMap[request.film_id] : null
                         if (!accessData) return <span className="text-gray-400">—</span>
 
                         const badgeConfig = {
@@ -1030,7 +1040,7 @@ export default function PressRequestsPage() {
         onSave={(savedRequest) => {
           if (selectedRequest) {
             // Update existing request in the list
-            setRequests(prev => prev.map(req => 
+            setRequests(prev => prev.map(req =>
               req.id === savedRequest.id ? savedRequest : req
             ))
           } else {
@@ -1039,6 +1049,14 @@ export default function PressRequestsPage() {
           }
         }}
       />
+
+      {/* Film Card Popup */}
+      {showFilmCard && (
+        <FilmCardPopup
+          film={showFilmCard}
+          onClose={() => setShowFilmCard(null)}
+        />
+      )}
 
     </div>
   )

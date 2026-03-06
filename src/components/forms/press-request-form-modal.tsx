@@ -13,6 +13,9 @@ interface PressRequest {
   requester_email: string
   request_type: 'screener_link' | 'screening_ticket'
   film_titles: string
+  film_id?: string
+  film_type?: string
+  film_title_resolved?: string
   screening_id: string | null
   screening_type: string | null
   screening_date: string | null
@@ -43,7 +46,7 @@ interface PressContact {
 interface Film {
   id: string
   title: string
-  type: 'feature' | 'short' | 'program'
+  type: 'feature' | 'shorts_program'
   access_type?: string
 }
 
@@ -190,15 +193,21 @@ export function PressRequestFormModal({
         })
       }
       
-      // Parse film titles back to Film objects
-      if (request.film_titles) {
-        const titles = request.film_titles.split(',').map(t => t.trim())
-        const films = titles.map(title => ({
-          id: '', // We don't store IDs, so this will be empty
-          title,
-          type: 'feature' as 'feature'
-        }))
-        setSelectedFilms(films)
+      // Reconstruct Film object from FK fields or fall back to text
+      if (request.film_id && request.film_type) {
+        const filmTitle = request.film_title_resolved || request.film_titles || ''
+        setSelectedFilms([{
+          id: request.film_id,
+          title: filmTitle,
+          type: request.film_type as 'feature' | 'shorts_program'
+        }])
+      } else if (request.film_titles) {
+        // Legacy fallback: no film_id stored, use text
+        setSelectedFilms([{
+          id: '',
+          title: request.film_titles,
+          type: 'feature' as const
+        }])
       }
     } else {
       setFormData({
@@ -264,12 +273,10 @@ export function PressRequestFormModal({
       const [
         { data: features },
         { data: shortsPrograms },
-        { data: programs },
         { data: screenerAccess }
       ] = await Promise.all([
         supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
         supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear).order('program_number'),
-        supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
         supabase.from('screener_access').select('film_id, access_type').eq('festival_year', currentYear)
       ])
 
@@ -287,13 +294,8 @@ export function PressRequestFormModal({
         ...(shortsPrograms || []).map(sp => ({
           id: sp.id,
           title: sp.program_name,
-          type: 'short' as const,
+          type: 'shorts_program' as const,
           access_type: accessMap.get(sp.id) || 'no_links'
-        })),
-        ...(programs || []).map(p => ({
-          ...p,
-          type: 'program' as const,
-          access_type: accessMap.get(p.id) || 'no_links'
         }))
       ]
 
@@ -405,9 +407,12 @@ export function PressRequestFormModal({
       const festivalYear = await getFestivalYear()
       if (request) {
         // Update existing request (single film only)
+        const film = selectedFilms[0]
         const requestData = {
           ...formData,
-          film_titles: selectedFilms.map(f => f.title).join(', '),
+          film_id: film.id || null,
+          film_type: film.id ? film.type : null,
+          film_titles: film.title,
           screening_id: selectedScreening?.id || null,
           screening_type: selectedScreening?.screening_type || null,
           screening_date: selectedScreening?.screening_date || null,
@@ -441,7 +446,9 @@ export function PressRequestFormModal({
 
           const requestData = {
             ...formData,
-            film_titles: film.title, // Single film title per request
+            film_id: film.id || null,
+            film_type: film.id ? film.type : null,
+            film_titles: film.title,
             screening_id: selectedScreening?.id || null,
             screening_type: selectedScreening?.screening_type || null,
             screening_date: selectedScreening?.screening_date || null,
