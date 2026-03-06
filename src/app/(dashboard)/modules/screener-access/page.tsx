@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
@@ -75,6 +76,7 @@ interface UnifiedFilm {
 
 export default function ScreenerAccessPage() {
   const { user } = useAuth()
+  const { currentYear } = useFestivalYear()
   const { permissions } = usePermissions()
   const [allFilms, setAllFilms] = useState<UnifiedFilm[]>([])
   const [filteredFilms, setFilteredFilms] = useState<UnifiedFilm[]>([])
@@ -203,6 +205,7 @@ export default function ScreenerAccessPage() {
       const { data: filmsData, error: filmsError } = await supabase
         .from('feature_films')
         .select('id, title')
+        .eq('festival_year', currentYear)
         .order('title')
 
       if (filmsError) {
@@ -213,6 +216,7 @@ export default function ScreenerAccessPage() {
       const { data: programsData, error: programsError } = await supabase
         .from('shorts_programs')
         .select('id, program_name, program_number')
+        .eq('festival_year', currentYear)
         .order('program_number')
       
       if (programsError) {
@@ -238,6 +242,7 @@ export default function ScreenerAccessPage() {
               .from('screener_access')
               .select('*')
               .eq('film_id', film.id)
+              .eq('festival_year', currentYear)
               .single()
 
             return {
@@ -281,6 +286,7 @@ export default function ScreenerAccessPage() {
               .from('screener_access')
               .select('*')
               .eq('film_id', program.id)
+              .eq('festival_year', currentYear)
               .single()
 
             return {
@@ -316,7 +322,7 @@ export default function ScreenerAccessPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   useEffect(() => {
     loadAllFilms()
@@ -418,11 +424,12 @@ export default function ScreenerAccessPage() {
 
   const updateScreenerData = async (filmId: string, updates: Partial<ScreenerData>) => {
     try {
-      // First check if screener data exists
+      // First check if screener data exists for this year
       const { data: existing } = await supabase
         .from('screener_access')
         .select('id')
         .eq('film_id', filmId)
+        .eq('festival_year', currentYear)
         .single()
 
       if (existing) {
@@ -431,13 +438,14 @@ export default function ScreenerAccessPage() {
           .from('screener_access')
           .update(updates)
           .eq('film_id', filmId)
+          .eq('festival_year', currentYear)
 
         if (error) throw error
       } else {
-        // Create new record
+        // Create new record with festival_year
         const { error } = await supabase
           .from('screener_access')
-          .insert({ film_id: filmId, ...updates })
+          .insert({ film_id: filmId, festival_year: currentYear, ...updates })
 
         if (error) throw error
       }
