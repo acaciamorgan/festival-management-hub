@@ -6,12 +6,19 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { getFestivalYear } from '@/lib/smart-date-parser'
 import { SpecialEventCard, EventType, OpenPressType } from '@/types'
+import { ChipSelect, ChipItem, ChipSelectSuggestion } from '@/components/ui/chip-select'
 
 interface SpecialEventFormModalProps {
   event?: SpecialEventCard | null
   isOpen: boolean
   onClose: () => void
   onSave: (event: SpecialEventCard) => void
+}
+
+interface FilmOption {
+  id: string
+  title: string
+  type: 'feature' | 'short' | 'shorts_program' | 'program'
 }
 
 interface SpecialEventFormData {
@@ -25,8 +32,8 @@ interface SpecialEventFormData {
   venue_contact_name: string
   venue_contact_phone: string
   location_details: string
-  films_programs_display: string
-  guests_display: string
+  filmChips: (ChipItem & { filmType?: string })[]
+  guestChips: ChipItem[]
   lead_staff: string
   lead_volunteer: string
   number_of_vols: string
@@ -58,8 +65,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     venue_contact_name: '',
     venue_contact_phone: '',
     location_details: '',
-    films_programs_display: '',
-    guests_display: '',
+    filmChips: [],
+    guestChips: [],
     lead_staff: '',
     lead_volunteer: '',
     number_of_vols: '',
@@ -81,22 +88,12 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
   const [isDragging, setIsDragging] = useState(false)
   const [position, setPosition] = useState({ x: 100, y: 100 })
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  
-  // Suggestion states
-  const [availableFilms, setAvailableFilms] = useState<{id: string, title: string, type: 'feature' | 'short'}[]>([])
-  const [availablePrograms, setAvailablePrograms] = useState<{id: string, title: string}[]>([])
-  const [availableGuests, setAvailableGuests] = useState<{id: string, name: string}[]>([])
+
+  // Data for suggestions
+  const [allFilms, setAllFilms] = useState<FilmOption[]>([])
   const [availableVenues, setAvailableVenues] = useState<{id: string, name: string, address: string, contact_names?: string[], contact_phones?: string[]}[]>([])
   const [existingInvitedTags, setExistingInvitedTags] = useState<string[]>([])
-  
-  // Film/Program suggestions
-  const [showFilmSuggestions, setShowFilmSuggestions] = useState(false)
-  const [filteredFilmSuggestions, setFilteredFilmSuggestions] = useState<{id: string, title: string, type: 'feature' | 'short' | 'program'}[]>([])
-  
-  // Guest suggestions
-  const [showGuestSuggestions, setShowGuestSuggestions] = useState(false)
-  const [filteredGuestSuggestions, setFilteredGuestSuggestions] = useState<{id: string, name: string}[]>([])
-  
+
   // Invited tags suggestions
   const [showInvitedSuggestions, setShowInvitedSuggestions] = useState(false)
   const [filteredInvitedSuggestions, setFilteredInvitedSuggestions] = useState<string[]>([])
@@ -130,7 +127,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
       document.addEventListener('mousemove', handleMouseMove)
       document.addEventListener('mouseup', handleMouseUp)
     }
-    
+
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
@@ -141,23 +138,23 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
   useEffect(() => {
     const loadSuggestionData = async () => {
       try {
-        const [featureFilms, shortFilms, programs, guests, venues, existingEvents] = await Promise.all([
+        const [featureFilms, shortFilms, shortsPrograms, programs, venues, existingEvents] = await Promise.all([
           supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
           supabase.from('short_films').select('id, title').eq('festival_year', currentYear).order('title'),
+          supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear).order('program_name'),
           supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
-          supabase.from('guests').select('id, name').eq('festival_year', currentYear).order('name'),
           supabase.from('venues').select('id, name, address, contact_names, contact_phones').order('name'),
           supabase.from('special_events').select('invited_tags').eq('festival_year', currentYear).not('invited_tags', 'is', null)
         ])
 
-        // Process films
-        const films = [
-          ...(featureFilms.data || []).map(f => ({ ...f, type: 'feature' as const })),
-          ...(shortFilms.data || []).map(f => ({ ...f, type: 'short' as const }))
+        // Build unified film options
+        const films: FilmOption[] = [
+          ...(featureFilms.data || []).map(f => ({ id: f.id, title: f.title, type: 'feature' as const })),
+          ...(shortFilms.data || []).map(f => ({ id: f.id, title: f.title, type: 'short' as const })),
+          ...(shortsPrograms.data || []).map(p => ({ id: p.id, title: p.program_name, type: 'shorts_program' as const })),
+          ...(programs.data || []).map(p => ({ id: p.id, title: p.title, type: 'program' as const })),
         ]
-        setAvailableFilms(films)
-        setAvailablePrograms(programs.data || [])
-        setAvailableGuests(guests.data || [])
+        setAllFilms(films)
         setAvailableVenues(venues.data || [])
 
         // Extract unique invited tags
@@ -176,144 +173,202 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         console.error('Error loading suggestion data:', error)
       }
     }
-    
+
     if (isOpen) {
       loadSuggestionData()
     }
   }, [isOpen, supabase, currentYear])
 
-  // Initialize form data when event changes
+  // Initialize form data when event changes (edit mode)
   useEffect(() => {
-    if (event) {
-      setFormData({
-        title: event.title || '',
-        event_type: event.event_type || '',
-        event_date: event.event_date || '',
-        access_time: event.access_time || '',
-        start_time: event.start_time || '',
-        end_time: event.end_time || '',
-        venue_id: event.venue_id || '',
-        venue_contact_name: event.venue_contact_name || '',
-        venue_contact_phone: event.venue_contact_phone || '',
-        location_details: event.location_details || '',
-        films_programs_display: event.films_programs_display_combined || '',
-        guests_display: event.guests_display_combined || '',
-        lead_staff: event.lead_staff || '',
-        lead_volunteer: event.lead_volunteer || '',
-        number_of_vols: event.number_of_vols || '',
-        invited_tags: event.invited_tags || '',
-        number_expected: event.number_expected || '',
-        beverages: event.beverages || '',
-        bartender: event.bartender || '',
-        food: event.food || '',
-        caterer: event.caterer || '',
-        photography: event.photography || '',
-        open_press: event.open_press || 'No',
-        rsvp_responder_link: event.rsvp_responder_link || '',
-        rsvp_response_link: event.rsvp_response_link || '',
-        actual_attendance: event.actual_attendance || '',
-        notes: event.notes || ''
-      })
-    } else {
-      setFormData({
-        title: '',
-        event_type: '',
-        event_date: '',
-        access_time: '',
-        start_time: '',
-        end_time: '',
-        venue_id: '',
-        location_details: '',
-        films_programs_display: '',
-        guests_display: '',
-        lead_staff: '',
-        invited_tags: '',
-        number_expected: '',
-        beverages: '',
-        bartender: '',
-        food: '',
-        caterer: '',
-        photography: '',
-        open_press: 'No',
-        rsvp_responder_link: '',
-        rsvp_response_link: '',
-        actual_attendance: '',
-        notes: ''
-      })
+    const initEditForm = async () => {
+      if (event) {
+        // Load junction data to reconstruct chips
+        const [{ data: junctionFilms }, { data: junctionGuests }, { data: baseEvent }] = await Promise.all([
+          supabase
+            .from('special_event_films')
+            .select('film_id, film_type')
+            .eq('special_event_id', event.id),
+          supabase
+            .from('special_event_guests')
+            .select('guest_id, guests!inner(id, name)')
+            .eq('special_event_id', event.id),
+          supabase
+            .from('special_events')
+            .select('film_program_description, guests_description')
+            .eq('id', event.id)
+            .single(),
+        ])
+
+        // Build film chips from junction data
+        const filmChips: (ChipItem & { filmType?: string })[] = (junctionFilms || []).map(jf => {
+          const filmOption = allFilms.find(f => f.id === jf.film_id && f.type === jf.film_type)
+          return {
+            id: jf.film_id,
+            label: filmOption?.title || 'Unknown',
+            type: jf.film_type,
+            filmType: jf.film_type,
+          }
+        })
+
+        // Add free-text films from film_program_description
+        if (baseEvent?.data?.film_program_description) {
+          baseEvent.data.film_program_description.split(',').map((t: string) => t.trim()).filter(Boolean).forEach((title: string) => {
+            filmChips.push({ label: title })
+          })
+        }
+
+        // Build guest chips from junction data
+        const guestChips: ChipItem[] = (junctionGuests || []).map((jg: any) => ({
+          id: jg.guest_id,
+          label: jg.guests?.name || 'Unknown',
+        }))
+
+        // Add free-text guests from guests_description
+        if (baseEvent?.data?.guests_description) {
+          baseEvent.data.guests_description.split(',').map((s: string) => s.trim()).filter(Boolean).forEach((name: string) => {
+            guestChips.push({ label: name })
+          })
+        }
+
+        setFormData({
+          title: event.title || '',
+          event_type: event.event_type || '',
+          event_date: event.event_date || '',
+          access_time: event.access_time || '',
+          start_time: event.start_time || '',
+          end_time: event.end_time || '',
+          venue_id: event.venue_id || '',
+          venue_contact_name: event.venue_contact_name || '',
+          venue_contact_phone: event.venue_contact_phone || '',
+          location_details: event.location_details || '',
+          filmChips,
+          guestChips,
+          lead_staff: event.lead_staff || '',
+          lead_volunteer: event.lead_volunteer || '',
+          number_of_vols: event.number_of_vols || '',
+          invited_tags: event.invited_tags || '',
+          number_expected: event.number_expected || '',
+          beverages: event.beverages || '',
+          bartender: event.bartender || '',
+          food: event.food || '',
+          caterer: event.caterer || '',
+          photography: event.photography || '',
+          open_press: event.open_press || 'No',
+          rsvp_responder_link: event.rsvp_responder_link || '',
+          rsvp_response_link: event.rsvp_response_link || '',
+          actual_attendance: event.actual_attendance || '',
+          notes: event.notes || ''
+        })
+      } else {
+        setFormData({
+          title: '',
+          event_type: '',
+          event_date: '',
+          access_time: '',
+          start_time: '',
+          end_time: '',
+          venue_id: '',
+          venue_contact_name: '',
+          venue_contact_phone: '',
+          location_details: '',
+          filmChips: [],
+          guestChips: [],
+          lead_staff: '',
+          lead_volunteer: '',
+          number_of_vols: '',
+          invited_tags: '',
+          number_expected: '',
+          beverages: '',
+          bartender: '',
+          food: '',
+          caterer: '',
+          photography: '',
+          open_press: 'No',
+          rsvp_responder_link: '',
+          rsvp_response_link: '',
+          actual_attendance: '',
+          notes: ''
+        })
+      }
+      setErrors({})
     }
-    setErrors({})
-  }, [event, isOpen])
 
-  // Handle Films/Programs autocomplete
-  const handleFilmProgramInput = (value: string) => {
-    setFormData(prev => ({ ...prev, films_programs_display: value }))
-    
-    const terms = value.split(',').map(t => t?.trim?.() || '')
-    const lastTerm = terms[terms.length - 1]
-    
-    if (lastTerm.length >= 1) {
-      const filmSuggestions = availableFilms
-        .filter(film => film.title.toLowerCase().includes(lastTerm.toLowerCase()))
-        .map(film => ({ ...film, type: film.type }))
-      
-      const programSuggestions = availablePrograms
-        .filter(program => program.title.toLowerCase().includes(lastTerm.toLowerCase()))
-        .map(program => ({ ...program, type: 'program' as const }))
-      
-      const allSuggestions = [...filmSuggestions, ...programSuggestions]
-      setFilteredFilmSuggestions(allSuggestions.slice(0, 8))
-      setShowFilmSuggestions(allSuggestions.length > 0)
-    } else {
-      setShowFilmSuggestions(false)
+    if (isOpen) {
+      initEditForm()
     }
-  }
+  }, [event, isOpen, allFilms, supabase])
 
-  // Handle Films/Programs suggestion selection
-  const handleFilmSuggestionSelect = (suggestion: {id: string, title: string, type: 'feature' | 'short' | 'program'}) => {
-    const terms = (formData.films_programs_display || '').split(',').map(t => t?.trim?.() || '')
-    terms[terms.length - 1] = suggestion.title
-    setFormData(prev => ({ ...prev, films_programs_display: terms.filter(t => t).join(', ') }))
-    setShowFilmSuggestions(false)
-  }
+  // Film search for ChipSelect
+  const handleFilmSearch = useCallback(async (query: string): Promise<ChipSelectSuggestion[]> => {
+    const lower = query.toLowerCase()
+    return allFilms
+      .filter(f => f.title.toLowerCase().includes(lower))
+      .slice(0, 15)
+      .map(f => ({
+        id: f.id,
+        label: f.title,
+        sublabel: f.type === 'feature' ? 'Feature Film' :
+                  f.type === 'short' ? 'Short Film' :
+                  f.type === 'shorts_program' ? 'Shorts Program' : 'Program',
+        type: f.type,
+      }))
+  }, [allFilms])
 
-  // Handle Guests autocomplete
-  const handleGuestsInput = (value: string) => {
-    setFormData(prev => ({ ...prev, guests_display: value }))
-    
-    const terms = value.split(',').map(t => t?.trim?.() || '')
-    const lastTerm = terms[terms.length - 1]
-    
-    if (lastTerm.length >= 1) {
-      const guestSuggestions = availableGuests
-        .filter(guest => guest.name.toLowerCase().includes(lastTerm.toLowerCase()))
-      
-      setFilteredGuestSuggestions(guestSuggestions.slice(0, 8))
-      setShowGuestSuggestions(guestSuggestions.length > 0)
-    } else {
-      setShowGuestSuggestions(false)
+  // Guest search for ChipSelect — queries guests table
+  const handleGuestSearch = useCallback(async (query: string): Promise<ChipSelectSuggestion[]> => {
+    if (query.length < 1) return []
+
+    try {
+      const { data, error } = await supabase
+        .from('guests')
+        .select('id, name')
+        .ilike('name', `%${query}%`)
+        .eq('festival_year', currentYear)
+        .limit(10)
+
+      if (error) throw error
+
+      return (data || []).map(guest => ({
+        id: guest.id,
+        label: guest.name,
+        sublabel: 'Guest',
+      }))
+    } catch (error) {
+      console.error('Error searching guests:', error)
+      return []
     }
+  }, [supabase, currentYear])
+
+  // Handle film chips change
+  const handleFilmChipsChange = (items: ChipItem[]) => {
+    const enriched = items.map(item => {
+      const filmOption = allFilms.find(f => f.id === item.id)
+      return {
+        ...item,
+        filmType: filmOption?.type || item.type || undefined,
+      }
+    })
+    setFormData(prev => ({ ...prev, filmChips: enriched }))
   }
 
-  // Handle Guests suggestion selection
-  const handleGuestSuggestionSelect = (suggestion: {id: string, name: string}) => {
-    const terms = (formData.guests_display || '').split(',').map(t => t?.trim?.() || '')
-    terms[terms.length - 1] = suggestion.name
-    setFormData(prev => ({ ...prev, guests_display: terms.filter(t => t).join(', ') }))
-    setShowGuestSuggestions(false)
+  // Handle guest chips change
+  const handleGuestChipsChange = (items: ChipItem[]) => {
+    setFormData(prev => ({ ...prev, guestChips: items }))
   }
 
-  // Handle Invited tags autocomplete (smart tagging)
+  // Handle Invited tags autocomplete (smart tagging — kept as-is, not relational)
   const handleInvitedTagsInput = (value: string) => {
     setFormData(prev => ({ ...prev, invited_tags: value }))
-    
+
     const terms = value.split(',').map(t => t?.trim?.() || '')
     const lastTerm = terms[terms.length - 1]
-    
+
     if (lastTerm.length >= 1) {
       const suggestions = existingInvitedTags
         .filter(tag => tag.toLowerCase().includes(lastTerm.toLowerCase()))
-        .filter(tag => !terms.slice(0, -1).includes(tag)) // Don't suggest already used tags
-      
+        .filter(tag => !terms.slice(0, -1).includes(tag))
+
       setFilteredInvitedSuggestions(suggestions.slice(0, 8))
       setShowInvitedSuggestions(suggestions.length > 0)
     } else {
@@ -332,12 +387,12 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
   // Handle venue selection and auto-populate address and contacts
   const handleVenueChange = (venueId: string) => {
     setFormData(prev => ({ ...prev, venue_id: venueId }))
-    
+
     if (venueId) {
       const selectedVenue = availableVenues.find(v => v.id === venueId)
       if (selectedVenue) {
-        setFormData(prev => ({ 
-          ...prev, 
+        setFormData(prev => ({
+          ...prev,
           location_details: prev.location_details || selectedVenue.address || '',
           venue_contact_name: selectedVenue.contact_names?.[0] || prev.venue_contact_name || '',
           venue_contact_phone: selectedVenue.contact_phones?.[0] || prev.venue_contact_phone || ''
@@ -359,7 +414,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -371,7 +426,13 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
       const now = new Date()
       const nowStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0')
 
-      // Prepare the event data (excluding venue contact fields which are derived)
+      // Separate FK-linked and free-text items
+      const fkFilms = formData.filmChips.filter(chip => chip.id)
+      const freeTextFilms = formData.filmChips.filter(chip => !chip.id)
+      const fkGuests = formData.guestChips.filter(chip => chip.id)
+      const freeTextGuests = formData.guestChips.filter(chip => !chip.id)
+
+      // Prepare the event data
       const eventData: any = {
         title: formData.title?.trim?.() || '',
         event_type: formData.event_type || null,
@@ -383,6 +444,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         venue_contact_name: formData.venue_contact_name?.trim?.() || null,
         venue_contact_phone: formData.venue_contact_phone?.trim?.() || null,
         location_details: formData.location_details?.trim?.() || null,
+        film_program_description: freeTextFilms.length > 0 ? freeTextFilms.map(c => c.label).join(', ') : null,
+        guests_description: freeTextGuests.length > 0 ? freeTextGuests.map(c => c.label).join(', ') : null,
         lead_staff: formData.lead_staff?.trim?.() || null,
         lead_volunteer: formData.lead_volunteer?.trim?.() || null,
         number_of_vols: formData.number_of_vols?.trim?.() || null,
@@ -424,6 +487,12 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
 
         if (error) throw error
         savedEvent = data
+
+        // Clear existing junction table entries
+        await Promise.all([
+          supabase.from('special_event_films').delete().eq('special_event_id', event.id),
+          supabase.from('special_event_guests').delete().eq('special_event_id', event.id)
+        ])
       } else {
         // Create new event
         const { data, error } = await supabase
@@ -440,18 +509,31 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         savedEvent = data
       }
 
-      // Handle junction table associations
-      const { unmatchedFilms, unmatchedGuests } = await handleAssociations(savedEvent.id, formData.films_programs_display, formData.guests_display, festivalYear)
+      // Insert FK-linked films into junction table
+      if (fkFilms.length > 0) {
+        const filmInserts = fkFilms.map(chip => ({
+          special_event_id: savedEvent.id,
+          film_id: chip.id!,
+          film_type: chip.type || chip.filmType || 'feature',
+          festival_year: parseInt(festivalYear, 10),
+        }))
+        const { error: filmError } = await supabase
+          .from('special_event_films')
+          .insert(filmInserts)
+        if (filmError) console.error('Error inserting special event films:', filmError)
+      }
 
-      // Save only unmatched items to description fields
-      if (unmatchedFilms.length > 0 || unmatchedGuests.length > 0) {
-        await supabase
-          .from('special_events')
-          .update({
-            film_program_description: unmatchedFilms.length > 0 ? unmatchedFilms.join(', ') : null,
-            guests_description: unmatchedGuests.length > 0 ? unmatchedGuests.join(', ') : null
-          })
-          .eq('id', savedEvent.id)
+      // Insert FK-linked guests into junction table
+      if (fkGuests.length > 0) {
+        const guestInserts = fkGuests.map(chip => ({
+          special_event_id: savedEvent.id,
+          guest_id: chip.id!,
+          festival_year: parseInt(festivalYear, 10),
+        }))
+        const { error: guestError } = await supabase
+          .from('special_event_guests')
+          .insert(guestInserts)
+        if (guestError) console.error('Error inserting special event guests:', guestError)
       }
 
       onSave(savedEvent)
@@ -464,87 +546,15 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     }
   }
 
-  const handleAssociations = async (eventId: string, filmProgramTitles: string, guestNames: string, festivalYear: string) => {
-    const unmatchedFilms: string[] = []
-    const unmatchedGuests: string[] = []
-
-    // Clear existing junction table entries for this event
-    await Promise.all([
-      supabase.from('special_event_films').delete().eq('special_event_id', eventId),
-      supabase.from('special_event_guests').delete().eq('special_event_id', eventId)
-    ])
-
-    // Process film/program titles using greedy longest-match (handles commas in titles)
-    if (filmProgramTitles?.trim()) {
-      // Build combined list sorted longest-first for greedy matching
-      const allKnownFilms = [
-        ...availableFilms.map(f => ({ id: f.id, title: f.title, type: f.type as string })),
-        ...availablePrograms.map(p => ({ id: p.id, title: p.title, type: 'program' }))
-      ].sort((a, b) => b.title.length - a.title.length)
-
-      const matchedFilms: { id: string, title: string, type: string }[] = []
-      let remainingText = filmProgramTitles.trim()
-
-      for (const film of allKnownFilms) {
-        const escaped = film.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const regex = new RegExp(escaped, 'i')
-        if (regex.test(remainingText)) {
-          matchedFilms.push(film)
-          remainingText = remainingText
-            .replace(regex, '')
-            .replace(/^\s*[,|]+\s*|\s*[,|]+\s*$/g, '')
-            .replace(/\s*[,|]+\s*/g, ',')
-            .trim()
-        }
-      }
-
-      // Insert matched films into junction table
-      for (const film of matchedFilms) {
-        await supabase.from('special_event_films').insert({
-          special_event_id: eventId,
-          film_id: film.id,
-          film_type: film.type,
-          festival_year: parseInt(festivalYear, 10)
-        })
-      }
-
-      // Any remaining comma-separated tokens are unmatched (free-text)
-      const tokens = remainingText.split(',').map(t => t.trim()).filter(t => t)
-      unmatchedFilms.push(...tokens)
-    }
-
-    // Process guest names
-    if (guestNames?.trim()) {
-      const names = guestNames.split(',').map(n => n.trim()).filter(n => n)
-
-      for (const name of names) {
-        const nameLower = name.toLowerCase()
-        const guest = availableGuests.find(g => g.name.toLowerCase() === nameLower)
-
-        if (guest) {
-          await supabase.from('special_event_guests').insert({
-            special_event_id: eventId,
-            guest_id: guest.id,
-            festival_year: parseInt(festivalYear, 10)
-          })
-        } else {
-          unmatchedGuests.push(name)
-        }
-      }
-    }
-
-    return { unmatchedFilms, unmatchedGuests }
-  }
-
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 pointer-events-none">
-      <div 
+      <div
         className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto pointer-events-auto"
         onClick={(e) => e.stopPropagation()}
-        style={{ 
-          left: `${position.x}px`, 
+        style={{
+          left: `${position.x}px`,
           top: `${position.y}px`,
           cursor: isDragging ? 'grabbing' : 'default',
           maxWidth: '1200px',
@@ -554,7 +564,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
       >
         <form onSubmit={handleSubmit}>
           {/* Draggable Header */}
-          <div 
+          <div
             className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg cursor-grab active:cursor-grabbing flex justify-between items-center"
             onMouseDown={handleMouseDown}
           >
@@ -607,87 +617,30 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
               </div>
             </div>
 
-            {/* Row 2: Films/Programs Associated */}
+            {/* Row 2: Films/Programs ChipSelect */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Films/Programs Associated</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={formData.films_programs_display}
-                  onChange={(e) => handleFilmProgramInput(e.target.value)}
-                  onFocus={() => {
-                    if (filteredFilmSuggestions.length > 0) {
-                      setShowFilmSuggestions(true)
-                    }
-                  }}
-                  onBlur={() => {
-                    setTimeout(() => setShowFilmSuggestions(false), 200)
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter film or program titles separated by commas"
-                />
-                
-                {showFilmSuggestions && filteredFilmSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                    {filteredFilmSuggestions.map((suggestion, index) => (
-                      <div
-                        key={`${suggestion.type}-${suggestion.id}`}
-                        className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                        onClick={() => handleFilmSuggestionSelect(suggestion)}
-                      >
-                        <span className="font-medium">{suggestion.title}</span>
-                        <span className="text-gray-500 text-xs ml-2">
-                          ({suggestion.type === 'feature' ? 'Feature Film' : 
-                            suggestion.type === 'short' ? 'Short Film' : 'Program'})
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <p className="text-sm text-gray-500 mt-1">
-                Separate multiple films/programs with commas. Matched items will be linked to existing records.
-              </p>
+              <ChipSelect
+                items={formData.filmChips}
+                onChange={handleFilmChipsChange}
+                onSearch={handleFilmSearch}
+                placeholder="Search films or programs..."
+                label="Films/Programs Associated"
+                allowFreeText={true}
+                helpText="Search for existing titles or type to add free text."
+              />
             </div>
 
-            {/* Row 3: Guests Associated */}
+            {/* Row 3: Guests ChipSelect */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Guests Associated</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={formData.guests_display}
-                  onChange={(e) => handleGuestsInput(e.target.value)}
-                  onFocus={() => {
-                    if (filteredGuestSuggestions.length > 0) {
-                      setShowGuestSuggestions(true)
-                    }
-                  }}
-                  onBlur={() => {
-                    setTimeout(() => setShowGuestSuggestions(false), 200)
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter guest names separated by commas"
-                />
-                
-                {showGuestSuggestions && filteredGuestSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                    {filteredGuestSuggestions.map((suggestion) => (
-                      <div
-                        key={suggestion.id}
-                        className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                        onClick={() => handleGuestSuggestionSelect(suggestion)}
-                      >
-                        <span className="font-medium">{suggestion.name}</span>
-                        <span className="text-gray-500 text-xs ml-2">(Guest)</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <p className="text-sm text-gray-500 mt-1">
-                Separate multiple guests with commas. Matched names will be linked to Guest Cards.
-              </p>
+              <ChipSelect
+                items={formData.guestChips}
+                onChange={handleGuestChipsChange}
+                onSearch={handleGuestSearch}
+                placeholder="Search guests..."
+                label="Guests Associated"
+                allowFreeText={true}
+                helpText="Search for guests or type to add free text."
+              />
             </div>
 
             {/* Row 4: Date and Times */}
@@ -833,7 +786,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Filmmakers, Sponsors, VIPs..."
                   />
-                  
+
                   {showInvitedSuggestions && filteredInvitedSuggestions.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
                       {filteredInvitedSuggestions.map((tag, index) => (
@@ -1006,9 +959,9 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                           .from('special_events')
                           .delete()
                           .eq('id', event.id)
-                        
+
                         if (error) throw error
-                        
+
                         onClose()
                         window.location.reload()
                       } catch (error) {

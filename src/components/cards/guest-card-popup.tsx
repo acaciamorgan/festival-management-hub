@@ -63,6 +63,9 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
   useEffect(() => {
     const loadEvents = async () => {
       try {
+        const festivalYear = await getFestivalYear()
+        const fyInt = parseInt(festivalYear, 10)
+
         // Execute all main queries in parallel
         const [
           photoShootsResult,
@@ -72,12 +75,11 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
         ] = await Promise.all([
           // Photo shoots query - get junction IDs first
           (async () => {
-            const festivalYear = await getFestivalYear()
             const { data: junctionData } = await supabase
               .from('photo_shoot_subjects')
               .select('photo_shoot_id')
               .eq('guest_id', guest.id)
-              .eq('festival_year', parseInt(festivalYear, 10))
+              .eq('festival_year', fyInt)
 
             if (junctionData && junctionData.length > 0) {
               const photoShootIds = junctionData.map(j => j.photo_shoot_id)
@@ -85,7 +87,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                 .from('photo_shoots_with_details')
                 .select('*')
                 .in('id', photoShootIds)
-                .eq('festival_year', parseInt(festivalYear, 10))
+                .eq('festival_year', fyInt)
                 .order('shoot_date', { ascending: false })
             }
             return { data: [], error: null }
@@ -93,19 +95,18 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
 
           // Red carpets query via junction table
           (async () => {
-            const festivalYear = await getFestivalYear()
             const { data: rcJunction } = await supabase
               .from('red_carpet_subjects')
               .select('red_carpet_id')
               .eq('guest_id', guest.id)
-              .eq('festival_year', parseInt(festivalYear, 10))
+              .eq('festival_year', fyInt)
 
             if (rcJunction && rcJunction.length > 0) {
               return await supabase
                 .from('red_carpets_with_details')
                 .select('*')
                 .in('id', rcJunction.map(j => j.red_carpet_id))
-                .eq('festival_year', parseInt(festivalYear, 10))
+                .eq('festival_year', fyInt)
                 .order('carpet_date', { ascending: false })
             }
             return { data: [], error: null }
@@ -122,6 +123,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
             .from('guest_film_titles')
             .select('film_title, film_type')
             .eq('guest_id', guest.id)
+            .eq('festival_year', fyInt)
         ])
 
         // Process photo shoots
@@ -197,19 +199,21 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
 
             // Get all screenings for films in parallel
             const allScreenings: any[] = []
+            const festivalYearInt = parseInt(festivalYear, 10)
 
             // Load all film screenings in parallel
             const filmScreeningPromises = uniqueFilmTitles.map(async (filmTitle) => {
-              // First try to find programming_film_id
-              const { data: programmingFilm } = await supabase
-                .from('programming_films')
+              // Look up the film_id from feature_films
+              const { data: featureFilm } = await supabase
+                .from('feature_films')
                 .select('id')
-                .eq('film_title', filmTitle)
-                .single()
+                .eq('title', filmTitle)
+                .eq('festival_year', festivalYearInt)
+                .maybeSingle()
 
-              // Query ticketing screenings
-              let screeningsQuery = supabase
-                .from('ticketing_screenings')
+              // Query ticketing screenings via view (base table has no film_title)
+              const { data: screeningsData } = await supabase
+                .from('ticketing_screenings_with_films')
                 .select(`
                   id,
                   film_title,
@@ -220,17 +224,10 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                   is_cancelled,
                   notes
                 `)
+                .eq(featureFilm ? 'film_id' : 'film_title', featureFilm ? featureFilm.id : filmTitle)
+                .eq('festival_year', festivalYearInt)
                 .order('screening_date', { ascending: true })
                 .order('start_time', { ascending: true })
-
-              // Use programming_film_id if available, otherwise match by title
-              if (programmingFilm?.id) {
-                screeningsQuery = screeningsQuery.eq('programming_film_id', programmingFilm.id)
-              } else {
-                screeningsQuery = screeningsQuery.eq('film_title', filmTitle)
-              }
-
-              const { data: screeningsData } = await screeningsQuery
 
               if (screeningsData) {
                 // Resolve venue names in parallel
@@ -268,9 +265,9 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
             const programScreeningPromises = uniqueProgramTitles.map(async (programTitle) => {
               // Load both ticketing screenings and special events in parallel for each program
               const [ticketingResult, specialEventsResult] = await Promise.all([
-                // Ticketing screenings query
+                // Ticketing screenings query (use view for film_title)
                 supabase
-                  .from('ticketing_screenings')
+                  .from('ticketing_screenings_with_films')
                   .select(`
                     id,
                     film_title,
@@ -282,6 +279,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     notes
                   `)
                   .eq('film_title', programTitle)
+                  .eq('festival_year', festivalYearInt)
                   .order('screening_date', { ascending: true })
                   .order('start_time', { ascending: true }),
 
@@ -384,6 +382,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
               .from('guest_film_titles')
               .select('film_title, film_type')
               .eq('guest_id', guest.id)
+              .eq('festival_year', fyInt)
 
             if (guestFilms) {
               for (const gf of guestFilms) {

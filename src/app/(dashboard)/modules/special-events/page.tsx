@@ -8,8 +8,21 @@ import { SpecialEventCard } from '@/types'
 import { SpecialEventFormModal } from '@/components/forms/special-event-form-modal'
 import { SpecialEventsCalendar } from '@/components/calendar/special-events-calendar'
 import { SpecialEventsTimeline } from '@/components/calendar/special-events-timeline'
+import { FilmCardPopup } from '@/components/cards/film-card-popup'
+import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import * as XLSX from 'xlsx-js-style'
+
+interface JunctionFilm {
+  special_event_id: string
+  film_id: string
+  film_type: string
+}
+
+interface JunctionGuest {
+  special_event_id: string
+  guest_id: string
+}
 
 export default function SpecialEventsPage() {
   const { user } = useAuth()
@@ -34,6 +47,14 @@ export default function SpecialEventsPage() {
   // Calendar venue filter
   const [selectedVenues, setSelectedVenues] = useState<string[]>(['all'])
   const [availableVenues, setAvailableVenues] = useState<{id: string, name: string}[]>([])
+
+  // Junction data for clickable film/guest links
+  const [junctionFilmsMap, setJunctionFilmsMap] = useState<Map<string, JunctionFilm[]>>(new Map())
+  const [junctionGuestsMap, setJunctionGuestsMap] = useState<Map<string, JunctionGuest[]>>(new Map())
+
+  // Card popup state
+  const [showFilmCard, setShowFilmCard] = useState<any>(null)
+  const [showGuestCard, setShowGuestCard] = useState<any>(null)
 
   const supabase = createClient()
 
@@ -504,6 +525,40 @@ export default function SpecialEventsPage() {
         return a.event_date.localeCompare(b.event_date)
       })
 
+      // Load junction data for special events (not interviews)
+      const specialEventIds = eventsWithDetails.map(e => e.id).filter(Boolean)
+      if (specialEventIds.length > 0) {
+        const [{ data: filmsData }, { data: guestsData }] = await Promise.all([
+          supabase
+            .from('special_event_films')
+            .select('special_event_id, film_id, film_type')
+            .in('special_event_id', specialEventIds),
+          supabase
+            .from('special_event_guests')
+            .select('special_event_id, guest_id')
+            .in('special_event_id', specialEventIds),
+        ])
+
+        const filmsMap = new Map<string, JunctionFilm[]>()
+        ;(filmsData || []).forEach(jf => {
+          const list = filmsMap.get(jf.special_event_id) || []
+          list.push(jf)
+          filmsMap.set(jf.special_event_id, list)
+        })
+        setJunctionFilmsMap(filmsMap)
+
+        const guestsMap = new Map<string, JunctionGuest[]>()
+        ;(guestsData || []).forEach(jg => {
+          const list = guestsMap.get(jg.special_event_id) || []
+          list.push(jg)
+          guestsMap.set(jg.special_event_id, list)
+        })
+        setJunctionGuestsMap(guestsMap)
+      } else {
+        setJunctionFilmsMap(new Map())
+        setJunctionGuestsMap(new Map())
+      }
+
       setSpecialEvents(combined as any)
       setAvailableVenues(venuesResult.data || [])
     } catch (error) {
@@ -687,6 +742,128 @@ export default function SpecialEventsPage() {
     } else if (action === 'view' && event.rsvp_response_link) {
       window.open(event.rsvp_response_link, '_blank')
     }
+  }
+
+  // Card popup handlers
+  const openFilmCard = async (filmId: string, filmType: string) => {
+    try {
+      let tableName: string
+      switch (filmType) {
+        case 'feature': tableName = 'feature_films'; break
+        case 'short': tableName = 'short_films'; break
+        case 'shorts_program': tableName = 'shorts_programs'; break
+        case 'program': tableName = 'programs'; break
+        default: tableName = 'feature_films'
+      }
+
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('id', filmId)
+        .single()
+
+      if (error || !data) {
+        console.warn('Film not found:', filmId, filmType)
+        alert('Film not found in database')
+        return
+      }
+
+      setShowFilmCard(data)
+    } catch (error) {
+      console.error('Error fetching film:', error)
+      alert('Error loading film details')
+    }
+  }
+
+  const openGuestCard = async (guestId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('guests')
+        .select('*')
+        .eq('id', guestId)
+        .single()
+
+      if (error || !data) {
+        console.warn('Guest not found:', guestId)
+        alert('Guest not found in database')
+        return
+      }
+
+      setShowGuestCard(data)
+    } catch (error) {
+      console.error('Error fetching guest:', error)
+      alert('Error loading guest details')
+    }
+  }
+
+  // Render film titles with clickable links for junction-linked items
+  const renderFilmTitles = (event: SpecialEventCard) => {
+    if (!event.films_programs_display_combined) return '—'
+
+    const titles = event.films_programs_display_combined.split(' || ').map(t => t.trim())
+    const junctionFilms = junctionFilmsMap.get(event.id) || []
+
+    return (
+      <div className="flex flex-wrap gap-1">
+        {titles.map((title, index) => {
+          const jf = index < junctionFilms.length ? junctionFilms[index] : undefined
+
+          return (
+            <span key={index}>
+              {jf ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openFilmCard(jf.film_id, jf.film_type)
+                  }}
+                  className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                >
+                  {title}
+                </button>
+              ) : (
+                <span className="text-gray-900">{title}</span>
+              )}
+              {index < titles.length - 1 && <span className="text-gray-400">, </span>}
+            </span>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // Render guest names with clickable links for junction-linked items
+  const renderGuestNames = (event: SpecialEventCard) => {
+    if (!event.guests_display_combined) return '—'
+
+    const names = event.guests_display_combined.split(', ').map(n => n.trim())
+    const junctionGuests = junctionGuestsMap.get(event.id) || []
+
+    return (
+      <div className="flex flex-wrap gap-1">
+        {names.map((name, index) => {
+          const jg = index < junctionGuests.length ? junctionGuests[index] : undefined
+
+          return (
+            <span key={index}>
+              {jg ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openGuestCard(jg.guest_id)
+                  }}
+                  className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                >
+                  {name}
+                </button>
+              ) : (
+                <span className="text-gray-900">{name}</span>
+              )}
+              {index < names.length - 1 && <span className="text-gray-400">, </span>}
+            </span>
+          )
+        })}
+      </div>
+    )
   }
 
   // Filter helper functions
@@ -1087,30 +1264,25 @@ export default function SpecialEventsPage() {
                     
                     {/* Films/Programs Associated */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['films_programs_display_combined'] || 250}px` }}>
-                      {isInterview && event.films_programs_display_combined ? (
-                        <span className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium">
-                          {event.films_programs_display_combined}
-                        </span>
+                      {isInterview ? (
+                        event.films_programs_display_combined ? (
+                          <span className="text-gray-900 font-medium">
+                            {event.films_programs_display_combined}
+                          </span>
+                        ) : '—'
                       ) : (
-                        event.films_programs_display_combined || '—'
+                        renderFilmTitles(event)
                       )}
                     </td>
 
                     {/* Guests Associated */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guests_display_combined'] || 200}px` }}>
-                      {isInterview && event.guests_display_combined ? (
-                        <div className="flex flex-wrap gap-1">
-                          {event.guests_display_combined.split(', ').map((name: string, index: number) => (
-                            <span key={index}>
-                              <span className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer">
-                                {name}
-                              </span>
-                              {index < event.guests_display_combined!.split(', ').length - 1 && <span className="text-gray-400">, </span>}
-                            </span>
-                          ))}
-                        </div>
+                      {isInterview ? (
+                        event.guests_display_combined ? (
+                          <span className="text-gray-900">{event.guests_display_combined}</span>
+                        ) : '—'
                       ) : (
-                        event.guests_display_combined || '—'
+                        renderGuestNames(event)
                       )}
                     </td>
                     
@@ -1338,6 +1510,22 @@ export default function SpecialEventsPage() {
           loadSpecialEvents()
         }}
       />
+
+      {/* Film Card Popup */}
+      {showFilmCard && (
+        <FilmCardPopup
+          film={showFilmCard}
+          onClose={() => setShowFilmCard(null)}
+        />
+      )}
+
+      {/* Guest Card Popup */}
+      {showGuestCard && (
+        <GuestCardPopup
+          guest={showGuestCard}
+          onClose={() => setShowGuestCard(null)}
+        />
+      )}
     </div>
   )
 }

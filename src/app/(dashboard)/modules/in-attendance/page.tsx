@@ -314,9 +314,9 @@ export default function InAttendancePage() {
 
       try {
         const [featureFilms, shortFilms, programs] = await Promise.all([
-          supabase.from('feature_films').select('title'),
-          supabase.from('short_films').select('title'),
-          supabase.from('programs').select('title')
+          supabase.from('feature_films').select('title').eq('festival_year', currentYear),
+          supabase.from('short_films').select('title').eq('festival_year', currentYear),
+          supabase.from('programs').select('title').eq('festival_year', currentYear)
         ])
 
         const allTitles = new Set<string>()
@@ -691,6 +691,7 @@ export default function InAttendancePage() {
         .from('feature_films')
         .select('*')
         .eq('title', filmTitle)
+        .eq('festival_year', currentYear)
         .maybeSingle()
 
       if (!filmData || error) {
@@ -699,6 +700,7 @@ export default function InAttendancePage() {
           .from('short_films')
           .select('*')
           .eq('title', filmTitle)
+          .eq('festival_year', currentYear)
           .maybeSingle()
 
         if (shortFilmData && !shortError) {
@@ -709,6 +711,7 @@ export default function InAttendancePage() {
             .from('programs')
             .select('*')
             .eq('title', filmTitle)
+            .eq('festival_year', currentYear)
             .maybeSingle()
 
           if (programData && !programError) {
@@ -737,9 +740,9 @@ export default function InAttendancePage() {
     const loadFilmTitles = async () => {
       try {
         const [featureFilms, shortFilms, programs] = await Promise.all([
-          supabase.from('feature_films').select('title'),
-          supabase.from('short_films').select('title'),
-          supabase.from('programs').select('title')
+          supabase.from('feature_films').select('title').eq('festival_year', currentYear),
+          supabase.from('short_films').select('title').eq('festival_year', currentYear),
+          supabase.from('programs').select('title').eq('festival_year', currentYear)
         ])
         
         const titles = [
@@ -1078,6 +1081,7 @@ export default function InAttendancePage() {
                 .from('guests')
                 .select('id')
                 .eq('name', guestName)
+                .eq('festival_year', currentYear)
                 .single()
 
               if (!findError && existingGuest) {
@@ -1791,7 +1795,7 @@ export default function InAttendancePage() {
           onConfirm={async (confirmedRemovals) => {
             if (confirmedRemovals.length > 0) {
               setUploadStatus('Removing film associations...')
-              const result = await removeFilmAssociations(confirmedRemovals)
+              const result = await removeFilmAssociations(confirmedRemovals, currentYear)
               if (!result.success) {
                 alert(`Some removals failed: ${result.errors.join(', ')}`)
               }

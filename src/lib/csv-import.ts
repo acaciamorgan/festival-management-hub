@@ -271,9 +271,11 @@ function parseCSVToRecords(csvContent: string): string[][] {
 
 
 // Function to remove confirmed film associations
-export async function removeFilmAssociations(removals: Array<{guestName: string, removedFilms: string[]}>) {
+export async function removeFilmAssociations(removals: Array<{guestName: string, removedFilms: string[]}>, currentYear?: number) {
   const supabase = createClient()
   const errors: string[] = []
+  const festivalYear = await getFestivalYear(currentYear)
+  const fyInt = parseInt(festivalYear, 10)
 
   for (const removal of removals) {
     // Get guest ID
@@ -291,9 +293,9 @@ export async function removeFilmAssociations(removals: Array<{guestName: string,
     // Remove film associations — look up film_id from title across all film tables
     for (const filmTitle of removal.removedFilms) {
       const [featureMatch, shortMatch, programMatch] = await Promise.all([
-        supabase.from('feature_films').select('id').eq('title', filmTitle).maybeSingle(),
-        supabase.from('short_films').select('id').eq('title', filmTitle).maybeSingle(),
-        supabase.from('programs').select('id').eq('title', filmTitle).maybeSingle()
+        supabase.from('feature_films').select('id').eq('title', filmTitle).eq('festival_year', fyInt).maybeSingle(),
+        supabase.from('short_films').select('id').eq('title', filmTitle).eq('festival_year', fyInt).maybeSingle(),
+        supabase.from('programs').select('id').eq('title', filmTitle).eq('festival_year', fyInt).maybeSingle()
       ])
 
       const filmId = featureMatch.data?.id || shortMatch.data?.id || programMatch.data?.id
@@ -344,10 +346,11 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
       const titleMappingsRequired: TitleMapping[] = []
 
       // Get all database titles for matching
+      const festivalYearInt = parseInt(festivalYear, 10)
       const [allFeatureFilms, allShortFilms, allPrograms] = await Promise.all([
-        supabase.from('feature_films').select('id, title'),
-        supabase.from('short_films').select('id, title'),
-        supabase.from('programs').select('id, title')
+        supabase.from('feature_films').select('id, title').eq('festival_year', festivalYearInt),
+        supabase.from('short_films').select('id, title').eq('festival_year', festivalYearInt),
+        supabase.from('programs').select('id, title').eq('festival_year', festivalYearInt)
       ])
       const allDbTitles = [
         ...(allFeatureFilms.data || []).map(f => f.title),
@@ -618,10 +621,11 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
         const matchedTitlesForDisplay: string[] = [] // Collect actual database titles for display
 
         // Get ALL database titles once for matching
+        const festivalYearInt2 = parseInt(festivalYear, 10)
         const [allFeatureFilms, allShortFilms, allProgramsFromDb] = await Promise.all([
-          supabase.from('feature_films').select('id, title'),
-          supabase.from('short_films').select('id, title, shorts_program_id'),
-          supabase.from('programs').select('id, title')
+          supabase.from('feature_films').select('id, title').eq('festival_year', festivalYearInt2),
+          supabase.from('short_films').select('id, title, shorts_program_id').eq('festival_year', festivalYearInt2),
+          supabase.from('programs').select('id, title').eq('festival_year', festivalYearInt2)
         ])
 
         console.log('Raw program query result:', allProgramsFromDb)
@@ -750,20 +754,15 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
                 const shortsProgram = allProgramsFromDb.data?.find(p => p.id === shortFilm.shorts_program_id)
                 if (shortsProgram) {
                   console.log(`  ✓ Adding program association: "${shortsProgram.title}"`)
-                  const programExists = existingProgramAssociations.some(
-                    a => a.program_id === shortsProgram.id
+                  const spExists = existingFilmAssociations.some(
+                    a => a.film_id === shortsProgram.id && a.film_type === 'shorts_program'
                   )
-                  if (!programExists) {
-                    const spExists = existingFilmAssociations.some(
-                      a => a.film_id === shortsProgram.id && a.film_type === 'shorts_program'
-                    )
-                    if (!spExists) {
-                      filmAssociations.push({
-                        guest_id: savedGuest.id,
-                        film_id: shortsProgram.id,
-                        film_type: 'shorts_program'
-                      })
-                    }
+                  if (!spExists) {
+                    filmAssociations.push({
+                      guest_id: savedGuest.id,
+                      film_id: shortsProgram.id,
+                      film_type: 'shorts_program'
+                    })
                   }
                 }
               }

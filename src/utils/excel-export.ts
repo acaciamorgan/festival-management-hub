@@ -305,6 +305,7 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     const { data: screenerAccessRaw, error: screenerError } = await supabase
       .from('screener_access')
       .select('*')
+      .eq('festival_year', festivalYear)
     
     console.log('Screener Access:', screenerError ? 'ERROR: ' + screenerError.message : `SUCCESS: ${screenerAccessRaw?.length || 0} records`)
     

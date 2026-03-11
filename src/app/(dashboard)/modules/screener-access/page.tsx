@@ -86,7 +86,7 @@ export default function ScreenerAccessPage() {
   const [showFilmCard, setShowFilmCard] = useState(false)
   const [showFilmCardsMode, setShowFilmCardsMode] = useState(false)
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'title', direction: 'asc' })
-  const [accessTypeFilter, setAccessTypeFilter] = useState<'all' | 'TBD' | 'cinesend' | 'link_available' | 'request_link' | 'no_links'>('all')
+  const [accessTypeFilter, setAccessTypeFilter] = useState<'all' | 'tbd' | 'cinesend' | 'link_available' | 'request_link' | 'no_links'>('all')
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
 
   const supabase = createClient()
@@ -334,8 +334,8 @@ export default function ScreenerAccessPage() {
 
     // Access type filter
     if (accessTypeFilter !== 'all') {
-      if (accessTypeFilter === 'TBD') {
-        filtered = filtered.filter(film => !film.screener_data || film.screener_data.access_type === 'TBD')
+      if (accessTypeFilter === 'tbd') {
+        filtered = filtered.filter(film => !film.screener_data || film.screener_data.access_type === 'tbd')
       } else if (accessTypeFilter === 'cinesend' || accessTypeFilter === 'request_link') {
         // Only show features for cinesend and request_link
         filtered = filtered.filter(film => !film.isProgram && film.screener_data?.access_type === accessTypeFilter)
@@ -655,9 +655,9 @@ export default function ScreenerAccessPage() {
   }
 
   const getRowBackgroundColor = (film: UnifiedFilm) => {
-    const accessType = film.screener_data?.access_type || 'TBD'
+    const accessType = film.screener_data?.access_type || 'tbd'
     switch (accessType) {
-      case 'TBD': return 'bg-white'
+      case 'tbd': return 'bg-white'
       case 'cinesend': return 'bg-blue-50'
       case 'link_available': return 'bg-green-50'
       case 'request_link': return 'bg-yellow-50'
@@ -669,7 +669,7 @@ export default function ScreenerAccessPage() {
   const getFilterCounts = () => {
     const counts = {
       all: allFilms.length,
-      TBD: allFilms.filter(f => !f.screener_data || f.screener_data.access_type === 'TBD').length,
+      tbd: allFilms.filter(f => !f.screener_data || f.screener_data.access_type === 'tbd').length,
       cinesend: allFilms.filter(f => !f.isProgram && f.screener_data?.access_type === 'cinesend').length,
       link_available: allFilms.filter(f => f.screener_data?.access_type === 'link_available').length,
       request_link: allFilms.filter(f => !f.isProgram && f.screener_data?.access_type === 'request_link').length,
@@ -792,14 +792,14 @@ export default function ScreenerAccessPage() {
               No Links ({filterCounts.no_links})
             </button>
             <button
-              onClick={() => setAccessTypeFilter('TBD')}
+              onClick={() => setAccessTypeFilter('tbd')}
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                accessTypeFilter === 'TBD'
+                accessTypeFilter === 'tbd'
                   ? 'bg-gray-600 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              TBD ({filterCounts.TBD})
+              TBD ({filterCounts.tbd})
             </button>
           </div>
         </div>
