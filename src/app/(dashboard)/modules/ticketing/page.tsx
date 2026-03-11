@@ -1262,31 +1262,23 @@ export default function TicketingPage() {
       // Process each press screening
       let successCount = 0
       let updatedCount = 0
-      
+
       for (const screening of pressScreenings || []) {
         if (!screening.screening_date || !screening.screening_time) continue
+        if (!screening.short_code) continue
+        if (!screening.film_id) continue
 
-        // Use the short_code field directly
-        if (!screening.short_code) {
-          console.warn(`No short code for ${screening.title} - skipping`)
-          continue
-        }
-        
         const shortCode = screening.short_code
-        console.log(`DEBUG: Syncing ${screening.title} with short_code: "${shortCode}"`)
 
-        // Look up runtime from feature_films table first
-        let runtime = screening.runtime // fallback to press_screening runtime
-        const { data: film } = await supabase
-          .from('feature_films')
-          .select('run_time')
-          .eq('title', screening.title)
-          .eq('festival_year', currentYear)
-          .single()
-
-        if (film && film.run_time) {
-          runtime = film.run_time
-          console.log(`  Found runtime for ${screening.title}: ${runtime} min`)
+        // Look up runtime from feature_films table by film_id
+        let runtime = null
+        if (screening.film_type === 'feature') {
+          const { data: film } = await supabase
+            .from('feature_films')
+            .select('run_time')
+            .eq('id', screening.film_id)
+            .single()
+          if (film?.run_time) runtime = film.run_time
         }
 
         // Look up venue capacity
@@ -1296,81 +1288,63 @@ export default function TicketingPage() {
         )
         if (venueMatch) {
           capacity = venueMatch.capacity
-          console.log(`  Auto-filled capacity for ${shortCode}: ${capacity}`)
         }
 
-        // Check if this screening already exists (match by title and date only)
+        // Check if this screening already exists (match by film_id and date)
         const { data: existing } = await supabase
           .from('pi_jury_screenings')
           .select('id')
-          .eq('film_title', screening.title)
+          .eq('film_id', screening.film_id)
           .eq('screening_date', screening.screening_date)
-          .eq('screening_type', 'P&I') // Only match P&I screenings, not Jury
+          .eq('screening_type', 'P&I')
           .eq('festival_year', currentYear)
 
         if (existing && existing.length > 0) {
-          // Update existing screening with new time, venue, and other details
+          // Update existing screening
           const { error: updateError } = await supabase
             .from('pi_jury_screenings')
             .update({
-              start_time: screening.screening_time, // Update time too!
+              start_time: screening.screening_time,
               venue_short_code: shortCode,
               capacity: capacity,
-              run_time: runtime,
               notes: screening.notes,
-              is_tentative: !(screening.film_approved && screening.locked), // Only not tentative if BOTH approved AND locked
+              is_tentative: !(screening.film_approved && screening.locked),
               film_approved: screening.film_approved || false,
               locked: screening.locked || false,
               day_of_week: getDayOfWeek(screening.screening_date),
-              film_id: screening.film_id || null,
+              film_id: screening.film_id,
               film_type: screening.film_type || null,
               festival_year: currentYear
             })
             .eq('id', existing[0].id)
 
-          if (!updateError) {
-            updatedCount++
-            console.log(`  Updated P&I screening for ${screening.title} - time: ${screening.screening_time}, venue: ${shortCode}`)
-          } else {
-            console.error(`  Error updating screening for ${screening.title}:`, updateError)
-          }
+          if (!updateError) updatedCount++
         } else {
           // Create new P&I screening
           const { error: insertError } = await supabase
             .from('pi_jury_screenings')
             .insert({
-              film_title: screening.title,
-              film_id: screening.film_id || null,
+              film_id: screening.film_id,
               film_type: screening.film_type || null,
               festival_year: currentYear,
               screening_type: 'P&I',
               screening_date: screening.screening_date,
               day_of_week: getDayOfWeek(screening.screening_date),
               start_time: screening.screening_time,
-              run_time: runtime,
               venue_short_code: shortCode,
               capacity: capacity,
               notes: screening.notes,
               is_cancelled: false,
-              is_tentative: !(screening.film_approved && screening.locked), // Only not tentative if BOTH approved AND locked
+              is_tentative: !(screening.film_approved && screening.locked),
               film_approved: screening.film_approved || false,
               locked: screening.locked || false
             })
 
-          if (!insertError) {
-            successCount++
-            console.log(`  Created new P&I screening for ${screening.title}`)
-          } else {
-            console.error(`  Error creating screening for ${screening.title}:`, insertError)
-          }
+          if (!insertError) successCount++
         }
       }
 
-      const message = updatedCount > 0
-        ? `Successfully synced: ${successCount} new, ${updatedCount} updated P&I screenings`
-        : `Successfully synced ${successCount} new P&I screenings`
-      
-      alert(message)
+      console.log(`P&I sync: ${successCount} new, ${updatedCount} updated`)
       await loadPIJuryScreenings()
     } catch (error) {
       console.error('Error syncing press screenings:', error)
