@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PressCard, AccreditationLevel, InterviewCard } from '@/types'
 import { getInterviewsForPressCard } from '@/lib/interviews-client'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 
 interface PressCardProps {
   press: PressCard
@@ -56,6 +57,7 @@ function CollapsibleSection({ title, children, isEmpty = false }: CollapsibleSec
 }
 
 export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCardProps) {
+  const { currentYear } = useFestivalYear()
   const [position, setPosition] = useState({ x: 100, y: 100 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -283,7 +285,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
   useEffect(() => {
     const loadInterviews = async () => {
       try {
-        const interviews = await getInterviewsForPressCard(press.id)
+        const interviews = await getInterviewsForPressCard(press.id, currentYear)
         setPressInterviews(interviews)
       } catch (error) {
         console.error('Error loading press interviews:', error)

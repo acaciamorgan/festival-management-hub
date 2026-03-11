@@ -1277,6 +1277,7 @@ export default function TicketingPage() {
             .from('feature_films')
             .select('run_time')
             .eq('id', screening.film_id)
+            .eq('festival_year', currentYear)
             .single()
           if (film?.run_time) runtime = film.run_time
         }

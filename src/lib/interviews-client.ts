@@ -5,7 +5,8 @@ import { InterviewCard } from '@/types'
 
 export async function getInterviewsForCard(
   cardType: 'feature_films' | 'shorts_programs' | 'programs' | 'press' | 'guests',
-  cardId: string
+  cardId: string,
+  festivalYear?: number
 ): Promise<InterviewCard[]> {
   const supabase = createClient()
 
@@ -29,6 +30,10 @@ export async function getInterviewsForCard(
       break
   }
 
+  if (festivalYear) {
+    query = query.eq('festival_year', festivalYear)
+  }
+
   const { data, error } = await query.order('created_at', { ascending: false })
 
   if (error) {
@@ -39,42 +44,52 @@ export async function getInterviewsForCard(
   return data || []
 }
 
-export async function getInterviewsForFilmCard(filmId: string): Promise<InterviewCard[]> {
+export async function getInterviewsForFilmCard(filmId: string, festivalYear?: number): Promise<InterviewCard[]> {
   const supabase = createClient()
 
   // Query by film_id FK directly — no text fallback needed
-  const { data: featureData } = await supabase
+  let query = supabase
     .from('interviews_with_films')
     .select('*')
     .eq('film_id', filmId)
-    .order('created_at', { ascending: false })
+
+  if (festivalYear) {
+    query = query.eq('festival_year', festivalYear)
+  }
+
+  const { data: featureData } = await query.order('created_at', { ascending: false })
 
   if (featureData && featureData.length > 0) {
     return featureData
   }
 
   // Try as a short film
-  const { data: shortData } = await supabase
+  let shortQuery = supabase
     .from('interviews_with_films')
     .select('*')
     .eq('short_film_id', filmId)
-    .order('created_at', { ascending: false })
+
+  if (festivalYear) {
+    shortQuery = shortQuery.eq('festival_year', festivalYear)
+  }
+
+  const { data: shortData } = await shortQuery.order('created_at', { ascending: false })
 
   return shortData || []
 }
 
-export async function getInterviewsForShortsProgram(programId: string): Promise<InterviewCard[]> {
-  return getInterviewsForCard('shorts_programs', programId)
+export async function getInterviewsForShortsProgram(programId: string, festivalYear?: number): Promise<InterviewCard[]> {
+  return getInterviewsForCard('shorts_programs', programId, festivalYear)
 }
 
-export async function getInterviewsForProgram(programId: string): Promise<InterviewCard[]> {
-  return getInterviewsForCard('programs', programId)
+export async function getInterviewsForProgram(programId: string, festivalYear?: number): Promise<InterviewCard[]> {
+  return getInterviewsForCard('programs', programId, festivalYear)
 }
 
-export async function getInterviewsForPressCard(pressId: string): Promise<InterviewCard[]> {
-  return getInterviewsForCard('press', pressId)
+export async function getInterviewsForPressCard(pressId: string, festivalYear?: number): Promise<InterviewCard[]> {
+  return getInterviewsForCard('press', pressId, festivalYear)
 }
 
-export async function getInterviewsForGuestCard(guestId: string): Promise<InterviewCard[]> {
-  return getInterviewsForCard('guests', guestId)
+export async function getInterviewsForGuestCard(guestId: string, festivalYear?: number): Promise<InterviewCard[]> {
+  return getInterviewsForCard('guests', guestId, festivalYear)
 }

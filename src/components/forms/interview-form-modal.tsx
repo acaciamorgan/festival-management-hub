@@ -271,21 +271,11 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     try {
       let guests: Array<{ id: string; name: string }> = []
 
-      if (filmType === 'feature') {
+      if (filmType === 'feature' || filmType === 'short') {
         const { data } = await supabase
           .from('guest_films')
           .select('guest_id, guests!inner(id, name)')
           .eq('film_id', filmId)
-
-        guests = (data || []).map((gf: any) => ({
-          id: gf.guests.id,
-          name: gf.guests.name,
-        }))
-      } else if (filmType === 'short') {
-        const { data } = await supabase
-          .from('guest_short_films')
-          .select('guest_id, guests!inner(id, name)')
-          .eq('short_film_id', filmId)
 
         guests = (data || []).map((gf: any) => ({
           id: gf.guests.id,

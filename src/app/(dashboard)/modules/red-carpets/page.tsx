@@ -391,6 +391,7 @@ export default function RedCarpetsPage() {
         .from(tableName)
         .select(selectFields)
         .eq('id', filmId)
+        .eq('festival_year', currentYear)
         .single()
 
       if (error || !data) {
@@ -413,6 +414,7 @@ export default function RedCarpetsPage() {
         .from('guests')
         .select('*')
         .eq('id', guestId)
+        .eq('festival_year', currentYear)
         .single()
 
       if (error || !data) {

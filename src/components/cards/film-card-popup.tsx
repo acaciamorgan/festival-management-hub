@@ -546,7 +546,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
         // Load interviews for this film
         try {
-          const filmInterviews = await getInterviewsForFilmCard(film.id)
+          const filmInterviews = await getInterviewsForFilmCard(film.id, parseInt(festivalYear, 10))
           setFilmInterviews(filmInterviews)
         } catch (error) {
           console.error('Error loading film interviews:', error)

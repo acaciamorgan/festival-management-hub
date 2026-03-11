@@ -179,6 +179,7 @@ export default function PressScreeningsPage() {
           .from('feature_films')
           .select('*')
           .eq('id', screening.film_id)
+          .eq('festival_year', currentYear)
           .single()
         
         if (featureData) {
@@ -198,6 +199,7 @@ export default function PressScreeningsPage() {
           .from('short_films')
           .select('*')
           .eq('id', screening.film_id)
+          .eq('festival_year', currentYear)
           .single()
         
         if (shortData) {

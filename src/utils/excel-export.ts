@@ -217,6 +217,7 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     const { data: featureFilms, error: featuresError } = await supabase
       .from('feature_films')
       .select('*')
+      .eq('festival_year', festivalYear)
       .order('title')
     
     console.log('Feature films:', featuresError ? 'ERROR: ' + featuresError.message : `SUCCESS: ${featureFilms?.length || 0} records`)
@@ -233,6 +234,7 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     const { data: shortsProgramList } = await supabase
       .from('shorts_programs')
       .select('id, program_name')
+      .eq('festival_year', festivalYear)
     
     if (shortsProgramList) {
       shortsProgramList.forEach(program => {
@@ -243,6 +245,7 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     const { data: shortFilmsRaw, error: shortError } = await supabase
       .from('short_films')
       .select('*')
+      .eq('festival_year', festivalYear)
       .order('title')
     
     console.log('Short films:', shortError ? 'ERROR: ' + shortError.message : `SUCCESS: ${shortFilmsRaw?.length || 0} records`)
@@ -269,6 +272,7 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     const { data: programsList } = await supabase
       .from('programs')
       .select('*')
+      .eq('festival_year', festivalYear)
       .order('title')
     
     const programsSheet = createStyledWorksheet(programsList || [], 'Programs')
@@ -279,6 +283,7 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     const { data: pressList } = await supabase
       .from('press')
       .select('*')
+      .eq('festival_year', festivalYear)
       .order('name')
     
     const pressSheet = createStyledWorksheet(pressList || [], 'Press List')
@@ -334,6 +339,7 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     const { data: photoShootsRaw, error: photoShootsError } = await supabase
       .from('photo_shoots')
       .select('*')
+      .eq('festival_year', festivalYear)
       .order('shoot_date')
     
     // Map to expected format
@@ -360,6 +366,7 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     const { data: inAttendanceRaw, error: inAttendanceError } = await supabase
       .from('guests')
       .select('*')
+      .eq('festival_year', festivalYear)
       .order('name')
     
     // Map to expected format
@@ -389,6 +396,7 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     const { data: redCarpetsRaw, error: redCarpetsError } = await supabase
       .from('red_carpets')
       .select('*')
+      .eq('festival_year', festivalYear)
       .order('carpet_date')
     
     // Map to expected format
@@ -415,6 +423,7 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     const { data: specialEventsRaw, error: specialEventsError } = await supabase
       .from('special_events')
       .select('*')
+      .eq('festival_year', festivalYear)
       .order('event_date')
     
     // Map to expected format

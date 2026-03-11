@@ -141,13 +141,15 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
         // Load schedule items (ticketing screenings + special events)
         const [ticketingResponse, specialEventsResponse] = await Promise.all([
           supabase
-            .from('ticketing_screenings')
-            .select('*, venues(name)')
-            .eq('film_title', program.title),
+            .from('ticketing_screenings_with_films')
+            .select('*')
+            .eq('film_title', program.title)
+            .eq('festival_year', currentYear),
           supabase
             .from('special_events')
             .select('*, venues(name)')
             .eq('title', program.title)
+            .eq('festival_year', currentYear)
         ])
 
         const ticketingScreenings = (ticketingResponse.data || []).map(item => ({

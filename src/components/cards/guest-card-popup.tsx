@@ -113,7 +113,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           })(),
 
           // Interviews query
-          getInterviewsForGuestCard(guest.id).catch(error => {
+          getInterviewsForGuestCard(guest.id, fyInt).catch(error => {
             console.error('Error loading guest interviews:', error)
             return []
           }),

@@ -298,6 +298,7 @@ export default function PhotoShootsPage() {
         .from(tableName)
         .select('*')
         .eq('id', filmId)
+        .eq('festival_year', currentYear)
         .single()
 
       if (error || !data) {
@@ -320,6 +321,7 @@ export default function PhotoShootsPage() {
         .from('guests')
         .select('*')
         .eq('id', guestId)
+        .eq('festival_year', currentYear)
         .single()
 
       if (error || !data) {

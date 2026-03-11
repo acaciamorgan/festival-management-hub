@@ -77,6 +77,7 @@ export default function PressRequestsPage() {
         .from(tableName)
         .select('*')
         .eq('id', filmId)
+        .eq('festival_year', currentYear)
         .single()
 
       if (error || !data) {
