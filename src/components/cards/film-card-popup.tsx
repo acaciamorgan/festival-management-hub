@@ -318,14 +318,13 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
           setFilmRedCarpets([])
         }
 
-        // Load press screenings
+        // Load press screenings (base table has no title column, use film_id)
         const { data: screeningsData, error: screeningsError } = await supabase
           .from('press_screenings')
           .select(`
             id,
             screening_date,
             screening_time,
-            title,
             venue_id,
             house,
             short_code,
@@ -333,7 +332,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             canceled,
             venues(name)
           `)
-          .or(`title.eq.${film.title}${shortsProgramName ? `,title.eq.${shortsProgramName}` : ''}`)
+          .or(`film_id.eq.${film.id}${shortsProgramId ? `,film_id.eq.${shortsProgramId}` : ''}`)
           .eq('festival_year', parseInt(festivalYear, 10))
           .order('screening_date', { ascending: true })
 
