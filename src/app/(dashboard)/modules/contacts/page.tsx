@@ -252,6 +252,7 @@ export default function ContactsPage() {
       const { data: contactsData, error: contactsError } = await supabase
         .from('contacts')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('contact_name')
 
       if (contactsError) {
@@ -726,7 +727,8 @@ export default function ContactsPage() {
                     company: contactData.contact_company,
                     email: contact.contact_email,
                     contact_type: role,
-                    contact_id: contact.id
+                    contact_id: contact.id,
+                    festival_year: currentYear
                   })
                   .select()
                   
@@ -1137,7 +1139,8 @@ export default function ContactsPage() {
           company: assigningContact.contact_company,
           email: assigningContact.contact_email,
           contact_type: contactRole,
-          contact_id: assigningContact.id
+          contact_id: assigningContact.id,
+          festival_year: currentYear
         }
       })
 

@@ -9,6 +9,7 @@ interface VenueFormModalProps {
   isOpen: boolean
   onClose: () => void
   onSave: (venue: VenueCard) => void
+  currentYear?: number
 }
 
 interface VenueFormData {
@@ -21,7 +22,7 @@ interface VenueFormData {
   houses: TheaterHouse[]
 }
 
-export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModalProps) {
+export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear }: VenueFormModalProps) {
   const [formData, setFormData] = useState<VenueFormData>({
     name: '',
     address: '',
@@ -178,6 +179,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
           .from('venues')
           .insert([{
             ...venueData,
+            festival_year: currentYear,
             created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
           }])
           .select()
@@ -195,10 +197,12 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
       if (formData.venue_type === 'Movie Theater') {
         // Delete existing houses if editing
         if (venue) {
-          await supabase
+          const deleteQuery = supabase
             .from('theater_houses')
             .delete()
             .eq('venue_id', venue.id)
+          if (currentYear) deleteQuery.eq('festival_year', currentYear)
+          await deleteQuery
         }
 
         // Insert new houses
@@ -208,6 +212,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave }: VenueFormModa
             house_name: house.house_name.trim(),
             seat_count: house.seat_count,
             short_code: house.short_code?.trim() || null,
+            festival_year: currentYear,
             created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
           }))
 

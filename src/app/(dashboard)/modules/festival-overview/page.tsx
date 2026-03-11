@@ -9,6 +9,7 @@ import { getOrdinalSuffix } from '@/utils/ordinal'
 
 interface FestivalSettings {
   id: string
+  year: number
   edition_number: number
   festival_name: string
   start_date: string
@@ -36,15 +37,11 @@ export default function FestivalOverviewPage() {
   const [saving, setSaving] = useState(false)
   
   // Form state for settings
-  const [editionNumber, setEditionNumber] = useState(60)
-  const [festivalName, setFestivalName] = useState('Chicago International Film Festival')
-  const [startDate, setStartDate] = useState('2024-10-16')
-  const [endDate, setEndDate] = useState('2024-10-27')
-  const [importantLinks, setImportantLinks] = useState<{ title: string; url: string }[]>([
-    { title: 'Festival Website', url: 'https://chicagofilmfestival.com' },
-    { title: 'Box Office System', url: '#' },
-    { title: 'Press Portal', url: '#' }
-  ])
+  const [editionNumber, setEditionNumber] = useState(0)
+  const [festivalName, setFestivalName] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [importantLinks, setImportantLinks] = useState<{ title: string; url: string }[]>([])
 
   const supabase = createClient()
   const { user } = useAuth()

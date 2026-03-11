@@ -291,11 +291,9 @@ export const archiveConfigs = {
     tableName: 'venues',
     title: 'Venues',
     columns: [
-      { key: 'venue_name', label: 'Venue Name' },
-      { key: 'short_code', label: 'Code' },
+      { key: 'name', label: 'Venue Name' },
+      { key: 'venue_type', label: 'Type' },
       { key: 'address', label: 'Address' },
-      { key: 'capacity', label: 'Capacity' },
-      { key: 'contact_person', label: 'Contact' },
       { key: 'created_at', label: 'Added', render: (value: string) => {
         if (!value) return '—'
         // Parse date string directly without timezone conversion

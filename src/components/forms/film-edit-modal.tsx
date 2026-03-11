@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { FilmContact, FilmContactType } from '@/types'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 
 interface FeatureFilm {
   id: string
@@ -92,6 +93,7 @@ interface FilmEditModalProps {
 }
 
 export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelete }: FilmEditModalProps) {
+  const { currentYear } = useFestivalYear()
   const [formData, setFormData] = useState<FeatureFilm | ShortFilm>({} as FeatureFilm | ShortFilm)
   const [filmContacts, setFilmContacts] = useState<FilmContact[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -304,7 +306,8 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
             run_time: formData.run_time,
             film_title: formData.title
           })
-          .eq('film_title', film.title)
+          .eq('film_id', film.id)
+          .eq('festival_year', currentYear)
 
         if (publishedError) {
           console.error('Failed to update published_screenings:', publishedError)

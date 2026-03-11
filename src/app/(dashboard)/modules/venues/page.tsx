@@ -449,6 +449,7 @@ export default function VenueManagementPage() {
       <VenueFormModal
         venue={showAddModal ? null : selectedVenue}
         isOpen={showAddModal || !!selectedVenue}
+        currentYear={currentYear}
         onClose={() => {
           console.log('Closing venue modal')
           setShowAddModal(false)
