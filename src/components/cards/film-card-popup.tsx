@@ -506,8 +506,8 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             // Load all published screenings for this film and check which ones have attending guests
             const { data: allScreenings } = await supabase
               .from('ticketing_screenings')
-              .select('id, film_title')
-              .or(`film_title.eq.${film.title}${shortsProgramName ? `,film_title.eq.${shortsProgramName}` : ''}`)
+              .select('id')
+              .eq('film_id', film.id)
 
             if (!allScreenings || allScreenings.length === 0) return
 
@@ -560,10 +560,10 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             let allScreenings: any[] = []
             const festivalYearInt = parseInt(festivalYear, 10)
 
-            // Primary: query by film_id (reliable UUID match)
+            // Primary: query by film_id using the view (base table has no film_title column)
             if (film.id) {
               const { data: idScreenings } = await supabase
-                .from('ticketing_screenings')
+                .from('ticketing_screenings_with_films')
                 .select(`
                   id, film_title, screening_date, day_of_week,
                   start_time, venue_short_code, is_cancelled, notes
@@ -586,7 +586,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
 
               if (shortFilm?.shorts_program_id) {
                 const { data: programScreenings } = await supabase
-                  .from('ticketing_screenings')
+                  .from('ticketing_screenings_with_films')
                   .select(`
                     id, film_title, screening_date, day_of_week,
                     start_time, venue_short_code, is_cancelled, notes
@@ -602,10 +602,10 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               }
             }
 
-            // Fallback: text match for legacy data without film_id
+            // Fallback: text match using view for legacy data
             if (allScreenings.length === 0) {
               const { data: textScreenings } = await supabase
-                .from('ticketing_screenings')
+                .from('ticketing_screenings_with_films')
                 .select(`
                   id, film_title, screening_date, day_of_week,
                   start_time, venue_short_code, is_cancelled, notes
