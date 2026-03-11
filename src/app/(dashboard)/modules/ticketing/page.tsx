@@ -52,6 +52,7 @@ interface ScreeningBoardProps {
   setSearchResults: (results: any[]) => void
   currentSearchIndex: number
   setCurrentSearchIndex: (index: number) => void
+  onFilmClick?: (screening: any) => void
 }
 
 function ScreeningBoard({
@@ -69,6 +70,7 @@ function ScreeningBoard({
   setSearchResults,
   currentSearchIndex,
   setCurrentSearchIndex,
+  onFilmClick,
   showSetViewModal,
   setShowSetViewModal,
   selectedVenues,
@@ -97,8 +99,29 @@ function ScreeningBoard({
 }) {
   const supabase = createClient()
   const { user } = useAuth()
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const daySectionRefs = useRef<Map<string, HTMLElement>>(new Map())
+  const [hasScrolledToToday, setHasScrolledToToday] = useState(false)
 
+  // Combine all screenings with type tags
+  const allScreenings = useMemo(() => [
+    ...publishedScreenings.map(s => ({ ...s, type: 'published' })),
+    ...piJuryScreenings.map(s => ({ ...s, type: 'pi-jury' })),
+    ...techCheckScreenings.map(s => ({ ...s, type: 'tech-check' }))
+  ], [publishedScreenings, piJuryScreenings, techCheckScreenings])
 
+  // Group screenings by date (sorted chronologically)
+  const screeningsByDate = useMemo(() => {
+    const grouped: Record<string, any[]> = {}
+    allScreenings.forEach(screening => {
+      const date = screening.screening_date
+      if (!grouped[date]) grouped[date] = []
+      grouped[date].push(screening)
+    })
+    // Sort dates chronologically (string sort works for YYYY-MM-DD)
+    const sortedDates = Object.keys(grouped).sort()
+    return sortedDates.map(date => ({ date, screenings: grouped[date] }))
+  }, [allScreenings])
 
   // Find Screening search effect
   useEffect(() => {
@@ -108,14 +131,7 @@ function ScreeningBoard({
       return
     }
 
-    // Search through all screenings
-    const allScreenings = [
-      ...publishedScreenings.map(s => ({ ...s, type: 'published' })),
-      ...piJuryScreenings.map(s => ({ ...s, type: 'pi-jury' })),
-      ...techCheckScreenings.map(s => ({ ...s, type: 'tech-check' }))
-    ]
-
-    const results = allScreenings.filter(screening => 
+    const results = allScreenings.filter(screening =>
       screening.film_title.toLowerCase().includes(screeningSearchTerm.toLowerCase()) ||
       screening.venue_short_code.toLowerCase().includes(screeningSearchTerm.toLowerCase()) ||
       screening.notes?.toLowerCase().includes(screeningSearchTerm.toLowerCase())
@@ -123,110 +139,62 @@ function ScreeningBoard({
 
     setSearchResults(results)
     setCurrentSearchIndex(0)
+  }, [screeningSearchTerm, allScreenings, setSearchResults, setCurrentSearchIndex])
 
-    // If there are results, navigate to the first one
-    if (results.length > 0) {
-      setCurrentDate(results[0].screening_date)
-    }
-  }, [screeningSearchTerm, publishedScreenings, piJuryScreenings, techCheckScreenings, setSearchResults, setCurrentSearchIndex, setCurrentDate])
-
-  // Navigate through search results
+  // Scroll to search result's day when navigating results
   useEffect(() => {
     if (searchResults.length > 0 && currentSearchIndex < searchResults.length) {
       const currentResult = searchResults[currentSearchIndex]
-      if (currentResult && currentResult.screening_date !== currentDate) {
-        setCurrentDate(currentResult.screening_date)
+      if (currentResult) {
+        const dayElement = daySectionRefs.current.get(currentResult.screening_date)
+        if (dayElement) {
+          dayElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
       }
     }
-  }, [currentSearchIndex, searchResults, currentDate, setCurrentDate])
-  
-  // Date navigation functions using string operations only
-  const goToPreviousDay = () => {
-    if (!currentDate) return
-    const [year, month, day] = currentDate.split('-').map(Number)
-    let newDay = day - 1
-    let newMonth = month
-    let newYear = year
-    
-    if (newDay < 1) {
-      newMonth -= 1
-      if (newMonth < 1) {
-        newMonth = 12
-        newYear -= 1
-      }
-      // Get days in previous month
-      const daysInMonth = getDaysInMonth(newYear, newMonth)
-      newDay = daysInMonth
-    }
-    
-    const newDate = `${newYear}-${newMonth.toString().padStart(2, '0')}-${newDay.toString().padStart(2, '0')}`
-    setCurrentDate(newDate)
-  }
-  
-  const goToNextDay = () => {
-    if (!currentDate) return
-    const [year, month, day] = currentDate.split('-').map(Number)
-    let newDay = day + 1
-    let newMonth = month
-    let newYear = year
-    
-    const daysInMonth = getDaysInMonth(year, month)
-    if (newDay > daysInMonth) {
-      newDay = 1
-      newMonth += 1
-      if (newMonth > 12) {
-        newMonth = 1
-        newYear += 1
+  }, [currentSearchIndex, searchResults])
+
+  // Snap-to-today on initial load
+  useEffect(() => {
+    if (hasScrolledToToday || screeningsByDate.length === 0) return
+
+    const today = new Date().toISOString().slice(0, 10)
+    const firstDay = screeningsByDate[0]?.date
+    const lastDay = screeningsByDate[screeningsByDate.length - 1]?.date
+
+    if (firstDay && lastDay && today >= firstDay && today <= lastDay) {
+      // During festival — scroll to today
+      const todayElement = daySectionRefs.current.get(today)
+      if (todayElement) {
+        // Use a small timeout to ensure elements are rendered
+        setTimeout(() => {
+          todayElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 100)
       }
     }
-    
-    const newDate = `${newYear}-${newMonth.toString().padStart(2, '0')}-${newDay.toString().padStart(2, '0')}`
-    setCurrentDate(newDate)
-  }
-  
-  // Format current date for display using string operations only
-  const formatCurrentDate = () => {
-    if (!currentDate) return 'Select Date'
-    const [year, month, day] = currentDate.split('-').map(Number)
-    
-    // Calculate day of week using string date operations
-    const dayOfWeek = getStringDayOfWeek(currentDate)
+    // Before or after festival: stay at top (default)
+    setHasScrolledToToday(true)
+  }, [screeningsByDate, hasScrolledToToday])
+
+  // Format date for day headers
+  const formatDayHeader = (dateStr: string) => {
+    const [, month, day] = dateStr.split('-').map(Number)
+    const dayOfWeek = getStringDayOfWeek(dateStr)
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-    const monthName = monthNames[month - 1]
-    
-    return `${dayOfWeek}, ${monthName} ${day}`
+    return `${dayOfWeek}, ${monthNames[month - 1]} ${day}`
   }
-  
-  // Get screenings for current date
-  const getScreeningsForDate = () => {
-    if (!currentDate) return []
-    
-    const allScreenings = [
-      ...publishedScreenings.map(s => ({ ...s, type: 'published' })),
-      ...piJuryScreenings.map(s => ({ ...s, type: 'pi-jury' })),
-      ...techCheckScreenings.map(s => ({ ...s, type: 'tech-check' }))
-    ]
-    
-    return allScreenings.filter(screening => screening.screening_date === currentDate)
-  }
-  
-  // Temporarily disable search functionality to get basic board working
-  
-  if (loading || !currentDate) {
+
+  if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-white">
-        <div className="text-lg text-gray-500">
-          {loading ? 'Loading screening board...' : 'Setting up dates...'}
-        </div>
+        <div className="text-lg text-gray-500">Loading screening board...</div>
       </div>
     )
   }
-  
-  const screeningsForDate = getScreeningsForDate()
-  
+
   return (
     <>
-      {/* Date Navigation Header */}
+      {/* Header with search and controls */}
       <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -247,7 +215,7 @@ function ScreeningBoard({
                   {searchResults.length > 1 && (
                     <div className="flex space-x-1">
                       <button
-                        onClick={() => setCurrentSearchIndex(prev => 
+                        onClick={() => setCurrentSearchIndex(prev =>
                           prev > 0 ? prev - 1 : searchResults.length - 1
                         )}
                         className="px-1 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded"
@@ -255,7 +223,7 @@ function ScreeningBoard({
                         ↑
                       </button>
                       <button
-                        onClick={() => setCurrentSearchIndex(prev => 
+                        onClick={() => setCurrentSearchIndex(prev =>
                           prev < searchResults.length - 1 ? prev + 1 : 0
                         )}
                         className="px-1 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded"
@@ -267,24 +235,11 @@ function ScreeningBoard({
                 </div>
               )}
             </div>
+            <span className="text-sm text-gray-500">
+              {screeningsByDate.length} day{screeningsByDate.length !== 1 ? 's' : ''} &middot; {allScreenings.length} screening{allScreenings.length !== 1 ? 's' : ''}
+            </span>
           </div>
           <div className="flex items-center space-x-4">
-            <button
-              onClick={goToPreviousDay}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-md"
-            >
-              ← Previous Day
-            </button>
-            <div className="text-2xl font-semibold text-gray-900">
-              {formatCurrentDate()}
-            </div>
-            <button
-              onClick={goToNextDay}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-md"
-            >
-              Next Day →
-            </button>
-            
             {canEditTicketing && (
               <button
                 onClick={() => setShowSetViewModal(true)}
@@ -297,8 +252,8 @@ function ScreeningBoard({
         </div>
       </div>
 
-      {/* Legend for P&I/Jury screenings */}
-      {screeningsForDate.some(s => s.type === 'pi-jury') && (
+      {/* P&I Legend */}
+      {allScreenings.some(s => s.type === 'pi-jury') && (
         <div className="bg-gray-50 px-6 py-2 border-b border-gray-200">
           <div className="flex items-center space-x-6 text-xs">
             <span className="text-gray-600 font-medium">P&I Status:</span>
@@ -318,28 +273,65 @@ function ScreeningBoard({
         </div>
       )}
 
-      {/* Screening Grid */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
-          {screeningsForDate.length === 0 ? (
-            <div className="text-center text-gray-500 mt-12 p-6">
-              <p className="text-lg">No screenings scheduled for {formatCurrentDate()}</p>
-              <p className="text-sm mt-2">Use the arrow buttons to navigate to different dates</p>
-            </div>
-          ) : (
-            <ScreeningGrid 
-              screenings={screeningsForDate} 
-              selectedVenues={selectedVenues}
-              venueOrder={venueOrder}
-              programSettings={programSettings}
-              searchResults={searchResults}
-              currentSearchIndex={currentSearchIndex}
-              featureFilms={featureFilms}
-              shortFilms={shortFilms}
-              shortsPrograms={shortsPrograms}
-            />
-          )}
-        </div>
+      {/* Vertical multi-day timeline */}
+      <div
+        ref={scrollContainerRef}
+        className="bg-white overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]"
+      >
+        {screeningsByDate.length === 0 ? (
+          <div className="text-center text-gray-500 mt-12 p-6">
+            <p className="text-lg">No screenings scheduled</p>
+          </div>
+        ) : (
+          <div className="min-w-[1200px]">
+            {screeningsByDate.map(({ date, screenings }) => {
+              const today = new Date().toISOString().slice(0, 10)
+              const isToday = date === today
+
+              return (
+                <div
+                  key={date}
+                  ref={(el) => {
+                    if (el) daySectionRefs.current.set(date, el)
+                  }}
+                >
+                  {/* Sticky day header */}
+                  <div className={`sticky top-0 z-10 px-6 py-3 border-b border-gray-300 ${
+                    isToday ? 'bg-blue-50 border-blue-300' : 'bg-gray-100'
+                  }`}>
+                    <div className="flex items-center space-x-3">
+                      <span className={`text-lg font-semibold ${isToday ? 'text-blue-700' : 'text-gray-800'}`}>
+                        {formatDayHeader(date)}
+                      </span>
+                      {isToday && (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-blue-600 text-white rounded-full">Today</span>
+                      )}
+                      <span className="text-sm text-gray-500">
+                        {screenings.length} screening{screenings.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* ScreeningGrid for this day */}
+                  <div className="p-6">
+                    <ScreeningGrid
+                      screenings={screenings}
+                      selectedVenues={selectedVenues}
+                      venueOrder={venueOrder}
+                      programSettings={programSettings}
+                      searchResults={searchResults}
+                      currentSearchIndex={currentSearchIndex}
+                      featureFilms={featureFilms}
+                      shortFilms={shortFilms}
+                      shortsPrograms={shortsPrograms}
+                      onFilmClick={onFilmClick}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Set View Modal */}
@@ -347,7 +339,7 @@ function ScreeningBoard({
         <div className="fixed inset-0 bg-transparent z-50 flex items-center justify-center">
           <div className="bg-white rounded-lg p-6 w-[600px] max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-6">Set Screening Board View</h3>
-            
+
             {/* Venue Selection */}
             <div className="mb-6">
               <h4 className="text-md font-medium mb-3">Select Venues to Display</h4>
@@ -394,9 +386,9 @@ function ScreeningBoard({
                           <button
                             onClick={() => {
                               const newOrder = [...venueOrder]
-                              const currentIndex = newOrder.indexOf(venue)
-                              const prevIndex = newOrder.indexOf(venueOrder.filter(v => selectedVenues.includes(v))[index - 1])
-                              ;[newOrder[currentIndex], newOrder[prevIndex]] = [newOrder[prevIndex], newOrder[currentIndex]]
+                              const currentIdx = newOrder.indexOf(venue)
+                              const prevIdx = newOrder.indexOf(venueOrder.filter(v => selectedVenues.includes(v))[index - 1])
+                              ;[newOrder[currentIdx], newOrder[prevIdx]] = [newOrder[prevIdx], newOrder[currentIdx]]
                               setVenueOrder(newOrder)
                             }}
                             className="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded"
@@ -408,9 +400,9 @@ function ScreeningBoard({
                           <button
                             onClick={() => {
                               const newOrder = [...venueOrder]
-                              const currentIndex = newOrder.indexOf(venue)
-                              const nextIndex = newOrder.indexOf(venueOrder.filter(v => selectedVenues.includes(v))[index + 1])
-                              ;[newOrder[currentIndex], newOrder[nextIndex]] = [newOrder[nextIndex], newOrder[currentIndex]]
+                              const currentIdx = newOrder.indexOf(venue)
+                              const nextIdx = newOrder.indexOf(venueOrder.filter(v => selectedVenues.includes(v))[index + 1])
+                              ;[newOrder[currentIdx], newOrder[nextIdx]] = [newOrder[nextIdx], newOrder[currentIdx]]
                               setVenueOrder(newOrder)
                             }}
                             className="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded"
@@ -492,7 +484,7 @@ function ScreeningBoard({
                     <span className="text-xs text-gray-500 font-mono">{programSettings['Tech Check']?.color || '#000000'}</span>
                   </div>
                 </div>
-                
+
                 {/* Film Programs */}
                 {getAllPrograms().map(program => (
                   <div key={program} className="flex items-center space-x-3">
@@ -539,7 +531,6 @@ function ScreeningBoard({
               </button>
               <button
                 onClick={async () => {
-                  // Save settings to database
                   const settings = {
                     selectedVenues,
                     venueOrder,
@@ -580,9 +571,10 @@ interface ScreeningGridProps {
   featureFilms: any[]
   shortFilms: any[]
   shortsPrograms: any[]
+  onFilmClick?: (screening: any) => void
 }
 
-function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings, searchResults, currentSearchIndex, featureFilms, shortFilms, shortsPrograms }: ScreeningGridProps) {
+function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings, searchResults, currentSearchIndex, featureFilms, shortFilms, shortsPrograms, onFilmClick }: ScreeningGridProps) {
   const supabase = createClient()
   
   // Time slots - 15 minute intervals from 9 AM to 11 PM
@@ -877,7 +869,7 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                     return (
                       <div
                         key={`${screening.type}-${screening.id}`}
-                        className={`absolute top-1 bottom-1 rounded px-2 py-1 text-xs font-medium border hover:shadow-md transition-all ${
+                        className={`absolute top-1 bottom-1 rounded px-2 py-1 text-xs font-medium border hover:shadow-md transition-all cursor-pointer ${
                           isCurrentSearchResult
                             ? 'border-2 border-yellow-400 shadow-lg bg-yellow-100 text-yellow-900 z-10'
                             : isSearchMatch
@@ -886,8 +878,9 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, programSettings
                         }`}
                         style={baseStyle}
                         title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
+                        onClick={() => onFilmClick?.(screening)}
                       >
-                        <div className="truncate font-medium text-xs leading-tight">
+                        <div className="truncate font-medium text-xs leading-tight hover:underline">
                           {(screening as any).is_tentative && <span className="opacity-75">(TENT) </span>}
                           {screening.film_title}
                         </div>
@@ -929,6 +922,8 @@ interface PublishedScreening {
   ticketing_screening_id: string
   film_card_id: string
   film_title: string
+  film_id?: string | null
+  film_type?: string | null
   screening_date: string
   day_of_week: string
   start_time: string
@@ -946,6 +941,8 @@ interface PublishedScreening {
 interface PIJuryScreening {
   id: string
   film_title: string
+  film_id?: string | null
+  film_type?: string | null
   screening_type: 'P&I' | 'Jury'
   screening_date: string
   day_of_week: string
@@ -967,6 +964,8 @@ interface PIJuryScreening {
 interface TechCheckScreening {
   id: string
   film_title: string
+  film_id?: string | null
+  film_type?: string | null
   screening_date: string
   day_of_week: string
   start_time: string
@@ -983,6 +982,8 @@ interface TechCheckScreening {
 // Interface for screening form data
 interface ScreeningFormData {
   film_title: string
+  film_id?: string | null
+  film_type?: string | null
   screening_date: string
   start_time: string
   run_time: number | null
@@ -1140,7 +1141,7 @@ export default function TicketingPage() {
       const today = getCurrentDateString()
       setCurrentBoardDate(today)
     }
-  }, [supabase, currentBoardDate])
+  }, [supabase, currentBoardDate, currentYear])
 
   // Helper functions
   const formatDate = (dateString: string): string => {
@@ -1174,6 +1175,7 @@ export default function TicketingPage() {
       const { data, error } = await supabase
         .from('ticketing_screenings_with_films')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('screening_date', { ascending: true })
         .order('start_time', { ascending: true })
 
@@ -1182,7 +1184,7 @@ export default function TicketingPage() {
     } catch (error) {
       console.error('Error loading published screenings:', error)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   const loadPIJuryScreenings = useCallback(async () => {
     try {
@@ -1190,6 +1192,7 @@ export default function TicketingPage() {
       const { data: screenings, error } = await supabase
         .from('pi_jury_screenings_with_films')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('screening_date', { ascending: true })
         .order('start_time', { ascending: true })
 
@@ -1221,7 +1224,7 @@ export default function TicketingPage() {
       console.error('Error loading P&I/Jury screenings:', error)
       setPiJuryScreenings([]) // Set empty array if table doesn't exist yet
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   const loadTechCheckScreenings = useCallback(async () => {
     try {
@@ -1229,6 +1232,7 @@ export default function TicketingPage() {
       const { data, error } = await supabase
         .from('tech_check_screenings_with_films')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('screening_date', { ascending: true })
         .order('start_time', { ascending: true })
 
@@ -1238,7 +1242,7 @@ export default function TicketingPage() {
       console.error('Error loading tech check screenings:', error)
       setTechCheckScreenings([]) // Set empty array if table doesn't exist yet
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   // Sync press screenings to P&I screenings
   const syncPressScreenings = useCallback(async () => {
@@ -1251,6 +1255,7 @@ export default function TicketingPage() {
           venues(name)
         `)
         .eq('canceled', false)
+        .eq('festival_year', currentYear)
 
       if (pressError) throw pressError
 
@@ -1276,6 +1281,7 @@ export default function TicketingPage() {
           .from('feature_films')
           .select('run_time')
           .eq('title', screening.title)
+          .eq('festival_year', currentYear)
           .single()
 
         if (film && film.run_time) {
@@ -1300,6 +1306,7 @@ export default function TicketingPage() {
           .eq('film_title', screening.title)
           .eq('screening_date', screening.screening_date)
           .eq('screening_type', 'P&I') // Only match P&I screenings, not Jury
+          .eq('festival_year', currentYear)
 
         if (existing && existing.length > 0) {
           // Update existing screening with new time, venue, and other details
@@ -1314,7 +1321,10 @@ export default function TicketingPage() {
               is_tentative: !(screening.film_approved && screening.locked), // Only not tentative if BOTH approved AND locked
               film_approved: screening.film_approved || false,
               locked: screening.locked || false,
-              day_of_week: getDayOfWeek(screening.screening_date)
+              day_of_week: getDayOfWeek(screening.screening_date),
+              film_id: screening.film_id || null,
+              film_type: screening.film_type || null,
+              festival_year: currentYear
             })
             .eq('id', existing[0].id)
 
@@ -1330,6 +1340,9 @@ export default function TicketingPage() {
             .from('pi_jury_screenings')
             .insert({
               film_title: screening.title,
+              film_id: screening.film_id || null,
+              film_type: screening.film_type || null,
+              festival_year: currentYear,
               screening_type: 'P&I',
               screening_date: screening.screening_date,
               day_of_week: getDayOfWeek(screening.screening_date),
@@ -1363,22 +1376,54 @@ export default function TicketingPage() {
       console.error('Error syncing press screenings:', error)
       alert('Error syncing press screenings. Please try again.')
     }
-  }, [supabase, user, getDayOfWeek, loadPIJuryScreenings])
+  }, [supabase, user, getDayOfWeek, loadPIJuryScreenings, currentYear, venueCards])
 
-  // Load film cards for auto-suggest
+  // Load film cards for auto-suggest (features + shorts programs)
   const loadFilmCards = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data: features, error: featError } = await supabase
         .from('feature_films')
         .select('id, title, run_time')
+        .eq('festival_year', currentYear)
         .order('title')
-      
-      if (error) throw error
-      setFilmCards(data || [])
+
+      if (featError) throw featError
+
+      // Also load shorts programs as film cards
+      const { data: programs, error: progError } = await supabase
+        .from('shorts_programs')
+        .select('id, program_name, program_number')
+        .eq('festival_year', currentYear)
+        .order('program_number')
+
+      if (progError) throw progError
+
+      // Calculate total runtime for each shorts program
+      const programCards = await Promise.all(
+        (programs || []).map(async (program) => {
+          const { data: shorts } = await supabase
+            .from('short_films')
+            .select('runtime_minutes')
+            .eq('shorts_program_id', program.id)
+
+          const totalRuntime = shorts?.reduce((sum, s) => sum + (s.runtime_minutes || 0), 0) || 0
+
+          return {
+            id: program.id,
+            title: program.program_name,
+            run_time: totalRuntime,
+            film_type: 'shorts_program'
+          }
+        })
+      )
+
+      // Combine features (with film_type) and shorts programs
+      const featureCards = (features || []).map(f => ({ ...f, film_type: 'feature' }))
+      setFilmCards([...featureCards, ...programCards])
     } catch (error) {
       console.error('Error loading film cards:', error)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   // Load feature films to get program data
   const loadFeatureFilms = useCallback(async () => {
@@ -1386,13 +1431,14 @@ export default function TicketingPage() {
       const { data, error } = await supabase
         .from('feature_films')
         .select('id, title, program_1, program_2, program_3, program_4')
-        
+        .eq('festival_year', currentYear)
+
       if (error) throw error
       setFeatureFilms(data || [])
     } catch (error) {
       console.error('Error loading feature films:', error)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   // Load short films to get program data
   const loadShortFilms = useCallback(async () => {
@@ -1400,13 +1446,14 @@ export default function TicketingPage() {
       const { data, error } = await supabase
         .from('short_films')
         .select('id, title, program_1, program_2, program_3, shorts_program_id')
-        
+        .eq('festival_year', currentYear)
+
       if (error) throw error
       setShortFilms(data || [])
     } catch (error) {
       console.error('Error loading short films:', error)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   // Load shorts programs with runtime
   const loadShortsPrograms = useCallback(async () => {
@@ -1414,10 +1461,11 @@ export default function TicketingPage() {
       const { data: programs, error } = await supabase
         .from('shorts_programs')
         .select('id, program_name, program_number')
+        .eq('festival_year', currentYear)
         .order('program_number')
-        
+
       if (error) throw error
-      
+
       // Calculate total runtime for each program by summing shorts
       const programsWithRuntime = await Promise.all(
         (programs || []).map(async (program) => {
@@ -1425,23 +1473,23 @@ export default function TicketingPage() {
             .from('short_films')
             .select('runtime_minutes')
             .eq('shorts_program_id', program.id)
-          
+
           const totalRuntime = shorts?.reduce((sum, short) => {
             return sum + (short.runtime_minutes || 0)
           }, 0) || 0
-          
+
           return {
             ...program,
             total_runtime: totalRuntime
           }
         })
       )
-      
+
       setShortsPrograms(programsWithRuntime)
     } catch (error) {
       console.error('Error loading shorts programs:', error)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   // Get all unique programs from film data
   const getAllPrograms = useCallback(() => {
@@ -1536,6 +1584,18 @@ export default function TicketingPage() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // Auto-sync press screenings when P&I/Jury tab is loaded
+  const [hasAutoSynced, setHasAutoSynced] = useState(false)
+  useEffect(() => {
+    if (viewMode === 'pi-jury' && !loading && !hasAutoSynced) {
+      setHasAutoSynced(true)
+      syncPressScreenings()
+    }
+    if (viewMode !== 'pi-jury') {
+      setHasAutoSynced(false)
+    }
+  }, [viewMode, loading, hasAutoSynced, syncPressScreenings])
   
   // Set default date if not set
   useEffect(() => {
@@ -1566,6 +1626,8 @@ export default function TicketingPage() {
   const resetForm = () => {
     setFormData({
       film_title: '',
+      film_id: null,
+      film_type: null,
       screening_date: '',
       start_time: '',
       run_time: null,
@@ -1665,9 +1727,9 @@ export default function TicketingPage() {
             location = location.replace('#', '')
           }
 
-          // Convert date from "10/15" to "2025-10-15" format (using 2025 for the festival year)
+          // Convert date from "10/15" to "YYYY-10-15" format using current festival year
           const [month, day_num] = dateStr.split('/')
-          const year = 2025 // Festival year
+          const year = currentYear
           
           // Debug the problematic rows
           if (rowIndex + 2 === 46 || rowIndex + 2 === 88 || rowIndex + 2 === 129 || rowIndex + 2 === 158) {
@@ -1731,9 +1793,15 @@ export default function TicketingPage() {
             continue
           }
 
+          // Resolve film_id from filmCards by matching title
+          const matchingFilm = filmCards.find(f => f.title === title)
+
           // Step 2: Create record in ticketing_screenings
           const ticketingData = {
             film_title: title,
+            film_id: matchingFilm?.id || null,
+            film_type: matchingFilm?.film_type || null,
+            festival_year: currentYear,
             screening_date: formattedDate,
             day_of_week: day || getStringDayOfWeek(formattedDate),
             start_time: formattedTime,
@@ -1763,6 +1831,9 @@ export default function TicketingPage() {
           // Step 3: Create record in published_screenings with reference
           const publishedData = {
             film_title: title,
+            film_id: matchingFilm?.id || null,
+            film_type: matchingFilm?.film_type || null,
+            festival_year: currentYear,
             screening_date: formattedDate,
             day_of_week: day || getStringDayOfWeek(formattedDate),
             start_time: formattedTime,
@@ -1772,7 +1843,6 @@ export default function TicketingPage() {
             notes: notes,
             ticketing_screening_id: ticketingResult.id,
             film_card_id: null,
-            // No published_by tracking needed
           }
 
           // Insert into published_screenings
@@ -1854,6 +1924,8 @@ export default function TicketingPage() {
   const handleEditScreening = (screening: any) => {
     setFormData({
       film_title: screening.film_title,
+      film_id: screening.film_id || null,
+      film_type: screening.film_type || null,
       screening_date: screening.screening_date,
       start_time: screening.start_time,
       run_time: screening.run_time,
@@ -1875,59 +1947,100 @@ export default function TicketingPage() {
 
   const handleFilmClick = async (screening: any) => {
     try {
-      // Determine if it's a feature or short film and fetch accordingly
       let filmData = null
 
-      if (screening.film_type === 'feature') {
-        const { data: featureData } = await supabase
+      if (screening.film_id && screening.film_type) {
+        // Direct lookup by film_id
+        if (screening.film_type === 'feature') {
+          const { data: featureData } = await supabase
+            .from('feature_films')
+            .select('*')
+            .eq('id', screening.film_id)
+            .single()
+
+          if (featureData) {
+            filmData = {
+              id: featureData.id,
+              title: featureData.title,
+              original_language_title: featureData.original_language_title,
+              director: featureData.director,
+              countries: featureData.countries,
+              programs: [featureData.program_1, featureData.program_2, featureData.program_3, featureData.program_4]
+                .filter(Boolean).join(', '),
+              premiere_status: featureData.premiere_status
+            }
+          }
+        } else if (screening.film_type === 'short') {
+          const { data: shortData } = await supabase
+            .from('short_films')
+            .select('*')
+            .eq('id', screening.film_id)
+            .single()
+
+          if (shortData) {
+            filmData = {
+              id: shortData.id,
+              title: shortData.title,
+              original_language_title: shortData.original_language_title,
+              director: shortData.director,
+              countries: shortData.countries,
+              programs: [shortData.program_1, shortData.program_2, shortData.program_3]
+                .filter(Boolean).join(', '),
+              premiere_status: shortData.premiere_status
+            }
+          }
+        } else if (screening.film_type === 'shorts_program') {
+          const { data: programData } = await supabase
+            .from('shorts_programs')
+            .select('*')
+            .eq('id', screening.film_id)
+            .single()
+
+          if (programData) {
+            filmData = {
+              id: programData.id,
+              title: programData.program_name,
+              type: 'shorts_program'
+            }
+          }
+        }
+      }
+
+      // Fallback: lookup by film_title for legacy screenings without film_id
+      if (!filmData && screening.film_title) {
+        const { data: featureMatch } = await supabase
           .from('feature_films')
           .select('*')
-          .eq('id', screening.film_id)
+          .eq('title', screening.film_title)
+          .eq('festival_year', currentYear)
           .single()
 
-        if (featureData) {
+        if (featureMatch) {
           filmData = {
-            id: featureData.id,
-            title: featureData.title,
-            original_language_title: featureData.original_language_title,
-            director: featureData.director,
-            countries: featureData.countries,
-            programs: [featureData.program_1, featureData.program_2, featureData.program_3, featureData.program_4]
+            id: featureMatch.id,
+            title: featureMatch.title,
+            original_language_title: featureMatch.original_language_title,
+            director: featureMatch.director,
+            countries: featureMatch.countries,
+            programs: [featureMatch.program_1, featureMatch.program_2, featureMatch.program_3, featureMatch.program_4]
               .filter(Boolean).join(', '),
-            premiere_status: featureData.premiere_status
+            premiere_status: featureMatch.premiere_status
           }
-        }
-      } else if (screening.film_type === 'short') {
-        const { data: shortData } = await supabase
-          .from('short_films')
-          .select('*')
-          .eq('id', screening.film_id)
-          .single()
+        } else {
+          // Try shorts programs
+          const { data: programMatch } = await supabase
+            .from('shorts_programs')
+            .select('*')
+            .eq('program_name', screening.film_title)
+            .eq('festival_year', currentYear)
+            .single()
 
-        if (shortData) {
-          filmData = {
-            id: shortData.id,
-            title: shortData.title,
-            original_language_title: shortData.original_language_title,
-            director: shortData.director,
-            countries: shortData.countries,
-            programs: [shortData.program_1, shortData.program_2, shortData.program_3]
-              .filter(Boolean).join(', '),
-            premiere_status: shortData.premiere_status
-          }
-        }
-      } else if (screening.film_type === 'shorts_program') {
-        const { data: programData } = await supabase
-          .from('shorts_programs')
-          .select('*')
-          .eq('id', screening.film_id)
-          .single()
-
-        if (programData) {
-          filmData = {
-            id: programData.id,
-            title: programData.program_name,
-            type: 'shorts_program'
+          if (programMatch) {
+            filmData = {
+              id: programMatch.id,
+              title: programMatch.program_name,
+              type: 'shorts_program'
+            }
           }
         }
       }
@@ -2089,6 +2202,9 @@ export default function TicketingPage() {
     try {
       const screeningData = {
         film_title: formData.film_title,
+        film_id: formData.film_id || null,
+        film_type: formData.film_type || null,
+        festival_year: currentYear,
         screening_date: formData.screening_date,
         day_of_week: getDayOfWeek(formData.screening_date),
         start_time: formData.start_time,
@@ -2523,7 +2639,7 @@ export default function TicketingPage() {
 
       {/* Data Grid or Screening Board */}
       {viewMode === 'screening-board' ? (
-        <ScreeningBoard 
+        <ScreeningBoard
           currentDate={currentBoardDate}
           setCurrentDate={setCurrentBoardDate}
           festivalSettings={festivalSettings}
@@ -2538,6 +2654,7 @@ export default function TicketingPage() {
           setSearchResults={setSearchResults}
           currentSearchIndex={currentSearchIndex}
           setCurrentSearchIndex={setCurrentSearchIndex}
+          onFilmClick={handleFilmClick}
           showSetViewModal={showSetViewModal}
           setShowSetViewModal={setShowSetViewModal}
           selectedVenues={selectedVenues}
@@ -2737,7 +2854,7 @@ export default function TicketingPage() {
                   value={filmSearchTerm || formData.film_title}
                   onChange={(e) => {
                     setFilmSearchTerm(e.target.value)
-                    setFormData(prev => ({...prev, film_title: e.target.value}))
+                    setFormData(prev => ({...prev, film_title: e.target.value, film_id: null, film_type: null}))
                     setShowFilmSuggestions(true)
                   }}
                   onFocus={() => setShowFilmSuggestions(true)}
@@ -2751,8 +2868,10 @@ export default function TicketingPage() {
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                         onClick={() => {
                           setFormData(prev => ({
-                            ...prev, 
+                            ...prev,
                             film_title: film.title,
+                            film_id: film.id,
+                            film_type: film.film_type || 'feature',
                             run_time: viewMode === 'tech-checks' ? prev.run_time : film.run_time
                           }))
                           setFilmSearchTerm(film.title)
@@ -2970,7 +3089,7 @@ export default function TicketingPage() {
                   value={filmSearchTerm || formData.film_title}
                   onChange={(e) => {
                     setFilmSearchTerm(e.target.value)
-                    setFormData(prev => ({...prev, film_title: e.target.value}))
+                    setFormData(prev => ({...prev, film_title: e.target.value, film_id: null, film_type: null}))
                     setShowFilmSuggestions(true)
                   }}
                   onFocus={() => setShowFilmSuggestions(true)}
@@ -2984,8 +3103,10 @@ export default function TicketingPage() {
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                         onClick={() => {
                           setFormData(prev => ({
-                            ...prev, 
+                            ...prev,
                             film_title: film.title,
+                            film_id: film.id,
+                            film_type: film.film_type || 'feature',
                             run_time: viewMode === 'tech-checks' ? prev.run_time : film.run_time
                           }))
                           setFilmSearchTerm(film.title)

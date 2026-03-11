@@ -334,6 +334,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             venues(name)
           `)
           .or(`title.eq.${film.title}${shortsProgramName ? `,title.eq.${shortsProgramName}` : ''}`)
+          .eq('festival_year', parseInt(festivalYear, 10))
           .order('screening_date', { ascending: true })
 
         if (screeningsError) {
@@ -557,37 +558,41 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
         const loadScreenings = async () => {
           try {
             let allScreenings: any[] = []
+            const festivalYearInt = parseInt(festivalYear, 10)
 
-            // First, check if this is a short film and inherit shorts program screenings
-            const { data: shortFilm } = await supabase
-              .from('short_films')
-              .select('shorts_program_id')
-              .eq('title', film.title)
-              .single()
+            // Primary: query by film_id (reliable UUID match)
+            if (film.id) {
+              const { data: idScreenings } = await supabase
+                .from('ticketing_screenings')
+                .select(`
+                  id, film_title, screening_date, day_of_week,
+                  start_time, venue_short_code, is_cancelled, notes
+                `)
+                .eq('film_id', film.id)
+                .eq('festival_year', festivalYearInt)
+                .order('screening_date', { ascending: true })
+                .order('start_time', { ascending: true })
 
-            if (shortFilm && shortFilm.shorts_program_id) {
-              // Get the shorts program
-              const { data: shortsProgram } = await supabase
-                .from('shorts_programs')
-                .select('id, program_name')
-                .eq('id', shortFilm.shorts_program_id)
+              if (idScreenings) {
+                allScreenings.push(...idScreenings)
+              }
+
+              // For shorts: also check if film.id is a short_film whose shorts_program has screenings
+              const { data: shortFilm } = await supabase
+                .from('short_films')
+                .select('shorts_program_id')
+                .eq('id', film.id)
                 .single()
 
-              if (shortsProgram) {
-                // Get screenings directly from ticketing_screenings using program name
+              if (shortFilm?.shorts_program_id) {
                 const { data: programScreenings } = await supabase
                   .from('ticketing_screenings')
                   .select(`
-                    id,
-                    film_title,
-                    screening_date,
-                    day_of_week,
-                    start_time,
-                    venue_short_code,
-                    is_cancelled,
-                    notes
+                    id, film_title, screening_date, day_of_week,
+                    start_time, venue_short_code, is_cancelled, notes
                   `)
-                  .eq('film_title', shortsProgram.program_name)
+                  .eq('film_id', shortFilm.shorts_program_id)
+                  .eq('festival_year', festivalYearInt)
                   .order('screening_date', { ascending: true })
                   .order('start_time', { ascending: true })
 
@@ -597,25 +602,22 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               }
             }
 
-            // Also check for direct film screenings in ticketing_screenings
-            const { data: filmScreenings } = await supabase
-              .from('ticketing_screenings')
-              .select(`
-                id,
-                film_title,
-                screening_date,
-                day_of_week,
-                start_time,
-                venue_short_code,
-                is_cancelled,
-                notes
-              `)
-              .eq('film_title', film.title)
-              .order('screening_date', { ascending: true })
-              .order('start_time', { ascending: true })
+            // Fallback: text match for legacy data without film_id
+            if (allScreenings.length === 0) {
+              const { data: textScreenings } = await supabase
+                .from('ticketing_screenings')
+                .select(`
+                  id, film_title, screening_date, day_of_week,
+                  start_time, venue_short_code, is_cancelled, notes
+                `)
+                .eq('film_title', film.title)
+                .eq('festival_year', festivalYearInt)
+                .order('screening_date', { ascending: true })
+                .order('start_time', { ascending: true })
 
-            if (filmScreenings) {
-              allScreenings.push(...filmScreenings)
+              if (textScreenings) {
+                allScreenings.push(...textScreenings)
+              }
             }
 
             // Remove duplicates and resolve venue names
@@ -626,7 +628,6 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             const screeningsWithVenues = await Promise.all(
               uniqueScreenings.map(async (screening) => {
                 if (screening.venue_short_code) {
-                  // Try to find the venue by short code in theater_houses
                   const { data: houseData } = await supabase
                     .from('theater_houses')
                     .select(`
@@ -640,7 +641,6 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                     return { ...screening, venue_name: houseData.venues.name }
                   }
                 }
-                // If no venue found, use the short code as venue name
                 return { ...screening, venue_name: screening.venue_short_code }
               })
             )
