@@ -237,19 +237,18 @@ export function PressRequestFormModal({
     }
   }
 
-  const loadScreeningsForFilm = async (filmTitle: string) => {
+  const loadScreeningsForFilm = async (filmId: string) => {
     if (formData.request_type !== 'screening_ticket') return
-    
+    if (!filmId) return
+
     setLoadingScreenings(true)
     try {
       const screenings: Screening[] = []
-      
-      // Only load published screenings for ticket requests
-      // Tech checks and P&I screenings don't have tickets available to the public
+
       const { data: published } = await supabase
         .from('published_screenings')
         .select('*')
-        .eq('film_title', filmTitle)
+        .eq('film_id', filmId)
         .order('screening_date', { ascending: true })
         .order('start_time', { ascending: true })
       
@@ -347,7 +346,7 @@ export function PressRequestFormModal({
 
     // Load screenings if this is a ticket request and only one film is selected
     if (formData.request_type === 'screening_ticket' && selectedFilms.length === 0) {
-      loadScreeningsForFilm(film.title)
+      loadScreeningsForFilm(film.id)
     }
 
     // Refocus the input to allow continuous entry
@@ -376,7 +375,7 @@ export function PressRequestFormModal({
       
       // If there's still one film selected for ticket requests, load its screenings
       if (formData.request_type === 'screening_ticket' && newSelectedFilms.length === 1) {
-        loadScreeningsForFilm(newSelectedFilms[0].title)
+        loadScreeningsForFilm(newSelectedFilms[0].id)
       }
     }
   }

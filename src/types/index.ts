@@ -305,8 +305,8 @@ export interface PressScreeningCard {
   id: string
   film_id: string
   film_type: 'feature' | 'short'
-  title: string
-  runtime?: number
+  film_title: string
+  run_time?: number
   screening_date?: string | null
   screening_time?: string | null
   venue_id?: string | null

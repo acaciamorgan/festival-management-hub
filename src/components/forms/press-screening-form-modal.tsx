@@ -125,8 +125,8 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
       setFormData({
         film_id: screening.film_id,
         film_type: screening.film_type,
-        title: screening.title,
-        runtime: screening.runtime?.toString() || '',
+        title: screening.film_title,
+        runtime: screening.run_time?.toString() || '',
         screening_date: screening.screening_date || '',
         screening_time: screening.screening_time || '',
         short_code: screening.short_code || '',
@@ -139,7 +139,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         rsvp_form_url: screening.rsvp_form_url || '',
         rsvp_responses_url: screening.rsvp_responses_url || ''
       })
-      setFilmSearch(screening.title)
+      setFilmSearch(screening.film_title)
       setShortCodeSearch(screening.short_code || '')
     } else {
       setFormData({
@@ -283,8 +283,6 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
       const screeningData = {
         film_id: formData.film_id,
         film_type: formData.film_type,
-        title: formData.title,
-        runtime: formData.runtime ? parseInt(formData.runtime) : null,
         screening_date: normalizeDateValue(formData.screening_date) || null,
         screening_time: formData.screening_time || null,
         short_code: formData.short_code || null,

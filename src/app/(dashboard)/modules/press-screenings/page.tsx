@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PressScreeningCard, VenueCard, TheaterHouse } from '@/types'
 import { PressScreeningFormModal } from '@/components/forms/press-screening-form-modal'
@@ -11,6 +12,7 @@ import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 
 export default function PressScreeningsPage() {
   const { user } = useAuth()
+  const { currentYear } = useFestivalYear()
   const { permissions } = usePermissions()
   const [pressScreenings, setPressScreenings] = useState<PressScreeningCard[]>([])
   const [loading, setLoading] = useState(false)
@@ -53,6 +55,7 @@ export default function PressScreeningsPage() {
       const { data: screeningsData, error } = await supabase
         .from('press_screenings_with_films')
         .select('*')
+        .eq('festival_year', currentYear)
         .order('screening_date', { ascending: true })
 
       if (error) throw error
@@ -63,7 +66,7 @@ export default function PressScreeningsPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   useEffect(() => {
     loadPressScreenings()

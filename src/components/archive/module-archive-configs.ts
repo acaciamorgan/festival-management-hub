@@ -102,10 +102,10 @@ export const archiveConfigs = {
     ]
   },
   pressScreenings: {
-    tableName: 'press_screenings',
+    tableName: 'press_screenings_with_films',
     title: 'Press Screenings',
     columns: [
-      { key: 'title', label: 'Film Title' },
+      { key: 'film_title', label: 'Film Title' },
       { key: 'screening_date', label: 'Date', render: (value: string) => {
         if (!value) return '—'
         // Parse date string directly without timezone conversion
@@ -146,13 +146,13 @@ export const archiveConfigs = {
     ]
   },
   pressRequests: {
-    tableName: 'press_requests',
+    tableName: 'press_requests_with_films',
     title: 'Press Requests',
     columns: [
       { key: 'requester_name', label: 'Requester' },
       { key: 'requester_outlet', label: 'Outlet' },
       { key: 'request_type', label: 'Type' },
-      { key: 'film_titles', label: 'Films' },
+      { key: 'film_title_resolved', label: 'Films' },
       { key: 'status', label: 'Status' },
       { key: 'created_at', label: 'Requested', render: (value: string) => {
         if (!value) return '—'

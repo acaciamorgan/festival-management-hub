@@ -287,21 +287,12 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     // 5. Press Screenings
     console.log('Exporting Press Screenings...')
     const { data: pressScreeningsRaw, error: pressScreeningsError } = await supabase
-      .from('press_screenings')
+      .from('press_screenings_with_films')
       .select('*')
+      .eq('festival_year', festivalYear)
       .order('screening_date')
-    
-    // Map to expected format
-    const pressScreenings = pressScreeningsRaw?.map(item => ({
-      film_title: item.title || 'Unknown',
-      screening_date: item.screening_date,
-      start_time: item.screening_time,
-      venue: item.short_code || 'Unknown',
-      runtime: item.runtime,
-      notes: item.notes,
-      // Include all original columns too
-      ...item
-    })) || []
+
+    const pressScreenings = pressScreeningsRaw || []
     
     console.log('Press Screenings:', pressScreeningsError ? 'ERROR: ' + pressScreeningsError.message : `SUCCESS: ${pressScreenings?.length || 0} records`)
     
@@ -323,11 +314,12 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     utils.book_append_sheet(workbook, screenerAccessSheet, 'Screener Access')
     console.log('Screener Access sheet added to workbook')
     
-    // 7. Press Requests 
+    // 7. Press Requests
     console.log('Exporting Press Requests...')
     const { data: pressRequests, error: requestsError } = await supabase
-      .from('press_requests')
+      .from('press_requests_with_films')
       .select('*')
+      .eq('festival_year', festivalYear)
       .order('created_at', { ascending: false })
     
     console.log('Press requests:', requestsError ? 'ERROR: ' + requestsError.message : `SUCCESS: ${pressRequests?.length || 0} records`)

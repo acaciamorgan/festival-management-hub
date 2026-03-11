@@ -524,17 +524,17 @@ export default function PressRequestsPage() {
         }
       }
 
-      // Group requests by film
+      // Group requests by film_id (fall back to film_titles text for legacy)
       const filmRequestsMap = new Map<string, any[]>()
 
       screenerRequests.forEach(request => {
-        const filmTitle = request.film_titles
-        if (!filmRequestsMap.has(filmTitle)) {
-          filmRequestsMap.set(filmTitle, [])
+        const key = request.film_id || request.film_titles || 'unknown'
+        if (!filmRequestsMap.has(key)) {
+          filmRequestsMap.set(key, [])
         }
-        filmRequestsMap.get(filmTitle)!.push(request)
+        filmRequestsMap.get(key)!.push(request)
       })
-      
+
 
       // Create Word document
       const doc = new Document({
@@ -544,13 +544,12 @@ export default function PressRequestsPage() {
       })
 
       const filmEntries: any[] = []
-      
+
       // Process each film that has requests
-      filmRequestsMap.forEach((filmRequests, filmTitle) => {
-        // Find matching film data
-        const filmData = requestLinkFilms.find(f => 
-          f.title.toLowerCase() === filmTitle.toLowerCase()
-        )
+      filmRequestsMap.forEach((filmRequests, filmKey) => {
+        // Find matching film data by ID first, then by title
+        const filmData = requestLinkFilms.find(f => f.id === filmKey) ||
+          requestLinkFilms.find(f => f.title.toLowerCase() === filmKey.toLowerCase())
         
         if (!filmData) {
           return // Skip if not a request_link film
@@ -634,7 +633,7 @@ export default function PressRequestsPage() {
             new Paragraph({
               children: [
                 new TextRun({
-                  text: `${request.requester_name} / ${request.requester_outlet} / ${request.requester_email} / ${request.film_titles}${statusText}`,
+                  text: `${request.requester_name} / ${request.requester_outlet} / ${request.requester_email} / ${request.film_title_resolved || request.film_titles}${statusText}`,
                   size: 24,
                   highlight: isNew ? 'yellow' : undefined
                 })

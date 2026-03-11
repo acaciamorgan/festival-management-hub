@@ -297,53 +297,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
         
         console.log('Film updated successfully')
 
-        // CASCADE UPDATES TO ALL SCREENING TABLES
-        // This is a band-aid fix because the system duplicates film data everywhere
-        // instead of referencing the source of truth
-
-        // Update press_screenings
-        if (filmType === 'feature') {
-          const { error: pressError } = await supabase
-            .from('press_screenings')
-            .update({
-              runtime: formData.run_time,
-              title: formData.title
-            })
-            .eq('film_id', film.id)
-            .eq('film_type', 'feature')
-
-          if (pressError) {
-            console.error('Failed to update press_screenings:', pressError)
-          }
-        } else {
-          const { error: pressError } = await supabase
-            .from('press_screenings')
-            .update({
-              runtime: formData.run_time,
-              title: formData.title
-            })
-            .eq('film_id', film.id)
-            .eq('film_type', 'short')
-
-          if (pressError) {
-            console.error('Failed to update press_screenings:', pressError)
-          }
-        }
-
-        // Update ticketing_screenings (matches by title, not film_id)
-        const { error: ticketingError } = await supabase
-          .from('ticketing_screenings')
-          .update({
-            run_time: formData.run_time,
-            film_title: formData.title
-          })
-          .eq('film_title', film.title) // Use OLD title to find records
-
-        if (ticketingError) {
-          console.error('Failed to update ticketing_screenings:', ticketingError)
-        }
-
-        // Update published_screenings
+        // Update published_screenings (only table that still has film_title/run_time columns)
         const { error: publishedError } = await supabase
           .from('published_screenings')
           .update({
@@ -355,34 +309,6 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
         if (publishedError) {
           console.error('Failed to update published_screenings:', publishedError)
         }
-
-        // Update pi_jury_screenings
-        const { error: piJuryError } = await supabase
-          .from('pi_jury_screenings')
-          .update({
-            run_time: formData.run_time,
-            film_title: formData.title
-          })
-          .eq('film_title', film.title)
-
-        if (piJuryError) {
-          console.error('Failed to update pi_jury_screenings:', piJuryError)
-        }
-
-        // Update tech_check_screenings
-        const { error: techCheckError } = await supabase
-          .from('tech_check_screenings')
-          .update({
-            run_time: formData.run_time,
-            film_title: formData.title
-          })
-          .eq('film_title', film.title)
-
-        if (techCheckError) {
-          console.error('Failed to update tech_check_screenings:', techCheckError)
-        }
-
-        console.log('Cascaded updates to all screening tables')
         onSave()
       }
     } catch (error) {

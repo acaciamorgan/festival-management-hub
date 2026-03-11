@@ -585,6 +585,7 @@ export default function PressManagementPage() {
             console.log('First processed press record:', pressData)
             console.log('Field mappings that worked:', Object.keys(pressData))
           }
+          pressData.festival_year = currentYear
           pressToInsert.push(pressData)
         } else {
           console.log('Skipped record - missing name or outlet:', { 
@@ -711,7 +712,8 @@ export default function PressManagementPage() {
         rotten_tomatoes_accredited: addFormData.rotten_tomatoes_accredited,
         critics_groups: addFormData.critics_groups.trim() || null,
         accreditation_level: addFormData.accreditation_level,
-        picked_up_credentials: false
+        picked_up_credentials: false,
+        festival_year: currentYear
       }
 
       const { error } = await supabase
