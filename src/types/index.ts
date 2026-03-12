@@ -489,6 +489,7 @@ export interface SpecialEventCard {
   notes?: string | null
   
   // System fields
+  festival_year: number
   created_at: string
   updated_at: string
   created_by: string

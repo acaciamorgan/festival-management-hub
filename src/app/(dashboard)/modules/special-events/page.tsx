@@ -11,6 +11,7 @@ import { SpecialEventsTimeline } from '@/components/calendar/special-events-time
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import * as XLSX from 'xlsx-js-style'
 
 interface JunctionFilm {
@@ -27,6 +28,7 @@ interface JunctionGuest {
 export default function SpecialEventsPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
+  const { currentYear } = useFestivalYear()
   const [specialEvents, setSpecialEvents] = useState<SpecialEventCard[]>([])
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -314,6 +316,7 @@ export default function SpecialEventsPage() {
       const { data: allVenues } = await supabase
         .from('venues')
         .select('id, name')
+        .eq('festival_year', currentYear)
 
       const venueMap = new Map(
         (allVenues || []).map(v => [v.name.toLowerCase().trim(), v.id])
@@ -374,6 +377,9 @@ export default function SpecialEventsPage() {
           event.end_time = convertTo24Hour(event.end_time)
         }
 
+        // Stamp festival_year on each event
+        event.festival_year = currentYear
+
         return event
       })
 
@@ -389,6 +395,7 @@ export default function SpecialEventsPage() {
           .eq('title', event.title)
           .eq('event_date', event.event_date)
           .eq('start_time', event.start_time)
+          .eq('festival_year', currentYear)
           .maybeSingle()
 
         if (existingEvent) {
@@ -444,10 +451,12 @@ export default function SpecialEventsPage() {
         supabase
           .from('special_events_with_details')
           .select('*')
+          .eq('festival_year', currentYear)
           .order('event_date', { ascending: true }),
         supabase
           .from('venues')
           .select('id, name')
+          .eq('festival_year', currentYear)
           .order('name'),
         supabase
           .from('interviews')
@@ -455,6 +464,7 @@ export default function SpecialEventsPage() {
             *,
             venues(name, address)
           `)
+          .eq('festival_year', currentYear)
           .eq('show_on_special_events', true)
           .not('interview_date', 'is', null)
           .order('interview_date', { ascending: true })
@@ -566,7 +576,7 @@ export default function SpecialEventsPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   useEffect(() => {
     loadSpecialEvents()
