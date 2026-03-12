@@ -3,6 +3,7 @@
 import { useAuth } from '@/components/providers/auth-provider'
 import { FestivalYearProvider } from '@/components/providers/festival-year-provider'
 import { Sidebar } from '@/components/layout/sidebar'
+import { FeedbackButton } from '@/components/shared/feedback-button'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
@@ -49,6 +50,7 @@ export default function DashboardLayout({
           {children}
         </main>
       </div>
+      <FeedbackButton />
     </FestivalYearProvider>
   )
 }

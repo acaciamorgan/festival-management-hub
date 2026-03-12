@@ -2,13 +2,19 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { MessageSquare } from 'lucide-react'
 
 export default function SettingsPage() {
   const { user } = useAuth()
+  const { permissions } = usePermissions()
   const router = useRouter()
   const supabase = createClient()
+
+  const isAdmin = permissions?.isAdmin || permissions?.isSuperAdmin || false
 
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('')
@@ -237,6 +243,23 @@ export default function SettingsPage() {
               <li>Change your password regularly</li>
             </ul>
           </div>
+
+          {/* Admin: Feedback Viewer */}
+          {isAdmin && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-2">Admin</h2>
+              <Link
+                href="/settings/feedback"
+                className="flex items-center gap-3 p-3 rounded-md hover:bg-gray-50 border border-gray-200 transition-colors"
+              >
+                <MessageSquare className="w-5 h-5 text-blue-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">View Feedback</p>
+                  <p className="text-xs text-gray-500">Review bug reports and suggestions from users</p>
+                </div>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>
