@@ -16,6 +16,8 @@ interface FilmCardProps {
     countries?: string
     programs: string // combined programs
     premiere_status?: string
+    subtitles?: string
+    captions?: string
   }
   onClose: () => void
 }
@@ -733,14 +735,34 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                   </div>
                 )}
                 
-                {film.premiere_status && (
+                {(film.premiere_status || film.captions || film.subtitles) && (
                   <div>
-                    <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Premiere Status</span>
-                    <p className="text-lg text-gray-900 mt-1">
-                      <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                        {film.premiere_status}
-                      </span>
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {film.premiere_status && (
+                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                          {film.premiere_status}
+                        </span>
+                      )}
+                      {film.captions && film.captions.toLowerCase() !== 'no' && (
+                        <span className="bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full text-xs font-medium">
+                          {film.captions}
+                        </span>
+                      )}
+                      {(!film.captions || film.captions.toLowerCase() === 'no') && (
+                        <span className="bg-gray-100 text-gray-500 px-2.5 py-0.5 rounded-full text-xs font-medium">
+                          No Captions
+                        </span>
+                      )}
+                      {film.subtitles && film.subtitles.toLowerCase() !== 'no' ? (
+                        <span className="bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full text-xs font-medium">
+                          Subtitled{film.subtitles.toLowerCase() !== 'yes' ? ` · ${film.subtitles}` : ''}
+                        </span>
+                      ) : (
+                        <span className="bg-gray-100 text-gray-500 px-2.5 py-0.5 rounded-full text-xs font-medium">
+                          No Subtitles
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

@@ -12,7 +12,7 @@ import { getOrdinalSuffix } from '@/utils/ordinal'
 import {
   Calendar, Film, Plane, Newspaper, PlayCircle, Eye, Tv,
   Camera, Star, Mic, Sparkles, BookOpen, Building, Ticket,
-  BarChart3, Archive, Settings, GitBranch, Home, LogOut, User, ChevronDown
+  BarChart3, Archive, Settings, Home, LogOut, User, ChevronDown
 } from 'lucide-react'
 
 const moduleIcons: Record<string, any> = {
@@ -32,7 +32,6 @@ const moduleIcons: Record<string, any> = {
   ticketing: Ticket,
   reportsAnalytics: BarChart3,
   archives: Archive,
-  programmingPipeline: GitBranch
 }
 
 export function Sidebar() {

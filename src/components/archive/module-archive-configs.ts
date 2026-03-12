@@ -35,24 +35,6 @@ export const archiveConfigs = {
       } }
     ]
   },
-  programmingPipeline: {
-    tableName: 'programs',
-    title: 'Programs',
-    columns: [
-      { key: 'title', label: 'Program Title' },
-      { key: 'program_type', label: 'Type' },
-      { key: 'description', label: 'Description', render: (value: string) => value?.substring(0, 100) + '...' },
-      { key: 'created_at', label: 'Created', render: (value: string) => {
-        if (!value) return '—'
-        // Parse date string directly without timezone conversion
-        if (value.includes('-')) {
-          const [year, month, day] = value.split(' ')[0].split('-')
-          return `${month}/${day}/${year}`
-        }
-        return value
-      } }
-    ]
-  },
   titles: {
     tableName: 'feature_films',
     title: 'Feature Films',

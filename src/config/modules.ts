@@ -10,15 +10,6 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
     cardTypes: [],
     route: '/modules/festival-overview'
   },
-  programmingPipeline: {
-    id: 'programmingPipeline',
-    name: 'Programming Pipeline',
-    icon: 'cog',
-    hasGridView: true,
-    hasRSVP: false,
-    cardTypes: ['contacts'],
-    route: '/modules/programming-pipeline'
-  },
   titles: {
     id: 'titles',
     name: 'Titles & Programs',
@@ -130,7 +121,7 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
   },
   ticketing: {
     id: 'ticketing',
-    name: 'Ticketing',
+    name: 'Ticketing Grid',
     icon: 'ticket',
     hasGridView: true,
     hasCalendarView: true,
@@ -178,8 +169,7 @@ export const getAllModules = (): ModuleConfig[] => {
     'contactsManagement',
     'venueManagement', 
     'ticketing',
-    'archives',
-    'programmingPipeline'
+    'archives'
   ]
   
   return orderedModuleIds

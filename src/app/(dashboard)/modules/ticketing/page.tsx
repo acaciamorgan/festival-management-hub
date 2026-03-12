@@ -1747,11 +1747,12 @@ export default function TicketingPage() {
 
           // Step 1: Check for duplicate screening (same date/time/venue)
           const { data: existingScreening, error: duplicateCheckError } = await supabase
-            .from('ticketing_screenings')
+            .from('ticketing_screenings_with_films')
             .select('id, film_title')
             .eq('screening_date', formattedDate)
             .eq('start_time', formattedTime)
             .eq('venue_short_code', location || '')
+            .eq('festival_year', currentYear)
             .single()
 
           if (duplicateCheckError && duplicateCheckError.code !== 'PGRST116') {
@@ -2451,7 +2452,7 @@ export default function TicketingPage() {
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">🎟️ Ticketing</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">🎟️ Ticketing Grid</h1>
             <p className="text-sm text-gray-600 mt-1">
               {sortedData.length} of {getCurrentData().length} screenings
             </p>

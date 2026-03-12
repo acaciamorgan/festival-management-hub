@@ -66,9 +66,9 @@ export default function FestivalOverviewPage() {
         .select('*', { count: 'exact', head: true })
         .eq('festival_year', currentYear)
 
-      // Get public screenings from published_screenings table
+      // Get public screenings from ticketing_screenings (Published/Ticketing track)
       const { count: screeningsCount } = await supabase
-        .from('published_screenings')
+        .from('ticketing_screenings')
         .select('*', { count: 'exact', head: true })
         .eq('festival_year', currentYear)
 
