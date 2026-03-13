@@ -174,6 +174,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                       .from('short_films')
                       .select('shorts_program_id')
                       .eq('title', gf.film_title)
+                      .eq('festival_year', fyInt)
                       .single()
 
                     if (shortFilm && shortFilm.shorts_program_id) {
@@ -295,6 +296,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     venues(name)
                   `)
                   .eq('title', programTitle)
+                  .eq('festival_year', festivalYearInt)
                   .order('event_date', { ascending: true })
                   .order('event_time', { ascending: true })
               ])
@@ -352,11 +354,11 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
             // Sort all screenings by date and time without timezone conversion
             allScreenings.sort((a, b) => {
               // Compare dates as strings (YYYY-MM-DD format)
-              const dateCompare = a.screening_date.localeCompare(b.screening_date)
+              const dateCompare = (a.screening_date || '').localeCompare(b.screening_date || '')
               if (dateCompare !== 0) return dateCompare
 
               // If dates are equal, compare times
-              return a.start_time.localeCompare(b.start_time)
+              return (a.start_time || '').localeCompare(b.start_time || '')
             })
 
             // Filter to only show screenings the guest is attending (not in non_attending_screenings array)
@@ -395,6 +397,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     .from('short_films')
                     .select('shorts_program_id')
                     .eq('title', gf.film_title)
+                    .eq('festival_year', fyInt)
                     .single()
 
                   if (shortFilm && shortFilm.shorts_program_id) {
@@ -438,6 +441,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     venues(name)
                   `)
                   .eq('title', title)
+                  .eq('festival_year', fyInt)
                   .order('event_date', { ascending: true })
                   .order('event_time', { ascending: true }),
 
@@ -455,6 +459,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     is_industry_days
                   `)
                   .eq('title', title)
+                  .eq('festival_year', fyInt)
               ])
 
               // Add special events
@@ -487,9 +492,9 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
 
             // Sort all events by date and time
             allEvents.sort((a, b) => {
-              const dateCompare = a.event_date.localeCompare(b.event_date)
+              const dateCompare = (a.event_date || '').localeCompare(b.event_date || '')
               if (dateCompare !== 0) return dateCompare
-              return a.event_time.localeCompare(b.event_time)
+              return (a.event_time || '').localeCompare(b.event_time || '')
             })
 
             setSpecialEvents(allEvents)

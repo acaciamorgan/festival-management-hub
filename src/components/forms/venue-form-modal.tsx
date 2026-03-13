@@ -153,7 +153,10 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear }: 
       const venueData = {
         name: formData.name.trim(),
         address: formData.address.trim() || null,
-        venue_type: formData.venue_type
+        venue_type: formData.venue_type,
+        contact_names: cleanContactNames.length > 0 ? cleanContactNames : null,
+        contact_emails: cleanContactEmails.length > 0 ? cleanContactEmails : null,
+        contact_phones: cleanContactPhones.length > 0 ? cleanContactPhones : null
       }
 
       let savedVenue: VenueCard

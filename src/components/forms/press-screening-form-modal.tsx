@@ -295,7 +295,6 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         rsvp_form_url: formData.rsvp_form_url || null,
         rsvp_responses_url: formData.rsvp_responses_url || null,
         festival_year: parseInt(festivalYear, 10),
-        created_by: user?.id
       }
 
       if (screening) {
@@ -313,7 +312,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         // Create new screening
         const { data, error } = await supabase
           .from('press_screenings')
-          .insert(screeningData)
+          .insert({ ...screeningData, created_by: user?.id })
           .select()
           .single()
 

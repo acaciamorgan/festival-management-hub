@@ -560,6 +560,7 @@ export default function ContactsPage() {
       const { data: existingContacts } = await supabase
         .from('contacts')
         .select('id, contact_email, contact_name')
+        .eq('festival_year', currentYear)
         .in('contact_email', emails)
 
       const existingEmailMap = new Map(
@@ -716,6 +717,7 @@ export default function ContactsPage() {
                   .eq('film_id', film.id)
                   .eq('contact_id', contact.id)
                   .eq('contact_type', role)
+                  .eq('festival_year', currentYear)
                   .single()
 
                 if (!existing) {

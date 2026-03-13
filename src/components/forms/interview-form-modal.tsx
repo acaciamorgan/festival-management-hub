@@ -369,7 +369,6 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         show_on_special_events: showOnSpecialEvents,
         notes: notes || null,
         festival_year: parseInt(festivalYear, 10),
-        created_by: user?.id,
       }
 
       if (interview) {
@@ -388,6 +387,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         const records = selectedFilms.map(film => ({
           ...sharedData,
           ...getFilmFields(film),
+          created_by: user?.id,
         }))
 
         const { error } = await supabase.from('interviews').insert(records)

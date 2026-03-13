@@ -496,6 +496,7 @@ export default function PressRequestsPage() {
         const { data: shortFilms } = await supabase
           .from('short_films')
           .select('id, shorts_program_id')
+          .eq('festival_year', currentYear)
           
         // Load contacts for shorts
         const { data: shortContactsData } = await supabase

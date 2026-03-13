@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 
 interface FilmDetailModalProps {
   filmTitle: string
@@ -58,6 +59,7 @@ interface ShortFilm {
 }
 
 export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDetailModalProps) {
+  const { currentYear } = useFestivalYear()
   const [film, setFilm] = useState<Film | null>(null)
   const [shortsProgram, setShortsProgram] = useState<ShortsProgram | null>(null)
   const [shortFilms, setShortFilms] = useState<ShortFilm[]>([])
@@ -87,6 +89,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
       const { data: programData } = await supabase
         .from('shorts_programs')
         .select('*')
+        .eq('festival_year', currentYear)
         .eq('program_name', filmTitle)
         .single()
 
@@ -102,6 +105,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
         const { data: shorts } = await supabase
           .from('short_films')
           .select('id, title, director, countries, run_time, language, program_1, program_2, program_3')
+          .eq('festival_year', currentYear)
           .eq('shorts_program_id', programData.id)
           .order('title')
 
@@ -111,6 +115,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
         const { data: shortFilmData, error: shortFilmError } = await supabase
           .from('short_films')
           .select('*')
+          .eq('festival_year', currentYear)
           .eq('title', filmTitle)
           .single()
 
@@ -163,6 +168,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
               confirmed,
               checked_in
             `)
+            .eq('festival_year', currentYear)
             .ilike('films_display', `%${shortFilmData.title}%`)
 
           console.log('DEBUG: Guest query result:', shortGuests, 'Error:', guestError)
@@ -177,6 +183,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
           const { data: filmData } = await supabase
             .from('feature_films')
             .select('*')
+            .eq('festival_year', currentYear)
             .eq('title', filmTitle)
             .single()
 
@@ -195,6 +202,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
               confirmed,
               checked_in
             `)
+            .eq('festival_year', currentYear)
             .ilike('films_display', `%${filmTitle}%`)
 
           if (featureGuests) {

@@ -29,7 +29,7 @@ const FestivalYearContext = createContext<FestivalYearContextType | undefined>(u
 const STORAGE_KEY = 'festival_selected_year'
 
 export function FestivalYearProvider({ children }: { children: ReactNode }) {
-  const [currentYear, setCurrentYearState] = useState<number>(2025)
+  const [currentYear, setCurrentYearState] = useState<number>(new Date().getFullYear())
   const [availableYears, setAvailableYears] = useState<FestivalYear[]>([])
   const [loading, setLoading] = useState(true)
 

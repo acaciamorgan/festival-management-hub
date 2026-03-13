@@ -58,6 +58,9 @@ interface ProgrammingFilm {
   // Visual and metadata
   color_highlight: string | null
   cell_highlights: Record<string, string> | null // Individual cell highlighting
+  travel_notes: string | null
+  synopsis_notes: string | null
+  materials_notes: string | null
   programming_notes: string | null
   status: string // only draft status - no publishing
   contacts: Array<{
@@ -141,6 +144,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
         const { data, error } = await supabase
           .from('contacts')
           .select('*')
+          .eq('festival_year', currentYear)
           .order('contact_name')
 
         if (error) throw error
@@ -179,9 +183,9 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
         premiere_status: film.premiere_status || '',
         cards_made: film.cards_made || false,
         color_highlight: film.color_highlight || '',
-        travel_notes: '',
-        synopsis_notes: '',
-        materials_notes: '',
+        travel_notes: film.travel_notes || '',
+        synopsis_notes: film.synopsis_notes || '',
+        materials_notes: film.materials_notes || '',
         programming_notes: film.programming_notes || '',
         contacts: film.contacts.length > 0 
           ? film.contacts.map(c => ({
@@ -378,6 +382,9 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
             premiere_status: formData.premiere_status.trim() || null,
             cards_made: formData.cards_made,
             color_highlight: formData.color_highlight.trim() || null,
+            travel_notes: formData.travel_notes.trim() || null,
+            synopsis_notes: formData.synopsis_notes.trim() || null,
+            materials_notes: formData.materials_notes.trim() || null,
             programming_notes: formData.programming_notes.trim() || null
           })
           .eq('id', film.id)
@@ -409,6 +416,9 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
             premiere_status: formData.premiere_status.trim() || null,
             cards_made: formData.cards_made,
             color_highlight: formData.color_highlight.trim() || null,
+            travel_notes: formData.travel_notes.trim() || null,
+            synopsis_notes: formData.synopsis_notes.trim() || null,
+            materials_notes: formData.materials_notes.trim() || null,
             programming_notes: formData.programming_notes.trim() || null,
             festival_year: parseInt(festivalYear, 10),
             created_by: user?.id

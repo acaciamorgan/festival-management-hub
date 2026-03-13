@@ -151,6 +151,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
       const { data, error } = await supabase
         .from('shorts_programs')
         .select('id, program_name, program_number')
+        .eq('festival_year', currentYear)
         .order('program_number')
       
       if (!error && data) {
@@ -190,6 +191,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
       const { data, error } = await supabase
         .from('contacts')
         .select('id, contact_name, contact_company, contact_email')
+        .eq('festival_year', currentYear)
         .order('contact_name')
       
       if (error) {

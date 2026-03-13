@@ -405,6 +405,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               .from('short_films')
               .select('id, shorts_program_id')
               .eq('title', film.title)
+              .eq('festival_year', parseInt(festivalYear, 10))
               .single()
 
             if (!shortFilmError && shortFilm && shortFilm.shorts_program_id) {
@@ -434,6 +435,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                   `)
                   .eq('film_id', shortsProgram.id)
                   .eq('film_type', 'shorts_program')
+                  .eq('festival_year', parseInt(festivalYear, 10))
 
                 if (!guestProgramsError && guestPrograms) {
                   const programGuests = guestPrograms.map((gp: any) => gp.guests).filter(Boolean)
@@ -458,6 +460,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                 )
               `)
               .eq('film_id', film.id)
+              .eq('festival_year', parseInt(festivalYear, 10))
 
             if (!guestFilmsError && guestFilms) {
               const filmGuests = guestFilms.map((gf: any) => gf.guests).filter(Boolean)
@@ -481,6 +484,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               `)
               .eq('film_id', film.id)
               .eq('film_type', 'program')
+              .eq('festival_year', parseInt(festivalYear, 10))
 
             if (!guestProgramsError && guestPrograms) {
               const programGuests = guestPrograms.map((gp: any) => gp.guests).filter(Boolean)
@@ -509,6 +513,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               .from('ticketing_screenings')
               .select('id')
               .eq('film_id', film.id)
+              .eq('festival_year', parseInt(festivalYear, 10))
 
             if (!allScreenings || allScreenings.length === 0) return
 

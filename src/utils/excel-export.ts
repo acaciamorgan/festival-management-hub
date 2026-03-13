@@ -143,7 +143,7 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
       }
     }
     if (!festivalYear) {
-      festivalYear = 2025 // Last resort fallback
+      festivalYear = new Date().getFullYear() // Last resort fallback
     }
 
     // Get festival info for the specified year
@@ -454,6 +454,7 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     const { data: publishedScreenings, error: ticketingError } = await supabase
       .from('published_screenings')
       .select('*')
+      .eq('festival_year', festivalYear)
       .order('screening_date')
     
     console.log('Ticketing:', ticketingError ? 'ERROR: ' + ticketingError.message : `SUCCESS: ${publishedScreenings?.length || 0} records`)

@@ -687,7 +687,7 @@ export default function TitlesPage() {
           language: 'Multiple Languages',
           subtitles: '',
           captions: '',
-          original_release_year: 2024,
+          original_release_year: currentYear,
           screenwriter: '',
           cinematographer: '',
           animator: '',

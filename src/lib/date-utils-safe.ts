@@ -29,7 +29,7 @@ export function parseDateSafe(dateString: string): DateComponents {
     const parts = dateString.split('/')
     const month = parseInt(parts[0])
     const day = parseInt(parts[1])
-    const year = parts.length > 2 ? parseInt(parts[2]) : 2024
+    const year = parts.length > 2 ? parseInt(parts[2]) : new Date().getFullYear()
     return { year, month, day }
   }
   
@@ -153,7 +153,7 @@ export function normalizeDateSafe(dateString: string): string {
   
   // Validate year range
   if (components.year < 2020 || components.year > 2030) {
-    components.year = 2024
+    components.year = new Date().getFullYear()
   }
   
   return formatDateSafe(components)
