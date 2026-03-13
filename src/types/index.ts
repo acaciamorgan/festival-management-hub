@@ -88,6 +88,7 @@ export interface PressCard {
   critics_groups?: string | null
   accreditation_level: AccreditationLevel
   picked_up_credentials: boolean
+  festival_year: number
 }
 
 // Film/Title Types
@@ -167,6 +168,7 @@ export interface GuestCard {
   country?: string
   guest_type: GuestType
   confirmed: boolean
+  festival_year: number
   role?: string
   
   // Contact
@@ -237,6 +239,7 @@ export interface VenueCard {
   contact_phones?: string[] | null
   houses?: TheaterHouse[]
   houses_display?: string // Computed field for grid display
+  festival_year: number
   created_at: string
   updated_at: string
   created_by: string
@@ -269,6 +272,7 @@ export interface ContactCard {
   notes?: string | null
   contact_type?: string | null
   mailing_address?: string | null
+  festival_year: number
   created_at: string
   updated_at: string
   created_by: string
@@ -321,6 +325,7 @@ export interface PressScreeningCard {
   notes?: string | null
   rsvp_form_url?: string | null
   rsvp_responses_url?: string | null
+  festival_year: number
   created_at: string
   updated_at: string
   created_by: string

@@ -37,6 +37,7 @@ export default function PressScreeningsPage() {
       const { data, error } = await supabase
         .from('theater_houses')
         .select('short_code')
+        .eq('festival_year', currentYear)
         .not('short_code', 'is', null)
         .order('short_code')
 

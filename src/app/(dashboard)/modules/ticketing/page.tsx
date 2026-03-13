@@ -1207,6 +1207,7 @@ export default function TicketingPage() {
       const { data: theaters, error: theaterError } = await supabase
         .from('theater_houses')
         .select('short_code, seat_count')
+        .eq('festival_year', currentYear)
 
       if (theaterError) throw theaterError
 
@@ -1500,6 +1501,7 @@ export default function TicketingPage() {
       const { data: theaterHouses, error } = await supabase
         .from('theater_houses')
         .select('short_code, seat_count, house_name')
+        .eq('festival_year', currentYear)
         .not('short_code', 'is', null)
         .order('short_code')
 
