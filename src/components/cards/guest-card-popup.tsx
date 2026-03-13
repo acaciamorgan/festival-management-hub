@@ -511,7 +511,8 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
     }
 
     loadEvents()
-  }, [guest.name, guest.id, supabase])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guest.name, guest.id])
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true)

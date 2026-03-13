@@ -508,7 +508,7 @@ export async function exportArchivedYear(year: number) {
   try {
     // Get festival year info
     const { data: festivalYear } = await supabase
-      .from('festival_years')
+      .from('festival_settings')
       .select('*')
       .eq('year', year)
       .single()

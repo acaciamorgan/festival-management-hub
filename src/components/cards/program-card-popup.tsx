@@ -164,9 +164,13 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
 
         // Combine and sort by date/time
         const combinedSchedule = [...ticketingScreenings, ...specialEvents].sort((a, b) => {
-          const dateA = new Date(`${a.screening_date || a.event_date} ${a.start_time || a.event_time}`)
-          const dateB = new Date(`${b.screening_date || b.event_date} ${b.start_time || b.event_time}`)
-          return dateA.getTime() - dateB.getTime()
+          const dateStrA = a.screening_date || a.event_date || ''
+          const dateStrB = b.screening_date || b.event_date || ''
+          const dateCompare = dateStrA.localeCompare(dateStrB)
+          if (dateCompare !== 0) return dateCompare
+          const timeStrA = a.start_time || a.event_time || ''
+          const timeStrB = b.start_time || b.event_time || ''
+          return timeStrA.localeCompare(timeStrB)
         })
 
         setScheduleItems(combinedSchedule)
@@ -229,10 +233,11 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
   const formatTime = (timeString: string) => {
     if (!timeString) return '—'
     const [hours, minutes] = timeString.split(':')
+    if (!hours) return '—'
     const hour24 = parseInt(hours)
     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
     const ampm = hour24 >= 12 ? 'PM' : 'AM'
-    return `${hour12}:${minutes.padStart(2, '0')} ${ampm}`
+    return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
   }
 
   return (

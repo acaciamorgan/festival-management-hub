@@ -78,7 +78,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
   const [pressInterviews, setPressInterviews] = useState<InterviewCard[]>([])
 
   // Edit modal dragging state
-  const [editModalPosition, setEditModalPosition] = useState({ x: window.innerWidth / 2 - 320, y: 100 })
+  const [editModalPosition, setEditModalPosition] = useState(() => ({ x: typeof window !== 'undefined' ? window.innerWidth / 2 - 320 : 300, y: 100 }))
   const [isEditModalDragging, setIsEditModalDragging] = useState(false)
   const [editModalDragStart, setEditModalDragStart] = useState({ x: 0, y: 0 })
 
@@ -229,7 +229,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
   }
 
   const handleDelete = async () => {
-    if (!confirm(`Are you sure you want to delete ${press.name}&apos;s press card? This action cannot be undone.`)) {
+    if (!confirm(`Are you sure you want to delete ${press.name}'s press card? This action cannot be undone.`)) {
       return
     }
     
@@ -294,7 +294,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
     }
 
     loadInterviews()
-  }, [press.id])
+  }, [press.id, currentYear])
 
   // Date formatting helper - string-based parsing only
   const formatDate = (dateString: string | null): string => {

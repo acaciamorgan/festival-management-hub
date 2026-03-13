@@ -407,6 +407,9 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     try {
       const festivalYear = await getFestivalYear()
 
+      // Preserve original created_by when editing
+      const originalCreatedBy = redCarpet && redCarpet.length > 0 ? redCarpet[0].created_by : user?.id
+
       // If editing, delete all existing records from this carpet event
       if (redCarpet && redCarpet.length > 0) {
         const idsToDelete = redCarpet.map(carpet => carpet.id)
@@ -441,7 +444,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
           rsvp_responses_url: (formData.rsvp_responses_url && formData.rsvp_responses_url.trim()) || null,
           run_of_show_url: (formData.run_of_show_url && formData.run_of_show_url.trim()) || null,
           festival_year: parseInt(festivalYear, 10),
-          created_by: user?.id
+          created_by: originalCreatedBy
         }
 
         // Create red carpet record

@@ -116,9 +116,9 @@ export function GenerateRequestsModal({
       console.log('Processing request for film:', filmTitle)
       
       // Find the contact for this film
-      const contact = filmContacts.find(c => 
-        c.film_title.toLowerCase() === filmTitle.toLowerCase()
-      )
+      const contact = filmTitle ? filmContacts.find(c =>
+        c.film_title?.toLowerCase() === filmTitle.toLowerCase()
+      ) : undefined
       
       if (contact) {
         console.log('Found contact for film:', contact)

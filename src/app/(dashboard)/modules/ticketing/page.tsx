@@ -132,8 +132,8 @@ function ScreeningBoard({
     }
 
     const results = allScreenings.filter(screening =>
-      screening.film_title.toLowerCase().includes(screeningSearchTerm.toLowerCase()) ||
-      screening.venue_short_code.toLowerCase().includes(screeningSearchTerm.toLowerCase()) ||
+      screening.film_title?.toLowerCase().includes(screeningSearchTerm.toLowerCase()) ||
+      screening.venue_short_code?.toLowerCase().includes(screeningSearchTerm.toLowerCase()) ||
       screening.notes?.toLowerCase().includes(screeningSearchTerm.toLowerCase())
     )
 

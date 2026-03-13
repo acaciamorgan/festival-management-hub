@@ -286,7 +286,8 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
             .map(([programId, value]) => ({
               short_film_id: film.id,
               shorts_program_id: programId,
-              program_order: value.order || 0
+              program_order: value.order || 0,
+              festival_year: currentYear
             }))
           
           if (newAssignments.length > 0) {

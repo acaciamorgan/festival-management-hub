@@ -665,7 +665,8 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
     }
 
     loadEvents()
-  }, [film.title, film.id, supabase])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [film.title, film.id])
 
   return (
     <>

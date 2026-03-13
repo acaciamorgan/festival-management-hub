@@ -42,7 +42,7 @@ export default function ArchiveBrowserPage() {
     
     try {
       const { data, error } = await supabase
-        .from('festival_years')
+        .from('festival_settings')
         .select('*')
         .eq('year', year)
         .single()

@@ -405,7 +405,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
       // Handle film and program associations
       // Delete existing associations if editing or updating existing guest
       if (guest || existingGuest) {
-        await supabase.from('guest_films').delete().eq('guest_id', savedGuest.id)
+        await supabase.from('guest_films').delete().eq('guest_id', savedGuest.id).eq('festival_year', currentYear)
       }
 
       if (formData.film_titles.trim()) {

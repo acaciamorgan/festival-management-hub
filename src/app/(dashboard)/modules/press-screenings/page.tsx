@@ -48,7 +48,8 @@ export default function PressScreeningsPage() {
     } catch (error) {
       console.error('Error loading venue short codes:', error)
     }
-  }, [supabase])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, currentYear])
 
   const loadPressScreenings = useCallback(async () => {
     setLoading(true)

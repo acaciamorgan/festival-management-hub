@@ -581,7 +581,7 @@ export default function ContactsPage() {
           })
         } else {
           // New contact
-          newContacts.push(contactData)
+          newContacts.push({ ...contactData, festival_year: currentYear })
         }
       }
 

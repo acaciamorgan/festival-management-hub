@@ -72,7 +72,8 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
     if (isOpen && filmTitle) {
       loadFilmDetails()
     }
-  }, [isOpen, filmTitle])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, filmTitle, currentYear])
 
 
   const loadFilmDetails = async () => {

@@ -475,7 +475,8 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
             programming_film_id: filmId,
             contact_id: contactId,
             role: contactData.role.trim() || null,
-            created_by: user?.id
+            created_by: user?.id,
+            festival_year: currentYear
           })
       }
 

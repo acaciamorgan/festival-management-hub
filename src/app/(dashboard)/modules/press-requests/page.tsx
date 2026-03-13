@@ -196,20 +196,22 @@ export default function PressRequestsPage() {
       if (shortsPrograms && shortsPrograms.length > 0) {
         for (const program of shortsPrograms) {
           // Check if this program has screener data marked for request_link
-          const { data: screenerData } = await supabase
+          const { data: screenerDataArr } = await supabase
             .from('screener_access')
             .select('access_type')
             .eq('film_id', program.id)
-            .single()
+            .limit(1)
+          const screenerData = screenerDataArr?.[0] || null
 
           if (screenerData?.access_type === 'request_link') {
             // Get contacts from the first short in this program
-            const { data: firstShort } = await supabase
+            const { data: firstShortArr } = await supabase
               .from('short_films')
               .select('id')
               .eq('shorts_program_id', program.id)
+              .eq('festival_year', currentYear)
               .limit(1)
-              .single()
+            const firstShort = firstShortArr?.[0] || null
             
             if (firstShort) {
               const { data: contacts } = await supabase

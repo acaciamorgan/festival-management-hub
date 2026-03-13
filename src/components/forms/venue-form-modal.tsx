@@ -200,12 +200,11 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear }: 
       if (formData.venue_type === 'Movie Theater') {
         // Delete existing houses if editing
         if (venue) {
-          const deleteQuery = supabase
+          await supabase
             .from('theater_houses')
             .delete()
             .eq('venue_id', venue.id)
-          if (currentYear) deleteQuery.eq('festival_year', currentYear)
-          await deleteQuery
+            .eq('festival_year', currentYear)
         }
 
         // Insert new houses

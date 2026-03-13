@@ -263,12 +263,12 @@ export default function ScreenerAccessPage() {
         const programsWithData = await Promise.all(
           programsData.map(async (program) => {
             // Get the first short from this program to use its contacts
-            const { data: firstShort } = await supabase
+            const { data: firstShortArr } = await supabase
               .from('short_films')
               .select('id')
               .eq('shorts_program_id', program.id)
               .limit(1)
-              .single()
+            const firstShort = firstShortArr?.[0] || null
             
             let contacts = []
             if (firstShort) {
@@ -523,10 +523,13 @@ export default function ScreenerAccessPage() {
         >
           <input
             type="url"
-            value={film.screener_data?.link_url || ''}
-            onChange={(e) => updateScreenerData(film.id, { 
-              link_url: e.target.value || null 
-            })}
+            defaultValue={film.screener_data?.link_url || ''}
+            onBlur={(e) => {
+              const newVal = e.target.value || null
+              if (newVal !== (film.screener_data?.link_url || null)) {
+                updateScreenerData(film.id, { link_url: newVal })
+              }
+            }}
             placeholder="https://..."
             disabled={!canEditScreenerAccess}
             className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -541,10 +544,13 @@ export default function ScreenerAccessPage() {
         >
           <input
             type="text"
-            value={film.screener_data?.link_password || ''}
-            onChange={(e) => updateScreenerData(film.id, { 
-              link_password: e.target.value || null 
-            })}
+            defaultValue={film.screener_data?.link_password || ''}
+            onBlur={(e) => {
+              const newVal = e.target.value || null
+              if (newVal !== (film.screener_data?.link_password || null)) {
+                updateScreenerData(film.id, { link_password: newVal })
+              }
+            }}
             placeholder="Optional password"
             disabled={!canEditScreenerAccess}
             className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"

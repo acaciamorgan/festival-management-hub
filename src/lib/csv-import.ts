@@ -35,7 +35,7 @@ export interface CSVGuestRow {
   'Database Match': string
   'Name': string
   'Country': string
-  'Confirmed?': string
+  'Confirmed': string
   'Contact': string
   'Email': string
   'Welcome Email Sent': string
@@ -516,7 +516,8 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           checked_in: false,
           notes: primaryRow['Notes']?.trim() || null,
           created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
-          updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
+          updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
+          festival_year: festivalYearInt
         }
 
         // Check if guest already exists - first try exact match, then normalized match
@@ -527,6 +528,7 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           .from('guests')
           .select('*')
           .eq('name', guestName)
+          .eq('festival_year', festivalYearInt)
 
         if (exactCheckError) {
           errors.push(`Error checking for existing guest ${guestName}: ${exactCheckError.message}`)
@@ -543,6 +545,7 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           const { data: allGuests, error: allGuestsError } = await supabase
             .from('guests')
             .select('*')
+            .eq('festival_year', festivalYearInt)
 
           if (!allGuestsError && allGuests) {
             existingGuest = allGuests.find(guest =>
