@@ -23,6 +23,8 @@ export default function ArchivesPage() {
   const [newStartDate, setNewStartDate] = useState('')
   const [newEndDate, setNewEndDate] = useState('')
   const [copyVenues, setCopyVenues] = useState(true)
+  const [copyContacts, setCopyContacts] = useState(true)
+  const [copyPress, setCopyPress] = useState(true)
   const [copyTemplatePrograms, setCopyTemplatePrograms] = useState(true)
   const [creatingYear, setCreatingYear] = useState(false)
   const [yearCreationResult, setYearCreationResult] = useState<any>(null)
@@ -87,6 +89,8 @@ export default function ArchivesPage() {
         startDate: newStartDate,
         endDate: newEndDate,
         copyVenues,
+        copyContacts,
+        copyPress,
         copyTemplatePrograms,
       })
 
@@ -109,6 +113,8 @@ export default function ArchivesPage() {
       setNewStartDate('')
       setNewEndDate('')
       setCopyVenues(true)
+      setCopyContacts(true)
+      setCopyPress(true)
       setCopyTemplatePrograms(true)
     } catch (error) {
       console.error('Year creation failed:', error)
@@ -384,6 +390,30 @@ export default function ArchivesPage() {
                       />
                       <span className="text-sm text-gray-700">
                         Copy venues from previous year
+                      </span>
+                    </label>
+
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={copyContacts}
+                        onChange={(e) => setCopyContacts(e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 mr-2"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Copy contacts from previous year
+                      </span>
+                    </label>
+
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={copyPress}
+                        onChange={(e) => setCopyPress(e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 mr-2"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Copy press from previous year
                       </span>
                     </label>
 

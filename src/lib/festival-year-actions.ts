@@ -84,6 +84,8 @@ export async function createNewFestivalYear(options: {
   endDate?: string
   copyVenues?: boolean
   copyTemplatePrograms?: boolean
+  copyContacts?: boolean
+  copyPress?: boolean
 }): Promise<{ success: boolean; error?: string }> {
   const supabase = createClient()
 
@@ -129,6 +131,60 @@ export async function createNewFestivalYear(options: {
         }))
 
         await supabase.from('venues').insert(newVenues)
+      }
+    }
+
+    // Copy contacts if requested
+    if (options.copyContacts) {
+      const previousYear = options.year - 1
+      const { data: contacts, error: contactsError } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('festival_year', previousYear)
+
+      if (!contactsError && contacts && contacts.length > 0) {
+        const newContacts = contacts.map(c => ({
+          contact_name: c.contact_name,
+          contact_company: c.contact_company,
+          contact_email: c.contact_email,
+          phone: c.phone,
+          contact_type: c.contact_type,
+          mailing_address: c.mailing_address,
+          notes: c.notes,
+          festival_year: options.year,
+        }))
+
+        await supabase.from('contacts').insert(newContacts)
+      }
+    }
+
+    // Copy press if requested
+    if (options.copyPress) {
+      const previousYear = options.year - 1
+      const { data: press, error: pressError } = await supabase
+        .from('press')
+        .select('*')
+        .eq('festival_year', previousYear)
+
+      if (!pressError && press && press.length > 0) {
+        const newPress = press.map(p => ({
+          name: p.name,
+          email: p.email,
+          phone: p.phone,
+          media_outlet: p.media_outlet,
+          secondary_outlets: p.secondary_outlets,
+          outlet_type: p.outlet_type,
+          website_url: p.website_url,
+          secondary_outlet_urls: p.secondary_outlet_urls,
+          social_media: p.social_media,
+          rotten_tomatoes_accredited: p.rotten_tomatoes_accredited,
+          critics_groups: p.critics_groups,
+          accreditation_level: p.accreditation_level,
+          picked_up_credentials: false,
+          festival_year: options.year,
+        }))
+
+        await supabase.from('press').insert(newPress)
       }
     }
 
