@@ -133,6 +133,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
         .select('*')
         .eq('film_id', film.id)
         .eq('film_type', filmType)
+        .eq('festival_year', currentYear)
         .order('created_at')
       
       if (error) {
@@ -333,6 +334,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
         .delete()
         .eq('film_id', film.id)
         .eq('film_type', filmType)
+        .eq('festival_year', currentYear)
       
       // Delete the film
       const tableName = filmType === 'feature' ? 'feature_films' : 'short_films'
@@ -428,44 +430,51 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
             .from('contacts')
             .select('*')
             .eq('contact_email', contact.email.trim())
+            .eq('festival_year', currentYear)
             .single()
-          
+
           existingContact = existing
         }
-        
+
         // If no contact found by email, check by name
         if (!existingContact) {
           const { data: existing } = await supabase
             .from('contacts')
             .select('*')
             .eq('contact_name', contact.name.trim())
+            .eq('festival_year', currentYear)
             .single()
-          
+
           existingContact = existing
         }
-        
+
         // If contact doesn't exist, create it
+        let createdContactRecord = null
         if (!existingContact && contact.name.trim()) {
           const newContactData = {
             contact_name: contact.name.trim(),
             contact_company: contact.company?.trim() || null,
             contact_email: contact.email?.trim() || null,
-            contact_type: contact.contact_type || null
+            contact_type: contact.contact_type || null,
+            festival_year: currentYear
           }
-          
+
           const { data: createdContact, error: createError } = await supabase
             .from('contacts')
             .insert([newContactData])
             .select()
             .single()
-          
+
           if (!createError && createdContact) {
             console.log('Auto-created new contact:', createdContact.contact_name)
+            createdContactRecord = createdContact
           } else {
             console.error('Error auto-creating contact:', createError)
           }
         }
-        
+
+        const resolvedContactId = existingContact?.id || createdContactRecord?.id || null
+
         // Add to film contacts list
         processedContacts.push({
           film_id: film.id,
@@ -473,16 +482,19 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
           name: contact.name.trim(),
           company: contact.company?.trim() || null,
           email: contact.email?.trim() || null,
-          contact_type: contact.contact_type
+          contact_type: contact.contact_type,
+          festival_year: currentYear,
+          contact_id: resolvedContactId
         })
       }
       
-      // Delete existing film contacts
+      // Delete existing film contacts for this year
       await supabase
         .from('film_contacts')
         .delete()
         .eq('film_id', film.id)
         .eq('film_type', filmType)
+        .eq('festival_year', currentYear)
       
       // Insert new film contacts
       if (processedContacts.length > 0) {

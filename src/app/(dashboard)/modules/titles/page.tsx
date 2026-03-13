@@ -642,8 +642,8 @@ export default function TitlesPage() {
         (programsData || []).map(async (program) => {
           const { data: filmsData, error: filmsError} = await supabase
             .from('short_films')
-            .eq('festival_year', currentYear) 
             .select('id, title, run_time')
+            .eq('festival_year', currentYear)
             .eq('shorts_program_id', program.id)
           
           if (filmsError) {
@@ -2696,6 +2696,7 @@ export default function TitlesPage() {
           availableShorts={shorts}
           editingProgram={editingProgram}
           supabase={supabase}
+          currentYear={currentYear}
         />
       )}
 
@@ -2713,6 +2714,7 @@ export default function TitlesPage() {
           }}
           editingEvent={editingEvent}
           supabase={supabase}
+          currentYear={currentYear}
         />
       )}
 
@@ -2758,6 +2760,7 @@ export default function TitlesPage() {
               }}
               availablePrograms={uniquePrograms}
               availableGenres={uniqueGenres}
+              currentYear={currentYear}
             />
           </div>
         </div>
@@ -2773,9 +2776,10 @@ interface AddFilmModalProps {
   onSave: () => void
   availablePrograms: string[]
   availableGenres: string[]
+  currentYear: number
 }
 
-function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGenres }: AddFilmModalProps) {
+function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGenres, currentYear }: AddFilmModalProps) {
   const [formData, setFormData] = useState({
     title: '',
     source: '',
@@ -3584,9 +3588,10 @@ interface CreateShortsProgramModalProps {
   availableShorts: ShortFilm[]
   editingProgram?: any
   supabase: any
+  currentYear: number
 }
 
-function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingProgram, supabase }: CreateShortsProgramModalProps) {
+function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingProgram, supabase, currentYear }: CreateShortsProgramModalProps) {
   const [programName, setProgramName] = useState('')
   const [selectedShorts, setSelectedShorts] = useState<ShortFilm[]>([])
   const [saving, setSaving] = useState(false)
@@ -4002,9 +4007,10 @@ interface CreateProgramEventModalProps {
   onSave: () => void
   editingEvent?: ProgramCard | null
   supabase: any
+  currentYear: number
 }
 
-function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase }: CreateProgramEventModalProps) {
+function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase, currentYear }: CreateProgramEventModalProps) {
   const [title, setTitle] = useState('')
   const [eventDate, setEventDate] = useState('')
   const [startTime, setStartTime] = useState('')

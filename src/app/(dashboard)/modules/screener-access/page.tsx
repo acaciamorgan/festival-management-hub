@@ -235,6 +235,7 @@ export default function ScreenerAccessPage() {
               .select('id, name, company, email, contact_type')
               .eq('film_id', film.id)
               .eq('film_type', 'feature')
+              .eq('festival_year', currentYear)
               .order('contact_type, name')
 
             // Load screener data
@@ -276,6 +277,7 @@ export default function ScreenerAccessPage() {
                 .select('id, name, company, email, contact_type')
                 .eq('film_id', firstShort.id)
                 .eq('film_type', 'short')
+                .eq('festival_year', currentYear)
                 .order('contact_type, name')
               
               contacts = contactsData || []

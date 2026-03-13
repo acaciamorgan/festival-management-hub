@@ -448,7 +448,8 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
               contact_email: contactData.email.trim() || null,
               phone: contactData.phone.trim() || null,
               notes: contactData.notes.trim() || null,
-              created_by: user?.id
+              created_by: user?.id,
+              festival_year: currentYear
             })
             .select()
             .single()

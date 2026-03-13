@@ -1,7 +1,12 @@
 // TIMEZONE-SAFE DATE UTILITIES
 // NEVER use new Date(dateString) - only manual parsing to prevent timezone shifts
 
-import { getFestivalYear } from './festival-context'
+import { getCurrentFestivalSettings } from './festival-context'
+
+async function getFestivalYear(): Promise<number> {
+  const settings = await getCurrentFestivalSettings()
+  return settings?.year || new Date().getFullYear()
+}
 
 export interface DateComponents {
   year: number

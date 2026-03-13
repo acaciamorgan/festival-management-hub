@@ -328,7 +328,8 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
         phone: formData.phone.trim() || null,
         notes: formData.notes.trim() || null,
         contact_type: formData.contact_type.trim() || null,
-        mailing_address: formData.mailing_address.trim() || null
+        mailing_address: formData.mailing_address.trim() || null,
+        festival_year: parseInt(festivalYear, 10)
       }
 
       let contactId = contact?.id
@@ -352,6 +353,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
             .from('contacts')
             .select('id')
             .eq('contact_email', contactData.contact_email)
+            .eq('festival_year', parseInt(festivalYear, 10))
 
           if (existingContacts && existingContacts.length > 0) {
             alert('A contact with this email already exists')
@@ -399,7 +401,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
               name: contactData.contact_name,
               company: contactData.contact_company,
               email: contactData.contact_email,
-              contact_type: 'Other',
+              contact_type: contactData.contact_type || 'Other',
               contact_id: contactId,
               festival_year: parseInt(festivalYear, 10)
             }

@@ -218,6 +218,7 @@ export default function PressRequestsPage() {
                 .eq('film_id', firstShort.id)
                 .eq('film_type', 'short')
                 .eq('contact_type', 'Screening Link')
+                .eq('festival_year', currentYear)
               
               contacts?.forEach(contact => {
                 contactsList.push({
@@ -468,7 +469,7 @@ export default function PressRequestsPage() {
       ] = await Promise.all([
         supabase.from('feature_films').select('id, title').eq('festival_year', currentYear),
         supabase.from('screener_access').select('film_id, access_type').eq('festival_year', currentYear),
-        supabase.from('film_contacts').select('film_id, film_type, name, email, company, contact_type').eq('film_type', 'feature'),
+        supabase.from('film_contacts').select('film_id, film_type, name, email, company, contact_type').eq('film_type', 'feature').eq('festival_year', currentYear),
         supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear)
       ])
       
@@ -501,6 +502,7 @@ export default function PressRequestsPage() {
           .from('film_contacts')
           .select('film_id, film_type, name, email, company, contact_type')
           .eq('film_type', 'short')
+          .eq('festival_year', currentYear)
         
         for (const program of shortsPrograms) {
           // Find screener access for this program
@@ -569,7 +571,7 @@ export default function PressRequestsPage() {
           : 'No contacts found'
 
         filmEntries.push({
-          title: filmTitle,
+          title: filmData.title,
           contacts: contactsText,
           requests: sortedRequests
         })

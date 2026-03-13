@@ -212,8 +212,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         })
 
         // Add free-text films from film_program_description
-        if (baseEvent?.data?.film_program_description) {
-          baseEvent.data.film_program_description.split(',').map((t: string) => t.trim()).filter(Boolean).forEach((title: string) => {
+        if (baseEvent?.film_program_description) {
+          baseEvent.film_program_description.split(',').map((t: string) => t.trim()).filter(Boolean).forEach((title: string) => {
             filmChips.push({ label: title })
           })
         }
@@ -225,8 +225,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         }))
 
         // Add free-text guests from guests_description
-        if (baseEvent?.data?.guests_description) {
-          baseEvent.data.guests_description.split(',').map((s: string) => s.trim()).filter(Boolean).forEach((name: string) => {
+        if (baseEvent?.guests_description) {
+          baseEvent.guests_description.split(',').map((s: string) => s.trim()).filter(Boolean).forEach((name: string) => {
             guestChips.push({ label: name })
           })
         }

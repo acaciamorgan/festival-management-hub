@@ -1068,6 +1068,10 @@ export default function TicketingPage() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0)
   
+  // Unpublish state
+  const [selectedForUnpublish, setSelectedForUnpublish] = useState<Set<string>>(new Set())
+  const [unpublishing, setUnpublishing] = useState(false)
+
   // Set View modal state
   const [showSetViewModal, setShowSetViewModal] = useState(false)
   const [selectedVenues, setSelectedVenues] = useState<string[]>([])
