@@ -305,8 +305,6 @@ export default function AdminPage() {
 
       // Check if response has content before parsing
       const responseText = await response.text()
-      console.log('Response status:', response.status)
-      console.log('Response text:', responseText)
 
       if (!responseText) {
         throw new Error('Empty response from server')

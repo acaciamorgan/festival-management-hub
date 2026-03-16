@@ -154,7 +154,6 @@ export function VenueCardPopup({ venue, onClose, onUpdate, onDelete }: VenueCard
             <button
               onClick={() => {
                 // TODO: Open edit modal - will be implemented when edit functionality is added
-                console.log('Edit venue:', venue.id)
               }}
               className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm font-medium"
             >

@@ -18,7 +18,6 @@ export default function ResetPasswordPage() {
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         // User has clicked the recovery link
-        console.log('Password recovery session active')
       }
     })
   }, [])

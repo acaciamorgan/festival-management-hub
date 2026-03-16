@@ -86,11 +86,6 @@ export function GenerateRequestsModal({
   useEffect(() => {
     if (!isOpen) return
 
-    console.log('Generate modal - processing requests:', {
-      totalNewRequests: newRequests.length,
-      filmContacts: filmContacts.length
-    })
-
     // Group requests by contact
     const grouped = new Map<string, {
       contact: FilmContact
@@ -108,20 +103,15 @@ export function GenerateRequestsModal({
       req => req.request_type === 'screener_link'
     )
     
-    console.log('Screener requests found:', screenerRequests.length)
-
     screenerRequests.forEach(request => {
       // Handle the individual_film_title from expanded requests
       const filmTitle = (request as any).individual_film_title || request.film_titles
-      console.log('Processing request for film:', filmTitle)
-      
       // Find the contact for this film
       const contact = filmTitle ? filmContacts.find(c =>
         c.film_title?.toLowerCase() === filmTitle.toLowerCase()
       ) : undefined
       
       if (contact) {
-        console.log('Found contact for film:', contact)
         const key = contact.contact_email
         if (!grouped.has(key)) {
           grouped.set(key, {
@@ -138,12 +128,9 @@ export function GenerateRequestsModal({
           email: request.requester_email,
           requestId: request.id
         })
-      } else {
-        console.log('No contact found for film:', filmTitle)
       }
     })
 
-    console.log('Grouped requests:', grouped.size)
     setGroupedRequests(grouped)
   }, [isOpen, newRequests, filmContacts])
 

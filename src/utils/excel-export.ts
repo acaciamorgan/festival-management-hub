@@ -132,8 +132,6 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
   const workbook: WorkBook = utils.book_new()
 
   try {
-    console.log('Starting export...')
-
     // Get festival year - prefer parameter, fallback to localStorage
     let festivalYear = options.festivalYear
     if (!festivalYear && typeof window !== 'undefined') {
@@ -152,8 +150,6 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
       .select('*')
       .eq('year', festivalYear)
       .maybeSingle()
-
-    console.log('Festival settings:', settingsError ? 'ERROR: ' + settingsError.message : 'SUCCESS')
 
     if (settingsError) {
       throw new Error('Could not fetch festival settings: ' + settingsError.message)
@@ -213,21 +209,16 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     }
     
     // 1. Feature Films
-    console.log('Exporting Feature Films...')
     const { data: featureFilms, error: featuresError } = await supabase
       .from('feature_films')
       .select('*')
       .eq('festival_year', festivalYear)
       .order('title')
     
-    console.log('Feature films:', featuresError ? 'ERROR: ' + featuresError.message : `SUCCESS: ${featureFilms?.length || 0} records`)
-    
     const featureFilmsSheet = createStyledWorksheet(featureFilms || [], 'Feature Films')
     utils.book_append_sheet(workbook, featureFilmsSheet, 'Feature Films')
-    console.log('Feature films sheet added to workbook')
-    
+
     // 2. Short Films with Program Name Enrichment
-    console.log('Exporting Short Films...')
     
     // First load shorts programs for enrichment
     let shortsPrograms: Record<string, string> = {}
@@ -248,8 +239,6 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
       .eq('festival_year', festivalYear)
       .order('title')
     
-    console.log('Short films:', shortError ? 'ERROR: ' + shortError.message : `SUCCESS: ${shortFilmsRaw?.length || 0} records`)
-    
     // Enrich shorts data with program names - insert after shorts_program_id
     const shortFilms = shortFilmsRaw?.map(short => {
       const enriched: any = {}
@@ -265,10 +254,8 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     
     const shortFilmsSheet = createStyledWorksheet(shortFilms, 'Short Films')
     utils.book_append_sheet(workbook, shortFilmsSheet, 'Short Films')
-    console.log('Short films sheet added to workbook with program names')
-    
+
     // 3. Programs
-    console.log('Exporting Programs...')
     const { data: programsList } = await supabase
       .from('programs')
       .select('*')
@@ -277,9 +264,8 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     
     const programsSheet = createStyledWorksheet(programsList || [], 'Programs')
     utils.book_append_sheet(workbook, programsSheet, 'Programs')
-    
+
     // 4. Press List
-    console.log('Exporting Press List...')
     const { data: pressList } = await supabase
       .from('press')
       .select('*')
@@ -288,9 +274,8 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     
     const pressSheet = createStyledWorksheet(pressList || [], 'Press List')
     utils.book_append_sheet(workbook, pressSheet, 'Press List')
-    
+
     // 5. Press Screenings
-    console.log('Exporting Press Screenings...')
     const { data: pressScreeningsRaw, error: pressScreeningsError } = await supabase
       .from('press_screenings_with_films')
       .select('*')
@@ -298,44 +283,32 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
       .order('screening_date')
 
     const pressScreenings = pressScreeningsRaw || []
-    
-    console.log('Press Screenings:', pressScreeningsError ? 'ERROR: ' + pressScreeningsError.message : `SUCCESS: ${pressScreenings?.length || 0} records`)
-    
+
     const pressScreeningsSheet = createStyledWorksheet(pressScreenings || [], 'Press Screenings')
     utils.book_append_sheet(workbook, pressScreeningsSheet, 'Press Screenings')
-    console.log('Press Screenings sheet added to workbook')
-    
+
     // 6. Screener Access
-    console.log('Exporting Screener Access...')
     const { data: screenerAccessRaw, error: screenerError } = await supabase
       .from('screener_access')
       .select('*')
       .eq('festival_year', festivalYear)
     
-    console.log('Screener Access:', screenerError ? 'ERROR: ' + screenerError.message : `SUCCESS: ${screenerAccessRaw?.length || 0} records`)
-    
     const screenerAccess = screenerAccessRaw || []
-    
+
     const screenerAccessSheet = createStyledWorksheet(screenerAccess, 'Screener Access')
     utils.book_append_sheet(workbook, screenerAccessSheet, 'Screener Access')
-    console.log('Screener Access sheet added to workbook')
-    
+
     // 7. Press Requests
-    console.log('Exporting Press Requests...')
     const { data: pressRequests, error: requestsError } = await supabase
       .from('press_requests_with_films')
       .select('*')
       .eq('festival_year', festivalYear)
       .order('created_at', { ascending: false })
     
-    console.log('Press requests:', requestsError ? 'ERROR: ' + requestsError.message : `SUCCESS: ${pressRequests?.length || 0} records`)
-    
     const pressRequestsSheet = createStyledWorksheet(pressRequests || [], 'Press Requests')
     utils.book_append_sheet(workbook, pressRequestsSheet, 'Press Requests')
-    console.log('Press requests sheet added to workbook')
-    
+
     // 8. Photo Shoots
-    console.log('Exporting Photo Shoots...')
     const { data: photoShootsRaw, error: photoShootsError } = await supabase
       .from('photo_shoots')
       .select('*')
@@ -355,14 +328,10 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
       ...item
     })) || []
     
-    console.log('Photo Shoots:', photoShootsError ? 'ERROR: ' + photoShootsError.message : `SUCCESS: ${photoShoots?.length || 0} records`)
-    
     const photoShootsSheet = createStyledWorksheet(photoShoots || [], 'Photo Shoots')
     utils.book_append_sheet(workbook, photoShootsSheet, 'Photo Shoots')
-    console.log('Photo Shoots sheet added to workbook')
-    
+
     // 9. In Attendance (Guest Cards)
-    console.log('Exporting In Attendance...')
     const { data: inAttendanceRaw, error: inAttendanceError } = await supabase
       .from('guests')
       .select('*')
@@ -385,14 +354,10 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
       ...item
     })) || []
     
-    console.log('In Attendance:', inAttendanceError ? 'ERROR: ' + inAttendanceError.message : `SUCCESS: ${inAttendance?.length || 0} records`)
-    
     const inAttendanceSheet = createStyledWorksheet(inAttendance || [], 'In Attendance')
     utils.book_append_sheet(workbook, inAttendanceSheet, 'In Attendance')
-    console.log('In Attendance sheet added to workbook')
-    
+
     // 10. Red Carpets
-    console.log('Exporting Red Carpets...')
     const { data: redCarpetsRaw, error: redCarpetsError } = await supabase
       .from('red_carpets')
       .select('*')
@@ -412,14 +377,10 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
       ...item
     })) || []
     
-    console.log('Red Carpets:', redCarpetsError ? 'ERROR: ' + redCarpetsError.message : `SUCCESS: ${redCarpets?.length || 0} records`)
-    
     const redCarpetsSheet = createStyledWorksheet(redCarpets || [], 'Red Carpets')
     utils.book_append_sheet(workbook, redCarpetsSheet, 'Red Carpets')
-    console.log('Red Carpets sheet added to workbook')
-    
+
     // 11. Special Events
-    console.log('Exporting Special Events...')
     const { data: specialEventsRaw, error: specialEventsError } = await supabase
       .from('special_events')
       .select('*')
@@ -443,25 +404,18 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
       ...item
     })) || []
     
-    console.log('Special Events:', specialEventsError ? 'ERROR: ' + specialEventsError.message : `SUCCESS: ${specialEvents?.length || 0} records`)
-    
     const specialEventsSheet = createStyledWorksheet(specialEvents || [], 'Special Events')
     utils.book_append_sheet(workbook, specialEventsSheet, 'Special Events')
-    console.log('Special Events sheet added to workbook')
-    
+
     // 12. Ticketing (Published Screenings only)
-    console.log('Exporting Ticketing...')
     const { data: publishedScreenings, error: ticketingError } = await supabase
       .from('published_screenings')
       .select('*')
       .eq('festival_year', festivalYear)
       .order('screening_date')
     
-    console.log('Ticketing:', ticketingError ? 'ERROR: ' + ticketingError.message : `SUCCESS: ${publishedScreenings?.length || 0} records`)
-    
     const ticketingSheet = createStyledWorksheet(publishedScreenings || [], 'Ticketing')
     utils.book_append_sheet(workbook, ticketingSheet, 'Ticketing')
-    console.log('Ticketing sheet added to workbook')
     
     // Generate filename without timezone conversion
     const today = new Date()
@@ -469,16 +423,12 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
     const filename = `${festivalName.replace(/\s+/g, '_')}_${edition ? edition + '_' : ''}Export_${currentDate}.xlsx`
     
     // Write file
-    console.log('Workbook has', workbook.SheetNames.length, 'sheets:', workbook.SheetNames)
-    console.log('Attempting to write file:', filename)
-    
     if (workbook.SheetNames.length === 0) {
       throw new Error('Workbook is empty - no sheets were added')
     }
     
     writeFile(workbook, filename)
-    console.log('File written successfully')
-    
+
     return {
       success: true,
       filename,
@@ -533,8 +483,7 @@ export async function exportArchivedYear(year: number) {
     }
     
     // Export archived data for the specific year - SIMPLE ARCHIVE VERSION
-    console.log('Exporting archived data for year:', year)
-    
+
     // Load shorts programs for display enrichment
     let shortsPrograms: Record<string, string> = {}
     const { data: programs } = await supabase
@@ -669,9 +618,7 @@ export async function exportArchivedYear(year: number) {
     
     const ticketingSheet = createStyledWorksheet(archivedScreenings || [], 'Ticketing')
     utils.book_append_sheet(workbook, ticketingSheet, 'Ticketing')
-    
-    console.log('Archive workbook has', workbook.SheetNames.length, 'sheets')
-    
+
     if (workbook.SheetNames.length === 0) {
       throw new Error('No archived data found for year ' + year)
     }

@@ -75,17 +75,6 @@ export async function processExcelWithStrikethrough(file: File): Promise<{
  */
 export function filterStrikethroughRows(rows: ProcessedExcelRow[]): any[][] {
   const filtered = rows.filter(row => !row.isStrikethrough)
-  console.log(`📝 Filtered out ${rows.length - filtered.length} strikethrough rows, keeping ${filtered.length} rows`)
-
-  // Log strikethrough rows for debugging
-  const strikethroughRows = rows.filter(row => row.isStrikethrough)
-  if (strikethroughRows.length > 0) {
-    console.log('🚫 Skipped strikethrough rows:')
-    strikethroughRows.forEach(row => {
-      console.log(`  Row ${row.rowIndex + 1}:`, row.data.slice(0, 3).join(', ') + (row.data.length > 3 ? '...' : ''))
-    })
-  }
-
   return filtered.map(row => row.data)
 }
 

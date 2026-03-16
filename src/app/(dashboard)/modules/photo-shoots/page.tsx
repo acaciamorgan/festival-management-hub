@@ -444,9 +444,8 @@ export default function PhotoShootsPage() {
                   type="file"
                   accept=".csv"
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  onChange={(e) => {
+                  onChange={() => {
                     // TODO: Implement CSV import
-                    console.log('CSV import not yet implemented')
                   }}
                 />
                 <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-medium">

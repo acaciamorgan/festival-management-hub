@@ -18,7 +18,6 @@ export async function loadScreeningBoardSettings(): Promise<ScreeningBoardSettin
 
     if (error) {
       // Table might not exist yet, or no settings saved
-      console.log('No screening board settings found:', error.message)
       return null
     }
 
@@ -41,7 +40,6 @@ export async function saveScreeningBoardSettings(settings: ScreeningBoardSetting
 
     if (checkError && checkError.message.includes('relation')) {
       // Table doesn't exist, create it
-      console.log('Creating screening_board_settings table...')
       await createSettingsTable()
     }
 
@@ -81,7 +79,6 @@ export async function saveScreeningBoardSettings(settings: ScreeningBoardSetting
       }
     }
 
-    console.log('Screening board settings saved successfully')
     return true
   } catch (error) {
     console.error('Error saving screening board settings:', error)
@@ -110,9 +107,9 @@ async function createSettingsTable() {
     })
 
     if (error) {
-      console.log('Could not create table via RPC, table might already exist or needs manual creation')
+      // Table might already exist or needs manual creation
     }
   } catch (error) {
-    console.log('Table creation failed, may need manual creation:', error)
+    // Table creation failed, may need manual creation
   }
 }

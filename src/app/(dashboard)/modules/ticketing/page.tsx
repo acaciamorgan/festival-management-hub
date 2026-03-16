@@ -540,7 +540,7 @@ function ScreeningBoard({
                   if (user) {
                     const success = await saveScreeningBoardSettings(settings, user.id)
                     if (success) {
-                      console.log('Settings saved successfully')
+
                     } else {
                       console.error('Failed to save settings')
                     }
@@ -1094,7 +1094,7 @@ export default function TicketingPage() {
     const loadSettings = async () => {
       const settings = await loadScreeningBoardSettings()
       if (settings) {
-        console.log('Loading saved screening board settings')
+
         setSelectedVenues(settings.selectedVenues || [])
         setVenueOrder(settings.venueOrder || [])
         setProgramSettings(settings.programSettings || {})
@@ -1350,7 +1350,7 @@ export default function TicketingPage() {
         }
       }
 
-      console.log(`P&I sync: ${successCount} new, ${updatedCount} updated`)
+
       await loadPIJuryScreenings()
     } catch (error) {
       console.error('Error syncing press screenings:', error)
@@ -1530,10 +1530,7 @@ export default function TicketingPage() {
 
       const venueCards = Array.from(uniqueVenues.values())
       setVenueCards(venueCards)
-      console.log('🏢 Loaded venue cards with capacity:', venueCards.length)
-      venueCards.forEach(venue => {
-        console.log(`  - ${venue.short_code}: ${venue.capacity} capacity`)
-      })
+
 
     } catch (error) {
       console.error('Error loading venue cards:', error)
@@ -1666,12 +1663,12 @@ export default function TicketingPage() {
       const filteredRows = dataRows.filter((row, index) => {
         const hasStrikethrough = isCSVRowStrikethrough(row)
         if (hasStrikethrough) {
-          console.log(`🚫 Skipped CSV strikethrough row ${index + 2}:`, row.slice(0, 3).join(', '))
+
         }
         return !hasStrikethrough
       })
 
-      console.log(`📝 Ticketing CSV: filtered out ${dataRows.length - filteredRows.length} strikethrough rows, keeping ${filteredRows.length} rows`)
+
 
       let successCount = 0
       let errorCount = 0
@@ -1714,14 +1711,8 @@ export default function TicketingPage() {
           
           // Debug the problematic rows
           if (rowIndex + 2 === 46 || rowIndex + 2 === 88 || rowIndex + 2 === 129 || rowIndex + 2 === 158) {
-            console.log(`DEBUG Row ${rowIndex + 2}:`, {
-              rawRow: filteredRows[rowIndex],
-              title,
-              dateStr,
-              month,
-              day_num,
-              splitResult: dateStr.split('/')
-            })
+
+
           }
 
           // Validate month and day_num exist before calling padStart
@@ -1769,7 +1760,7 @@ export default function TicketingPage() {
           }
 
           if (existingScreening) {
-            console.log(`Skipping duplicate screening: ${title} at ${location} on ${formattedDate} ${formattedTime}`)
+
             errors.push(`Row ${rowIndex + 2} (${title}): Duplicate screening skipped - ${existingScreening.film_title} already scheduled at ${location} on ${formattedDate} ${formattedTime}`)
             errorCount++
             continue
@@ -1808,7 +1799,7 @@ export default function TicketingPage() {
             continue
           }
 
-          console.log('Ticketing record created successfully:', ticketingResult)
+
 
           // Step 3: Create record in published_screenings with reference
           const publishedData = {
@@ -2290,7 +2281,7 @@ export default function TicketingPage() {
         if (error) throw error
       }
 
-      console.log(`✅ Unpublished screening: ${screening.film_title}`)
+
     } catch (error) {
       console.error('Error unpublishing screening:', error)
       throw error
@@ -2400,12 +2391,10 @@ export default function TicketingPage() {
 
   // Filter venue suggestions  
   const filteredVenues = useMemo(() => {
-    console.log('🔍 Filtering venues:', { venueSearchTerm, venueCardsCount: venueCards.length, showVenueSuggestions })
     if (!venueSearchTerm) return venueCards.slice(0, 5) // Show all venues when field is focused but empty
-    const filtered = venueCards.filter(venue => 
+    const filtered = venueCards.filter(venue =>
       venue.short_code.toLowerCase().includes(venueSearchTerm.toLowerCase())
     ).slice(0, 5)
-    console.log('🔍 Filtered venues result:', filtered)
     return filtered
   }, [venueSearchTerm, venueCards])
 
@@ -2948,7 +2937,7 @@ export default function TicketingPage() {
                     }))
 
                     if (matchingVenue) {
-                      console.log('🏢 Auto-filled capacity for', venueCode, ':', matchingVenue.capacity)
+
                     }
 
                     setShowVenueSuggestions(true)
@@ -2964,7 +2953,7 @@ export default function TicketingPage() {
                         key={venue.id}
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                         onClick={() => {
-                          console.log('🏢 Venue selected:', venue.short_code, 'capacity:', venue.capacity)
+
                           setFormData(prev => ({
                             ...prev,
                             venue_short_code: venue.short_code,
@@ -3183,7 +3172,7 @@ export default function TicketingPage() {
                     }))
 
                     if (matchingVenue) {
-                      console.log('🏢 Auto-filled capacity for', venueCode, ':', matchingVenue.capacity)
+
                     }
 
                     setShowVenueSuggestions(true)
@@ -3199,7 +3188,7 @@ export default function TicketingPage() {
                         key={venue.id}
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                         onClick={() => {
-                          console.log('🏢 Venue selected:', venue.short_code, 'capacity:', venue.capacity)
+
                           setFormData(prev => ({
                             ...prev,
                             venue_short_code: venue.short_code,

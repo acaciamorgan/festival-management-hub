@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { getFestivalYear } from '@/lib/smart-date-parser'
-import { GuestCard, GuestType, GuestFilm } from '@/types'
+import { GuestCard, GuestType } from '@/types'
 
 interface GuestFormModalProps {
   guest?: GuestCard | null

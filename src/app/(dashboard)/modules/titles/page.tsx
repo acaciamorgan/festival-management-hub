@@ -522,8 +522,7 @@ export default function TitlesPage() {
         }
       })
       
-      console.log('Loaded shorts:', processedShorts.length, 'shorts')
-      console.log('Sample short:', processedShorts[0])
+
       setShorts(processedShorts)
       setFilteredShorts(processedShorts)
     } catch (error) {
@@ -622,7 +621,7 @@ export default function TitlesPage() {
   // Sync shorts programs to feature_films table for ticketing
   const syncShortsToFeatureFilms = useCallback(async () => {
     try {
-      console.log('Starting shorts sync to feature_films...')
+
       
       // Get all shorts programs first
       const { data: programsData, error: programsError } = await supabase
@@ -635,7 +634,7 @@ export default function TitlesPage() {
         throw programsError
       }
 
-      console.log('Raw programs data:', programsData)
+
 
       // Then get films for each program separately
       const programsWithFilms = await Promise.all(
@@ -650,7 +649,7 @@ export default function TitlesPage() {
             console.error(`Error fetching films for program ${program.program_name}:`, filmsError)
           }
           
-          console.log(`Films for ${program.program_name}:`, filmsData?.length || 0)
+
           
           return {
             ...program,
@@ -659,15 +658,14 @@ export default function TitlesPage() {
         })
       )
       
-      console.log('Found shorts programs:', programsWithFilms?.length || 0)
-      programsWithFilms?.forEach(p => console.log('Program:', p.program_name))
+
       
       for (const program of programsWithFilms || []) {
         const totalRuntime = program.short_films?.reduce((total: number, film: any) => {
           return total + (film.run_time || 0)
         }, 0) || 0
         
-        console.log(`Processing program: ${program.program_name}, runtime: ${totalRuntime}min`)
+
         
         // Check if program already exists in feature_films
         const { data: existingFilm, error: checkError } = await supabase
@@ -707,7 +705,7 @@ export default function TitlesPage() {
         
         if (existingFilm) {
           // Update existing entry
-          console.log(`Updating existing program: ${program.program_name}`)
+
           const { error: updateError } = await supabase
             .from('feature_films')
             .update(filmData)
@@ -719,7 +717,7 @@ export default function TitlesPage() {
           }
         } else {
           // Insert new entry
-          console.log(`Inserting new program: ${program.program_name}`)
+
           const { error: insertError } = await supabase
             .from('feature_films')
             .insert([{ ...filmData, festival_year: currentYear }])
@@ -731,7 +729,7 @@ export default function TitlesPage() {
         }
       }
       
-      console.log('Shorts programs synced to feature_films successfully')
+
     } catch (error) {
       console.error('Error syncing shorts programs:', error)
     }
@@ -1043,13 +1041,11 @@ export default function TitlesPage() {
 
     setUploading(true)
     setUploadStatus('Processing CSV...')
-    console.log('Starting CSV upload, file name:', file.name)
+
 
     try {
       const text = await file.text()
-      console.log('File text length:', text.length)
       const rows = parseCSV(text)
-      console.log('Parsed rows:', rows.length)
       
       if (rows.length === 0) {
         setUploadStatus('Error: CSV file is empty')
@@ -1070,7 +1066,7 @@ export default function TitlesPage() {
              row.some(cell => cell && cell.toLowerCase().includes('source')))) {
           headerRowIndex = i
           headers = row
-          console.log(`Found headers at row ${i}:`, headers)
+
           break
         }
       }
@@ -1079,16 +1075,7 @@ export default function TitlesPage() {
       if (headers.length === 0) {
         headers = rows[0]
         headerRowIndex = 0
-        console.log('Using first row as headers:', headers)
-      }
-      
-      console.log('Using header row index:', headerRowIndex)
-      console.log('Headers found:', headers)
-      console.log('Headers length:', headers.length)
-      
-      // Debug: show first few data rows
-      if (rows.length > headerRowIndex + 1) {
-        console.log('Sample data row:', rows[headerRowIndex + 1])
+
       }
       
       // Respect the current tab context when determining how to process the CSV
@@ -1096,8 +1083,7 @@ export default function TitlesPage() {
       // This ensures uploads stay in the correct tab as expected by the user.
       const shouldProcessAsShorts = viewMode === 'shorts'
       
-      console.log('Current view mode:', viewMode)
-      console.log('Processing as:', shouldProcessAsShorts ? 'shorts' : 'features')
+
 
       if (shouldProcessAsShorts) {
         await processShortsCSV(rows, headers, headerRowIndex)
@@ -1141,7 +1127,6 @@ export default function TitlesPage() {
 
   const processFeatureFilmsCSV = async (rows: string[][], headers: string[]) => {
     setUploadStatus('Processing feature films CSV...')
-    console.log('Headers found:', headers)
     
     // Exact header mapping for the fixed CSV format
     const indices = {
@@ -1179,11 +1164,6 @@ export default function TitlesPage() {
       content_considerations: getColumnIndex(headers, 'Content Considerations')
     }
 
-    console.log('Column indices found:', indices)
-    console.log('First few headers:', headers.slice(0, 10))
-    console.log('Looking for Title at indices:', indices.title)
-    if (rows.length > 1) console.log('Sample data row:', rows[1])
-    
     // Check if we found required indices
     if (indices.title === -1) {
       setUploadStatus('Error: Could not find Title column in CSV headers')
@@ -1203,7 +1183,7 @@ export default function TitlesPage() {
 
       // Skip strikethrough rows
       if (isCSVRowStrikethrough(row)) {
-        console.log(`🚫 Skipped Titles CSV strikethrough row ${i + 1}:`, row.slice(0, 3).join(', '))
+
         continue
       }
 
@@ -1322,7 +1302,7 @@ export default function TitlesPage() {
       }
     }
     
-    console.log(`Parsed ${filmsToInsert.length} films from CSV`)
+
     
     if (filmsToInsert.length === 0) {
       setUploadStatus('Error: No valid films found in CSV. Check that your CSV has a Title column and data rows.')
@@ -1356,7 +1336,7 @@ export default function TitlesPage() {
 
       if (existingCard) {
         // UPDATE existing Card - newest data takes priority
-        console.log(`Found existing film "${existingCard.title}" (matched with "${filmData.title}"), updating...`)
+
         const { error } = await supabase
           .from('feature_films')
           .update({ ...filmData })
@@ -1382,7 +1362,7 @@ export default function TitlesPage() {
     }
 
     setUploadStatus(`Successfully processed ${filmsToInsert.length} films! Created: ${created}, Updated: ${updated}`)
-    console.log(`CSV Upload Complete - Created: ${created}, Updated: ${updated}`)
+
     await loadFilms() // Reload the Cards
   }
 
@@ -1422,13 +1402,8 @@ export default function TitlesPage() {
 
     const shortsToInsert: Array<any> = []
     
-    console.log('CSV Headers:', headers.map((h, i) => `${i}: "${h}"`))
-    console.log('Looking for Program 1 and Genre 1 in headers...')
-    headers.forEach((header, index) => {
-      if (header.includes('Program') || header.includes('Genre')) {
-        console.log(`Header ${index}: "${header}" -> maps to: ${fieldMap[header.trim()]}`)
-      }
-    })
+
+
     
     // Process each row (skip program headers and empty rows)
     for (let i = 1; i < rows.length; i++) {
@@ -1441,7 +1416,7 @@ export default function TitlesPage() {
 
       // Skip strikethrough rows
       if (isCSVRowStrikethrough(row)) {
-        console.log(`🚫 Skipped Titles CSV strikethrough row ${i + 1}:`, row.slice(0, 3).join(', '))
+
         continue
       }
 
@@ -1475,11 +1450,6 @@ export default function TitlesPage() {
       
       // Skip if no title
       if (!rowData.title) continue
-      
-      // Debug: log the first few rows to see program/genre data
-      if (i <= 5) {
-        console.log(`Row ${i} - Title: "${rowData.title}", Program 1: "${rowData.program_1}", Genre 1: "${rowData.genre_1}"`)
-      }
       
       // Prepare short film data (no shorts_program_id - will be assigned later)
       const shortData: any = {
@@ -1628,13 +1598,6 @@ export default function TitlesPage() {
       program_order: findHeaderIndex(['Program Order'])
     }
 
-    console.log('Column indices found:', indices)
-    console.log('Headers found:', headers)
-    console.log('Title column index:', indices.title)
-    console.log('Run Time column index:', indices.run_time)
-    console.log('Countries column index:', indices.countries)
-    console.log('Language column index:', indices.language)
-    
     if (indices.title === -1) {
       console.error('ERROR: Could not find title column! Headers are:', headers)
       setUploadStatus('Error: Could not find title column in CSV. Looking for "Film Title" or "Title"')
@@ -1654,13 +1617,13 @@ export default function TitlesPage() {
 
       // Skip completely empty rows or rows where all cells are empty
       if (!row || row.length === 0 || row.every(cell => !cell || !cell.trim())) {
-        console.log(`Skipping empty row ${i}`)
+
         continue
       }
 
       // Skip strikethrough rows
       if (isCSVRowStrikethrough(row)) {
-        console.log(`🚫 Skipped Titles CSV strikethrough row ${i + 1}:`, row.slice(0, 3).join(', '))
+
         continue
       }
 
@@ -1672,15 +1635,10 @@ export default function TitlesPage() {
       // Skip program header rows (they have titles in other columns but not film data)
       // These rows typically have content like "Shorts 1 - Comedic Shorts: Doing the Most"
       if (title.toLowerCase().includes('shorts ') && title.includes(' - ')) {
-        console.log(`Skipping program header row: "${title}"`)
+
         continue
       }
 
-      console.log(`Processing row ${i}: Title="${title}"`)
-      console.log(`  Raw countries data: "${row[indices.countries]}"`)
-      console.log(`  Raw run_time data: "${row[indices.run_time]}"`)
-      console.log(`  Raw language data: "${row[indices.language]}"`)
-      
       // Build the short data object directly from indices
       const shortData: any = {
         title,
@@ -1747,7 +1705,7 @@ export default function TitlesPage() {
               ? (existingPrograms[0].program_number || 0) + 1 
               : 1
 
-            console.log(`Creating new program "${shortsProgramName}" with program_number: ${nextProgramNumber}`)
+
 
             // Create new program
             const { data: newProgram, error } = await supabase
@@ -1762,7 +1720,7 @@ export default function TitlesPage() {
             
             if (newProgram && !error) {
               programCache[shortsProgramName] = newProgram.id
-              console.log(`Created new shorts program: ${shortsProgramName}`)
+
             } else {
               console.error(`Failed to create shorts program: ${shortsProgramName}`, error)
             }
@@ -1772,7 +1730,7 @@ export default function TitlesPage() {
         // Set the shorts_program_id
         if (programCache[shortsProgramName]) {
           shortData.shorts_program_id = programCache[shortsProgramName]
-          console.log(`Setting shorts_program_id for "${title}" to ${programCache[shortsProgramName]} (${shortsProgramName})`)
+
         }
       }
       
@@ -1784,7 +1742,7 @@ export default function TitlesPage() {
         }
       }
 
-      console.log(`Processing: ${title} - crew data imported successfully`)
+
 
       // Check if record exists using case-insensitive comparison (preserve program assignments)
       const { data: allShorts } = await supabase
@@ -1798,7 +1756,7 @@ export default function TitlesPage() {
 
       if (existingRecord) {
         // Update existing - preserve program assignment
-        console.log(`Found existing short "${existingRecord.title}" (matched with "${title}"), updating...`)
+
         const { error: updateError } = await supabase
           .from('short_films')
           .update(shortData)
@@ -1828,12 +1786,12 @@ export default function TitlesPage() {
     }
 
     setUploadStatus(`Successfully processed! Created: ${created}, Updated: ${updated}`)
-    console.log('Program cache at end of import:', programCache)
+
     
     // Force a complete reload with relationships
     setTimeout(async () => {
       await loadShorts()
-      console.log('Shorts reloaded after import')
+
     }, 500)
   }
 
@@ -3819,12 +3777,6 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
     createAccentInsensitiveFilter(searchTerm, (short) => [short.title, short.director])
   )
   
-  // Debug: log the shorts
-  console.log('Available shorts:', availableShorts.length)
-  console.log('Search term:', searchTerm)
-  console.log('Filtered shorts:', filteredAvailableShorts.length)
-  console.log('Hoops short:', availableShorts.find(s => s.title?.toLowerCase().includes('hoops')))
-
   return (
     <div 
       className="fixed inset-0 flex items-center justify-center z-50"

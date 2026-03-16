@@ -313,7 +313,6 @@ export default function VenueManagementPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        console.log('Edit button clicked for venue:', venue.name)
                         setSelectedVenue(venue)
                       }}
                       className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-xs font-medium"
@@ -445,18 +444,15 @@ export default function VenueManagementPage() {
       </div>
 
       {/* Venue Form Modal */}
-      {console.log('Venue modal state - showAddModal:', showAddModal, 'selectedVenue:', selectedVenue?.name)}
       <VenueFormModal
         venue={showAddModal ? null : selectedVenue}
         isOpen={showAddModal || !!selectedVenue}
         currentYear={currentYear}
         onClose={() => {
-          console.log('Closing venue modal')
           setShowAddModal(false)
           setSelectedVenue(null)
         }}
         onSave={(savedVenue) => {
-          console.log('Venue saved:', savedVenue.name)
           // Reload all venues to get proper houses data
           loadVenues()
           setShowAddModal(false)

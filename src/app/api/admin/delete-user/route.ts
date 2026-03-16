@@ -65,11 +65,7 @@ export async function POST(request: Request) {
       if (authDeleteError) {
         console.error('Error deleting user from auth:', authDeleteError)
         // Continue anyway - we'll delete from permissions even if auth fails
-      } else {
-        console.log(`Successfully deleted auth user: ${authUserToDelete.email}`)
       }
-    } else {
-      console.log(`No auth user found for email: ${targetUser.user_email}`)
     }
 
     // Delete from user_permissions table

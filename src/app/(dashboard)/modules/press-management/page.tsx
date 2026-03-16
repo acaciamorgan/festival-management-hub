@@ -452,16 +452,6 @@ export default function PressManagementPage() {
         'Level': 'accreditation_raw'  // New format from CSV
       }
 
-      // Debug: Log the headers and mapping results
-      console.log('CSV Headers:', headers)
-      console.log('=== FIELD MAPPING ANALYSIS ===')
-      headers.forEach(header => {
-        const cleanHeader = header.trim()
-        const dbField = fieldMap[cleanHeader]
-        console.log(`"${cleanHeader}" -> ${dbField ? `"${dbField}"` : 'UNMAPPED'}`)
-      })
-      console.log('=== END MAPPING ANALYSIS ===')
-
       const pressToInsert = []
       
       for (let i = 1; i < rows.length; i++) {
@@ -484,17 +474,7 @@ export default function PressManagementPage() {
           const dbField = fieldMap[cleanHeader]
           
           // Remove fallback - use exact mapping only
-          
-          // Debug: log field mappings for first row
-          if (i === 1) {
-            console.log(`Header: "${cleanHeader}" -> Field: "${dbField || 'UNMAPPED'}" -> Value: "${values[index] || 'EMPTY'}"`)
-          }
-          
-          // Special debug for Primary Outlet
-          if (cleanHeader.includes('Primary Outlet') && i === 1) {
-            console.log(`🔥 PRIMARY OUTLET DEBUG: Header="${cleanHeader}", Mapped to="${dbField}", Value="${values[index]}"`)
-          }
-          
+
           if (dbField && values[index]) {
             const value = values[index].trim()
             
@@ -580,21 +560,8 @@ export default function PressManagementPage() {
         
         // Only add if we have a name and primary outlet
         if (pressData.name && pressData.media_outlet) {
-          // Debug first record
-          if (pressToInsert.length === 0) {
-            console.log('First processed press record:', pressData)
-            console.log('Field mappings that worked:', Object.keys(pressData))
-          }
           pressData.festival_year = currentYear
           pressToInsert.push(pressData)
-        } else {
-          console.log('Skipped record - missing name or outlet:', { 
-            name: pressData.name, 
-            outlet: pressData.media_outlet,
-            firstName: firstName,
-            lastName: lastName,
-            allData: pressData 
-          })
         }
       }
 

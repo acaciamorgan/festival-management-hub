@@ -16,32 +16,24 @@ export default function LoginPage() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Sign in attempted with:', { email, password: '***' })
     setLoading(true)
     setError('')
 
     try {
-      console.log('Calling Supabase auth...')
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      console.log('Supabase response:', { error })
-      
       if (error) {
         setError(error.message)
       } else {
-        console.log('Login successful, checking for password change requirement...')
-        
         // Get user data to check if password change is needed
         const { data: { user } } = await supabase.auth.getUser()
         
         if (user?.user_metadata?.needs_password_change) {
-          console.log('User needs password change, redirecting to settings...')
           router.push('/settings?force_password_change=true')
         } else {
-          console.log('Normal login, redirecting to modules...')
           router.push('/modules/titles')
         }
       }

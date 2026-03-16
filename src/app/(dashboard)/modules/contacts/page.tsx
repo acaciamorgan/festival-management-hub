@@ -233,7 +233,7 @@ export default function ContactsPage() {
         })
       }
 
-      console.log(`Loaded ${allFilms.length} films (${featuresResponse.data?.length} features, ${shortsResponse.data?.length} shorts)`)
+
       setFilms(allFilms)
       setFilteredFilms(allFilms)
     } catch (error) {
@@ -393,7 +393,7 @@ export default function ContactsPage() {
 
   // CSV upload handler
   const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('NEW CSV UPLOAD HANDLER CALLED')
+
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -416,12 +416,12 @@ export default function ContactsPage() {
       const filteredRows = dataRows.filter((row, index) => {
         const hasStrikethrough = isCSVRowStrikethrough(row)
         if (hasStrikethrough) {
-          console.log(`🚫 Skipped Contacts CSV strikethrough row ${index + 2}:`, row.slice(0, 3).join(', '))
+
         }
         return !hasStrikethrough
       })
 
-      console.log(`📝 Contacts CSV: filtered out ${dataRows.length - filteredRows.length} strikethrough rows, keeping ${filteredRows.length} rows`)
+
 
       const rows = [headers, ...filteredRows]
       
@@ -444,8 +444,7 @@ export default function ContactsPage() {
         filmAssignments: Array<{filmTitle: string, role: string}>
       }>()
       
-      console.log('Processing CSV with', rows.length - 1, 'data rows')
-      console.log('CSV Headers:', headers)
+
       
       // Process all rows and group by email
       for (let i = 1; i < rows.length; i++) {
@@ -506,19 +505,19 @@ export default function ContactsPage() {
                 contact_email: email
               }
               
-              console.log('Processing contact:', name, 'with email:', email)
+
               
               if (!contactsByEmail.has(email)) {
                 // First occurrence of this email - create new contact entry
                 individualContactRecord.created_by = user?.id
-                console.log('New contact for email:', email)
+
                 contactsByEmail.set(email, {
                   contactData: individualContactRecord,
                   filmAssignments: []
                 })
               } else {
                 // Update existing contact data with any new non-empty fields
-                console.log('Updating existing contact for email:', email)
+
                 const existing = contactsByEmail.get(email)!
                 Object.keys(individualContactRecord).forEach(key => {
                   if (individualContactRecord[key] && !existing.contactData[key]) {
@@ -528,7 +527,7 @@ export default function ContactsPage() {
               }
               
               // Add film assignment if we have a title (role is optional)
-              console.log('Film assignment check:', { filmTitle, contactRole, name, email })
+
               if (filmTitle) {
                 const contactEntry = contactsByEmail.get(email)!
                 // Check if this film assignment already exists
@@ -537,10 +536,10 @@ export default function ContactsPage() {
                 )
                 if (!existingAssignment) {
                   contactEntry.filmAssignments.push({ filmTitle, role: contactRole || 'Other' })
-                  console.log('Added film assignment:', { filmTitle, contactRole: contactRole || 'Other', contactName: name })
+
                 }
               } else {
-                console.log('Missing film title or role - filmTitle:', filmTitle, 'contactRole:', contactRole)
+
               }
             }
           }
@@ -552,7 +551,7 @@ export default function ContactsPage() {
         return
       }
 
-      console.log('Grouped into', contactsByEmail.size, 'unique emails:', Array.from(contactsByEmail.keys()))
+
       setUploadStatus(`Processing ${contactsByEmail.size} unique contacts...`)
 
       // Check for existing contacts in database
@@ -642,15 +641,6 @@ export default function ContactsPage() {
           ...(shortsResponse.data || []).map(s => ({ ...s, film_type: 'short' }))
         ]
 
-        console.log(`Loaded ${allFilms.length} films from database for matching`)
-        console.log('Sample films:', allFilms.slice(0, 5).map(f => f.title))
-        
-        // Debug: Log any films that might match chainsaw or marama
-        const chainsawFilms = allFilms.filter(f => f.title.toLowerCase().includes('chainsaw'))
-        const maramaFilms = allFilms.filter(f => f.title.toLowerCase().includes('marama'))
-        console.log('Films containing "chainsaw":', chainsawFilms.map(f => f.title))
-        console.log('Films containing "marama":', maramaFilms.map(f => f.title))
-
         // Define matching functions once at the top level
         const normalizeTitle = (title: string) => {
           let normalized = title.toLowerCase().trim()
@@ -704,11 +694,11 @@ export default function ContactsPage() {
 
           for (const { filmTitle, role } of filmAssignments) {
             // Find matching film
-            console.log(`Looking for film: "${filmTitle}" in database...`)
+
             
             const film = findMatchingFilm(filmTitle, allFilms)
             if (film) {
-              console.log(`✓ Found film "${filmTitle}" with ID ${film.id}`)
+
               try {
                 // First check if this exact combination already exists
                 const { data: existing } = await supabase
@@ -747,11 +737,9 @@ export default function ContactsPage() {
                     })
                     throw error
                   }
-                  console.log('Successfully inserted:', data)
                   filmAssignmentCount++
-                  console.log(`✓ Successfully linked ${contact.contact_name} to ${filmTitle}`)
                 } else {
-                  console.log('Skipping - association already exists')
+
                   filmAssignmentCount++ // Count skipped ones too since they're already linked
                 }
               } catch (error) {
@@ -920,7 +908,7 @@ export default function ContactsPage() {
       return film.film_type === expectedType
     })
     
-    console.log(`Filtering ${films.length} films for ${filmViewMode}, got ${filtered.length} results`)
+
     
     // Apply sorting if filmSortConfig is set
     if (filmSortConfig) {

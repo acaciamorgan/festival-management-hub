@@ -103,8 +103,6 @@ export async function parseCSVContent(csvContent: string): Promise<CSVGuestRow[]
     throw new Error('Could not find header row with expected columns (Name, Film Title, Type, etc.)')
   }
 
-  console.log('Found headers:', headers)
-  
   const rows: CSVGuestRow[] = []
 
   // Process data rows starting after the header
@@ -118,7 +116,6 @@ export async function parseCSVContent(csvContent: string): Promise<CSVGuestRow[]
 
     // Skip strikethrough rows
     if (isCSVRowStrikethrough(record)) {
-      console.log(`🚫 Skipped Guest CSV strikethrough row ${i + 1}:`, record.slice(0, 3).join(', '))
       continue
     }
 
@@ -127,7 +124,6 @@ export async function parseCSVContent(csvContent: string): Promise<CSVGuestRow[]
     if (deleteColumnIndex >= 0 && record[deleteColumnIndex]) {
       const deleteValue = String(record[deleteColumnIndex]).toLowerCase().trim()
       if (deleteValue === 'x' || deleteValue === 'delete' || deleteValue === 'y' || deleteValue === 'yes') {
-        console.log(`🚫 Skipped Guest CSV deletion row ${i + 1}:`, record.slice(0, 3).join(', '))
         continue
       }
     }
@@ -325,10 +321,8 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
     const guestGroups = new Map<string, CSVGuestRow[]>()
     
     csvRows.forEach((row, index) => {
-      console.log(`Processing row ${index + 2}:`, row)
       const guestName = row['Name']?.trim()
       if (!guestName) {
-        console.log(`Row ${index + 2} missing guest name, skipping`)
         errors.push(`Row ${index + 2} missing guest name, skipping`)
         return
       }
@@ -434,7 +428,6 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
     // Process each unique guest
     for (const [guestName, guestRows] of guestGroups) {
       try {
-        console.log(`Processing guest: ${guestName}, rows:`, guestRows)
         // Use the first row for guest data (should be identical across rows except for film title)
         const primaryRow = guestRows[0]
         if (!primaryRow) {
@@ -459,7 +452,6 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
 
         // Use the Arranging Travel column as open text - no validation
         const arrangingTravel = primaryRow['Arranging Travel']?.trim() || null
-        console.log(`Guest ${guestName} - CSV Arranging Travel value: "${arrangingTravel}"`)
 
         // Use exact template header: 'Confirmed'
         const confirmed = primaryRow['Confirmed']?.toLowerCase().trim() === 'yes'
@@ -631,20 +623,11 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           supabase.from('programs').select('id, title').eq('festival_year', festivalYearInt2)
         ])
 
-        console.log('Raw program query result:', allProgramsFromDb)
-
         const allFilms = [
           ...(allFeatureFilms.data || []),
           ...(allShortFilms.data || [])
         ]
         const allPrograms = allProgramsFromDb.data || []
-
-        console.log(`Loaded ${allFilms.length} films and ${allPrograms.length} programs`)
-        console.log('ALL PROGRAM TITLES:', allPrograms.map(p => p.title))
-
-        if (allProgramsFromDb.error) {
-          console.log('PROGRAM QUERY ERROR:', allProgramsFromDb.error)
-        }
 
         // Process EACH ROW individually for this guest
         for (const row of guestRows) {
@@ -656,28 +639,14 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
             continue
           }
 
-          console.log(`Processing row for ${guestName}: Display="${displayTitle}", DatabaseMatch="${databaseMatch}"`)
-
-          // Debug CSV parsing for problematic entries
-          if (guestName.includes('Deigo') || displayTitle?.includes('Flamingo') || databaseMatch?.includes('Flamingo')) {
-            console.log(`CSV PARSE DEBUG for ${guestName}:`)
-            console.log(`  Raw row keys:`, Object.keys(row))
-            console.log(`  Raw Film/Program Titles: "${row['Film/Program Titles']}"`)
-            console.log(`  Raw Database Match: "${row['Database Match']}"`)
-            console.log(`  After trim - Display: "${displayTitle}"`)
-            console.log(`  After trim - DatabaseMatch: "${databaseMatch}"`)
-          }
-
           // Decide what title to search for
           let titleToMatch = ''
           if (databaseMatch && databaseMatch !== '' && databaseMatch !== '—') {
             // Use Database Match for exact matching
             titleToMatch = databaseMatch
-            console.log(`  Using Database Match value: "${titleToMatch}"`)
           } else if (displayTitle && displayTitle !== '' && displayTitle !== '—') {
             // Fallback to Film/Program Titles
             titleToMatch = displayTitle
-            console.log(`  Using Film/Program Titles value: "${titleToMatch}"`)
           } else {
             continue // Skip if both are empty
           }
@@ -686,36 +655,17 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           let matchedFilm = allFilms.find(f => f.title === titleToMatch)
           let matchedProgram = allPrograms.find(p => p.title === titleToMatch)
 
-          // Debug specific failing titles
-          if (titleToMatch?.includes('CIX Lab') || titleToMatch?.includes('International Competition')) {
-            console.log(`\n*** DEBUGGING FAILING TITLE: "${titleToMatch}" ***`)
-            console.log(`  Title length: ${titleToMatch.length}`)
-            console.log(`  Title bytes:`, [...titleToMatch].map(c => c.charCodeAt(0)))
-            console.log(`  Looking in ${allPrograms.length} programs:`)
-            allPrograms.forEach(p => {
-              const isMatch = p.title === titleToMatch
-              console.log(`    "${p.title}" (len:${p.title.length}) === "${titleToMatch}": ${isMatch}`)
-              if (p.title.includes('CIX') || p.title.includes('International')) {
-                console.log(`      Program bytes:`, [...p.title].map(c => c.charCodeAt(0)))
-              }
-            })
-          }
-
           // If no exact match and using display title, try normalized matching
           if (!matchedFilm && !matchedProgram && !databaseMatch) {
-            console.log(`  No exact match, trying normalized matching for "${titleToMatch}"`)
-
             // Try normalized matching
             matchedFilm = allFilms.find(f => {
               const match = findBestTitleMatch(titleToMatch, [f.title])
-              if (match) console.log(`    Normalized match found: "${f.title}"`)
               return match === f.title
             })
 
             if (!matchedFilm) {
               matchedProgram = allPrograms.find(p => {
                 const match = findBestTitleMatch(titleToMatch, [p.title])
-                if (match) console.log(`    Normalized match found: "${p.title}"`)
                 return match === p.title
               })
             }
@@ -723,8 +673,6 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
 
           // Handle matched film
           if (matchedFilm) {
-            console.log(`  ✓ Matched film: "${matchedFilm.title}"`)
-
             // Add to display titles (always add, even if association exists)
             matchedTitlesForDisplay.push(matchedFilm.title)
 
@@ -746,17 +694,13 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
 
             const shortFilm = isShortFilm ? allShortFilms.data?.find(sf => sf.id === matchedFilm.id) : null
             if (shortFilm) {
-              console.log(`  ✓ This is a short film: "${shortFilm.title}"`)
               // Short film association already included above with film_type = 'short'
 
               // Also associate with its program if it has one
               if (shortFilm.shorts_program_id) {
-                console.log(`  Short film belongs to program ID: ${shortFilm.shorts_program_id}`)
-
                 // Find the program in our list
                 const shortsProgram = allProgramsFromDb.data?.find(p => p.id === shortFilm.shorts_program_id)
                 if (shortsProgram) {
-                  console.log(`  ✓ Adding program association: "${shortsProgram.title}"`)
                   const spExists = existingFilmAssociations.some(
                     a => a.film_id === shortsProgram.id && a.film_type === 'shorts_program'
                   )
@@ -771,8 +715,6 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
               }
             }
           } else if (matchedProgram) {
-            console.log(`  ✓ Matched program: "${matchedProgram.title}"`)
-
             // Add to display titles (always add, even if association exists)
             matchedTitlesForDisplay.push(matchedProgram.title)
 
@@ -789,14 +731,12 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
             }
           } else {
             warnings.push(`Could not find match for title "${titleToMatch}" for guest ${guestName}`)
-            console.log(`  ✗ No match found for "${titleToMatch}"`)
           }
         } // End of for loop through rows
 
         // Update films_display with the actual matched database titles
         const filmsDisplay = matchedTitlesForDisplay.length > 0 ? matchedTitlesForDisplay.join(', ') : ''
         if (filmsDisplay && filmsDisplay.trim() !== '') {
-          console.log(`Updating films_display for ${guestName}: "${filmsDisplay}"`)
           const { data: displayUpdatedGuest, error: displayError } = await supabase
             .from('guests')
             .update({ films_display: filmsDisplay })

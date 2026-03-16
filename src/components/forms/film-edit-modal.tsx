@@ -198,7 +198,6 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
         console.error('Error loading available contacts:', error)
       } else {
         setAvailableContacts(data || [])
-        console.log('Loaded contacts:', data?.length || 0, 'contacts')
       }
     } catch (error) {
       console.error('Error loading available contacts:', error)
@@ -302,8 +301,6 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
           }
         }
         
-        console.log('Film updated successfully')
-
         // Update published_screenings (only table that still has film_title/run_time columns)
         const { error: publishedError } = await supabase
           .from('published_screenings')
@@ -470,7 +467,6 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
             .single()
 
           if (!createError && createdContact) {
-            console.log('Auto-created new contact:', createdContact.contact_name)
             createdContactRecord = createdContact
           } else {
             console.error('Error auto-creating contact:', createError)
@@ -508,8 +504,6 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
         
         if (error) {
           console.error('Error saving film contacts:', error)
-        } else {
-          console.log('Saved film contacts, auto-created missing contacts')
         }
       }
     } catch (error) {

@@ -94,7 +94,6 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
           setVenueShortCodes([])
         } else {
           const shortCodes = [...new Set((shortCodesData || []).map(item => item.short_code).filter(Boolean))]
-          console.log('Loaded venue short codes:', shortCodes.length, shortCodes)
           setVenueShortCodes(shortCodes)
         }
       } catch (error) {

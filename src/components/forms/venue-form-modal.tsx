@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { VenueCard, TheaterHouse, VenueType, FormFieldValue } from '@/types'
+import { VenueCard, TheaterHouse, VenueType } from '@/types'
 
 interface VenueFormModalProps {
   venue?: VenueCard | null
@@ -135,10 +135,8 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear }: 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Venue form submitted', formData)
-    
+
     if (!validateForm()) {
-      console.log('Validation failed', errors)
       return
     }
 
@@ -177,7 +175,6 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear }: 
         savedVenue = data
       } else {
         // Create new venue
-        console.log('Creating venue with data:', venueData)
         const { data, error } = await supabase
           .from('venues')
           .insert([{
@@ -192,7 +189,6 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear }: 
           console.error('Error creating venue:', error)
           throw error
         }
-        console.log('Venue created successfully:', data)
         savedVenue = data
       }
 
@@ -218,7 +214,6 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear }: 
             created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0')
           }))
 
-          console.log('Inserting theater houses:', housesToInsert)
           const { data: housesData, error: housesError } = await supabase
             .from('theater_houses')
             .insert(housesToInsert)
@@ -228,8 +223,6 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear }: 
             console.error('Error creating theater houses:', housesError)
             throw housesError
           }
-          console.log('Theater houses created successfully:', housesData)
-
           // Add houses to saved venue
           savedVenue.houses = housesData
           savedVenue.houses_display = housesData

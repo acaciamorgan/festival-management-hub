@@ -77,7 +77,6 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
 
 
   const loadFilmDetails = async () => {
-    console.log('DEBUG: loadFilmDetails called for', filmTitle)
     setLoading(true)
     setFilm(null)
     setShortsProgram(null)
@@ -94,10 +93,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
         .eq('program_name', filmTitle)
         .maybeSingle()
 
-      console.log('DEBUG: Shorts program check result:', programData)
-
       if (programData) {
-        console.log('DEBUG: Taking shorts program path')
         // This is a shorts program
         setIsShortsProgramModal(true)
         setShortsProgram(programData)
@@ -120,10 +116,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
           .eq('title', filmTitle)
           .maybeSingle()
 
-        console.log('DEBUG: Short film check for', filmTitle, shortFilmData, shortFilmError)
-
         if (!shortFilmError && shortFilmData && shortFilmData.shorts_program_id) {
-          console.log('DEBUG: This is a short film, treating as feature film')
           // Convert short film to feature film format
           const filmAsFeature = {
             id: shortFilmData.id,
@@ -157,7 +150,6 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
           setFilm(filmAsFeature)
 
           // Load guests for short film using films_display
-          console.log('DEBUG: Searching for guests with title:', shortFilmData.title)
           const { data: shortGuests, error: guestError } = await supabase
             .from('guests')
             .select(`
@@ -172,13 +164,10 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
             .eq('festival_year', currentYear)
             .ilike('films_display', `%${shortFilmData.title}%`)
 
-          console.log('DEBUG: Guest query result:', shortGuests, 'Error:', guestError)
           if (shortGuests) {
             setInheritedGuests(shortGuests)
-            console.log('DEBUG: Set inheritedGuests to:', shortGuests)
           }
         } else {
-          console.log('DEBUG: Taking feature film path')
           // This is a feature film
           setIsShortsProgramModal(false)
           const { data: filmData } = await supabase
@@ -188,7 +177,6 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
             .eq('title', filmTitle)
             .maybeSingle()
 
-          console.log('DEBUG: Feature film data:', filmData)
           setFilm(filmData)
 
           // Load guests for feature film using films_display
@@ -208,7 +196,6 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
 
           if (featureGuests) {
             setInheritedGuests(featureGuests)
-            console.log('DEBUG: Found feature film guests:', featureGuests)
           }
         }
       }
