@@ -2506,6 +2506,7 @@ export default function TitlesPage() {
                             { key: 'music_score', label: 'Music/Score', width: 120 },
                             { key: 'producer', label: 'Producer', width: 150 },
                             { key: 'executive_producer', label: 'Executive Producer', width: 150 },
+                            { key: 'archivist', label: 'Archivist', width: 120 },
                             { key: 'production_companies', label: 'Production Companies', width: 180 },
                             { key: 'film_website', label: 'Film Website', width: 150 },
                             { key: 'trailer_url', label: 'Trailer URL', width: 150 },
@@ -2592,11 +2593,12 @@ export default function TitlesPage() {
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['language'] || 100}px` }}>{short.language}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['subtitles'] || 80}px` }}>{short.subtitles}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['captions'] || 80}px` }}>{short.captions}</td>
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{renderPersonName(short.principal_cast)}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['original_release_year'] || 70}px` }}>{short.original_release_year || ''}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['screenwriter'] || 150}px` }}>{short.screenwriter}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['cinematographer'] || 150}px` }}>{short.cinematographer}</td>
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['editor'] || 100}px` }}>{short.editor}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['animator'] || 120}px` }}>{renderPersonName(short.animator)}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['editor'] || 100}px` }}>{short.editor}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{renderPersonName(short.principal_cast)}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['sound_designer'] || 120}px` }}>{short.sound_designer}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['music_score'] || 120}px` }}>{short.music_score}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['producer'] || 150}px` }}>{renderPersonName(short.producer)}</td>

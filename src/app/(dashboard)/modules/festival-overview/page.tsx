@@ -110,6 +110,13 @@ export default function FestivalOverviewPage() {
         setStartDate(data.start_date)
         setEndDate(data.end_date)
         setImportantLinks(data.important_links || [])
+      } else {
+        setFestivalSettings(null)
+        setEditionNumber(0)
+        setFestivalName('')
+        setStartDate('')
+        setEndDate('')
+        setImportantLinks([])
       }
     } catch (error) {
       console.error('Error loading festival settings:', error)
@@ -205,13 +212,15 @@ export default function FestivalOverviewPage() {
     setDraggedIndex(null)
   }
 
-  const formatDateRange = () => {
-    if (!startDate || !endDate) return 'Festival Dates TBD'
-    
+  const formatDateRange = (overrideStart?: string, overrideEnd?: string) => {
+    const sd = overrideStart ?? startDate
+    const ed = overrideEnd ?? endDate
+    if (!sd || !ed) return 'Festival Dates TBD'
+
     try {
       // Parse dates using string operations only
-      const startParts = startDate.split('-')  // [YYYY, MM, DD]
-      const endParts = endDate.split('-')      // [YYYY, MM, DD]
+      const startParts = sd.split('-')  // [YYYY, MM, DD]
+      const endParts = ed.split('-')      // [YYYY, MM, DD]
       
       const startYear = parseInt(startParts[0])
       const startMonth = parseInt(startParts[1])
@@ -286,10 +295,10 @@ export default function FestivalOverviewPage() {
           <div className="bg-white rounded-lg border border-gray-300 p-8">
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                {getOrdinalSuffix(editionNumber)} {festivalName}
+                {getOrdinalSuffix(festivalSettings?.edition_number || 0)} {festivalSettings?.festival_name || ''}
               </h2>
               <p className="text-xl text-gray-600">
-                {formatDateRange()}
+                {formatDateRange(festivalSettings?.start_date, festivalSettings?.end_date)}
               </p>
             </div>
 
@@ -297,7 +306,7 @@ export default function FestivalOverviewPage() {
             <div className="mb-8">
               <h3 className="text-2xl font-semibold text-gray-900 mb-6">Important Links</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {importantLinks.map((link, index) => (
+                {(festivalSettings?.important_links || []).map((link, index) => (
                   <a
                     key={index}
                     href={link.url}

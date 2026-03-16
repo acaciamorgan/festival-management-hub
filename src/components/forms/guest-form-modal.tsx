@@ -325,6 +325,14 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
       const existingGuest = existingGuests && existingGuests.length > 0 ? existingGuests[0] : null
 
+      // Warn user if a guest with this name already exists (only when creating new, not editing)
+      if (!guest && existingGuest) {
+        if (!confirm(`A guest named "${formData.name.trim()}" already exists. Update the existing record instead of creating a new one?`)) {
+          setIsSubmitting(false)
+          return
+        }
+      }
+
       const now = new Date()
       const nowStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0')
 
@@ -949,8 +957,8 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         
                         if (error) throw error
                         
+                        onSave(null)
                         onClose()
-                        window.location.reload() // Temporary - should update parent state
                       } catch (error) {
                         console.error('Error deleting guest:', error)
                         alert('Error deleting guest. Please try again.')

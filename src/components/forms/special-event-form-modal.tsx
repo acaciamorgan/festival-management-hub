@@ -960,8 +960,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
 
                         if (error) throw error
 
+                        onSave(null)
                         onClose()
-                        window.location.reload()
                       } catch (error) {
                         console.error('Error deleting event:', error)
                         alert('Error deleting event. Please try again.')

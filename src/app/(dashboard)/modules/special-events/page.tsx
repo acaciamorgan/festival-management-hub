@@ -929,6 +929,10 @@ export default function SpecialEventsPage() {
 
   // Inline edit functions
   const updateEventField = async (eventId: string, field: string, value: any) => {
+    // Don't update interview rows - they belong to the interviews table
+    const event = specialEvents.find(e => e.id === eventId)
+    if ((event as any)?._type === 'interview') return
+
     try {
       const { error } = await supabase
         .from('special_events')

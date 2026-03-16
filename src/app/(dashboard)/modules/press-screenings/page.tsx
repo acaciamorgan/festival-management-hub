@@ -407,11 +407,26 @@ export default function PressScreeningsPage() {
                   <div
                     key={code}
                     className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                    onClick={() => {
+                    onClick={async () => {
                       setEditValue(code)
                       setShowShortCodeSuggestions(false)
-                      // Trigger save
-                      setTimeout(() => handleCellSave(), 50)
+                      // Save directly with the selected value
+                      if (editingCell) {
+                        try {
+                          const { error } = await supabase
+                            .from('press_screenings')
+                            .update({ [editingCell.field]: code })
+                            .eq('id', editingCell.screeningId)
+                          if (!error) {
+                            setPressScreenings(prev => prev.map(s =>
+                              s.id === editingCell.screeningId ? { ...s, [editingCell.field]: code } : s
+                            ))
+                          }
+                        } catch (err) {
+                          console.error('Error saving cell:', err)
+                        }
+                        setEditingCell(null)
+                      }
                     }}
                   >
                     {code}
@@ -618,9 +633,10 @@ export default function PressScreeningsPage() {
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center" style={{ minWidth: `${columnWidths['film_approved'] || 120}px` }}>
                       <input
                         type="checkbox"
-                        checked={screening.film_approved}
+                        checked={screening.film_approved ?? false}
                         onChange={(e) => handleCheckboxChange(screening.id, 'film_approved', e.target.checked)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        disabled={!canEditPressScreenings}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
                       />
                     </td>
                     
@@ -628,9 +644,10 @@ export default function PressScreeningsPage() {
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center" style={{ minWidth: `${columnWidths['locked'] || 100}px` }}>
                       <input
                         type="checkbox"
-                        checked={screening.locked}
+                        checked={screening.locked ?? false}
                         onChange={(e) => handleCheckboxChange(screening.id, 'locked', e.target.checked)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        disabled={!canEditPressScreenings}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
                       />
                     </td>
                     
@@ -638,9 +655,10 @@ export default function PressScreeningsPage() {
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center" style={{ minWidth: `${columnWidths['invites_out'] || 120}px` }}>
                       <input
                         type="checkbox"
-                        checked={screening.invites_out}
+                        checked={screening.invites_out ?? false}
                         onChange={(e) => handleCheckboxChange(screening.id, 'invites_out', e.target.checked)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        disabled={!canEditPressScreenings}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
                       />
                     </td>
                     

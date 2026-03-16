@@ -333,7 +333,7 @@ export default function ScreenerAccessPage() {
     return [...filteredFilms].sort((a, b) => {
       // For programs, sort by program number first
       if (a.isProgram && b.isProgram && a.program_number && b.program_number) {
-        return a.program_number - b.program_number
+        return (a.program_number - b.program_number) * (sortConfig.direction === 'asc' ? 1 : -1)
       }
 
       // For mixed or feature films, sort by title
@@ -484,7 +484,7 @@ export default function ScreenerAccessPage() {
           }}
         >
           <input
-            key={`link-${film.id}`}
+            key={`link-${film.id}-${film.screener_data?.link_url || ''}`}
             type="url"
             defaultValue={film.screener_data?.link_url || ''}
             onBlur={(e) => {
@@ -506,7 +506,7 @@ export default function ScreenerAccessPage() {
           }}
         >
           <input
-            key={`pwd-${film.id}`}
+            key={`pwd-${film.id}-${film.screener_data?.link_password || ''}`}
             type="text"
             defaultValue={film.screener_data?.link_password || ''}
             onBlur={(e) => {
@@ -525,7 +525,12 @@ export default function ScreenerAccessPage() {
   }
 
   const renderCineSendColumns = (film: UnifiedFilm) => {
-    if (film.isProgram) return null // No CineSend columns for shorts programs
+    if (film.isProgram) return (
+      <>
+        <td className="px-3 py-2 text-sm text-gray-400 border-r border-gray-100" style={{ minWidth: `${columnWidths['instructions_sent'] || 120}px`, width: `${columnWidths['instructions_sent'] || 120}px` }}>—</td>
+        <td className="px-3 py-2 text-sm text-gray-400 border-r border-gray-100" style={{ minWidth: `${columnWidths['uploaded'] || 100}px`, width: `${columnWidths['uploaded'] || 100}px` }}>—</td>
+      </>
+    )
     
     const isVisible = film.screener_data?.access_type === 'cinesend'
     

@@ -845,22 +845,29 @@ export default function ContactsPage() {
       filtered = filtered.filter(film => {
         // Search in film title
         if (film.title?.toLowerCase().includes(searchLower)) return true
-        
+
         // Search in contact names
         if (film.contacts?.some(c => c.name?.toLowerCase().includes(searchLower))) return true
-        
+
         // Search in contact companies
         if (film.contacts?.some(c => c.company?.toLowerCase().includes(searchLower))) return true
-        
+
         // Search in contact emails
         if (film.contacts?.some(c => c.email?.toLowerCase().includes(searchLower))) return true
-        
+
         return false
       })
     }
 
+    // Contact type filter for by-film view
+    if (selectedContactType && viewMode === 'by-film') {
+      filtered = filtered.filter(film =>
+        film.contacts?.some(c => c.contact_type === selectedContactType)
+      )
+    }
+
     setFilteredFilms(filtered)
-  }, [films, searchTerm, viewMode])
+  }, [films, searchTerm, viewMode, selectedContactType])
 
   // Sort contacts with special handling for last name
   const sortedContacts = useMemo(() => {
@@ -1137,8 +1144,8 @@ export default function ContactsPage() {
       const { error } = await supabase
         .from('film_contacts')
         .upsert(assignments, {
-          onConflict: 'film_id,name,contact_type',
-          ignoreDuplicates: false
+          onConflict: 'film_id,contact_id,contact_type,festival_year',
+          ignoreDuplicates: true
         })
 
       if (error) {

@@ -148,7 +148,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     if (isOpen) {
       loadSuggestionData()
     }
-  }, [isOpen, supabase, currentYear])
+  }, [isOpen, currentYear])
 
   // Initialize form data when photoShoot changes (edit mode)
   useEffect(() => {
@@ -245,7 +245,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     if (isOpen) {
       initEditForm()
     }
-  }, [photoShoot, isOpen, availableVenues, allFilms, supabase])
+  }, [photoShoot, isOpen, availableVenues, allFilms])
 
   // Film search for ChipSelect
   const handleFilmSearch = useCallback(async (query: string): Promise<ChipSelectSuggestion[]> => {
@@ -693,9 +693,8 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
 
                         if (error) throw error
 
-                        // Close modal and refresh the list
+                        onSave(null)
                         onClose()
-                        window.location.reload() // Temporary - should update parent state
                       } catch (error) {
                         console.error('Error deleting photo shoot:', error)
                         alert('Error deleting photo shoot. Please try again.')

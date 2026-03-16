@@ -134,7 +134,8 @@ export async function createNewFestivalYear(options: {
           festival_year: options.year,
         }))
 
-        const { data: insertedVenues } = await supabase.from('venues').insert(newVenues).select('id, name')
+        const { data: insertedVenues, error: venueInsertError } = await supabase.from('venues').insert(newVenues).select('id, name')
+        if (venueInsertError) console.error('Error copying venues:', venueInsertError)
 
         // Copy theater houses for each venue
         if (insertedVenues) {
@@ -164,7 +165,8 @@ export async function createNewFestivalYear(options: {
               })
 
             if (newHouses.length > 0) {
-              await supabase.from('theater_houses').insert(newHouses)
+              const { error: housesInsertError } = await supabase.from('theater_houses').insert(newHouses)
+              if (housesInsertError) console.error('Error copying theater houses:', housesInsertError)
             }
           }
         }
@@ -191,7 +193,8 @@ export async function createNewFestivalYear(options: {
           festival_year: options.year,
         }))
 
-        await supabase.from('contacts').insert(newContacts)
+        const { error: contactsInsertError } = await supabase.from('contacts').insert(newContacts)
+        if (contactsInsertError) console.error('Error copying contacts:', contactsInsertError)
       }
     }
 
@@ -221,7 +224,8 @@ export async function createNewFestivalYear(options: {
           festival_year: options.year,
         }))
 
-        await supabase.from('press').insert(newPress)
+        const { error: pressInsertError } = await supabase.from('press').insert(newPress)
+        if (pressInsertError) console.error('Error copying press:', pressInsertError)
       }
     }
 
@@ -243,7 +247,8 @@ export async function createNewFestivalYear(options: {
           festival_year: options.year,
         }))
 
-        await supabase.from('programs').insert(newPrograms)
+        const { error: programsInsertError } = await supabase.from('programs').insert(newPrograms)
+        if (programsInsertError) console.error('Error copying programs:', programsInsertError)
       }
     }
 

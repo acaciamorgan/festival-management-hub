@@ -201,8 +201,13 @@ export default function PhotoShootsPage() {
     if (!sortConfig) return filteredPhotoShoots
 
     return [...filteredPhotoShoots].sort((a, b) => {
-      const aValue = a[sortConfig.key as keyof PhotoShootCard]
-      const bValue = b[sortConfig.key as keyof PhotoShootCard]
+      const keyMap: Record<string, string> = {
+        'film_program_display': 'film_program_display_combined',
+        'venue_name': 'venue_name_from_fk',
+      }
+      const actualKey = keyMap[sortConfig.key] || sortConfig.key
+      const aValue = a[actualKey as keyof PhotoShootCard]
+      const bValue = b[actualKey as keyof PhotoShootCard]
 
       if (aValue === null) return 1
       if (bValue === null) return -1

@@ -233,6 +233,14 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear }: 
           savedVenue.houses_display = 'No houses configured'
         }
       } else {
+        // Clean up theater houses if venue type changed from Movie Theater
+        if (venue) {
+          await supabase
+            .from('theater_houses')
+            .delete()
+            .eq('venue_id', venue.id)
+            .eq('festival_year', currentYear)
+        }
         savedVenue.houses = []
         savedVenue.houses_display = 'N/A'
       }
@@ -536,8 +544,8 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear }: 
                         
                         // Remove from parent list and close modal
                         // This would need to be passed from parent component
+                        onSave(null)
                         onClose()
-                        window.location.reload() // Temporary - should update parent state
                       } catch (error) {
                         console.error('Error deleting venue:', error)
                         alert('Error deleting venue. Please try again.')

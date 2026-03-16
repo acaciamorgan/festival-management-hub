@@ -147,7 +147,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     if (isOpen) {
       loadSuggestionData()
     }
-  }, [isOpen, supabase, currentYear])
+  }, [isOpen, currentYear])
 
   // Initialize form data when redCarpet changes (edit mode)
   useEffect(() => {
@@ -249,7 +249,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     if (isOpen) {
       initEditForm()
     }
-  }, [redCarpet, isOpen, availableVenues, allFilms, supabase])
+  }, [redCarpet, isOpen, availableVenues, allFilms])
 
   // Film search for ChipSelect
   const handleFilmSearch = useCallback(async (query: string): Promise<ChipSelectSuggestion[]> => {
@@ -483,8 +483,8 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
         if (deleteError) console.error('Error cleaning up old red carpet records:', deleteError)
       }
 
+      onSave(null)
       onClose()
-      window.location.reload()
     } catch (error) {
       console.error('Error saving red carpet:', error)
       alert('Error saving red carpet. Please try again.')
@@ -738,8 +738,8 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
 
                         if (error) throw error
 
+                        onSave(null)
                         onClose()
-                        window.location.reload()
                       } catch (error) {
                         console.error('Error deleting red carpet:', error)
                         alert('Error deleting red carpet. Please try again.')

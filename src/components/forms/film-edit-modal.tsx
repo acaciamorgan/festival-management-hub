@@ -19,7 +19,7 @@ interface FeatureFilm {
   original_release_year: number
   screenwriter: string
   cinematographer: string
-  art_director: string
+  archivist: string
   editor: string
   principal_cast: string
   sound_designer: string
@@ -55,7 +55,7 @@ interface ShortFilm {
   original_release_year: number
   screenwriter: string
   cinematographer: string
-  art_director: string
+  archivist: string
   editor: string
   principal_cast: string
   sound_designer: string
@@ -114,6 +114,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
 
   useEffect(() => {
     if (film && isOpen) {
+      setSelectedShortsPrograms({})
       setFormData({ ...film })
       loadFilmContacts()
       loadAvailableContacts()
@@ -233,7 +234,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
         original_release_year: formData.original_release_year,
         screenwriter: formData.screenwriter,
         cinematographer: formData.cinematographer,
-        art_director: formData.art_director,
+        archivist: formData.archivist,
         editor: formData.editor,
         principal_cast: formData.principal_cast,
         sound_designer: formData.sound_designer,
@@ -861,11 +862,11 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Art Director</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Archivist</label>
                 <input
                   type="text"
-                  value={formData.art_director || ''}
-                  onChange={(e) => handleFieldChange('art_director', e.target.value)}
+                  value={formData.archivist || ''}
+                  onChange={(e) => handleFieldChange('archivist', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
