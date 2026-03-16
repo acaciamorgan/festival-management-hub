@@ -338,7 +338,7 @@ export default function InAttendancePage() {
     }
 
     loadExistingFilms()
-  }, [showFilmsMode, supabase])
+  }, [showFilmsMode, supabase, currentYear])
 
   const loadGuests = useCallback(async () => {
     setLoading(true)
@@ -758,7 +758,7 @@ export default function InAttendancePage() {
     }
     
     loadFilmTitles()
-  }, [supabase])
+  }, [supabase, currentYear])
 
   const smartParseFilmTitles = (filmsText: string): string[] => {
     if (!filmsText || filmsText === '—' || allTitles.length === 0) {
@@ -1086,7 +1086,7 @@ export default function InAttendancePage() {
 
               if (!findError && existingGuest) {
                 // Delete all associated records first
-                await supabase.from('guest_films').delete().eq('guest_id', existingGuest.id)
+                await supabase.from('guest_films').delete().eq('guest_id', existingGuest.id).eq('festival_year', currentYear)
 
                 // Delete the guest
                 await supabase.from('guests').delete().eq('id', existingGuest.id)

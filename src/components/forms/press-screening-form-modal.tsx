@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
-import { getFestivalYear } from '@/lib/smart-date-parser'
 import { PressScreeningCard, VenueCard, TheaterHouse } from '@/types'
 import { normalizeDateValue } from '@/lib/date-utils'
 
@@ -86,6 +85,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         const { data: shortCodesData, error: shortCodesError } = await supabase
           .from('theater_houses')
           .select('short_code')
+          .eq('festival_year', currentYear)
           .not('short_code', 'is', null)
           .order('short_code')
 
@@ -279,7 +279,6 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
 
     setLoading(true)
     try {
-      const festivalYear = await getFestivalYear()
       const screeningData = {
         film_id: formData.film_id,
         film_type: formData.film_type,
@@ -294,7 +293,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         notes: formData.notes || null,
         rsvp_form_url: formData.rsvp_form_url || null,
         rsvp_responses_url: formData.rsvp_responses_url || null,
-        festival_year: parseInt(festivalYear, 10),
+        festival_year: currentYear,
       }
 
       if (screening) {

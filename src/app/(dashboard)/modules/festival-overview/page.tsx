@@ -369,7 +369,7 @@ export default function FestivalOverviewPage() {
                     <input
                       type="number"
                       value={editionNumber}
-                      onChange={(e) => setEditionNumber(parseInt(e.target.value))}
+                      onChange={(e) => setEditionNumber(parseInt(e.target.value) || 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>

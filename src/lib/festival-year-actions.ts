@@ -126,11 +126,48 @@ export async function createNewFestivalYear(options: {
         const newVenues = venues.map(v => ({
           name: v.name,
           address: v.address,
+          venue_type: v.venue_type,
+          contact_names: v.contact_names,
+          contact_emails: v.contact_emails,
+          contact_phones: v.contact_phones,
           notes: v.notes,
           festival_year: options.year,
         }))
 
-        await supabase.from('venues').insert(newVenues)
+        const { data: insertedVenues } = await supabase.from('venues').insert(newVenues).select('id, name')
+
+        // Copy theater houses for each venue
+        if (insertedVenues) {
+          const { data: oldHouses } = await supabase
+            .from('theater_houses')
+            .select('*')
+            .eq('festival_year', previousYear)
+
+          if (oldHouses && oldHouses.length > 0) {
+            const venueNameToNewId = new Map(insertedVenues.map(v => [v.name, v.id]))
+            const oldVenueIdToName = new Map(venues.map(v => [v.id, v.name]))
+
+            const newHouses = oldHouses
+              .filter(h => {
+                const venueName = oldVenueIdToName.get(h.venue_id)
+                return venueName && venueNameToNewId.has(venueName)
+              })
+              .map(h => {
+                const venueName = oldVenueIdToName.get(h.venue_id)!
+                return {
+                  venue_id: venueNameToNewId.get(venueName),
+                  house_name: h.house_name,
+                  seat_count: h.seat_count,
+                  short_code: h.short_code,
+                  festival_year: options.year,
+                }
+              })
+
+            if (newHouses.length > 0) {
+              await supabase.from('theater_houses').insert(newHouses)
+            }
+          }
+        }
       }
     }
 

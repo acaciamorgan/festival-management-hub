@@ -86,6 +86,11 @@ export function VenueCardPopup({ venue, onClose, onUpdate, onDelete }: VenueCard
     }
     
     try {
+      await supabase
+        .from('theater_houses')
+        .delete()
+        .eq('venue_id', venue.id)
+
       const { error } = await supabase
         .from('venues')
         .delete()

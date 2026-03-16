@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
-import { getFestivalYear } from '@/lib/smart-date-parser'
 import { ChipSelect, ChipItem, ChipSelectSuggestion } from '@/components/ui/chip-select'
 
 interface PhotoShootFormModalProps {
@@ -366,7 +365,6 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
 
     try {
       // Get current festival year
-      const festivalYear = await getFestivalYear()
 
       // Separate FK-linked and free-text items
       const fkFilms = formData.filmChips.filter(chip => chip.id)
@@ -390,7 +388,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         selects_received: formData.selects_received,
         sent_to_pr: formData.sent_to_pr,
         updated_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),
-        festival_year: parseInt(festivalYear, 10)
+        festival_year: currentYear
       }
 
       let savedPhotoShoot: any
@@ -434,7 +432,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
           photo_shoot_id: savedPhotoShoot.id,
           film_id: chip.id!,
           film_type: chip.type || chip.filmType || 'feature',
-          festival_year: parseInt(festivalYear, 10),
+          festival_year: currentYear,
         }))
         const { error: filmError } = await supabase
           .from('photo_shoot_films')
@@ -447,7 +445,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
         const subjectInserts = fkSubjects.map(chip => ({
           photo_shoot_id: savedPhotoShoot.id,
           guest_id: chip.id!,
-          festival_year: parseInt(festivalYear, 10),
+          festival_year: currentYear,
         }))
         const { error: subjectError } = await supabase
           .from('photo_shoot_subjects')

@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client'
 import { ContactCard } from '@/types'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { useAuth } from '@/components/providers/auth-provider'
-import { getFestivalYear } from '@/lib/smart-date-parser'
 
 // Film Search Select Component
 interface FilmSearchSelectProps {
@@ -321,7 +320,6 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
 
     setIsSubmitting(true)
     try {
-      const festivalYear = await getFestivalYear()
 
       const contactData = {
         contact_name: formData.contact_name.trim(),
@@ -331,7 +329,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
         notes: formData.notes.trim() || null,
         contact_type: formData.contact_type.trim() || null,
         mailing_address: formData.mailing_address.trim() || null,
-        festival_year: parseInt(festivalYear, 10)
+        festival_year: currentYear
       }
 
       let contactId = contact?.id
@@ -355,7 +353,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
             .from('contacts')
             .select('id')
             .eq('contact_email', contactData.contact_email)
-            .eq('festival_year', parseInt(festivalYear, 10))
+            .eq('festival_year', currentYear)
 
           if (existingContacts && existingContacts.length > 0) {
             alert('A contact with this email already exists')
@@ -385,7 +383,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
           .from('film_contacts')
           .delete()
           .eq('contact_id', contactId)
-          .eq('festival_year', parseInt(festivalYear, 10))
+          .eq('festival_year', currentYear)
 
         if (deleteError) {
           console.error('Error deleting existing film assignments:', deleteError)
@@ -405,7 +403,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
               email: contactData.contact_email,
               contact_type: contactData.contact_type || 'Other',
               contact_id: contactId,
-              festival_year: parseInt(festivalYear, 10)
+              festival_year: currentYear
             }
           })
 

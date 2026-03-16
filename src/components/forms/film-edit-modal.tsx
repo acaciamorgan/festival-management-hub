@@ -30,7 +30,7 @@ interface FeatureFilm {
   film_website: string
   trailer_url: string
   premiere_status: string
-  content_warnings: string
+  content_considerations: string
   program_1?: string
   program_2?: string
   program_3?: string
@@ -65,7 +65,7 @@ interface ShortFilm {
   production_companies: string
   film_website: string
   trailer_url: string
-  content_warnings: string
+  content_considerations: string
   shorts_program_id: string
   program_order: number
   program_1?: string
@@ -170,6 +170,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
         .from('short_film_programs')
         .select('shorts_program_id, program_order')
         .eq('short_film_id', film.id)
+        .eq('festival_year', currentYear)
       
       if (!error && data) {
         const assignments: { [key: string]: { selected: boolean, order: number } } = {}
@@ -242,7 +243,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
         production_companies: formData.production_companies,
         film_website: formData.film_website,
         trailer_url: formData.trailer_url,
-        content_warnings: formData.content_warnings,
+        content_considerations: formData.content_considerations,
         program_1: formData.program_1,
         program_2: formData.program_2,
         program_3: formData.program_3,
@@ -968,10 +969,10 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                 </div>
               )}
               <div className={filmType === 'feature' ? '' : 'col-span-2'}>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Content Warnings</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Content Considerations</label>
                 <textarea
-                  value={formData.content_warnings || ''}
-                  onChange={(e) => handleFieldChange('content_warnings', e.target.value)}
+                  value={formData.content_considerations || ''}
+                  onChange={(e) => handleFieldChange('content_considerations', e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />

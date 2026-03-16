@@ -192,46 +192,53 @@ export default function PressRequestsPage() {
         }
       })
 
-      // Process shorts programs
+      // Process shorts programs — batch queries instead of per-program
       if (shortsPrograms && shortsPrograms.length > 0) {
-        for (const program of shortsPrograms) {
-          // Check if this program has screener data marked for request_link
-          const { data: screenerDataArr } = await supabase
-            .from('screener_access')
-            .select('access_type')
-            .eq('film_id', program.id)
-            .limit(1)
-          const screenerData = screenerDataArr?.[0] || null
+        const programIds = shortsPrograms.map(p => p.id)
 
-          if (screenerData?.access_type === 'request_link') {
-            // Get contacts from the first short in this program
-            const { data: firstShortArr } = await supabase
-              .from('short_films')
-              .select('id')
-              .eq('shorts_program_id', program.id)
-              .eq('festival_year', currentYear)
-              .limit(1)
-            const firstShort = firstShortArr?.[0] || null
-            
-            if (firstShort) {
-              const { data: contacts } = await supabase
-                .from('film_contacts')
-                .select('name, email, company, contact_type')
-                .eq('film_id', firstShort.id)
-                .eq('film_type', 'short')
-                .eq('contact_type', 'Screening Link')
-                .eq('festival_year', currentYear)
-              
-              contacts?.forEach(contact => {
-                contactsList.push({
-                  film_title: program.program_name,
-                  contact_name: contact.name,
-                  contact_email: contact.email,
-                  contact_company: contact.company
-                })
-              })
+        const [screenerResult, shortsResult] = await Promise.all([
+          supabase.from('screener_access').select('film_id, access_type').in('film_id', programIds),
+          supabase.from('short_films').select('id, shorts_program_id').eq('festival_year', currentYear),
+        ])
+
+        const screenerByProgram = new Map((screenerResult.data || []).map(s => [s.film_id, s.access_type]))
+        const firstShortByProgram = new Map<string, string>()
+        for (const s of (shortsResult.data || [])) {
+          if (s.shorts_program_id && !firstShortByProgram.has(s.shorts_program_id)) {
+            firstShortByProgram.set(s.shorts_program_id, s.id)
+          }
+        }
+
+        // Collect short IDs that need contact lookups
+        const shortIdsForContacts: string[] = []
+        const shortIdToProgram = new Map<string, string>()
+        for (const program of shortsPrograms) {
+          if (screenerByProgram.get(program.id) === 'request_link') {
+            const firstShortId = firstShortByProgram.get(program.id)
+            if (firstShortId) {
+              shortIdsForContacts.push(firstShortId)
+              shortIdToProgram.set(firstShortId, program.program_name)
             }
           }
+        }
+
+        if (shortIdsForContacts.length > 0) {
+          const { data: contacts } = await supabase
+            .from('film_contacts')
+            .select('film_id, name, email, company, contact_type')
+            .in('film_id', shortIdsForContacts)
+            .eq('film_type', 'short')
+            .eq('contact_type', 'Screening Link')
+            .eq('festival_year', currentYear)
+
+          contacts?.forEach(contact => {
+            contactsList.push({
+              film_title: shortIdToProgram.get(contact.film_id) || 'Unknown Program',
+              contact_name: contact.name,
+              contact_email: contact.email,
+              contact_company: contact.company
+            })
+          })
         }
       }
 

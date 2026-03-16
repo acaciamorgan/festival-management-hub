@@ -327,7 +327,7 @@ export default function ArchivesPage() {
                       <input
                         type="number"
                         value={newYear}
-                        onChange={(e) => setNewYear(parseInt(e.target.value))}
+                        onChange={(e) => setNewYear(parseInt(e.target.value) || 0)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       />
                     </div>
@@ -339,7 +339,7 @@ export default function ArchivesPage() {
                       <input
                         type="number"
                         value={newEditionNumber}
-                        onChange={(e) => setNewEditionNumber(parseInt(e.target.value))}
+                        onChange={(e) => setNewEditionNumber(parseInt(e.target.value) || 0)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       />
                     </div>

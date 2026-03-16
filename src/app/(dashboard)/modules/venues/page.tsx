@@ -192,6 +192,11 @@ export default function VenueManagementPage() {
 
   const handleDeleteVenue = async (venueId: string) => {
     try {
+      await supabase
+        .from('theater_houses')
+        .delete()
+        .eq('venue_id', venueId)
+
       const { error } = await supabase
         .from('venues')
         .delete()

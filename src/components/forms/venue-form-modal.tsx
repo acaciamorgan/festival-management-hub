@@ -522,6 +522,11 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear }: 
                   onClick={async () => {
                     if (confirm(`Are you sure you want to delete ${venue.name}? This action cannot be undone.`)) {
                       try {
+                        await supabase
+                          .from('theater_houses')
+                          .delete()
+                          .eq('venue_id', venue.id)
+
                         const { error } = await supabase
                           .from('venues')
                           .delete()

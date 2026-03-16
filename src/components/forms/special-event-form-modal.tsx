@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
-import { getFestivalYear } from '@/lib/smart-date-parser'
 import { SpecialEventCard, EventType, OpenPressType } from '@/types'
 import { ChipSelect, ChipItem, ChipSelectSuggestion } from '@/components/ui/chip-select'
 
@@ -143,7 +142,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
           supabase.from('short_films').select('id, title').eq('festival_year', currentYear).order('title'),
           supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear).order('program_name'),
           supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
-          supabase.from('venues').select('id, name, address, contact_names, contact_phones').order('name'),
+          supabase.from('venues').select('id, name, address, contact_names, contact_phones').eq('festival_year', currentYear).order('name'),
           supabase.from('special_events').select('invited_tags').eq('festival_year', currentYear).not('invited_tags', 'is', null)
         ])
 
@@ -422,7 +421,6 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     setIsSubmitting(true)
 
     try {
-      const festivalYear = await getFestivalYear()
       const now = new Date()
       const nowStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0')
 
@@ -461,7 +459,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         rsvp_response_link: formData.rsvp_response_link?.trim?.() || null,
         actual_attendance: formData.actual_attendance?.trim?.() || null,
         notes: formData.notes?.trim?.() || null,
-        festival_year: parseInt(festivalYear, 10),
+        festival_year: currentYear,
         updated_at: nowStr
       }
 
@@ -515,7 +513,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
           special_event_id: savedEvent.id,
           film_id: chip.id!,
           film_type: chip.type || chip.filmType || 'feature',
-          festival_year: parseInt(festivalYear, 10),
+          festival_year: currentYear,
         }))
         const { error: filmError } = await supabase
           .from('special_event_films')
@@ -528,7 +526,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         const guestInserts = fkGuests.map(chip => ({
           special_event_id: savedEvent.id,
           guest_id: chip.id!,
-          festival_year: parseInt(festivalYear, 10),
+          festival_year: currentYear,
         }))
         const { error: guestError } = await supabase
           .from('special_event_guests')

@@ -1611,6 +1611,12 @@ export default function TitlesPage() {
     // Cache for program names to IDs to avoid repeated queries
     const programCache: { [key: string]: string } = {}
 
+    // Pre-fetch all existing shorts for this festival year (avoid re-querying per row)
+    let { data: allShorts } = await supabase
+      .from('short_films')
+      .select('id, title, shorts_program_id, program_order')
+      .eq('festival_year', currentYear)
+
     // Process each row directly (start after header row)
     for (let i = headerRowIndex + 1; i < rows.length; i++) {
       const row = rows[i]
@@ -1650,6 +1656,7 @@ export default function TitlesPage() {
         countries: row[indices.countries]?.trim().replace(/\s*\|\s*/g, ', ') || null,
         program_1: row[indices.program_1]?.trim() || null,
         program_2: row[indices.program_2]?.trim() || null,
+        program_3: row[indices.program_3]?.trim() || null,
         genre_1: row[indices.genre_1]?.trim() || null,
         genre_2: row[indices.genre_2]?.trim() || null,
         genre_3: row[indices.genre_3]?.trim() || null,
@@ -1745,11 +1752,6 @@ export default function TitlesPage() {
 
 
       // Check if record exists using case-insensitive comparison (preserve program assignments)
-      const { data: allShorts } = await supabase
-        .from('short_films')
-        .select('id, title, shorts_program_id, program_order')
-        .eq('festival_year', currentYear)
-
       const existingRecord = allShorts?.find(short =>
         short.title?.toLowerCase() === title?.toLowerCase()
       )

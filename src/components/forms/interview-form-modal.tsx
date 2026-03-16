@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
-import { getFestivalYear } from '@/lib/smart-date-parser'
 import { InterviewCard, InterviewStatus, PressCard } from '@/types'
 import { ChipSelect, ChipItem, ChipSelectSuggestion } from '@/components/ui/chip-select'
 
@@ -342,7 +341,6 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
 
     setLoading(true)
     try {
-      const festivalYear = await getFestivalYear()
 
       // Build subject data from chips — positionally aligned arrays
       // subject_guest_ids[i] corresponds to subject_names.split(', ')[i]
@@ -368,7 +366,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         location: location || null,
         show_on_special_events: showOnSpecialEvents,
         notes: notes || null,
-        festival_year: parseInt(festivalYear, 10),
+        festival_year: currentYear,
       }
 
       if (interview) {

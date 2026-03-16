@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
-import { getFestivalYear } from '@/lib/smart-date-parser'
 import { GuestCard, GuestType } from '@/types'
 
 interface GuestFormModalProps {
@@ -314,14 +313,13 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
     setIsSubmitting(true)
 
     try {
-      const festivalYear = await getFestivalYear()
 
       // Check for existing guest by name (case-insensitive) within current festival year
       const { data: existingGuests, error: checkError } = await supabase
         .from('guests')
         .select('id')
         .ilike('name', formData.name.trim())
-        .eq('festival_year', parseInt(festivalYear, 10))
+        .eq('festival_year', currentYear)
 
       if (checkError) throw checkError
 
@@ -358,7 +356,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         hotel_confirmation_number: formData.hotel_confirmation_number.trim() || null,
         checked_in: formData.checked_in,
         notes: formData.notes.trim() || null,
-        festival_year: parseInt(festivalYear, 10),
+        festival_year: currentYear,
         updated_at: nowStr
       }
 
@@ -455,7 +453,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
             guest_id: savedGuest.id,
             film_id: film.id,
             film_type: film.type,
-            festival_year: parseInt(festivalYear, 10)
+            festival_year: currentYear
           }))
 
           const { data: guestFilmsData, error: guestFilmsError } = await supabase

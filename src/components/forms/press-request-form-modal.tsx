@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
-import { getFestivalYear } from '@/lib/smart-date-parser'
 
 interface PressRequest {
   id: string
@@ -249,6 +248,7 @@ export function PressRequestFormModal({
         .from('published_screenings')
         .select('*')
         .eq('film_id', filmId)
+        .eq('festival_year', currentYear)
         .order('screening_date', { ascending: true })
         .order('start_time', { ascending: true })
       
@@ -403,7 +403,6 @@ export function PressRequestFormModal({
 
     try {
       // Get current festival year
-      const festivalYear = await getFestivalYear()
       if (request) {
         // Update existing request (single film only)
         const film = selectedFilms[0]
@@ -417,7 +416,7 @@ export function PressRequestFormModal({
           screening_date: selectedScreening?.screening_date || null,
           screening_time: selectedScreening?.start_time || null,
           venue_short_code: selectedScreening?.venue_short_code || null,
-          festival_year: parseInt(festivalYear, 10)
+          festival_year: currentYear
         }
         
         const { data, error } = await supabase
@@ -456,7 +455,7 @@ export function PressRequestFormModal({
             created_by: user?.id,
             created_at: timestamp,
             updated_at: timestamp,
-            festival_year: parseInt(festivalYear, 10)
+            festival_year: currentYear
           }
           
           const { data, error } = await supabase

@@ -1264,6 +1264,30 @@ export default function TicketingPage() {
 
       if (pressError) throw pressError
 
+      // Batch-load all feature film runtimes in one query
+      const { data: allFeatureFilms } = await supabase
+        .from('feature_films')
+        .select('id, run_time')
+        .eq('festival_year', currentYear)
+
+      const featureRuntimeMap = new Map<string, number | null>()
+      for (const film of allFeatureFilms || []) {
+        featureRuntimeMap.set(film.id, film.run_time)
+      }
+
+      // Batch-load all existing PI jury screenings in one query
+      const { data: allPiJuryScreenings } = await supabase
+        .from('pi_jury_screenings')
+        .select('id, film_id, screening_date, start_time, festival_year')
+        .eq('festival_year', currentYear)
+
+      // Build lookup map keyed by "film_id|screening_date" for P&I type screenings
+      const piJuryMap = new Map<string, string>()
+      for (const pij of allPiJuryScreenings || []) {
+        const key = `${pij.film_id}|${pij.screening_date}`
+        piJuryMap.set(key, pij.id)
+      }
+
       // Process each press screening
       let successCount = 0
       let updatedCount = 0
@@ -1275,16 +1299,11 @@ export default function TicketingPage() {
 
         const shortCode = screening.short_code
 
-        // Look up runtime from feature_films table by film_id
+        // Look up runtime from pre-loaded map
         let runtime = null
         if (screening.film_type === 'feature') {
-          const { data: film } = await supabase
-            .from('feature_films')
-            .select('run_time')
-            .eq('id', screening.film_id)
-            .eq('festival_year', currentYear)
-            .maybeSingle()
-          if (film?.run_time) runtime = film.run_time
+          const mappedRuntime = featureRuntimeMap.get(screening.film_id)
+          if (mappedRuntime) runtime = mappedRuntime
         }
 
         // Look up venue capacity
@@ -1296,16 +1315,11 @@ export default function TicketingPage() {
           capacity = venueMatch.capacity
         }
 
-        // Check if this screening already exists (match by film_id and date)
-        const { data: existing } = await supabase
-          .from('pi_jury_screenings')
-          .select('id')
-          .eq('film_id', screening.film_id)
-          .eq('screening_date', screening.screening_date)
-          .eq('screening_type', 'P&I')
-          .eq('festival_year', currentYear)
+        // Check if this screening already exists using pre-loaded map
+        const existingKey = `${screening.film_id}|${screening.screening_date}`
+        const existingId = piJuryMap.get(existingKey)
 
-        if (existing && existing.length > 0) {
+        if (existingId) {
           // Update existing screening
           const { error: updateError } = await supabase
             .from('pi_jury_screenings')
@@ -1322,7 +1336,7 @@ export default function TicketingPage() {
               film_type: screening.film_type || null,
               festival_year: currentYear
             })
-            .eq('id', existing[0].id)
+            .eq('id', existingId)
 
           if (!updateError) updatedCount++
         } else {
@@ -1378,24 +1392,31 @@ export default function TicketingPage() {
 
       if (progError) throw progError
 
-      // Calculate total runtime for each shorts program
-      const programCards = await Promise.all(
-        (programs || []).map(async (program) => {
-          const { data: shorts } = await supabase
-            .from('short_films')
-            .select('runtime_minutes')
-            .eq('shorts_program_id', program.id)
+      // Batch-load all short films with their program IDs and runtimes in one query
+      const { data: allShorts } = await supabase
+        .from('short_films')
+        .select('shorts_program_id, runtime_minutes')
+        .eq('festival_year', currentYear)
 
-          const totalRuntime = shorts?.reduce((sum, s) => sum + (s.runtime_minutes || 0), 0) || 0
+      // Group runtimes by shorts_program_id
+      const runtimeByProgram = new Map<string, number>()
+      for (const short of allShorts || []) {
+        if (short.shorts_program_id) {
+          const current = runtimeByProgram.get(short.shorts_program_id) || 0
+          runtimeByProgram.set(short.shorts_program_id, current + (short.runtime_minutes || 0))
+        }
+      }
 
-          return {
-            id: program.id,
-            title: program.program_name,
-            run_time: totalRuntime,
-            film_type: 'shorts_program'
-          }
-        })
-      )
+      // Build program cards using pre-computed runtimes
+      const programCards = (programs || []).map((program) => {
+        const totalRuntime = runtimeByProgram.get(program.id) || 0
+        return {
+          id: program.id,
+          title: program.program_name,
+          run_time: totalRuntime,
+          film_type: 'shorts_program'
+        }
+      })
 
       // Combine features (with film_type) and shorts programs
       const featureCards = (features || []).map(f => ({ ...f, film_type: 'feature' }))
@@ -1446,24 +1467,29 @@ export default function TicketingPage() {
 
       if (error) throw error
 
-      // Calculate total runtime for each program by summing shorts
-      const programsWithRuntime = await Promise.all(
-        (programs || []).map(async (program) => {
-          const { data: shorts } = await supabase
-            .from('short_films')
-            .select('runtime_minutes')
-            .eq('shorts_program_id', program.id)
+      // Batch-load all short films with their program IDs and runtimes in one query
+      const { data: allShorts } = await supabase
+        .from('short_films')
+        .select('shorts_program_id, runtime_minutes')
+        .eq('festival_year', currentYear)
 
-          const totalRuntime = shorts?.reduce((sum, short) => {
-            return sum + (short.runtime_minutes || 0)
-          }, 0) || 0
+      // Group runtimes by shorts_program_id
+      const runtimeByProgram = new Map<string, number>()
+      for (const short of allShorts || []) {
+        if (short.shorts_program_id) {
+          const current = runtimeByProgram.get(short.shorts_program_id) || 0
+          runtimeByProgram.set(short.shorts_program_id, current + (short.runtime_minutes || 0))
+        }
+      }
 
-          return {
-            ...program,
-            total_runtime: totalRuntime
-          }
-        })
-      )
+      // Build programs with pre-computed runtimes
+      const programsWithRuntime = (programs || []).map((program) => {
+        const totalRuntime = runtimeByProgram.get(program.id) || 0
+        return {
+          ...program,
+          total_runtime: totalRuntime
+        }
+      })
 
       setShortsPrograms(programsWithRuntime)
     } catch (error) {
@@ -1535,7 +1561,7 @@ export default function TicketingPage() {
     } catch (error) {
       console.error('Error loading venue cards:', error)
     }
-  }, [supabase])
+  }, [supabase, currentYear])
 
   // Load all data
   const loadData = useCallback(async () => {
@@ -2375,19 +2401,21 @@ export default function TicketingPage() {
     })
   }, [filteredData, sortConfig])
 
-  // Filter film suggestions - make it dynamic to catch newly synced shorts
+  // Refresh film cards when searching for shorts to catch newly synced shorts programs
+  useEffect(() => {
+    if (filmSearchTerm && filmSearchTerm.toLowerCase().includes('short')) {
+      loadFilmCards()
+    }
+  }, [filmSearchTerm, loadFilmCards])
+
+  // Filter film suggestions
   const filteredFilms = useMemo(() => {
     if (!filmSearchTerm) return []
-    
-    // If searching for "short", reload film cards to catch newly synced shorts programs
-    if (filmSearchTerm.toLowerCase().includes('short')) {
-      loadFilmCards() // Refresh the film cards when searching for shorts
-    }
-    
-    return filmCards.filter(film => 
+
+    return filmCards.filter(film =>
       film.title.toLowerCase().includes(filmSearchTerm.toLowerCase())
     ).slice(0, 5)
-  }, [filmSearchTerm, filmCards, loadFilmCards])
+  }, [filmSearchTerm, filmCards])
 
   // Filter venue suggestions  
   const filteredVenues = useMemo(() => {

@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
-import { getFestivalYear } from '@/lib/smart-date-parser'
 import { ChipSelect, ChipItem, ChipSelectSuggestion } from '@/components/ui/chip-select'
 
 interface RedCarpetFormModalProps {
@@ -405,23 +404,12 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     setIsSubmitting(true)
 
     try {
-      const festivalYear = await getFestivalYear()
 
       // Preserve original created_by when editing
       const originalCreatedBy = redCarpet && redCarpet.length > 0 ? redCarpet[0].created_by : user?.id
+      const idsToDelete = redCarpet && redCarpet.length > 0 ? redCarpet.map(carpet => carpet.id) : []
 
-      // If editing, delete all existing records from this carpet event
-      if (redCarpet && redCarpet.length > 0) {
-        const idsToDelete = redCarpet.map(carpet => carpet.id)
-        const { error: deleteError } = await supabase
-          .from('red_carpets')
-          .delete()
-          .in('id', idsToDelete)
-
-        if (deleteError) throw deleteError
-      }
-
-      // Now create new records for all pairs
+      // Create new records for all pairs first (before deleting old ones)
       for (const pair of formData.film_subject_pairs) {
         if (pair.filmChips.length === 0) continue // Skip empty pairs
 
@@ -443,7 +431,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
           rsvp_form_url: (formData.rsvp_form_url && formData.rsvp_form_url.trim()) || null,
           rsvp_responses_url: (formData.rsvp_responses_url && formData.rsvp_responses_url.trim()) || null,
           run_of_show_url: (formData.run_of_show_url && formData.run_of_show_url.trim()) || null,
-          festival_year: parseInt(festivalYear, 10),
+          festival_year: currentYear,
           created_by: originalCreatedBy
         }
 
@@ -462,7 +450,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
             red_carpet_id: data.id,
             film_id: chip.id!,
             film_type: chip.type || chip.filmType || 'feature',
-            festival_year: parseInt(festivalYear, 10),
+            festival_year: currentYear,
           }))
           const { error: filmError } = await supabase
             .from('red_carpet_films')
@@ -476,7 +464,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
           const subjectInserts = fkSubjects.map(chip => ({
             red_carpet_id: data.id,
             guest_id: chip.id!,
-            festival_year: parseInt(festivalYear, 10),
+            festival_year: currentYear,
           }))
           const { error: subjectError } = await supabase
             .from('red_carpet_subjects')
@@ -484,6 +472,15 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
           if (subjectError) console.error('Error inserting red carpet subjects:', subjectError)
         }
         // Free-text subjects are already stored in subjects_description on the red_carpets row
+      }
+
+      // Delete old records only after new ones are successfully created
+      if (idsToDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('red_carpets')
+          .delete()
+          .in('id', idsToDelete)
+        if (deleteError) console.error('Error cleaning up old red carpet records:', deleteError)
       }
 
       onClose()
