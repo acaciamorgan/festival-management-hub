@@ -7,6 +7,7 @@ import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { exportFestivalToExcel } from '@/utils/excel-export'
 import { createNewFestivalYear, archiveFestivalYear, unarchiveFestivalYear } from '@/lib/festival-year-actions'
+import { getOrdinalSuffix } from '@/utils/ordinal'
 
 export default function ArchivesPage() {
   const { user } = useAuth()
@@ -244,7 +245,7 @@ export default function ArchivesPage() {
                     <div key={year.id} className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                       <div className="flex items-center gap-3">
                         <span className="text-lg font-semibold text-gray-900">{year.year}</span>
-                        <span className="text-sm text-gray-600">{year.edition_number && `${year.edition_number}${['st', 'nd', 'rd'][((year.edition_number % 100) - 20) % 10 - 1] || 'th'} ${year.festival_name}`}</span>
+                        <span className="text-sm text-gray-600">{year.edition_number && `${getOrdinalSuffix(year.edition_number)} ${year.festival_name}`}</span>
                         {year.is_archived && (
                           <span className="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">Archived</span>
                         )}

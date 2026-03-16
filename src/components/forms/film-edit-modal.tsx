@@ -274,11 +274,12 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
       } else {
         // If this is a short film, update the program assignments in junction table
         if (filmType === 'short') {
-          // Delete existing assignments
+          // Delete existing assignments for this year only
           await supabase
             .from('short_film_programs')
             .delete()
             .eq('short_film_id', film.id)
+            .eq('festival_year', currentYear)
           
           // Insert new assignments
           const newAssignments = Object.entries(selectedShortsPrograms)

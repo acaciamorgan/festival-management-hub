@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ContactCard } from '@/types'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
+import { useAuth } from '@/components/providers/auth-provider'
 import { getFestivalYear } from '@/lib/smart-date-parser'
 
 // Film Search Select Component
@@ -157,6 +158,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
 
   const supabase = createClient()
   const { currentYear } = useFestivalYear()
+  const { user } = useAuth()
 
   // Load available films
   const loadFilms = async () => {
@@ -364,7 +366,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
         // Create new contact
         const { data, error } = await supabase
           .from('contacts')
-          .insert([contactData])
+          .insert([{ ...contactData, created_by: user?.id }])
           .select('id')
 
         if (error) {

@@ -169,7 +169,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
     const ampm = hour24 >= 12 ? 'PM' : 'AM'
     
-    return `${hour12}:${minutes} ${ampm}`
+    return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
   }
 
   const formatDateForDisplay = (dateString: string | undefined): string => {
@@ -802,9 +802,9 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                       const hour24 = parseInt(hours, 10)
                       const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
                       const ampm = hour24 >= 12 ? 'PM' : 'AM'
-                      return `${hour12}:${minutes} ${ampm}`
+                      return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
                     })() : 'TBD'
-                    
+
                     const venue = screening.venue_name || 'TBD'
                     
                     return (
@@ -885,9 +885,9 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                       const hour24 = parseInt(hours, 10)
                       const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
                       const ampm = hour24 >= 12 ? 'PM' : 'AM'
-                      return `${hour12}:${minutes} ${ampm}`
+                      return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
                     })() : 'TBD'
-                    
+
                     const venue = screening.short_code || screening.venues?.name || 'TBD'
                     const house = screening.house ? ` ${screening.house}` : ''
                     const canceledText = screening.canceled ? ' [CANCELED]' : ''
@@ -965,7 +965,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                       const hour24 = parseInt(hours, 10)
                       const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
                       const ampm = hour24 >= 12 ? 'PM' : 'AM'
-                      return `${hour12}:${minutes} ${ampm}`
+                      return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
                     })() : 'TBD'
 
                     const venue = carpet.venue_name_from_fk || carpet.venues?.name || 'TBD'

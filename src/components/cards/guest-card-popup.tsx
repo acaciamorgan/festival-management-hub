@@ -593,7 +593,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
     const ampm = hour24 >= 12 ? 'PM' : 'AM'
     
-    return `${hour12}:${minutes} ${ampm}`
+    return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
   }
 
   const openFilmCard = async (filmTitle: string) => {
@@ -1028,9 +1028,9 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     const hour24 = parseInt(hours, 10)
                     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
                     const ampm = hour24 >= 12 ? 'PM' : 'AM'
-                    return `${hour12}:${minutes} ${ampm}`
+                    return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
                   })() : 'TBD'
-                  
+
                   const venue = carpet.venue_name_from_fk || carpet.venues?.name || 'TBD'
                   const subjects = carpet.subjects_display_combined || 'TBD'
                   
@@ -1065,7 +1065,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     const hour24 = parseInt(hours, 10)
                     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
                     const ampm = hour24 >= 12 ? 'PM' : 'AM'
-                    return `${hour12}:${minutes} ${ampm}`
+                    return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
                   })() : 'TBD'
 
                   // Format end time for program events
@@ -1074,7 +1074,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     const hour24 = parseInt(hours, 10)
                     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
                     const ampm = hour24 >= 12 ? 'PM' : 'AM'
-                    return `${hour12}:${minutes} ${ampm}`
+                    return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
                   })() : null
 
                   const isProgram = event.type === 'program_event'
@@ -1151,7 +1151,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     const hour24 = parseInt(hours, 10)
                     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
                     const ampm = hour24 >= 12 ? 'PM' : 'AM'
-                    return `${hour12}:${minutes} ${ampm}`
+                    return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
                   })() : 'TBD'
 
                   const venue = screening.venue_name || 'TBD'

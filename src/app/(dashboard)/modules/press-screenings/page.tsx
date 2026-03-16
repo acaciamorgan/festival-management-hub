@@ -357,7 +357,7 @@ export default function PressScreeningsPage() {
     const hour24 = parseInt(hours, 10)
     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
     const ampm = hour24 >= 12 ? 'PM' : 'AM'
-    return `${hour12}:${minutes} ${ampm}`
+    return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
   }
 
   const renderEditableCell = (screening: PressScreeningCard, field: string, value: any) => {
@@ -560,7 +560,7 @@ export default function PressScreeningsPage() {
                     }}
                   >
                     {/* Title */}
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['title'] || 200}px` }}>
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['film_title'] || 200}px` }}>
                       <button
                         onClick={() => handleFilmClick(screening)}
                         className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
@@ -585,7 +585,7 @@ export default function PressScreeningsPage() {
                     </td>
                     
                     {/* Runtime */}
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['runtime'] || 100}px` }}>
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['run_time'] || 100}px` }}>
                       {screening.run_time ? `${screening.run_time}min` : '—'}
                     </td>
                     

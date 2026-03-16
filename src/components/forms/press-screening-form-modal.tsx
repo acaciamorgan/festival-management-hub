@@ -153,6 +153,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         film_approved: false,
         locked: false,
         invites_out: false,
+        canceled: false,
         staffer: '',
         notes: '',
         rsvp_form_url: '',

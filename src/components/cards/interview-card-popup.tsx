@@ -168,7 +168,7 @@ export function InterviewCardPopup({ interview, onClose, onEdit, onDelete }: Int
     const hour24 = parseInt(hours, 10)
     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
     const ampm = hour24 >= 12 ? 'PM' : 'AM'
-    return `${hour12}:${minutes} ${ampm}`
+    return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
   }
 
   // Use resolved data from view joins, falling back to cached fields

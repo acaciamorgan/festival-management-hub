@@ -544,7 +544,7 @@ export default function TitlesPage() {
     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24
     const ampm = hour24 >= 12 ? 'PM' : 'AM'
     
-    return `${hour12}:${minutes} ${ampm}`
+    return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
   }
 
   const loadPrograms = useCallback(async () => {

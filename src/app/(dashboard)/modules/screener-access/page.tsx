@@ -484,6 +484,7 @@ export default function ScreenerAccessPage() {
           }}
         >
           <input
+            key={`link-${film.id}`}
             type="url"
             defaultValue={film.screener_data?.link_url || ''}
             onBlur={(e) => {
@@ -505,6 +506,7 @@ export default function ScreenerAccessPage() {
           }}
         >
           <input
+            key={`pwd-${film.id}`}
             type="text"
             defaultValue={film.screener_data?.link_password || ''}
             onBlur={(e) => {
