@@ -201,118 +201,80 @@ export default function ScreenerAccessPage() {
   const loadAllFilms = useCallback(async () => {
     setLoading(true)
     try {
-      // Load all feature films
-      const { data: filmsData, error: filmsError } = await supabase
-        .from('feature_films')
-        .select('id, title')
-        .eq('festival_year', currentYear)
-        .order('title')
+      // Load all feature films, shorts programs, contacts, screener data in parallel
+      const [filmsResult, programsResult, allContactsResult, allScreenersResult, shortsResult] = await Promise.all([
+        supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
+        supabase.from('shorts_programs').select('id, program_name, program_number').eq('festival_year', currentYear).order('program_number'),
+        supabase.from('film_contacts').select('id, film_id, film_type, name, company, email, contact_type').eq('festival_year', currentYear).order('contact_type, name'),
+        supabase.from('screener_access').select('*').eq('festival_year', currentYear),
+        supabase.from('short_films').select('id, shorts_program_id').eq('festival_year', currentYear),
+      ])
 
-      if (filmsError) {
-        console.error('Error loading films:', filmsError)
-      }
+      const filmsData = filmsResult.data
+      const programsData = programsResult.data
+      const allContacts = allContactsResult.data || []
+      const allScreeners = allScreenersResult.data || []
+      const allShorts = shortsResult.data || []
 
-      // Load all shorts programs - using exact field names
-      const { data: programsData, error: programsError } = await supabase
-        .from('shorts_programs')
-        .select('id, program_name, program_number')
-        .eq('festival_year', currentYear)
-        .order('program_number')
-      
-      if (programsError) {
-        console.error('Error loading programs:', programsError)
-      }
+      // Build lookup maps
+      const contactsByFilm = new Map<string, FilmContact[]>()
+      allContacts.forEach(c => {
+        const key = `${c.film_id}-${c.film_type}`
+        if (!contactsByFilm.has(key)) contactsByFilm.set(key, [])
+        contactsByFilm.get(key)!.push({ id: c.id, name: c.name, company: c.company, email: c.email, contact_type: c.contact_type })
+      })
+
+      const screenerByFilm = new Map<string, ScreenerData>()
+      allScreeners.forEach(s => {
+        screenerByFilm.set(s.film_id, s)
+      })
+
+      // Map shorts_program_id to first short's id (for contact lookup)
+      const firstShortByProgram = new Map<string, string>()
+      allShorts.forEach(s => {
+        if (s.shorts_program_id && !firstShortByProgram.has(s.shorts_program_id)) {
+          firstShortByProgram.set(s.shorts_program_id, s.id)
+        }
+      })
 
       const unifiedFilms: UnifiedFilm[] = []
 
       // Process feature films
       if (filmsData) {
-        const filmsWithData = await Promise.all(
-          filmsData.map(async (film) => {
-            // Load film contacts
-            const { data: contactsData } = await supabase
-              .from('film_contacts')
-              .select('id, name, company, email, contact_type')
-              .eq('film_id', film.id)
-              .eq('film_type', 'feature')
-              .eq('festival_year', currentYear)
-              .order('contact_type, name')
-
-            // Load screener data
-            const { data: screenerData } = await supabase
-              .from('screener_access')
-              .select('*')
-              .eq('film_id', film.id)
-              .eq('festival_year', currentYear)
-              .single()
-
-            return {
-              id: film.id,
-              title: film.title,
-              contacts: contactsData || [],
-              screener_data: screenerData || null,
-              isProgram: false
-            }
+        filmsData.forEach(film => {
+          unifiedFilms.push({
+            id: film.id,
+            title: film.title,
+            contacts: contactsByFilm.get(`${film.id}-feature`) || [],
+            screener_data: screenerByFilm.get(film.id) || null,
+            isProgram: false
           })
-        )
-        unifiedFilms.push(...filmsWithData)
+        })
       }
 
       // Process shorts programs
-      if (programsData && programsData.length > 0) {
-        const programsWithData = await Promise.all(
-          programsData.map(async (program) => {
-            // Get the first short from this program to use its contacts
-            const { data: firstShortArr } = await supabase
-              .from('short_films')
-              .select('id')
-              .eq('shorts_program_id', program.id)
-              .limit(1)
-            const firstShort = firstShortArr?.[0] || null
-            
-            let contacts = []
-            if (firstShort) {
-              const { data: contactsData } = await supabase
-                .from('film_contacts')
-                .select('id, name, company, email, contact_type')
-                .eq('film_id', firstShort.id)
-                .eq('film_type', 'short')
-                .eq('festival_year', currentYear)
-                .order('contact_type, name')
-              
-              contacts = contactsData || []
-            }
+      if (programsData) {
+        programsData.forEach(program => {
+          const firstShortId = firstShortByProgram.get(program.id)
+          const contacts = firstShortId ? (contactsByFilm.get(`${firstShortId}-short`) || []) : []
 
-            // Load screener data for the program (using program id as film_id)
-            const { data: screenerData } = await supabase
-              .from('screener_access')
-              .select('*')
-              .eq('film_id', program.id)
-              .eq('festival_year', currentYear)
-              .single()
-
-            return {
-              id: program.id,
-              title: program.program_name,
-              contacts,
-              screener_data: screenerData || null,
-              isProgram: true,
-              program_number: program.program_number
-            }
+          unifiedFilms.push({
+            id: program.id,
+            title: program.program_name,
+            contacts,
+            screener_data: screenerByFilm.get(program.id) || null,
+            isProgram: true,
+            program_number: program.program_number
           })
-        )
-        unifiedFilms.push(...programsWithData)
+        })
       }
 
       // Sort unified films by title, ignoring articles
       const sortedFilms = unifiedFilms.sort((a, b) => {
         const getTitleForSort = (title: string) => {
-          // Remove leading articles for sorting - must match exactly with space
           return title.replace(/^(The |A |An )/i, '').toLowerCase().trim()
         }
-        const aSort = getTitleForSort(a.title)
-        const bSort = getTitleForSort(b.title)
-        return aSort.localeCompare(bSort)
+        return getTitleForSort(a.title).localeCompare(getTitleForSort(b.title))
       })
 
       setAllFilms(sortedFilms)
@@ -324,7 +286,7 @@ export default function ScreenerAccessPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase, currentYear])
+  }, [currentYear])
 
   useEffect(() => {
     loadAllFilms()
@@ -432,7 +394,7 @@ export default function ScreenerAccessPage() {
         .select('id')
         .eq('film_id', filmId)
         .eq('festival_year', currentYear)
-        .single()
+        .maybeSingle()
 
       if (existing) {
         // Update existing record

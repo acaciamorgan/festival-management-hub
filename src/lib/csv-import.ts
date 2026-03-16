@@ -283,7 +283,7 @@ export async function removeFilmAssociations(removals: Array<{guestName: string,
       .from('guests')
       .select('id')
       .eq('name', removal.guestName)
-      .single()
+      .maybeSingle()
 
     if (!guest) {
       errors.push(`Could not find guest ${removal.guestName}`)

@@ -30,7 +30,7 @@ export async function getFestivalYear(currentYear?: number): Promise<string> {
       .eq('is_archived', false)
       .order('year', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (error || !data) {
       console.warn('No festival year found in settings, using current year')

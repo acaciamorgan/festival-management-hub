@@ -141,7 +141,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
         .select('*')
         .eq('name', guestName)
         .eq('festival_year', parseInt(festivalYear, 10))
-        .single()
+        .maybeSingle()
 
       if (error || !guestData) {
         console.warn('Guest not found in database:', guestName)
@@ -230,7 +230,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
           .select('shorts_program_id')
           .eq('title', film.title)
           .eq('festival_year', parseInt(festivalYear, 10))
-          .single()
+          .maybeSingle()
 
         if (shortFilm && shortFilm.shorts_program_id) {
           shortsProgramId = shortFilm.shorts_program_id
@@ -238,7 +238,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
             .from('shorts_programs')
             .select('program_name')
             .eq('id', shortFilm.shorts_program_id)
-            .single()
+            .maybeSingle()
 
           if (shortsProgram) {
             shortsProgramName = shortsProgram.program_name
@@ -352,7 +352,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               .from('feature_films')
               .select('id')
               .eq('id', film.id)
-              .single()
+              .maybeSingle()
 
             let filmType: 'feature' | 'short' = 'feature'
             
@@ -406,7 +406,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
               .select('id, shorts_program_id')
               .eq('title', film.title)
               .eq('festival_year', parseInt(festivalYear, 10))
-              .single()
+              .maybeSingle()
 
             if (!shortFilmError && shortFilm && shortFilm.shorts_program_id) {
 
@@ -415,7 +415,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                 .from('shorts_programs')
                 .select('id, program_name')
                 .eq('id', shortFilm.shorts_program_id)
-                .single()
+                .maybeSingle()
 
               if (!shortsProgramError && shortsProgram) {
                 // Find guests associated with this shorts program via guest_films junction
@@ -545,7 +545,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
           .select('*')
           .eq('film_id', film.id)
           .eq('festival_year', parseInt(festivalYear, 10))
-          .single()
+          .maybeSingle()
 
         if (!screenerError && screenerAccessData) {
           setScreenerData(screenerAccessData)
@@ -588,7 +588,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                 .from('short_films')
                 .select('shorts_program_id')
                 .eq('id', film.id)
-                .single()
+                .maybeSingle()
 
               if (shortFilm?.shorts_program_id) {
                 const { data: programScreenings } = await supabase
@@ -641,7 +641,7 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
                       venues!inner(name)
                     `)
                     .eq('short_code', screening.venue_short_code)
-                    .single()
+                    .maybeSingle()
 
                   if (houseData?.venues?.name) {
                     return { ...screening, venue_name: houseData.venues.name }

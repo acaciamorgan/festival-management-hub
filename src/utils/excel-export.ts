@@ -151,7 +151,7 @@ export async function exportFestivalToExcel(options: ExportOptions = {}) {
       .from('festival_settings')
       .select('*')
       .eq('year', festivalYear)
-      .single()
+      .maybeSingle()
 
     console.log('Festival settings:', settingsError ? 'ERROR: ' + settingsError.message : 'SUCCESS')
 
@@ -511,8 +511,8 @@ export async function exportArchivedYear(year: number) {
       .from('festival_settings')
       .select('*')
       .eq('year', year)
-      .single()
-    
+      .maybeSingle()
+
     if (!festivalYear) {
       throw new Error(`No archived data found for year ${year}`)
     }

@@ -392,7 +392,7 @@ export default function RedCarpetsPage() {
         .select(selectFields)
         .eq('id', filmId)
         .eq('festival_year', currentYear)
-        .single()
+        .maybeSingle()
 
       if (error || !data) {
         console.warn('Film not found:', filmId, filmType)
@@ -415,7 +415,7 @@ export default function RedCarpetsPage() {
         .select('*')
         .eq('id', guestId)
         .eq('festival_year', currentYear)
-        .single()
+        .maybeSingle()
 
       if (error || !data) {
         console.warn('Guest not found:', guestId)

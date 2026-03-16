@@ -38,7 +38,7 @@ export default function FestivalOverviewArchive({ archiveYear }: FestivalOvervie
       const { data, error } = await supabase
         .from(`archive_${archiveYear}_festival_settings`)
         .select('*')
-        .single()
+        .maybeSingle()
 
       if (error && error.code === 'PGRST116') {
         // No data found - this is expected if nothing was archived yet

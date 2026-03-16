@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       .from('user_permissions')
       .select('user_id, user_email')
       .eq('user_email', email)
-      .single()
+      .maybeSingle()
 
     if (userError || !existingUser) {
       return NextResponse.json({ error: 'No account found with this email address' }, { status: 404 })

@@ -206,7 +206,7 @@ export default function InterviewManagementPage() {
           .select('*')
           .eq('id', interview.film_id)
           .eq('festival_year', currentYear)
-          .single()
+          .maybeSingle()
 
         if (!error && data) filmData = data
       } else if (interview.short_film_id) {
@@ -215,7 +215,7 @@ export default function InterviewManagementPage() {
           .select('*')
           .eq('id', interview.short_film_id)
           .eq('festival_year', currentYear)
-          .single()
+          .maybeSingle()
 
         if (!error && data) filmData = data
       } else if (interview.shorts_program_id) {
@@ -224,7 +224,7 @@ export default function InterviewManagementPage() {
           .select('*')
           .eq('id', interview.shorts_program_id)
           .eq('festival_year', currentYear)
-          .single()
+          .maybeSingle()
 
         if (!error && data) filmData = data
       } else if (interview.program_id) {
@@ -233,7 +233,7 @@ export default function InterviewManagementPage() {
           .select('*')
           .eq('id', interview.program_id)
           .eq('festival_year', currentYear)
-          .single()
+          .maybeSingle()
 
         if (!error && data) filmData = data
       }
@@ -257,7 +257,7 @@ export default function InterviewManagementPage() {
         .select('*')
         .eq('id', interview.press_id)
         .eq('festival_year', currentYear)
-        .single()
+        .maybeSingle()
 
       if (error) throw error
 
@@ -342,7 +342,7 @@ export default function InterviewManagementPage() {
         query = query.eq('name', guestName)
       }
 
-      const { data: guestData, error } = await query.single()
+      const { data: guestData, error } = await query.maybeSingle()
 
       if (error || !guestData) {
         console.warn('Guest not found in database:', guestId || guestName)

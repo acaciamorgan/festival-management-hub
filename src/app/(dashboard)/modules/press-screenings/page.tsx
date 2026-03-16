@@ -182,8 +182,8 @@ export default function PressScreeningsPage() {
           .select('*')
           .eq('id', screening.film_id)
           .eq('festival_year', currentYear)
-          .single()
-        
+          .maybeSingle()
+
         if (featureData) {
           filmData = {
             id: featureData.id,
@@ -202,7 +202,7 @@ export default function PressScreeningsPage() {
           .select('*')
           .eq('id', screening.film_id)
           .eq('festival_year', currentYear)
-          .single()
+          .maybeSingle()
         
         if (shortData) {
           filmData = {

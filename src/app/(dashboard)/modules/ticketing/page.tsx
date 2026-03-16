@@ -1124,7 +1124,7 @@ export default function TicketingPage() {
         .from('festival_settings')
         .select('*')
         .eq('year', currentYear)
-        .single()
+        .maybeSingle()
 
       if (error && error.code !== 'PGRST116') throw error
 
@@ -1283,7 +1283,7 @@ export default function TicketingPage() {
             .select('run_time')
             .eq('id', screening.film_id)
             .eq('festival_year', currentYear)
-            .single()
+            .maybeSingle()
           if (film?.run_time) runtime = film.run_time
         }
 
@@ -1759,7 +1759,7 @@ export default function TicketingPage() {
             .eq('start_time', formattedTime)
             .eq('venue_short_code', location || '')
             .eq('festival_year', currentYear)
-            .single()
+            .maybeSingle()
 
           if (duplicateCheckError && duplicateCheckError.code !== 'PGRST116') {
             console.error('Duplicate check error:', duplicateCheckError)
@@ -1938,7 +1938,7 @@ export default function TicketingPage() {
             .from('feature_films')
             .select('*')
             .eq('id', screening.film_id)
-            .single()
+            .maybeSingle()
 
           if (featureData) {
             filmData = {
@@ -1957,7 +1957,7 @@ export default function TicketingPage() {
             .from('short_films')
             .select('*')
             .eq('id', screening.film_id)
-            .single()
+            .maybeSingle()
 
           if (shortData) {
             filmData = {
@@ -1976,7 +1976,7 @@ export default function TicketingPage() {
             .from('shorts_programs')
             .select('*')
             .eq('id', screening.film_id)
-            .single()
+            .maybeSingle()
 
           if (programData) {
             filmData = {
@@ -1995,7 +1995,7 @@ export default function TicketingPage() {
           .select('*')
           .eq('title', screening.film_title)
           .eq('festival_year', currentYear)
-          .single()
+          .maybeSingle()
 
         if (featureMatch) {
           filmData = {
@@ -2015,7 +2015,7 @@ export default function TicketingPage() {
             .select('*')
             .eq('program_name', screening.film_title)
             .eq('festival_year', currentYear)
-            .single()
+            .maybeSingle()
 
           if (programMatch) {
             filmData = {

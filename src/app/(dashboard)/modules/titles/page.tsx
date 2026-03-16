@@ -380,7 +380,7 @@ export default function TitlesPage() {
         .select('*')
         .eq('name', guestName)
         .eq('festival_year', currentYear)
-        .single()
+        .maybeSingle()
 
       if (error || !guestData) {
         console.warn('Guest not found in database:', guestName)
@@ -675,8 +675,8 @@ export default function TitlesPage() {
           .select('id')
           .eq('title', program.program_name)
           .eq('festival_year', currentYear)
-          .single()
-        
+          .maybeSingle()
+
         const filmData = {
           title: program.program_name,
           source: 'Shorts Program',
@@ -860,7 +860,7 @@ export default function TitlesPage() {
     }
   }
 
-  // Filtering and sorting
+  // Filtering and sorting for films/shorts
   const applyFiltersAndSort = useMemo(() => {
     const currentData = viewMode === 'features' ? films : shorts
     const filtered = currentData.filter(item => {
@@ -873,24 +873,24 @@ export default function TitlesPage() {
           item.sound_designer, item.music_score, item.producer,
           item.executive_producer, item.production_companies
         ]
-        
+
         const accentInsensitiveFilter = createAccentInsensitiveFilter(
           searchTerm,
           () => searchableFields
         )
-        
+
         if (!accentInsensitiveFilter(item)) return false
       }
-      
+
       // Program filter
       if (selectedProgram) {
-        const programFields = viewMode === 'features' 
+        const programFields = viewMode === 'features'
           ? [(item as FeatureFilm).program_1, (item as FeatureFilm).program_2, (item as FeatureFilm).program_3, (item as FeatureFilm).program_4]
           : [(item as ShortFilm).program_1, (item as ShortFilm).program_2, (item as ShortFilm).program_3]
         const hasProgram = programFields.some(program => program === selectedProgram)
         if (!hasProgram) return false
       }
-      
+
       // Genre filter
       if (selectedGenre) {
         const genreFields = viewMode === 'features'
@@ -899,38 +899,63 @@ export default function TitlesPage() {
         const hasGenre = genreFields.some(genre => genre === selectedGenre)
         if (!hasGenre) return false
       }
-      
+
       // Premiere status filter
       if (selectedPremiereStatus && item.premiere_status !== selectedPremiereStatus) {
         return false
       }
-      
+
       return true
     })
 
     // Apply sorting
     if (sortConfig) {
-      console.log('Applying sort:', sortConfig.key, sortConfig.direction)
       filtered.sort((a, b) => {
         const aVal = a[sortConfig.key as keyof (FeatureFilm | ShortFilm)]
         const bVal = b[sortConfig.key as keyof (FeatureFilm | ShortFilm)]
-        
-        if (sortConfig.key === 'title') {
-          console.log('Sorting titles:', aVal, 'vs', bVal)
-        }
-        
+
         const aNorm = normalizeForSort(aVal?.toString())
         const bNorm = normalizeForSort(bVal?.toString())
-        
+
         if (aNorm < bNorm) return sortConfig.direction === 'asc' ? -1 : 1
         if (aNorm > bNorm) return sortConfig.direction === 'asc' ? 1 : -1
         return 0
       })
-      console.log('Sorted result sample:', filtered.slice(0, 3).map(f => f.title))
     }
 
     return filtered
   }, [films, shorts, searchTerm, selectedProgram, selectedGenre, selectedPremiereStatus, sortConfig, viewMode])
+
+  // Filtering and sorting for programs view
+  const applyProgramsFilterAndSort = useMemo(() => {
+    const filtered = programs.filter(program => {
+      if (searchTerm) {
+        const searchableFields = [
+          program.title, program.venue_name, program.participants, program.description
+        ]
+        const accentInsensitiveFilter = createAccentInsensitiveFilter(
+          searchTerm,
+          () => searchableFields
+        )
+        if (!accentInsensitiveFilter(program)) return false
+      }
+      return true
+    })
+
+    if (sortConfig) {
+      filtered.sort((a, b) => {
+        const aVal = a[sortConfig.key as keyof ProgramCard]
+        const bVal = b[sortConfig.key as keyof ProgramCard]
+        const aNorm = normalizeForSort(aVal?.toString())
+        const bNorm = normalizeForSort(bVal?.toString())
+        if (aNorm < bNorm) return sortConfig.direction === 'asc' ? -1 : 1
+        if (aNorm > bNorm) return sortConfig.direction === 'asc' ? 1 : -1
+        return 0
+      })
+    }
+
+    return filtered
+  }, [programs, searchTerm, sortConfig])
 
   const handleSort = (key: string) => {
     setSortConfig(current => {
@@ -951,8 +976,10 @@ export default function TitlesPage() {
       setFilteredFilms(applyFiltersAndSort as FeatureFilm[])
     } else if (viewMode === 'shorts') {
       setFilteredShorts(applyFiltersAndSort as ShortFilm[])
+    } else if (viewMode === 'programs') {
+      setFilteredPrograms(applyProgramsFilterAndSort)
     }
-  }, [applyFiltersAndSort, viewMode])
+  }, [applyFiltersAndSort, applyProgramsFilterAndSort, viewMode])
 
   const parseCSV = (text: string): string[][] => {
     const rows: string[][] = []
@@ -1508,7 +1535,7 @@ export default function TitlesPage() {
         .select('*')
         .eq('title', shortData.title)
         .eq('festival_year', currentYear)
-        .single()
+        .maybeSingle()
 
       if (findError && findError.code !== 'PGRST116') {
         console.error('Error finding existing short:', findError)
@@ -1703,8 +1730,8 @@ export default function TitlesPage() {
             .select('id')
             .eq('program_name', shortsProgramName)
             .eq('festival_year', currentYear)
-            .single()
-          
+            .maybeSingle()
+
           if (existingProgram) {
             programCache[shortsProgramName] = existingProgram.id
           } else {

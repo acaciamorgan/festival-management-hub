@@ -14,7 +14,7 @@ export async function loadScreeningBoardSettings(): Promise<ScreeningBoardSettin
     const { data, error } = await supabase
       .from('screening_board_settings')
       .select('setting_value')
-      .single()
+      .maybeSingle()
 
     if (error) {
       // Table might not exist yet, or no settings saved
@@ -49,7 +49,7 @@ export async function saveScreeningBoardSettings(settings: ScreeningBoardSetting
     const { data: existing } = await supabase
       .from('screening_board_settings')
       .select('id')
-      .single()
+      .maybeSingle()
 
     if (existing) {
       // Update existing record

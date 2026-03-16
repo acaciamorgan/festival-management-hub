@@ -41,7 +41,7 @@ export async function getFestivalYear(year: number): Promise<FestivalYear | null
     .from('festival_settings')
     .select('*')
     .eq('year', year)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Error fetching festival year:', error)
@@ -62,7 +62,7 @@ export async function getCurrentFestivalYear(): Promise<FestivalYear | null> {
     .eq('is_archived', false)
     .order('year', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Error fetching current festival year:', error)

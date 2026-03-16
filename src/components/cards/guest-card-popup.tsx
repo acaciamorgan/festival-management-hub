@@ -175,14 +175,14 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                       .select('shorts_program_id')
                       .eq('title', gf.film_title)
                       .eq('festival_year', fyInt)
-                      .single()
+                      .maybeSingle()
 
                     if (shortFilm && shortFilm.shorts_program_id) {
                       const { data: shortsProgram } = await supabase
                         .from('shorts_programs')
                         .select('program_name')
                         .eq('id', shortFilm.shorts_program_id)
-                        .single()
+                        .maybeSingle()
 
                       if (shortsProgram) return shortsProgram.program_name
                     }
@@ -242,7 +242,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                           venues!inner(name)
                         `)
                         .eq('short_code', screening.venue_short_code)
-                        .single()
+                        .maybeSingle()
 
                       if (houseData?.venues?.name) {
                         return { ...screening, venue_name: houseData.venues.name, type: 'screening' }
@@ -315,7 +315,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                           venues!inner(name)
                         `)
                         .eq('short_code', screening.venue_short_code)
-                        .single()
+                        .maybeSingle()
 
                       if (houseData?.venues?.name) {
                         return { ...screening, venue_name: houseData.venues.name, type: 'screening' }
@@ -398,14 +398,14 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                     .select('shorts_program_id')
                     .eq('title', gf.film_title)
                     .eq('festival_year', fyInt)
-                    .single()
+                    .maybeSingle()
 
                   if (shortFilm && shortFilm.shorts_program_id) {
                     const { data: shortsProgram } = await supabase
                       .from('shorts_programs')
                       .select('program_name')
                       .eq('id', shortFilm.shorts_program_id)
-                      .single()
+                      .maybeSingle()
 
                     if (shortsProgram) {
                       allTitles.push(shortsProgram.program_name)
@@ -605,7 +605,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
         .select('*')
         .eq('title', filmTitle)
         .eq('festival_year', parseInt(festivalYear, 10))
-        .single()
+        .maybeSingle()
 
       if (error) {
         // If not found in feature films, try short films
@@ -614,7 +614,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           .select('*')
           .eq('title', filmTitle)
           .eq('festival_year', parseInt(festivalYear, 10))
-          .single()
+          .maybeSingle()
 
         if (shortError) {
           // If not found in films, try programs
@@ -623,7 +623,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
             .select('*')
             .eq('title', filmTitle)
             .eq('festival_year', parseInt(festivalYear, 10))
-            .single()
+            .maybeSingle()
 
           if (programError) {
             console.warn('Title not found in database:', filmTitle)

@@ -770,7 +770,7 @@ export default function SpecialEventsPage() {
         .from(tableName)
         .select('*')
         .eq('id', filmId)
-        .single()
+        .maybeSingle()
 
       if (error || !data) {
         console.warn('Film not found:', filmId, filmType)
@@ -791,7 +791,7 @@ export default function SpecialEventsPage() {
         .from('guests')
         .select('*')
         .eq('id', guestId)
-        .single()
+        .maybeSingle()
 
       if (error || !data) {
         console.warn('Guest not found:', guestId)

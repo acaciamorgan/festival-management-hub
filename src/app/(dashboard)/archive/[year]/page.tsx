@@ -45,8 +45,8 @@ export default function ArchiveBrowserPage() {
         .from('festival_settings')
         .select('*')
         .eq('year', year)
-        .single()
-      
+        .maybeSingle()
+
       if (error) throw error
       
       if (!data) {

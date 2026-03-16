@@ -1082,7 +1082,7 @@ export default function InAttendancePage() {
                 .select('id')
                 .eq('name', guestName)
                 .eq('festival_year', currentYear)
-                .single()
+                .maybeSingle()
 
               if (!findError && existingGuest) {
                 // Delete all associated records first

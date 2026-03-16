@@ -97,7 +97,7 @@ export default function FestivalOverviewPage() {
         .from('festival_settings')
         .select('*')
         .eq('year', currentYear)
-        .single()
+        .maybeSingle()
 
       if (error && error.code !== 'PGRST116') { // Not found error
         throw error

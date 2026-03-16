@@ -718,7 +718,7 @@ export default function ContactsPage() {
                   .eq('contact_id', contact.id)
                   .eq('contact_type', role)
                   .eq('festival_year', currentYear)
-                  .single()
+                  .maybeSingle()
 
                 if (!existing) {
                   // Only insert if it doesn't exist

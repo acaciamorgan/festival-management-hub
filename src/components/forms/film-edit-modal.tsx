@@ -434,7 +434,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
             .select('*')
             .eq('contact_email', contact.email.trim())
             .eq('festival_year', currentYear)
-            .single()
+            .maybeSingle()
 
           existingContact = existing
         }
@@ -446,7 +446,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
             .select('*')
             .eq('contact_name', contact.name.trim())
             .eq('festival_year', currentYear)
-            .single()
+            .maybeSingle()
 
           existingContact = existing
         }

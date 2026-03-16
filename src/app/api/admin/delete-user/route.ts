@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       .from('user_permissions')
       .select('is_admin, is_super_admin, id')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (permError || !requesterPermissions?.is_admin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       .from('user_permissions')
       .select('is_super_admin, user_id, id, user_email')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
 
     if (targetError) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })

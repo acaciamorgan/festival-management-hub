@@ -92,7 +92,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
         .select('*')
         .eq('festival_year', currentYear)
         .eq('program_name', filmTitle)
-        .single()
+        .maybeSingle()
 
       console.log('DEBUG: Shorts program check result:', programData)
 
@@ -118,7 +118,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
           .select('*')
           .eq('festival_year', currentYear)
           .eq('title', filmTitle)
-          .single()
+          .maybeSingle()
 
         console.log('DEBUG: Short film check for', filmTitle, shortFilmData, shortFilmError)
 
@@ -186,7 +186,7 @@ export default function FilmDetailModal({ filmTitle, isOpen, onClose }: FilmDeta
             .select('*')
             .eq('festival_year', currentYear)
             .eq('title', filmTitle)
-            .single()
+            .maybeSingle()
 
           console.log('DEBUG: Feature film data:', filmData)
           setFilm(filmData)

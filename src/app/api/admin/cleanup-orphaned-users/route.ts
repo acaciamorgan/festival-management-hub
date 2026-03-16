@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       .from('user_permissions')
       .select('is_super_admin')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (permError || !requesterPermissions?.is_super_admin) {
       return NextResponse.json({ error: 'Super admin access required' }, { status: 403 })

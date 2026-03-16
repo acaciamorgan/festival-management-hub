@@ -197,7 +197,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
             .from('special_events')
             .select('film_program_description, guests_description')
             .eq('id', event.id)
-            .single(),
+            .maybeSingle(),
         ])
 
         // Build film chips from junction data

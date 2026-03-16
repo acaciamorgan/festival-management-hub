@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       .from('user_permissions')
       .select('*')
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()
 
     let data = initialData
 
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         .from('user_permissions')
         .select('*')
         .eq('user_email', email)
-        .single()
+        .maybeSingle()
 
       if (emailError) {
         return NextResponse.json({
