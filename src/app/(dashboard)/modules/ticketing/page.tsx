@@ -1395,7 +1395,7 @@ export default function TicketingPage() {
       // Batch-load all short films with their program IDs and runtimes in one query
       const { data: allShorts } = await supabase
         .from('short_films')
-        .select('shorts_program_id, runtime_minutes')
+        .select('shorts_program_id, run_time')
         .eq('festival_year', currentYear)
 
       // Group runtimes by shorts_program_id
@@ -1403,7 +1403,7 @@ export default function TicketingPage() {
       for (const short of allShorts || []) {
         if (short.shorts_program_id) {
           const current = runtimeByProgram.get(short.shorts_program_id) || 0
-          runtimeByProgram.set(short.shorts_program_id, current + (short.runtime_minutes || 0))
+          runtimeByProgram.set(short.shorts_program_id, current + (short.run_time || 0))
         }
       }
 
@@ -1470,7 +1470,7 @@ export default function TicketingPage() {
       // Batch-load all short films with their program IDs and runtimes in one query
       const { data: allShorts } = await supabase
         .from('short_films')
-        .select('shorts_program_id, runtime_minutes')
+        .select('shorts_program_id, run_time')
         .eq('festival_year', currentYear)
 
       // Group runtimes by shorts_program_id
@@ -1478,7 +1478,7 @@ export default function TicketingPage() {
       for (const short of allShorts || []) {
         if (short.shorts_program_id) {
           const current = runtimeByProgram.get(short.shorts_program_id) || 0
-          runtimeByProgram.set(short.shorts_program_id, current + (short.runtime_minutes || 0))
+          runtimeByProgram.set(short.shorts_program_id, current + (short.run_time || 0))
         }
       }
 
@@ -2360,9 +2360,9 @@ export default function TicketingPage() {
     if (!debouncedSearchTerm) return currentData
 
     return currentData.filter(screening =>
-      screening.film_title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      screening.venue_short_code.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      screening.day_of_week.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      screening.film_title?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      screening.venue_short_code?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      screening.day_of_week?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
       screening.notes?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
     )
   }, [debouncedSearchTerm, publishedScreenings, piJuryScreenings, techCheckScreenings, viewMode])
