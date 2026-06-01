@@ -279,6 +279,7 @@ export async function removeFilmAssociations(removals: Array<{guestName: string,
       .from('guests')
       .select('id')
       .eq('name', removal.guestName)
+      .eq('festival_year', fyInt)
       .maybeSingle()
 
     if (!guest) {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { VenueCard, TheaterHouse, VenueType } from '@/types'
+import { useFestivalYear } from '@/components/providers/festival-year-provider'
 
 interface VenueFormModalProps {
   venue?: VenueCard | null
@@ -22,7 +23,9 @@ interface VenueFormData {
   houses: TheaterHouse[]
 }
 
-export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear }: VenueFormModalProps) {
+export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: currentYearProp }: VenueFormModalProps) {
+  const { currentYear: currentYearCtx } = useFestivalYear()
+  const currentYear = currentYearProp ?? currentYearCtx
   const [formData, setFormData] = useState<VenueFormData>({
     name: '',
     address: '',

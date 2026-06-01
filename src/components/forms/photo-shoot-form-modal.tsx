@@ -112,7 +112,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
           supabase.from('short_films').select('id, title').eq('festival_year', currentYear).order('title'),
           supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear).order('program_name'),
           supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
-          supabase.from('venues').select('*').order('name'),
+          supabase.from('venues').select('*').eq('festival_year', currentYear).order('name'),
         ])
 
         // Build unified film options
