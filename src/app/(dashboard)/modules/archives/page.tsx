@@ -104,6 +104,9 @@ export default function ArchivesPage() {
         message: `Successfully created ${newYear} festival year!`
       })
 
+      // Clear saved year preference so all users default to the new year
+      localStorage.removeItem('festival_selected_year')
+
       // Refresh the year list
       await refreshYears()
 

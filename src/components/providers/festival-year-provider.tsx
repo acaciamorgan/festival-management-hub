@@ -51,13 +51,17 @@ export function FestivalYearProvider({ children }: { children: ReactNode }) {
       if (data && data.length > 0) {
         setAvailableYears(data)
 
+        const newestYear = data[0].year
+
         // Try to load saved year from localStorage
         if (typeof window !== 'undefined') {
           const savedYear = localStorage.getItem(STORAGE_KEY)
           if (savedYear) {
             const yearNum = parseInt(savedYear)
-            // Only use saved year if it exists in available years
-            if (data.some(y => y.year === yearNum)) {
+            // Clear stale preference if a newer year has been created
+            if (yearNum < newestYear) {
+              localStorage.removeItem(STORAGE_KEY)
+            } else if (data.some(y => y.year === yearNum)) {
               setCurrentYearState(yearNum)
               return
             }
@@ -65,7 +69,7 @@ export function FestivalYearProvider({ children }: { children: ReactNode }) {
         }
 
         // Default to newest year (first in list since ordered DESC)
-        setCurrentYearState(data[0].year)
+        setCurrentYearState(newestYear)
       }
     } catch (error) {
       console.error('Error loading festival years:', error)
