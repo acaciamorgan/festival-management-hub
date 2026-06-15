@@ -11,6 +11,7 @@ import { GuestFormModal } from '@/components/forms/guest-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { ProgramCardPopup } from '@/components/cards/program-card-popup'
 import { parseCSVContent, importGuestsFromCSV, removeFilmAssociations } from '@/lib/csv-import'
+import { fetchFieldChanges, getCellHighlightClass } from '@/lib/field-changes'
 import { FilmRemovalDialog } from '@/components/import/film-removal-dialog'
 import { TitleMappingConfirmation } from '@/components/TitleMappingConfirmation'
 import { saveTitleMappings } from '@/lib/title-mappings'
@@ -48,6 +49,7 @@ export default function InAttendancePage() {
   const [pendingTitleMappings, setPendingTitleMappings] = useState<Array<{csvTitle: string, suggestedMatch?: string, confidence?: number}> | null>(null)
   const [pendingCSVRows, setPendingCSVRows] = useState<any[] | null>(null)
   const [editingScreenings, setEditingScreenings] = useState<Set<string>>(new Set())
+  const [fieldChangesMap, setFieldChangesMap] = useState<Map<string, Set<string>>>(new Map())
 
   const supabase = createClient()
 
@@ -432,6 +434,11 @@ export default function InAttendancePage() {
 
       setGuests(guestsWithFilmsAndScreenings)
       setFilteredGuests(guestsWithFilmsAndScreenings)
+
+      // Fetch field-level changes for highlighting
+      const guestIds = (guestsData || []).map((g: any) => g.id)
+      const changes = await fetchFieldChanges('guests', guestIds, currentYear)
+      setFieldChangesMap(changes)
     } catch (error) {
       console.error('Error loading guests:', error)
     } finally {
@@ -1562,12 +1569,14 @@ export default function InAttendancePage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredGuests.map((guest) => (
+              {filteredGuests.map((guest) => {
+                const hl = (field: string) => getCellHighlightClass(fieldChangesMap, guest.id, field)
+                return (
                 <tr
                   key={guest.id}
                   className="hover:bg-gray-50"
                 >
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-0 bg-white z-10" style={{ minWidth: `${columnWidths['name'] || 150}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-0 z-10 ${hl('name') || 'bg-white'}`} style={{ minWidth: `${columnWidths['name'] || 150}px` }}>
                     <button
                       onClick={() => setShowGuestCard(guest)}
                       className="text-left hover:text-blue-600 hover:underline"
@@ -1575,16 +1584,16 @@ export default function InAttendancePage() {
                       {guest.name}
                     </button>
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['role'] || 120}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('role')}`} style={{ minWidth: `${columnWidths['role'] || 120}px` }}>
                     {guest.role || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['films_display'] || 200}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('films_display')}`} style={{ minWidth: `${columnWidths['films_display'] || 200}px` }}>
                     {renderFilmTitles(guest.films_display)}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['appearing_at_screenings'] || 250}px` }}>
                     {renderScreeningAttendance(guest)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center" style={{ minWidth: `${columnWidths['checked_in'] || 80}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center ${hl('checked_in')}`} style={{ minWidth: `${columnWidths['checked_in'] || 80}px` }}>
                     <input
                       type="checkbox"
                       checked={guest.checked_in}
@@ -1596,64 +1605,64 @@ export default function InAttendancePage() {
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:cursor-not-allowed"
                     />
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guest_type'] || 100}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('guest_type')}`} style={{ minWidth: `${columnWidths['guest_type'] || 100}px` }}>
                     {guest.guest_type}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arranging_travel'] || 80}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arranging_travel')}`} style={{ minWidth: `${columnWidths['arranging_travel'] || 80}px` }}>
                     {guest.arranging_travel || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['country'] || 100}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('country')}`} style={{ minWidth: `${columnWidths['country'] || 100}px` }}>
                     {guest.country || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_date'] || 100}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_date')}`} style={{ minWidth: `${columnWidths['arrival_date'] || 100}px` }}>
                     {formatDate(guest.arrival_date)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_airline'] || 100}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_airline')}`} style={{ minWidth: `${columnWidths['arrival_airline'] || 100}px` }}>
                     {guest.arrival_airline || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_flight_number'] || 80}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_flight_number')}`} style={{ minWidth: `${columnWidths['arrival_flight_number'] || 80}px` }}>
                     {guest.arrival_flight_number || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['inbound_departure_time'] || 100}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('inbound_departure_time')}`} style={{ minWidth: `${columnWidths['inbound_departure_time'] || 100}px` }}>
                     {formatTime(guest.inbound_departure_time)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_origin_airport'] || 80}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_origin_airport')}`} style={{ minWidth: `${columnWidths['arrival_origin_airport'] || 80}px` }}>
                     {guest.arrival_origin_airport || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['arrival_airport'] || 100}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_airport')}`} style={{ minWidth: `${columnWidths['arrival_airport'] || 100}px` }}>
                     {guest.arrival_airport || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['inbound_arrival_time'] || 100}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('inbound_arrival_time')}`} style={{ minWidth: `${columnWidths['inbound_arrival_time'] || 100}px` }}>
                     {formatTime(guest.inbound_arrival_time)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_date'] || 100}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('departure_date')}`} style={{ minWidth: `${columnWidths['departure_date'] || 100}px` }}>
                     {formatDate(guest.departure_date)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['outbound_departure_time'] || 100}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('outbound_departure_time')}`} style={{ minWidth: `${columnWidths['outbound_departure_time'] || 100}px` }}>
                     {formatTime(guest.outbound_departure_time)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_airline'] || 100}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('departure_airline')}`} style={{ minWidth: `${columnWidths['departure_airline'] || 100}px` }}>
                     {guest.departure_airline || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_flight_number'] || 80}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('departure_flight_number')}`} style={{ minWidth: `${columnWidths['departure_flight_number'] || 80}px` }}>
                     {guest.departure_flight_number || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['departure_airport'] || 100}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('departure_airport')}`} style={{ minWidth: `${columnWidths['departure_airport'] || 100}px` }}>
                     {guest.departure_airport || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['destination_airport'] || 100}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('destination_airport')}`} style={{ minWidth: `${columnWidths['destination_airport'] || 100}px` }}>
                     {guest.destination_airport || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['outbound_arrival_time'] || 100}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('outbound_arrival_time')}`} style={{ minWidth: `${columnWidths['outbound_arrival_time'] || 100}px` }}>
                     {formatTime(guest.outbound_arrival_time)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['hotel_name'] || 120}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('hotel_name')}`} style={{ minWidth: `${columnWidths['hotel_name'] || 120}px` }}>
                     {guest.hotel_name || '—'}
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-600 border-r border-gray-100" style={{ minWidth: `${columnWidths['notes'] || 200}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-600 border-r border-gray-100 ${hl('notes')}`} style={{ minWidth: `${columnWidths['notes'] || 200}px` }}>
                     <div className="text-xs truncate" title={guest.notes || ''}>{guest.notes || '—'}</div>
                   </td>
-                  <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['confirmed'] || 80}px` }}>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('confirmed')}`} style={{ minWidth: `${columnWidths['confirmed'] || 80}px` }}>
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       guest.confirmed 
                         ? 'bg-green-100 text-green-800' 
@@ -1676,7 +1685,7 @@ export default function InAttendancePage() {
                     </td>
                   )}
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         )}

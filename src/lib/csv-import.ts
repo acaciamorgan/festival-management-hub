@@ -3,6 +3,7 @@ import { GuestCard, GuestType } from '@/types'
 import { getFestivalYear, parseSmartDate } from '@/lib/smart-date-parser'
 import { findBestTitleMatch, normalizeTitle } from '@/lib/title-utils'
 import { isCSVRowStrikethrough } from '@/lib/excel-utils'
+import { detectChangedFields, logFieldChanges } from '@/lib/field-changes'
 
 // Normalize names by removing accents and special characters for matching
 function normalizeName(name: string): string {
@@ -585,6 +586,11 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
             continue
           }
           savedGuest = updatedGuest
+
+          // Log field-level changes for highlighting
+          const trackedFields = Object.keys(updateData).filter(f => f !== 'updated_at' && f !== 'festival_year')
+          const changed = detectChangedFields(existingGuest, updateData, trackedFields)
+          await logFieldChanges('guests', existingGuest.id, changed, festivalYearInt)
 
         } else {
           // Create new guest

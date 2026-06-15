@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { FilmContact, FilmContactType } from '@/types'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
+import { detectChangedFields, logFieldChanges } from '@/lib/field-changes'
 
 interface FeatureFilm {
   id: string
@@ -97,6 +98,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
   const [formData, setFormData] = useState<FeatureFilm | ShortFilm>({} as FeatureFilm | ShortFilm)
   const [filmContacts, setFilmContacts] = useState<FilmContact[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const originalFilmRef = useRef<Record<string, unknown> | null>(null)
   const [position, setPosition] = useState({ x: 100, y: 100 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -115,6 +117,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
   useEffect(() => {
     if (film && isOpen) {
       setSelectedShortsPrograms({})
+      originalFilmRef.current = { ...film }
       setFormData({ ...film })
       loadFilmContacts()
       loadAvailableContacts()
@@ -316,6 +319,14 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
         if (publishedError) {
           console.error('Failed to update published_screenings:', publishedError)
         }
+
+        // Log field-level changes for highlighting
+        if (originalFilmRef.current) {
+          const trackedFields = Object.keys(updateData)
+          const changed = detectChangedFields(originalFilmRef.current, updateData, trackedFields)
+          await logFieldChanges(tableName, film.id, changed, currentYear)
+        }
+
         onSave()
       }
     } catch (error) {

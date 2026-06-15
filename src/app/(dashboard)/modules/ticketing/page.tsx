@@ -10,6 +10,7 @@ import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
 import { loadScreeningBoardSettings, saveScreeningBoardSettings } from '@/lib/screening-board-settings'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { isCSVRowStrikethrough } from '@/lib/excel-utils'
+import { detectChangedFields, logFieldChanges, fetchFieldChanges, getCellHighlightClass } from '@/lib/field-changes'
 import * as XLSX from 'xlsx-js-style'
 
 // Helper functions for calendar calculations without Date objects
@@ -1024,6 +1025,7 @@ export default function TicketingPage() {
   
   // UI states
   const [loading, setLoading] = useState(false)
+  const [fieldChangesMap, setFieldChangesMap] = useState<Map<string, Set<string>>>(new Map())
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -1588,6 +1590,35 @@ export default function TicketingPage() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // Fetch field changes for highlighting after data loads
+  useEffect(() => {
+    const loadFieldChanges = async () => {
+      const allIds: string[] = []
+      const tableMap: Record<string, string[]> = {}
+
+      const addIds = (items: any[], table: string) => {
+        const ids = items.map(i => i.id)
+        allIds.push(...ids)
+        tableMap[table] = ids
+      }
+
+      addIds(publishedScreenings, 'ticketing_screenings')
+      addIds(piJuryScreenings, 'pi_jury_screenings')
+      addIds(techCheckScreenings, 'tech_check_screenings')
+
+      const merged = new Map<string, Set<string>>()
+      const results = await Promise.all(
+        Object.entries(tableMap).map(([table, ids]) =>
+          fetchFieldChanges(table, ids, currentYear)
+        )
+      )
+      results.forEach(m => m.forEach((fields, id) => merged.set(id, fields)))
+      setFieldChangesMap(merged)
+    }
+
+    if (!loading) loadFieldChanges()
+  }, [publishedScreenings, piJuryScreenings, techCheckScreenings, loading, currentYear])
 
   // Auto-sync press screenings when P&I/Jury tab is loaded
   const [hasAutoSynced, setHasAutoSynced] = useState(false)
@@ -2228,6 +2259,13 @@ export default function TicketingPage() {
           .update(screeningData)
           .eq('id', editingScreening.id)
         error = updateError
+
+        // Log field-level changes for highlighting
+        if (!updateError) {
+          const trackedFields = Object.keys(screeningData).filter(f => f !== 'festival_year' && f !== 'day_of_week')
+          const changed = detectChangedFields(editingScreening, screeningData, trackedFields)
+          await logFieldChanges(tableName, editingScreening.id, changed, currentYear)
+        }
       } else {
         // Create new screening
         const { error: insertError } = await supabase
@@ -2788,7 +2826,7 @@ export default function TicketingPage() {
                           screening.is_cancelled ? 'line-through' : ''
                         } ${
                           (screening as any).is_tentative ? 'text-gray-500' : 'text-gray-900'
-                        }`}
+                        } ${getCellHighlightClass(fieldChangesMap, screening.id, column.key)}`}
                         style={{ minWidth: `${columnWidths[column.key] || column.width}px` }}
                       >
                         {displayValue}

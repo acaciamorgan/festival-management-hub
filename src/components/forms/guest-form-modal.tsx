@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { GuestCard, GuestType } from '@/types'
+import { detectChangedFields, logFieldChanges } from '@/lib/field-changes'
 
 interface GuestFormModalProps {
   guest?: GuestCard | null
@@ -93,6 +94,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const originalGuestRef = useRef<Record<string, unknown> | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -167,6 +169,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
   // Initialize form data when guest changes
   useEffect(() => {
     if (guest) {
+      originalGuestRef.current = { ...guest }
       setFormData({
         name: guest.name || '',
         country: guest.country || '',
@@ -381,6 +384,13 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
         if (error) throw error
         savedGuest = data
+
+        // Log field-level changes for highlighting
+        if (originalGuestRef.current) {
+          const trackedFields = Object.keys(guestData).filter(f => f !== 'updated_at' && f !== 'festival_year')
+          const changed = detectChangedFields(originalGuestRef.current, guestData, trackedFields)
+          await logFieldChanges('guests', guest.id, changed, currentYear)
+        }
       } else if (existingGuest) {
         // Update existing guest found by name
         const { data, error } = await supabase
@@ -392,6 +402,11 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
         if (error) throw error
         savedGuest = data
+
+        // Log field-level changes for highlighting
+        const trackedFields = Object.keys(guestData).filter(f => f !== 'updated_at' && f !== 'festival_year')
+        const changed = detectChangedFields(existingGuest, guestData, trackedFields)
+        await logFieldChanges('guests', existingGuest.id, changed, currentYear)
       } else {
         // Create new guest
         const { data, error } = await supabase
