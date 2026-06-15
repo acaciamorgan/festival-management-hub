@@ -156,7 +156,8 @@ export const getModuleConfig = (moduleId: string): ModuleConfig | undefined => {
 export const getAllModules = (): ModuleConfig[] => {
   const orderedModuleIds = [
     'festivalOverview',
-    'titles', 
+    'titles',
+    'ticketing',
     'inAttendance',
     'pressManagement',
     'pressScreenings',
@@ -167,8 +168,7 @@ export const getAllModules = (): ModuleConfig[] => {
     'interviewManagement',
     'specialEvents',
     'contactsManagement',
-    'venueManagement', 
-    'ticketing',
+    'venueManagement',
     'archives'
   ]
   
