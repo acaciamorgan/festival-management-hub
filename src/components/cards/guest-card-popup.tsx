@@ -47,7 +47,17 @@ function CollapsibleSection({ title, children, isEmpty = false, defaultExpanded 
 
 export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: GuestCardPopupProps) {
   const [isDragging, setIsDragging] = useState(false)
-  const [position, setPosition] = useState({ x: 100, y: 100 })
+  const [position, setPosition] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const modalWidth = Math.min(window.innerWidth * 0.9, 1000)
+      const modalHeight = window.innerHeight * 0.9
+      return {
+        x: (window.innerWidth - modalWidth) / 2,
+        y: (window.innerHeight - modalHeight) / 2
+      }
+    }
+    return { x: 100, y: 100 }
+  })
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [showFilmCard, setShowFilmCard] = useState<FilmCard | null>(null)
   const [photoShoots, setPhotoShoots] = useState<any[]>([])
@@ -702,9 +712,8 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
         className="fixed bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden z-[110] flex flex-col"
         onClick={(e) => e.stopPropagation()}
         style={{
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
+          left: `${position.x}px`,
+          top: `${position.y}px`,
           cursor: isDragging ? 'grabbing' : 'default',
           maxWidth: '1000px',
           width: '90vw',
@@ -714,6 +723,8 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
         {/* Header with drag handle */}
         <div
           className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg flex justify-between items-center flex-shrink-0"
+          onMouseDown={handleMouseDown}
+          style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
         >
           <div className="flex items-center">
             <span className="text-2xl mr-3">{getGuestTypeIcon(guest.guest_type)}</span>
