@@ -1677,6 +1677,39 @@ export default function TicketingPage() {
     setShowVenueSuggestions(false)
   }
 
+  const exportScreeningTemplate = () => {
+    const headers = ['Title', 'Day', 'Date', 'Location', 'Start Time', 'Running Time', 'Capacity', 'Notes']
+
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+
+    const headerStyle = {
+      font: { bold: true, sz: 12, name: 'Arial' },
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
+    })
+
+    ws['!cols'] = cols
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Screening Template')
+    XLSX.writeFile(wb, 'screening_import_template.xlsx')
+  }
+
   const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -2552,7 +2585,15 @@ export default function TicketingPage() {
               </button>
             )}
             
-            {/* CSV Upload */}
+            {/* CSV Template & Upload */}
+            {canEditTicketing && viewMode === 'ticketing' && (
+              <button
+                onClick={exportScreeningTemplate}
+                className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+              >
+                Create Screening CSV Template
+              </button>
+            )}
             {canEditTicketing && viewMode === 'ticketing' && (
               <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors font-medium">
                 Upload Screening CSV
