@@ -58,6 +58,8 @@ export default function RedCarpetsPage() {
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [showFilmCard, setShowFilmCard] = useState<any>(null)
   const [showGuestCard, setShowGuestCard] = useState<any>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState('')
 
   // Junction data maps: carpet_id -> films/subjects with IDs
   const [junctionFilmsMap, setJunctionFilmsMap] = useState<Map<string, JunctionFilm[]>>(new Map())
@@ -115,6 +117,194 @@ export default function RedCarpetsPage() {
 
     XLSX.utils.book_append_sheet(wb, ws, 'Red Carpets Template')
     XLSX.writeFile(wb, 'red_carpets_import_template.xlsx')
+  }
+
+  const parseCSV = (text: string): string[][] => {
+    const rows: string[][] = []
+    let currentRow: string[] = []
+    let currentField = ''
+    let inQuotes = false
+    let i = 0
+
+    while (i < text.length) {
+      const char = text[i]
+      const nextChar = text[i + 1]
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          currentField += '"'
+          i += 2
+          continue
+        } else {
+          inQuotes = !inQuotes
+        }
+      } else if (char === ',' && !inQuotes) {
+        currentRow.push(currentField.trim())
+        currentField = ''
+      } else if ((char === '\n' || char === '\r') && !inQuotes) {
+        if (currentField || currentRow.length > 0) {
+          currentRow.push(currentField.trim())
+          if (currentRow.some(field => field.length > 0)) {
+            rows.push(currentRow)
+          }
+          currentRow = []
+          currentField = ''
+        }
+      } else {
+        currentField += char
+      }
+      i++
+    }
+
+    if (currentField || currentRow.length > 0) {
+      currentRow.push(currentField.trim())
+      if (currentRow.some(field => field.length > 0)) {
+        rows.push(currentRow)
+      }
+    }
+
+    return rows
+  }
+
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setUploadStatus('Processing CSV...')
+
+    try {
+      const text = await file.text()
+      const rows = parseCSV(text)
+
+      if (rows.length === 0) {
+        setUploadStatus('Error: CSV file is empty')
+        return
+      }
+
+      const headers = rows[0]
+
+      const fieldMap: Record<string, string> = {
+        'Film/Program': 'film_program_display',
+        'Subjects': 'subjects_display',
+        'Venue': 'venue_name',
+        'House': 'house',
+        'Carpet Date': 'carpet_date',
+        'Call Time': 'call_time',
+        'Carpet Start Time': 'carpet_start_time',
+        'Film/Program Start Time': 'film_program_start_time',
+        'RSVP Form URL': 'rsvp_form_url',
+        'RSVP Responses URL': 'rsvp_responses_url'
+      }
+
+      const carpetData = []
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i]
+        if (!row || row.length === 0 || row.every(cell => !cell || !cell.trim())) continue
+
+        const record: any = {}
+
+        headers.forEach((header, index) => {
+          const fieldName = fieldMap[header]
+          if (fieldName && row[index]) {
+            let value: any = row[index].trim()
+
+            if (fieldName === 'carpet_date') {
+              if (value.includes('/')) {
+                const parts = value.split('/')
+                if (parts.length === 3) {
+                  const month = parts[0].padStart(2, '0')
+                  const day = parts[1].padStart(2, '0')
+                  const year = parts[2].length === 2 ? '20' + parts[2] : parts[2]
+                  value = `${year}-${month}-${day}`
+                }
+              } else if (value.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+                const [year, month, day] = value.split('-')
+                value = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+              }
+            } else if (['call_time', 'carpet_start_time', 'film_program_start_time'].includes(fieldName)) {
+              value = convertTo24Hour(value)
+            }
+
+            record[fieldName] = value
+          }
+        })
+
+        if (record.film_program_display || record.carpet_date) {
+          carpetData.push(record)
+        }
+      }
+
+      if (carpetData.length === 0) {
+        setUploadStatus('Error: No valid red carpet data found in CSV')
+        return
+      }
+
+      setUploadStatus(`Processing ${carpetData.length} red carpet events...`)
+
+      const { data: allVenues } = await supabase
+        .from('venues')
+        .select('id, name')
+        .eq('festival_year', currentYear)
+
+      const venueMap = new Map(
+        (allVenues || []).map(v => [v.name.toLowerCase().trim(), v.id])
+      )
+
+      let insertedCount = 0
+
+      for (const carpet of carpetData) {
+        if (carpet.venue_name) {
+          const venueId = venueMap.get(carpet.venue_name.toLowerCase().trim())
+          if (venueId) {
+            carpet.venue_id = venueId
+          }
+          delete carpet.venue_name
+        }
+
+        carpet.festival_year = currentYear
+        carpet.created_by = user?.id
+
+        const { error: insertError } = await supabase
+          .from('red_carpets')
+          .insert(carpet)
+
+        if (insertError) {
+          console.error('Insert error:', insertError)
+          setUploadStatus(`Error inserting red carpet: ${insertError.message}`)
+          return
+        }
+        insertedCount++
+      }
+
+      setUploadStatus(`Successfully imported ${insertedCount} red carpet events!`)
+      loadRedCarpets()
+    } catch (error) {
+      console.error('CSV processing error:', error)
+      setUploadStatus('Error: Failed to process CSV file')
+    } finally {
+      setUploading(false)
+      if (event.target) {
+        event.target.value = ''
+      }
+    }
+  }
+
+  const convertTo24Hour = (timeStr: string): string | null => {
+    if (!timeStr) return null
+    const trimmed = timeStr.trim()
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed) && !trimmed.toLowerCase().includes('am') && !trimmed.toLowerCase().includes('pm')) {
+      const parts = trimmed.split(':')
+      return `${parts[0].padStart(2, '0')}:${parts[1]}:${parts[2] || '00'}`
+    }
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+    if (!match) return trimmed
+    let hours = parseInt(match[1], 10)
+    const minutes = match[2]
+    const ampm = match[3].toUpperCase()
+    if (ampm === 'PM' && hours !== 12) hours += 12
+    else if (ampm === 'AM' && hours === 12) hours = 0
+    return `${hours.toString().padStart(2, '0')}:${minutes}:00`
   }
 
   const loadRedCarpets = useCallback(async () => {
@@ -447,7 +637,7 @@ export default function RedCarpetsPage() {
                 onClick={exportRedCarpetsTemplate}
                 className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
               >
-                Create Red Carpets Template
+                Create Red Carpet CSV Template
               </button>
             )}
             {canEditRedCarpets && (
@@ -459,19 +649,16 @@ export default function RedCarpetsPage() {
               </button>
             )}
             {canEditRedCarpets && (
-              <div className="relative">
+              <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors font-medium">
+                {uploading ? 'Uploading...' : 'Upload Red Carpet CSV'}
                 <input
                   type="file"
                   accept=".csv"
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  onChange={() => {
-                    // TODO: CSV import not yet implemented
-                  }}
+                  onChange={handleCSVUpload}
+                  disabled={uploading}
+                  className="hidden"
                 />
-                <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-medium">
-                  Import CSV
-                </button>
-              </div>
+              </label>
             )}
           </div>
         </div>

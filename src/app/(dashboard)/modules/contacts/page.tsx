@@ -1224,10 +1224,10 @@ export default function ContactsPage() {
                   onClick={exportContactsTemplate}
                   className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
                 >
-                  📄 Create Contacts Template
+                  Create Contact CSV Template
                 </button>
                 <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors font-medium">
-                  {uploading ? 'Uploading...' : '📂 Upload CSV'}
+                  {uploading ? 'Uploading...' : 'Upload Contact CSV'}
                   <input
                     type="file"
                     accept=".csv"

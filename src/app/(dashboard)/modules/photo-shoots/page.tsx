@@ -38,6 +38,8 @@ export default function PhotoShootsPage() {
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [showFilmCard, setShowFilmCard] = useState<any>(null)
   const [showGuestCard, setShowGuestCard] = useState<any>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState('')
 
   // Junction data maps: shoot_id -> films/subjects with IDs
   const [junctionFilmsMap, setJunctionFilmsMap] = useState<Map<string, JunctionFilm[]>>(new Map())
@@ -104,6 +106,206 @@ export default function PhotoShootsPage() {
 
     XLSX.utils.book_append_sheet(wb, ws, 'Photo Shoots Template')
     XLSX.writeFile(wb, 'photo_shoots_import_template.xlsx')
+  }
+
+  const parseCSV = (text: string): string[][] => {
+    const rows: string[][] = []
+    let currentRow: string[] = []
+    let currentField = ''
+    let inQuotes = false
+    let i = 0
+
+    while (i < text.length) {
+      const char = text[i]
+      const nextChar = text[i + 1]
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          currentField += '"'
+          i += 2
+          continue
+        } else {
+          inQuotes = !inQuotes
+        }
+      } else if (char === ',' && !inQuotes) {
+        currentRow.push(currentField.trim())
+        currentField = ''
+      } else if ((char === '\n' || char === '\r') && !inQuotes) {
+        if (currentField || currentRow.length > 0) {
+          currentRow.push(currentField.trim())
+          if (currentRow.some(field => field.length > 0)) {
+            rows.push(currentRow)
+          }
+          currentRow = []
+          currentField = ''
+        }
+      } else {
+        currentField += char
+      }
+      i++
+    }
+
+    if (currentField || currentRow.length > 0) {
+      currentRow.push(currentField.trim())
+      if (currentRow.some(field => field.length > 0)) {
+        rows.push(currentRow)
+      }
+    }
+
+    return rows
+  }
+
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setUploadStatus('Processing CSV...')
+
+    try {
+      const text = await file.text()
+      const rows = parseCSV(text)
+
+      if (rows.length === 0) {
+        setUploadStatus('Error: CSV file is empty')
+        return
+      }
+
+      const headers = rows[0]
+
+      const fieldMap: Record<string, string> = {
+        'Film/Program': 'film_program_display',
+        'Subjects': 'subjects_display',
+        'Venue': 'venue_name',
+        'House': 'house',
+        'Shoot Date': 'shoot_date',
+        'Call Time': 'call_time',
+        'Shoot Time': 'shoot_time',
+        'Film/Program Start Time': 'film_program_start_time',
+        'Photographer': 'photographer',
+        'Videographer': 'videographer',
+        'Intro Q&A': 'intro_qa',
+        'Selects Received': 'selects_received',
+        'Sent to PR': 'sent_to_pr'
+      }
+
+      const shootData = []
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i]
+        if (!row || row.length === 0 || row.every(cell => !cell || !cell.trim())) continue
+
+        const record: any = {}
+
+        headers.forEach((header, index) => {
+          const fieldName = fieldMap[header]
+          if (fieldName && row[index]) {
+            let value: any = row[index].trim()
+
+            if (fieldName === 'shoot_date') {
+              if (value.includes('/')) {
+                const parts = value.split('/')
+                if (parts.length === 3) {
+                  const month = parts[0].padStart(2, '0')
+                  const day = parts[1].padStart(2, '0')
+                  const year = parts[2].length === 2 ? '20' + parts[2] : parts[2]
+                  value = `${year}-${month}-${day}`
+                }
+              } else if (value.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+                const [year, month, day] = value.split('-')
+                value = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+              }
+            } else if (['call_time', 'shoot_time', 'film_program_start_time'].includes(fieldName)) {
+              value = convertTo24Hour(value)
+            } else if (fieldName === 'intro_qa') {
+              const lower = value.toLowerCase()
+              value = lower === 'yes' || lower === 'true' || lower === '1' || lower === 'y'
+            } else if (fieldName === 'selects_received') {
+              const lower = value.toLowerCase()
+              value = lower === 'yes' || lower === 'true' || lower === '1' || lower === 'received' || lower === 'y'
+            } else if (fieldName === 'sent_to_pr') {
+              const lower = value.toLowerCase()
+              value = lower === 'yes' || lower === 'true' || lower === '1' || lower === 'sent' || lower === 'y'
+            }
+
+            record[fieldName] = value
+          }
+        })
+
+        if (record.film_program_display || record.subjects_display || record.shoot_date) {
+          shootData.push(record)
+        }
+      }
+
+      if (shootData.length === 0) {
+        setUploadStatus('Error: No valid photo shoot data found in CSV')
+        return
+      }
+
+      setUploadStatus(`Processing ${shootData.length} photo shoots...`)
+
+      const { data: allVenues } = await supabase
+        .from('venues')
+        .select('id, name')
+        .eq('festival_year', currentYear)
+
+      const venueMap = new Map(
+        (allVenues || []).map(v => [v.name.toLowerCase().trim(), v.id])
+      )
+
+      let insertedCount = 0
+
+      for (const shoot of shootData) {
+        if (shoot.venue_name) {
+          const venueId = venueMap.get(shoot.venue_name.toLowerCase().trim())
+          if (venueId) {
+            shoot.venue_id = venueId
+          }
+          delete shoot.venue_name
+        }
+
+        shoot.festival_year = currentYear
+        shoot.created_by = user?.id
+
+        const { error: insertError } = await supabase
+          .from('photo_shoots')
+          .insert(shoot)
+
+        if (insertError) {
+          console.error('Insert error:', insertError)
+          setUploadStatus(`Error inserting photo shoot: ${insertError.message}`)
+          return
+        }
+        insertedCount++
+      }
+
+      setUploadStatus(`Successfully imported ${insertedCount} photo shoots!`)
+      loadPhotoShoots()
+    } catch (error) {
+      console.error('CSV processing error:', error)
+      setUploadStatus('Error: Failed to process CSV file')
+    } finally {
+      setUploading(false)
+      if (event.target) {
+        event.target.value = ''
+      }
+    }
+  }
+
+  const convertTo24Hour = (timeStr: string): string | null => {
+    if (!timeStr) return null
+    const trimmed = timeStr.trim()
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed) && !trimmed.toLowerCase().includes('am') && !trimmed.toLowerCase().includes('pm')) {
+      const parts = trimmed.split(':')
+      return `${parts[0].padStart(2, '0')}:${parts[1]}:${parts[2] || '00'}`
+    }
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+    if (!match) return trimmed
+    let hours = parseInt(match[1], 10)
+    const minutes = match[2]
+    const ampm = match[3].toUpperCase()
+    if (ampm === 'PM' && hours !== 12) hours += 12
+    else if (ampm === 'AM' && hours === 12) hours = 0
+    return `${hours.toString().padStart(2, '0')}:${minutes}:00`
   }
 
   const loadPhotoShoots = useCallback(async () => {
@@ -432,7 +634,7 @@ export default function PhotoShootsPage() {
                 onClick={exportPhotoShootsTemplate}
                 className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
               >
-                📄 Create Photo Shoots Template
+                Create Photo Shoot CSV Template
               </button>
             )}
             {canEditPhotoShoots && (
@@ -444,19 +646,16 @@ export default function PhotoShootsPage() {
               </button>
             )}
             {canEditPhotoShoots && (
-              <div className="relative">
+              <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors font-medium">
+                {uploading ? 'Uploading...' : 'Upload Photo Shoot CSV'}
                 <input
                   type="file"
                   accept=".csv"
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  onChange={() => {
-                    // TODO: Implement CSV import
-                  }}
+                  onChange={handleCSVUpload}
+                  disabled={uploading}
+                  className="hidden"
                 />
-                <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-medium">
-                  Import CSV
-                </button>
-              </div>
+              </label>
             )}
           </div>
         </div>

@@ -1183,7 +1183,7 @@ export default function InAttendancePage() {
                 onClick={exportInAttendanceTemplate}
                 className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
               >
-                📄 Create CSV Template
+                Create Guest CSV Template
               </button>
             )}
             <button
@@ -1205,26 +1205,16 @@ export default function InAttendancePage() {
               </button>
             )}
             {canEditInAttendance && (
-              <div className="relative">
+              <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors font-medium">
+                {uploading ? 'Uploading...' : 'Upload Guest CSV'}
                 <input
                   type="file"
                   accept=".csv"
                   onChange={handleCSVFileSelect}
                   disabled={uploading}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  className="hidden"
                 />
-                <button
-                  disabled={uploading}
-                  className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed"
-                >
-                  {uploading ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Importing...</span>
-                    </div>
-                  ) : 'Import CSV'}
-                </button>
-              </div>
+              </label>
             )}
             {uploadStatus && (
               <span className="text-sm text-gray-600">{uploadStatus}</span>

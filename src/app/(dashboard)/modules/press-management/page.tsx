@@ -812,7 +812,7 @@ export default function PressManagementPage() {
                 onClick={exportPressTemplate}
                 className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
               >
-                📄 Create Press Template
+                Create Press CSV Template
               </button>
             )}
             {canEditPress && (
@@ -824,8 +824,8 @@ export default function PressManagementPage() {
               </button>
             )}
             {canEditPress && (
-              <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors">
-                {uploading ? 'Uploading...' : '📂 Upload CSV'}
+              <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors font-medium">
+                {uploading ? 'Uploading...' : 'Upload Press CSV'}
                 <input
                   type="file"
                   accept=".csv"
@@ -972,8 +972,8 @@ export default function PressManagementPage() {
             <h2 className="text-lg font-medium mb-4">No Press Cards Yet</h2>
             <p className="text-gray-600 mb-4">Upload a CSV file to add press to the database.</p>
             {canEditPress && (
-              <label className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md cursor-pointer transition-colors inline-block">
-                📂 Upload CSV File
+              <label className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md cursor-pointer transition-colors font-medium inline-block">
+                Upload Press CSV
                 <input
                   type="file"
                   accept=".csv"

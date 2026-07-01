@@ -979,10 +979,10 @@ export default function SpecialEventsPage() {
                   onClick={exportSpecialEventsTemplate}
                   className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
                 >
-                  📄 Create Special Events Template
+                  Create Special Event CSV Template
                 </button>
                 <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors font-medium">
-                  {uploading ? 'Uploading...' : '📂 Upload CSV'}
+                  {uploading ? 'Uploading...' : 'Upload Special Event CSV'}
                   <input
                     type="file"
                     accept=".csv"

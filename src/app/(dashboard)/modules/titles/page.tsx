@@ -1857,7 +1857,7 @@ export default function TitlesPage() {
                       onClick={exportFeaturesTemplate}
                       className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
                     >
-                      📄 Create Features Template
+                      Create Feature Film CSV Template
                     </button>
                     <button
                       onClick={() => setShowAddFilmModal(true)}
@@ -1872,7 +1872,7 @@ export default function TitlesPage() {
                     onClick={exportShortsTemplate}
                     className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
                   >
-                    📄 Create Shorts Template
+                    Create Short Film CSV Template
                   </button>
                 )}
                 {viewMode === 'programs' && (
@@ -1880,7 +1880,7 @@ export default function TitlesPage() {
                     onClick={exportProgramsTemplate}
                     className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
                   >
-                    📄 Create Programs Template
+                    Create Program CSV Template
                   </button>
                 )}
               </>
@@ -1937,8 +1937,8 @@ export default function TitlesPage() {
               </>
             )}
             {canEditTitles && (
-              <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors">
-                {uploading ? 'Uploading...' : '📂 Upload CSV'}
+              <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors font-medium">
+                {uploading ? 'Uploading...' : `Upload ${viewMode === 'features' ? 'Feature Film' : viewMode === 'shorts' ? 'Short Film' : 'Program'} CSV`}
                 <input
                   type="file"
                   accept=".csv"
@@ -2272,8 +2272,8 @@ export default function TitlesPage() {
               }
             </p>
             {canEditTitles && viewMode !== 'programs' && (
-              <label className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md cursor-pointer transition-colors inline-block">
-                📂 Upload CSV File
+              <label className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md cursor-pointer transition-colors font-medium inline-block">
+                Upload Film CSV
                 <input
                   type="file"
                   accept=".csv"
