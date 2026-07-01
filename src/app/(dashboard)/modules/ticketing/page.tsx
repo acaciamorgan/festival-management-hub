@@ -1002,6 +1002,7 @@ export default function TicketingPage() {
   const { permissions } = usePermissions()
   const { currentYear } = useFestivalYear()
   const canEditTicketing = permissions?.modulePermissions?.['ticketing']?.canEdit || permissions?.isAdmin || permissions?.isSuperAdmin || false
+  const canReadTicketing = permissions?.modulePermissions?.['ticketing']?.canRead || permissions?.isAdmin || permissions?.isSuperAdmin || false
   const [viewMode, setViewMode] = useState<ViewMode>('ticketing')
   
   
@@ -2579,7 +2580,7 @@ export default function TicketingPage() {
             {canEditTicketing && (
               <button
                 onClick={handleAddScreening}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+                className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 font-medium"
               >
                 {viewMode === 'tech-checks' ? 'Add Tech Check' : 'Add Screening'}
               </button>
@@ -2607,11 +2608,11 @@ export default function TicketingPage() {
             )}
 
             {/* Export Dropdown */}
-            {canEditTicketing && (
+            {canReadTicketing && (
               <div className="relative export-dropdown">
                 <button
                   onClick={() => setShowExportDropdown(!showExportDropdown)}
-                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-medium flex items-center space-x-2"
+                  className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 font-medium flex items-center space-x-2"
                 >
                   <span>Export</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

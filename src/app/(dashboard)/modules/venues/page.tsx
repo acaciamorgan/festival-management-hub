@@ -357,7 +357,7 @@ export default function VenueManagementPage() {
           {canEditVenues && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+              className="bg-amber-600 text-white px-4 py-2 rounded-md font-medium hover:bg-amber-700"
             >
               Add Venue
             </button>

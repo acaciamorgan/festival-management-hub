@@ -1861,9 +1861,9 @@ export default function TitlesPage() {
                     </button>
                     <button
                       onClick={() => setShowAddFilmModal(true)}
-                      className="px-4 py-2 rounded-md transition-colors font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                      className="px-4 py-2 rounded-md transition-colors font-medium bg-amber-600 hover:bg-amber-700 text-white"
                     >
-                      ➕ Add Film
+                      Add Film
                     </button>
                   </>
                 )}
@@ -1899,9 +1899,9 @@ export default function TitlesPage() {
               <>
                 <button
                   onClick={() => setShowCreateProgramModal(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md transition-colors font-medium"
                 >
-                  ➕ Create Shorts Program
+                  Create Shorts Program
                 </button>
                 <button
                   onClick={() => {
@@ -1919,9 +1919,9 @@ export default function TitlesPage() {
                 {canEditTitles && (
                   <button
                     onClick={() => setShowCreateEventModal(true)}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
+                    className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md transition-colors font-medium"
                   >
-                    ➕ Create Program
+                    Create Program
                   </button>
                 )}
                 <button

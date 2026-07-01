@@ -491,7 +491,7 @@ export default function PressScreeningsPage() {
             {canEditPressScreenings && (
               <button
                 onClick={handleAddScreening}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+                className="bg-amber-600 text-white px-4 py-2 rounded-md font-medium hover:bg-amber-700"
               >
                 Add Screening
               </button>
@@ -718,7 +718,7 @@ export default function PressScreeningsPage() {
             {canEditPressScreenings && (
               <button
                 onClick={handleAddScreening}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+                className="bg-amber-600 text-white px-4 py-2 rounded-md font-medium hover:bg-amber-700"
               >
                 Add Screening
               </button>
