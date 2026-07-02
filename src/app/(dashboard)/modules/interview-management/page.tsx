@@ -425,13 +425,15 @@ export default function InterviewManagementPage() {
     setEditValue('')
   }
 
-  const renderEditableCell = (interview: InterviewCard, field: string, value: any) => {
+  const renderEditableCell = (interview: InterviewCard, field: string, value: any, inputType: 'text' | 'date' | 'time' = 'text', displayValue?: string) => {
+    if (!canEditInterviews) return <span>{displayValue || value || '—'}</span>
+
     const isEditing = editingCell?.interviewId === interview.id && editingCell?.field === field
 
     if (isEditing) {
       return (
         <input
-          type="text"
+          type={inputType}
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
           onKeyDown={(e) => {
@@ -451,7 +453,7 @@ export default function InterviewManagementPage() {
         onClick={() => handleCellEdit(interview.id, field, value)}
         title="Click to edit"
       >
-        {value || '—'}
+        {displayValue || value || '—'}
       </div>
     )
   }
@@ -788,17 +790,23 @@ export default function InterviewManagementPage() {
                     
                     {/* Date - show for Scheduled and Complete statuses */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['interview_date'] || 120}px` }}>
-                      {(interview.status === 'Scheduled' || interview.status === 'Complete') ? formatDate(interview.interview_date) : '—'}
+                      {(interview.status === 'Scheduled' || interview.status === 'Complete')
+                        ? renderEditableCell(interview, 'interview_date', interview.interview_date || '', 'date', formatDate(interview.interview_date))
+                        : '—'}
                     </td>
 
                     {/* Time - show for Scheduled and Complete statuses */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['interview_time'] || 100}px` }}>
-                      {(interview.status === 'Scheduled' || interview.status === 'Complete') ? formatTime(interview.interview_time) : '—'}
+                      {(interview.status === 'Scheduled' || interview.status === 'Complete')
+                        ? renderEditableCell(interview, 'interview_time', interview.interview_time || '', 'time', formatTime(interview.interview_time))
+                        : '—'}
                     </td>
 
                     {/* Location - show for Scheduled and Complete statuses */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['location'] || 150}px` }}>
-                      {(interview.status === 'Scheduled' || interview.status === 'Complete') ? (interview.location || '—') : '—'}
+                      {(interview.status === 'Scheduled' || interview.status === 'Complete')
+                        ? renderEditableCell(interview, 'location', interview.location || '')
+                        : '—'}
                     </td>
                     
                     {/* Complete Checkbox */}
