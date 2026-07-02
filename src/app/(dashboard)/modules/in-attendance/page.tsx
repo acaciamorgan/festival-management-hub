@@ -22,7 +22,7 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableCell, T
 export default function InAttendancePage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
-  const { currentYear } = useFestivalYear()
+  const { currentYear, availableYears } = useFestivalYear()
   const [guests, setGuests] = useState<GuestCard[]>([])
   const [filteredGuests, setFilteredGuests] = useState<GuestCard[]>([])
   const [loading, setLoading] = useState(false)
@@ -86,13 +86,27 @@ export default function InAttendancePage() {
       }
     }
 
+    // Get festival end date to cap departures
+    const festivalEndDate = availableYears.find(y => y.year === currentYear)?.end_date || null
+
+    // Compute effective departure date: if guest has no departure or departs after festival ends, use festival end date
+    const getEffectiveDeparture = (guest: GuestCard): string | undefined => {
+      if (festivalEndDate) {
+        if (!guest.departure_date || guest.departure_date > festivalEndDate) {
+          return festivalEndDate
+        }
+      }
+      return guest.departure_date
+    }
+
     // Categorize guests
     const arrivals = guests.filter(guest => guest.arrival_date === reportDate)
-    const departures = guests.filter(guest => guest.departure_date === reportDate)
+    const departures = guests.filter(guest => getEffectiveDeparture(guest) === reportDate)
     const inAttendance = guests.filter(guest => {
+      const effectiveDeparture = getEffectiveDeparture(guest)
       const hasArrivedBefore = !guest.arrival_date || guest.arrival_date < reportDate
-      const hasntDepartedYet = !guest.departure_date || guest.departure_date > reportDate
-      return hasArrivedBefore && hasntDepartedYet && guest.arrival_date !== reportDate && guest.departure_date !== reportDate
+      const hasntDepartedYet = !effectiveDeparture || effectiveDeparture > reportDate
+      return hasArrivedBefore && hasntDepartedYet && guest.arrival_date !== reportDate && effectiveDeparture !== reportDate
     })
 
     // Create document
