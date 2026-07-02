@@ -788,25 +788,19 @@ export default function InterviewManagementPage() {
                       {renderStatusCell(interview)}
                     </td>
                     
-                    {/* Date - show for Scheduled and Complete statuses */}
+                    {/* Date */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['interview_date'] || 120}px` }}>
-                      {(interview.status === 'Scheduled' || interview.status === 'Complete')
-                        ? renderEditableCell(interview, 'interview_date', interview.interview_date || '', 'date', formatDate(interview.interview_date))
-                        : '—'}
+                      {renderEditableCell(interview, 'interview_date', interview.interview_date || '', 'date', formatDate(interview.interview_date))}
                     </td>
 
-                    {/* Time - show for Scheduled and Complete statuses */}
+                    {/* Time */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['interview_time'] || 100}px` }}>
-                      {(interview.status === 'Scheduled' || interview.status === 'Complete')
-                        ? renderEditableCell(interview, 'interview_time', interview.interview_time || '', 'time', formatTime(interview.interview_time))
-                        : '—'}
+                      {renderEditableCell(interview, 'interview_time', interview.interview_time || '', 'time', formatTime(interview.interview_time))}
                     </td>
 
-                    {/* Location - show for Scheduled and Complete statuses */}
+                    {/* Location */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['location'] || 150}px` }}>
-                      {(interview.status === 'Scheduled' || interview.status === 'Complete')
-                        ? renderEditableCell(interview, 'location', interview.location || '')
-                        : '—'}
+                      {renderEditableCell(interview, 'location', interview.location || '')}
                     </td>
                     
                     {/* Complete Checkbox */}
