@@ -42,12 +42,28 @@ export function Sidebar() {
   const modules = getAllModules()
   const [showYearDropdown, setShowYearDropdown] = useState(false)
 
+  // Can user view past/archived years?
+  const canAccessPastYears = permissions?.isAdmin || permissions?.isSuperAdmin || permissions?.modulePermissions['archives']?.canRead || false
+
+  // Filter years shown in dropdown - only show current (newest) year if user can't access archives
+  const newestYear = availableYears.length > 0 ? availableYears[0].year : currentYear
+  const filteredYears = canAccessPastYears
+    ? availableYears
+    : availableYears.filter(y => y.year === newestYear)
+
+  // If user can't access past years but is viewing one, reset to newest
+  useEffect(() => {
+    if (!yearLoading && !canAccessPastYears && currentYear < newestYear) {
+      setCurrentYear(newestYear)
+    }
+  }, [canAccessPastYears, currentYear, newestYear, yearLoading])
+
   const canAccessModule = (moduleId: string) => {
     if (!permissions) return false
-    
+
     // Admins and super admins can access everything
     if (permissions.isAdmin || permissions.isSuperAdmin) return true
-    
+
     // Check specific module permission
     return permissions.modulePermissions[moduleId]?.canRead || false
   }
@@ -60,8 +76,8 @@ export function Sidebar() {
         {/* Year Selector */}
         <div className="mt-3 relative">
           <button
-            onClick={() => setShowYearDropdown(!showYearDropdown)}
-            className="flex items-center justify-between w-full px-3 py-2 text-sm bg-gray-800 rounded-md hover:bg-gray-700 transition-colors"
+            onClick={() => filteredYears.length > 1 && setShowYearDropdown(!showYearDropdown)}
+            className={`flex items-center justify-between w-full px-3 py-2 text-sm bg-gray-800 rounded-md transition-colors ${filteredYears.length > 1 ? 'hover:bg-gray-700 cursor-pointer' : 'cursor-default'}`}
             disabled={yearLoading}
           >
             <span className="flex items-center">
@@ -73,18 +89,18 @@ export function Sidebar() {
                 </span>
               )}
             </span>
-            <ChevronDown className="w-4 h-4" />
+            {filteredYears.length > 1 && <ChevronDown className="w-4 h-4" />}
           </button>
 
           {/* Dropdown Menu */}
-          {showYearDropdown && (
+          {showYearDropdown && filteredYears.length > 1 && (
             <>
               <div
                 className="fixed inset-0 z-10"
                 onClick={() => setShowYearDropdown(false)}
               />
               <div className="absolute top-full mt-1 w-full bg-gray-800 rounded-md shadow-lg z-20 border border-gray-700 max-h-64 overflow-y-auto">
-                {availableYears.map((year) => (
+                {filteredYears.map((year) => (
                   <button
                     key={year.id}
                     onClick={() => {
