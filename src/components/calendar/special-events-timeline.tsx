@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import { SpecialEventCard } from '@/types'
-import { EventDetailsModal } from './event-details-modal'
 
 interface SpecialEventsTimelineProps {
   events: SpecialEventCard[]
@@ -10,8 +9,6 @@ interface SpecialEventsTimelineProps {
 }
 
 export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTimelineProps) {
-  const [selectedEvent, setSelectedEvent] = useState<SpecialEventCard | null>(null)
-  const [showModal, setShowModal] = useState(false)
   const [selectedVenues, setSelectedVenues] = useState<string[]>([])
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([])
   const [openPressOnly, setOpenPressOnly] = useState(false)
@@ -301,10 +298,7 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
                               return (
                                 <div
                                   key={event.id}
-                                  onClick={() => {
-                                    setSelectedEvent(event)
-                                    setShowModal(true)
-                                  }}
+                                  onClick={() => onEventClick(event)}
                                   className={`absolute top-1 bottom-1 ${getEventTypeColor(event.event_type)} text-white rounded px-2 py-1 cursor-pointer hover:opacity-90 transition-opacity border-2 overflow-hidden ${tentativeStyle}`}
                                   style={{
                                     left: `${Math.max(0, startPercent)}%`,
@@ -365,15 +359,6 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
         </div>
       </div>
 
-      {/* Event Details Modal */}
-      <EventDetailsModal
-        event={selectedEvent}
-        isOpen={showModal}
-        onClose={() => {
-          setShowModal(false)
-          setSelectedEvent(null)
-        }}
-      />
     </div>
   )
 }
