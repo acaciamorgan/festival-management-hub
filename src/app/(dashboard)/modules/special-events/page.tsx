@@ -1205,6 +1205,7 @@ export default function SpecialEventsPage() {
                     { key: 'event_date', label: 'Date', width: 150, sortable: true },
                     { key: 'title', label: 'Event', width: 200, sortable: true },
                     { key: 'event_type', label: 'Event Type', width: 120, sortable: true },
+                    { key: 'confirmed', label: 'Confirmed', width: 100, sortable: true },
                     { key: 'films_programs_display_combined', label: 'Films/Programs Associated', width: 250, sortable: false },
                     { key: 'guests_display_combined', label: 'Guests Associated', width: 200, sortable: false },
                     { key: 'access_time', label: 'Access Time', width: 100, sortable: false },
@@ -1253,7 +1254,7 @@ export default function SpecialEventsPage() {
                 {sortedEvents.map((event) => {
                   const isInterview = (event as any)._type === 'interview'
                   return (
-                  <tr key={event.id} className={`hover:bg-gray-50 ${isInterview ? 'bg-purple-50' : ''}`}>
+                  <tr key={event.id} className={`hover:bg-gray-50 ${isInterview ? 'bg-purple-50' : !event.confirmed ? 'bg-amber-50' : ''}`}>
                     {/* Date */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['event_date'] || 150}px` }}>
                       {formatDate(event.event_date)}
@@ -1275,7 +1276,18 @@ export default function SpecialEventsPage() {
                         event.event_type || '—'
                       )}
                     </td>
-                    
+
+                    {/* Confirmed */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center" style={{ minWidth: `${columnWidths['confirmed'] || 100}px` }}>
+                      <input
+                        type="checkbox"
+                        checked={event.confirmed ?? false}
+                        onChange={(e) => updateEventField(event.id, 'confirmed', e.target.checked)}
+                        disabled={isInterview}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+                      />
+                    </td>
+
                     {/* Films/Programs Associated */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['films_programs_display_combined'] || 250}px` }}>
                       {isInterview ? (

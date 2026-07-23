@@ -489,10 +489,13 @@ export interface SpecialEventCard {
   rsvp_responder_link?: string | null
   rsvp_response_link?: string | null
   
+  // Status
+  confirmed: boolean
+
   // Post-event
   actual_attendance?: string | null
   notes?: string | null
-  
+
   // System fields
   festival_year: number
   created_at: string

@@ -15,6 +15,7 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
   const [selectedVenues, setSelectedVenues] = useState<string[]>([])
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([])
   const [openPressOnly, setOpenPressOnly] = useState(false)
+  const [confirmedOnly, setConfirmedOnly] = useState(false)
 
   // Get all unique venues
   const allVenues = useMemo(() => {
@@ -63,9 +64,13 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
       if (openPressOnly && event.open_press !== 'Yes') {
         return false
       }
+      // Confirmed only filter
+      if (confirmedOnly && !event.confirmed) {
+        return false
+      }
       return true
     })
-  }, [events, selectedVenues, selectedEventTypes, openPressOnly])
+  }, [events, selectedVenues, selectedEventTypes, openPressOnly, confirmedOnly])
 
   // Group events by date
   const eventsByDate = useMemo(() => {
@@ -207,8 +212,8 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
           ))}
         </div>
 
-        {/* Open Press Filter */}
-        <div className="flex items-center space-x-2">
+        {/* Open Press and Confirmed Filters */}
+        <div className="flex items-center space-x-6">
           <label className="flex items-center space-x-2 cursor-pointer">
             <input
               type="checkbox"
@@ -217,6 +222,15 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
               className="w-4 h-4 text-blue-600 rounded"
             />
             <span className="text-sm text-gray-700">Open Press Only</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={confirmedOnly}
+              onChange={(e) => setConfirmedOnly(e.target.checked)}
+              className="w-4 h-4 text-blue-600 rounded"
+            />
+            <span className="text-sm text-gray-700">Confirmed Only</span>
           </label>
         </div>
       </div>
@@ -282,6 +296,7 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
                               const endMinutes = timeToMinutes(event.end_time)
                               const startPercent = ((startMinutes - 9 * 60) / (15 * 60)) * 100 // 9 AM = start, 15 hours total
                               const widthPercent = ((endMinutes - startMinutes) / (15 * 60)) * 100
+                              const tentativeStyle = !event.confirmed ? 'border-dashed opacity-60' : ''
 
                               return (
                                 <div
@@ -290,7 +305,7 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
                                     setSelectedEvent(event)
                                     setShowModal(true)
                                   }}
-                                  className={`absolute top-1 bottom-1 ${getEventTypeColor(event.event_type)} text-white rounded px-2 py-1 cursor-pointer hover:opacity-90 transition-opacity border-2 overflow-hidden`}
+                                  className={`absolute top-1 bottom-1 ${getEventTypeColor(event.event_type)} text-white rounded px-2 py-1 cursor-pointer hover:opacity-90 transition-opacity border-2 overflow-hidden ${tentativeStyle}`}
                                   style={{
                                     left: `${Math.max(0, startPercent)}%`,
                                     width: `${Math.min(100 - startPercent, widthPercent)}%`
@@ -338,6 +353,15 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
               <span className="text-gray-600">{type === 'Interview' ? '🎤 Interview' : type}</span>
             </div>
           ))}
+          <span className="text-gray-400 mx-1">|</span>
+          <span className="flex items-center">
+            <span className="w-5 h-4 bg-gray-400 border-2 border-gray-500 border-dashed rounded inline-block mr-1 opacity-60"></span>
+            <span className="text-gray-500">Tentative</span>
+          </span>
+          <span className="flex items-center">
+            <span className="w-5 h-4 bg-gray-400 border-2 border-gray-500 rounded inline-block mr-1"></span>
+            <span className="text-gray-600">Confirmed</span>
+          </span>
         </div>
       </div>
 

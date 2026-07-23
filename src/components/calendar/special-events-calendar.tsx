@@ -230,6 +230,7 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
               <div className="space-y-1">
                 {dayEvents.slice(0, 3).map((event, eventIndex) => {
                   const isInterview = event.event_type === 'Interview'
+                  const tentativeStyle = !event.confirmed ? 'border-dashed opacity-70' : ''
                   return (
                   <div
                     key={event.id}
@@ -237,7 +238,7 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
                       setSelectedEvent(event)
                       setShowModal(true)
                     }}
-                    className={`text-xs px-2 py-1 rounded border cursor-pointer hover:opacity-80 transition-opacity ${getEventTypeColor(event.event_type)}`}
+                    className={`text-xs px-2 py-1 rounded border cursor-pointer hover:opacity-80 transition-opacity ${getEventTypeColor(event.event_type)} ${tentativeStyle}`}
                   >
                     <div className="font-medium truncate">
                       {isInterview && <span className="mr-1">🎤</span>}
@@ -263,7 +264,7 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
       
       {/* Legend */}
       <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
-        <div className="flex items-center space-x-4 text-xs">
+        <div className="flex items-center space-x-4 text-xs flex-wrap">
           <span className="font-medium text-gray-700">Event Types:</span>
           {['Interview', 'Reception', 'Mixer', 'Party', 'Awards'].map(type => (
             <div key={type} className="flex items-center">
@@ -271,6 +272,15 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
               <span className="text-gray-600">{type === 'Interview' ? '🎤 Interview' : type}</span>
             </div>
           ))}
+          <span className="text-gray-400 mx-1">|</span>
+          <span className="flex items-center">
+            <span className="w-4 h-3 bg-gray-200 border border-gray-400 border-dashed rounded inline-block mr-1 opacity-70"></span>
+            <span className="text-gray-500">Tentative</span>
+          </span>
+          <span className="flex items-center">
+            <span className="w-4 h-3 bg-gray-200 border border-gray-400 rounded inline-block mr-1"></span>
+            <span className="text-gray-600">Confirmed</span>
+          </span>
         </div>
       </div>
 

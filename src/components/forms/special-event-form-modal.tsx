@@ -44,6 +44,7 @@ interface SpecialEventFormData {
   caterer: string
   photography: string
   open_press: OpenPressType
+  confirmed: boolean
   rsvp_responder_link: string
   rsvp_response_link: string
   actual_attendance: string
@@ -76,6 +77,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     food: '',
     caterer: '',
     photography: '',
+    confirmed: false,
     open_press: 'No',
     rsvp_responder_link: '',
     rsvp_response_link: '',
@@ -253,6 +255,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
           food: event.food || '',
           caterer: event.caterer || '',
           photography: event.photography || '',
+          confirmed: event.confirmed ?? false,
           open_press: event.open_press || 'No',
           rsvp_responder_link: event.rsvp_responder_link || '',
           rsvp_response_link: event.rsvp_response_link || '',
@@ -283,6 +286,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
           food: '',
           caterer: '',
           photography: '',
+          confirmed: false,
           open_press: 'No',
           rsvp_responder_link: '',
           rsvp_response_link: '',
@@ -454,6 +458,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         food: formData.food?.trim?.() || null,
         caterer: formData.caterer?.trim?.() || null,
         photography: formData.photography?.trim?.() || null,
+        confirmed: formData.confirmed,
         open_press: formData.open_press,
         rsvp_responder_link: formData.rsvp_responder_link?.trim?.() || null,
         rsvp_response_link: formData.rsvp_response_link?.trim?.() || null,
@@ -613,6 +618,21 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   <option value="Media Filing">Media Filing</option>
                 </select>
               </div>
+            </div>
+
+            {/* Status */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="confirmed"
+                checked={formData.confirmed}
+                onChange={(e) => setFormData(prev => ({ ...prev, confirmed: e.target.checked }))}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="confirmed" className="ml-2 text-sm font-medium text-gray-700">
+                Confirmed
+              </label>
+              <span className="ml-2 text-xs text-gray-500">(Unconfirmed events appear as tentative)</span>
             </div>
 
             {/* Row 2: Films/Programs ChipSelect */}
