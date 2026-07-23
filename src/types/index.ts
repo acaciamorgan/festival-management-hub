@@ -237,6 +237,7 @@ export interface VenueCard {
   contact_names?: string[] | null
   contact_emails?: string[] | null
   contact_phones?: string[] | null
+  accessibility?: string | null
   houses?: TheaterHouse[]
   houses_display?: string // Computed field for grid display
   festival_year: number

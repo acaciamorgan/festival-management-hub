@@ -189,6 +189,12 @@ export function VenueCardPopup({ venue, onClose, onUpdate, onDelete }: VenueCard
                 <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Address</span>
                 <p className="text-sm text-gray-900 mt-1 whitespace-pre-line">{venue.address}</p>
               </div>
+              {venue.accessibility && (
+                <div className="md:col-span-2">
+                  <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Accessibility</span>
+                  <p className="text-sm text-gray-900 mt-1 whitespace-pre-line">{venue.accessibility}</p>
+                </div>
+              )}
             </div>
           </CollapsibleSection>
 

@@ -17,6 +17,7 @@ interface VenueFormData {
   name: string
   address: string
   venue_type: VenueType
+  accessibility: string
   contact_names: string[]
   contact_emails: string[]
   contact_phones: string[]
@@ -30,6 +31,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
     name: '',
     address: '',
     venue_type: 'Restaurant',
+    accessibility: '',
     contact_names: [''],
     contact_emails: [''],
     contact_phones: [''],
@@ -93,6 +95,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
         name: venue.name || '',
         address: venue.address || '',
         venue_type: venue.venue_type || 'Restaurant',
+        accessibility: venue.accessibility || '',
         contact_names: venue.contact_names && venue.contact_names.length > 0 ? venue.contact_names : [''],
         contact_emails: venue.contact_emails && venue.contact_emails.length > 0 ? venue.contact_emails : [''],
         contact_phones: venue.contact_phones && venue.contact_phones.length > 0 ? venue.contact_phones : [''],
@@ -103,6 +106,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
         name: '',
         address: '',
         venue_type: 'Restaurant',
+        accessibility: '',
         contact_names: [''],
         contact_emails: [''],
         contact_phones: [''],
@@ -155,6 +159,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
         name: formData.name.trim(),
         address: formData.address.trim() || null,
         venue_type: formData.venue_type,
+        accessibility: formData.accessibility.trim() || null,
         contact_names: cleanContactNames.length > 0 ? cleanContactNames : null,
         contact_emails: cleanContactEmails.length > 0 ? cleanContactEmails : null,
         contact_phones: cleanContactPhones.length > 0 ? cleanContactPhones : null
@@ -400,6 +405,20 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
                   placeholder="Enter full address"
                 />
                 {errors.address && <p className="text-sm text-red-600 mt-1">{errors.address}</p>}
+              </div>
+
+              {/* Accessibility */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Accessibility
+                </label>
+                <textarea
+                  value={formData.accessibility}
+                  onChange={(e) => setFormData(prev => ({ ...prev, accessibility: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., Stairs to restrooms, wheelchair ramp at entrance, captioning equipment available..."
+                />
               </div>
 
               {/* Contact Information */}

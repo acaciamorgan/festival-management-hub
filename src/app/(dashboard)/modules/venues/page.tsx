@@ -27,11 +27,14 @@ export default function VenueManagementPage() {
 
   const supabase = createClient()
 
+  const [accessibilityPopup, setAccessibilityPopup] = useState<{ venueId: string, text: string, x: number, y: number } | null>(null)
+
   // Define table columns configuration
   const tableColumns = [
     { key: 'name', label: 'Venue Name', width: 200, sortable: true },
     { key: 'address', label: 'Address', width: 250, sortable: true },
     { key: 'venue_type', label: 'Type', width: 120, sortable: true },
+    { key: 'accessibility', label: 'Accessibility', width: 120, sortable: false },
     { key: 'houses_display', label: 'Houses', width: 250, sortable: false },
     { key: 'contact_emails', label: 'Email', width: 200, sortable: false },
     { key: 'contact_phones', label: 'Phone', width: 150, sortable: false }
@@ -304,6 +307,29 @@ export default function VenueManagementPage() {
                 <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['venue_type'] || 120}px` }}>
                   {venue.venue_type}
                 </td>
+                <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center" style={{ minWidth: `${columnWidths['accessibility'] || 120}px` }}>
+                  {venue.accessibility ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const rect = (e.target as HTMLElement).getBoundingClientRect()
+                        setAccessibilityPopup({
+                          venueId: venue.id,
+                          text: venue.accessibility!,
+                          x: rect.left,
+                          y: rect.bottom + 4
+                        })
+                      }}
+                      className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                    >
+                      Notes
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-400">
+                      No Notes
+                    </span>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['houses_display'] || 250}px` }}>
                   {venue.houses_display}
                 </td>
@@ -447,6 +473,31 @@ export default function VenueManagementPage() {
         )}
         </div>
       </div>
+
+      {/* Accessibility Notes Popup */}
+      {accessibilityPopup && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setAccessibilityPopup(null)}
+        >
+          <div
+            className="fixed bg-white rounded-lg shadow-xl border border-gray-200 p-4 max-w-sm z-50"
+            style={{ left: `${accessibilityPopup.x}px`, top: `${accessibilityPopup.y}px` }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold text-gray-900">Accessibility Notes</h4>
+              <button
+                onClick={() => setAccessibilityPopup(null)}
+                className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-gray-700 whitespace-pre-line">{accessibilityPopup.text}</p>
+          </div>
+        </div>
+      )}
 
       {/* Venue Form Modal */}
       <VenueFormModal
