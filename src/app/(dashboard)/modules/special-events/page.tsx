@@ -45,6 +45,7 @@ export default function SpecialEventsPage() {
   const [locationFilter, setLocationFilter] = useState<string>('all')
   const [openPressFilter, setOpenPressFilter] = useState<string>('all')
   const [photographyFilter, setPhotographyFilter] = useState<string>('all')
+  const [confirmedFilter, setConfirmedFilter] = useState<string>('all')
   
   // Calendar venue filter
   const [selectedVenues, setSelectedVenues] = useState<string[]>(['all'])
@@ -632,7 +633,11 @@ export default function SpecialEventsPage() {
         if (photographyFilter === 'yes' && !hasPhotography) return false
         if (photographyFilter === 'no' && hasPhotography) return false
       }
-      
+
+      // Confirmed filter
+      if (confirmedFilter === 'confirmed' && !event.confirmed) return false
+      if (confirmedFilter === 'tentative' && event.confirmed) return false
+
       // Calendar venue filter (only applies in calendar view)
       if (viewMode === 'calendar' && !selectedVenues.includes('all')) {
         if (!event.venue_name || !selectedVenues.includes(event.venue_name)) {
@@ -642,7 +647,7 @@ export default function SpecialEventsPage() {
       
       return true
     })
-  }, [specialEvents, searchTerm, eventTypeFilter, locationFilter, openPressFilter, photographyFilter, viewMode, selectedVenues])
+  }, [specialEvents, searchTerm, eventTypeFilter, locationFilter, openPressFilter, photographyFilter, confirmedFilter, viewMode, selectedVenues])
 
   // Sort logic
   const sortedEvents = useMemo(() => {
@@ -882,14 +887,16 @@ export default function SpecialEventsPage() {
     setLocationFilter('all')
     setOpenPressFilter('all')
     setPhotographyFilter('all')
+    setConfirmedFilter('all')
     setSearchTerm('')
   }
 
   const hasActiveFilters = () => {
-    return eventTypeFilter !== 'all' || 
-           locationFilter !== 'all' || 
-           openPressFilter !== 'all' || 
-           photographyFilter !== 'all' || 
+    return eventTypeFilter !== 'all' ||
+           locationFilter !== 'all' ||
+           openPressFilter !== 'all' ||
+           photographyFilter !== 'all' ||
+           confirmedFilter !== 'all' ||
            searchTerm !== ''
   }
 
@@ -1077,7 +1084,7 @@ export default function SpecialEventsPage() {
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Calendar
+              By Month
             </button>
           </div>
         </div>
@@ -1132,6 +1139,17 @@ export default function SpecialEventsPage() {
               <option value="all">All Photography</option>
               <option value="yes">Has Photography</option>
               <option value="no">No Photography</option>
+            </select>
+
+            {/* Confirmed Filter */}
+            <select
+              value={confirmedFilter}
+              onChange={(e) => setConfirmedFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Status</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="tentative">Tentative</option>
             </select>
 
             {/* Clear Filters */}
