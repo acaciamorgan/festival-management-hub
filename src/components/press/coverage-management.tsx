@@ -1129,7 +1129,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select...</option>
-                    {['Chicago', 'Regional', 'National', 'International'].map(g => (
+                    {['Local', 'Regional', 'National', 'International'].map(g => (
                       <option key={g} value={g}>{g}</option>
                     ))}
                   </select>

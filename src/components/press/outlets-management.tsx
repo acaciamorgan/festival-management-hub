@@ -19,7 +19,7 @@ interface OutletFormData {
 }
 
 const OUTLET_TYPES: CoverageOutletType[] = ['Print Daily', 'Magazine', 'Print Weekly', 'Online', 'Radio', 'TV', 'Podcast', 'College', 'Trade']
-const GEOGRAPHIES: CoverageGeography[] = ['Chicago', 'Regional', 'National', 'International']
+const GEOGRAPHIES: CoverageGeography[] = ['Local', 'Regional', 'National', 'International']
 
 const emptyForm: OutletFormData = {
   name: '',

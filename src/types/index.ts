@@ -93,7 +93,7 @@ export interface PressCard {
 
 // Press Coverage Types
 export type CoverageOutletType = 'Print Daily' | 'Magazine' | 'Print Weekly' | 'Online' | 'Radio' | 'TV' | 'Podcast' | 'College' | 'Trade'
-export type CoverageGeography = 'Chicago' | 'Regional' | 'National' | 'International'
+export type CoverageGeography = 'Local' | 'Regional' | 'National' | 'International'
 export type BreakType = 'Festival Feature' | 'Film Article' | 'Review' | 'Capsule' | 'Listing' | 'Mention'
 
 export interface OutletCard {
