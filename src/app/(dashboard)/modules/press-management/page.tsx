@@ -6,6 +6,7 @@ import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PressCardPopup } from '@/components/cards/press-card-popup'
+import { OutletsManagement } from '@/components/press/outlets-management'
 import { PressCard, SocialMedia } from '@/types'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import * as XLSX from 'xlsx-js-style'
@@ -29,6 +30,7 @@ export default function PressManagementPage() {
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'name', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [selectedPress, setSelectedPress] = useState<PressCard | null>(null)
+  const [activeTab, setActiveTab] = useState<'contacts' | 'outlets'>('contacts')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingPress, setEditingPress] = useState<PressCard | null>(null)
@@ -800,11 +802,43 @@ export default function PressManagementPage() {
   
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Page Title and Tabs */}
+      <div className="bg-white shadow-sm border-b border-gray-200 px-6 pt-4">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-semibold text-gray-900">📰 Press</h1>
+        </div>
+        <div className="flex space-x-1">
+          <button
+            onClick={() => setActiveTab('contacts')}
+            className={`px-4 py-2 text-sm font-medium rounded-t-md border-b-2 transition-colors ${
+              activeTab === 'contacts'
+                ? 'border-blue-600 text-blue-600 bg-blue-50'
+                : 'border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+            }`}
+          >
+            Press Contacts
+          </button>
+          <button
+            onClick={() => setActiveTab('outlets')}
+            className={`px-4 py-2 text-sm font-medium rounded-t-md border-b-2 transition-colors ${
+              activeTab === 'outlets'
+                ? 'border-blue-600 text-blue-600 bg-blue-50'
+                : 'border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+            }`}
+          >
+            Outlets
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'outlets' ? (
+        <OutletsManagement canEdit={canEditPress} />
+      ) : (
+      <>
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">📰 Press</h1>
-            <p className="text-sm text-gray-600 mt-1">{filteredPress.length} of {press.length} press cards</p>
+            <p className="text-sm text-gray-600">{filteredPress.length} of {press.length} press cards</p>
           </div>
           <div className="flex items-center space-x-4">
             {canEditPress && (
@@ -1478,6 +1512,8 @@ export default function PressManagementPage() {
             setSelectedPress(null)
           }}
         />
+      )}
+      </>
       )}
     </div>
   )

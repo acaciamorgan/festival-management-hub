@@ -91,6 +91,38 @@ export interface PressCard {
   festival_year: number
 }
 
+// Press Coverage Types
+export type CoverageOutletType = 'Print Daily' | 'Magazine' | 'Print Weekly' | 'Online' | 'Radio' | 'TV' | 'Podcast' | 'College' | 'Trade'
+export type CoverageGeography = 'Chicago' | 'Regional' | 'National' | 'International'
+export type BreakType = 'Festival Feature' | 'Film Article' | 'Review' | 'Capsule' | 'Listing' | 'Mention'
+
+export interface OutletCard {
+  id: string
+  name: string
+  outlet_type?: CoverageOutletType | null
+  uvm_reach?: string | null
+  geography?: CoverageGeography | null
+  website?: string | null
+  festival_year: number
+}
+
+export interface PressCoverageCard {
+  id: string
+  headline: string
+  break_type?: BreakType | null
+  coverage_date?: string | null
+  outlet_id?: string | null
+  byline?: string | null
+  url?: string | null
+  notes?: string | null
+  pdf_clip_link?: string | null
+  festival_year: number
+  outlet_name?: string | null
+  outlet_type?: CoverageOutletType | null
+  uvm_reach?: string | null
+  geography?: CoverageGeography | null
+}
+
 // Film/Title Types
 export interface FilmCard {
   id: string
