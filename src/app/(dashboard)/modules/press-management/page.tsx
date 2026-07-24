@@ -7,6 +7,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PressCardPopup } from '@/components/cards/press-card-popup'
 import { OutletsManagement } from '@/components/press/outlets-management'
+import { CoverageManagement } from '@/components/press/coverage-management'
 import { PressCard, SocialMedia } from '@/types'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import * as XLSX from 'xlsx-js-style'
@@ -30,7 +31,7 @@ export default function PressManagementPage() {
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'name', direction: 'asc' })
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [selectedPress, setSelectedPress] = useState<PressCard | null>(null)
-  const [activeTab, setActiveTab] = useState<'contacts' | 'outlets'>('contacts')
+  const [activeTab, setActiveTab] = useState<'contacts' | 'coverage' | 'outlets'>('contacts')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingPress, setEditingPress] = useState<PressCard | null>(null)
@@ -819,6 +820,16 @@ export default function PressManagementPage() {
             Press Contacts
           </button>
           <button
+            onClick={() => setActiveTab('coverage')}
+            className={`px-4 py-2 text-sm font-medium rounded-t-md border-b-2 transition-colors ${
+              activeTab === 'coverage'
+                ? 'border-blue-600 text-blue-600 bg-blue-50'
+                : 'border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+            }`}
+          >
+            Coverage
+          </button>
+          <button
             onClick={() => setActiveTab('outlets')}
             className={`px-4 py-2 text-sm font-medium rounded-t-md border-b-2 transition-colors ${
               activeTab === 'outlets'
@@ -833,6 +844,8 @@ export default function PressManagementPage() {
 
       {activeTab === 'outlets' ? (
         <OutletsManagement canEdit={canEditPress} />
+      ) : activeTab === 'coverage' ? (
+        <CoverageManagement canEdit={canEditPress} />
       ) : (
       <>
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
