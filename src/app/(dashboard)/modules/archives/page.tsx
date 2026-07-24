@@ -26,6 +26,7 @@ export default function ArchivesPage() {
   const [copyVenues, setCopyVenues] = useState(true)
   const [copyContacts, setCopyContacts] = useState(true)
   const [copyPress, setCopyPress] = useState(true)
+  const [copyOutlets, setCopyOutlets] = useState(true)
   const [copyTemplatePrograms, setCopyTemplatePrograms] = useState(true)
   const [creatingYear, setCreatingYear] = useState(false)
   const [yearCreationResult, setYearCreationResult] = useState<any>(null)
@@ -92,6 +93,7 @@ export default function ArchivesPage() {
         copyVenues,
         copyContacts,
         copyPress,
+        copyOutlets,
         copyTemplatePrograms,
       })
 
@@ -119,6 +121,7 @@ export default function ArchivesPage() {
       setCopyVenues(true)
       setCopyContacts(true)
       setCopyPress(true)
+      setCopyOutlets(true)
       setCopyTemplatePrograms(true)
     } catch (error) {
       console.error('Year creation failed:', error)
@@ -418,6 +421,18 @@ export default function ArchivesPage() {
                       />
                       <span className="text-sm text-gray-700">
                         Copy press from previous year
+                      </span>
+                    </label>
+
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={copyOutlets}
+                        onChange={(e) => setCopyOutlets(e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 mr-2"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Copy outlets from previous year
                       </span>
                     </label>
 

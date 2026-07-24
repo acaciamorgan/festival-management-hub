@@ -86,6 +86,7 @@ export async function createNewFestivalYear(options: {
   copyTemplatePrograms?: boolean
   copyContacts?: boolean
   copyPress?: boolean
+  copyOutlets?: boolean
 }): Promise<{ success: boolean; error?: string }> {
   const supabase = createClient()
 
@@ -226,6 +227,29 @@ export async function createNewFestivalYear(options: {
 
         const { error: pressInsertError } = await supabase.from('press').insert(newPress)
         if (pressInsertError) console.error('Error copying press:', pressInsertError)
+      }
+    }
+
+    // Copy outlets if requested
+    if (options.copyOutlets) {
+      const previousYear = options.year - 1
+      const { data: outlets, error: outletsError } = await supabase
+        .from('outlets')
+        .select('*')
+        .eq('festival_year', previousYear)
+
+      if (!outletsError && outlets && outlets.length > 0) {
+        const newOutlets = outlets.map(o => ({
+          name: o.name,
+          outlet_type: o.outlet_type,
+          uvm_reach: o.uvm_reach,
+          geography: o.geography,
+          website: o.website,
+          festival_year: options.year,
+        }))
+
+        const { error: outletsInsertError } = await supabase.from('outlets').insert(newOutlets)
+        if (outletsInsertError) console.error('Error copying outlets:', outletsInsertError)
       }
     }
 
