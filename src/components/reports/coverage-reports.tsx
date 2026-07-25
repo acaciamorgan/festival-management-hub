@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { BreakType, CoverageOutletType, CoverageGeography } from '@/types'
 import * as XLSX from 'xlsx-js-style'
 
@@ -31,8 +30,13 @@ interface FilmOption {
 const BREAK_TYPES: BreakType[] = ['Festival Feature', 'Film Article', 'Review', 'Capsule', 'Listing', 'Mention']
 const GEOGRAPHIES: CoverageGeography[] = ['Local', 'Regional', 'National', 'International']
 
-export default function CoverageReports() {
-  const { currentYear } = useFestivalYear()
+interface CoverageReportsProps {
+  availableYears: number[]
+  defaultYear: number
+}
+
+export default function CoverageReports({ availableYears, defaultYear }: CoverageReportsProps) {
+  const [selectedYear, setSelectedYear] = useState(defaultYear)
   const [reportType, setReportType] = useState<'coverage-summary' | 'coverage-by-title' | 'coverage-by-outlet'>('coverage-summary')
   const [coverage, setCoverage] = useState<CoverageEntry[]>([])
   const [allFilms, setAllFilms] = useState<FilmOption[]>([])
@@ -41,8 +45,6 @@ export default function CoverageReports() {
   // Filters
   const [breakTypeFilter, setBreakTypeFilter] = useState<string>('all')
   const [geographyFilter, setGeographyFilter] = useState<string>('all')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
   const [selectedFilmId, setSelectedFilmId] = useState<string>('all')
 
   const supabase = createClient()
@@ -54,7 +56,7 @@ export default function CoverageReports() {
       const { data: coverageData, error } = await supabase
         .from('press_coverage')
         .select('*, outlets(name, outlet_type, uvm_reach, geography)')
-        .eq('festival_year', currentYear)
+        .eq('festival_year', selectedYear)
         .order('coverage_date', { ascending: false })
 
       if (error) throw error
@@ -118,10 +120,10 @@ export default function CoverageReports() {
 
       // Load all films for title filter
       const [feat, short, sp, prog] = await Promise.all([
-        supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
-        supabase.from('short_films').select('id, title').eq('festival_year', currentYear).order('title'),
-        supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear).order('program_name'),
-        supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
+        supabase.from('feature_films').select('id, title').eq('festival_year', selectedYear).order('title'),
+        supabase.from('short_films').select('id, title').eq('festival_year', selectedYear).order('title'),
+        supabase.from('shorts_programs').select('id, program_name').eq('festival_year', selectedYear).order('program_name'),
+        supabase.from('programs').select('id, title').eq('festival_year', selectedYear).order('title'),
       ])
       setAllFilms([
         ...(feat.data || []).map((f: any) => ({ id: f.id, title: f.title, type: 'feature' })),
@@ -134,7 +136,7 @@ export default function CoverageReports() {
     } finally {
       setLoading(false)
     }
-  }, [supabase, currentYear])
+  }, [supabase, selectedYear])
 
   useEffect(() => {
     loadData()
@@ -145,14 +147,12 @@ export default function CoverageReports() {
     return coverage.filter(entry => {
       if (breakTypeFilter !== 'all' && entry.break_type !== breakTypeFilter) return false
       if (geographyFilter !== 'all' && entry.geography !== geographyFilter) return false
-      if (dateFrom && entry.coverage_date && entry.coverage_date < dateFrom) return false
-      if (dateTo && entry.coverage_date && entry.coverage_date > dateTo) return false
       if (selectedFilmId !== 'all') {
         if (!entry.film_tags.some(ft => ft.film_id === selectedFilmId)) return false
       }
       return true
     })
-  }, [coverage, breakTypeFilter, geographyFilter, dateFrom, dateTo, selectedFilmId])
+  }, [coverage, breakTypeFilter, geographyFilter, selectedFilmId])
 
   // Summary stats
   const summaryStats = useMemo(() => {
@@ -224,7 +224,7 @@ export default function CoverageReports() {
     if (reportType === 'coverage-summary') {
       const summaryData = [
         ['Press Coverage Summary Report'],
-        ['Festival Year', currentYear],
+        ['Festival Year', selectedYear],
         [''],
         ['Total Coverage Entries', summaryStats.total],
         ['Unique Outlets', summaryStats.uniqueOutlets],
@@ -297,10 +297,10 @@ export default function CoverageReports() {
       XLSX.utils.book_append_sheet(wb, ws, 'Coverage by Outlet')
     }
 
-    XLSX.writeFile(wb, `Press_Coverage_Report_${currentYear}_${reportType}.xlsx`)
+    XLSX.writeFile(wb, `Press_Coverage_Report_${selectedYear}_${reportType}.xlsx`)
   }
 
-  const hasFilters = breakTypeFilter !== 'all' || geographyFilter !== 'all' || dateFrom || dateTo || selectedFilmId !== 'all'
+  const hasFilters = breakTypeFilter !== 'all' || geographyFilter !== 'all' || selectedFilmId !== 'all'
 
   if (loading) {
     return (
@@ -374,12 +374,14 @@ export default function CoverageReports() {
             </select>
           </div>
           <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">From:</label>
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border border-gray-300 rounded-md px-2 py-1 text-sm" />
-          </div>
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">To:</label>
-            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="border border-gray-300 rounded-md px-2 py-1 text-sm" />
+            <label className="text-sm font-medium text-gray-700">Year:</label>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+            >
+              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
           </div>
           <div className="flex items-center space-x-2">
             <label className="text-sm font-medium text-gray-700">Title:</label>
@@ -394,7 +396,7 @@ export default function CoverageReports() {
           </div>
           {hasFilters && (
             <button
-              onClick={() => { setBreakTypeFilter('all'); setGeographyFilter('all'); setDateFrom(''); setDateTo(''); setSelectedFilmId('all') }}
+              onClick={() => { setBreakTypeFilter('all'); setGeographyFilter('all'); setSelectedFilmId('all') }}
               className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
             >
               Clear All

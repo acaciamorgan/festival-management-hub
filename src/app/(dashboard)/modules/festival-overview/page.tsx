@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { getOrdinalSuffix } from '@/utils/ordinal'
+import CoverageReports from '@/components/reports/coverage-reports'
 
 interface FestivalSettings {
   id: string
@@ -21,8 +22,8 @@ interface FestivalSettings {
 
 export default function FestivalOverviewPage() {
   const { permissions } = usePermissions()
-  const { currentYear } = useFestivalYear()
-  const [activeTab, setActiveTab] = useState<'overview' | 'settings'>('overview')
+  const { currentYear, availableYears } = useFestivalYear()
+  const [activeTab, setActiveTab] = useState<'overview' | 'coverage-reports' | 'settings'>('overview')
   const [festivalSettings, setFestivalSettings] = useState<FestivalSettings | null>(null)
   const [loading, setLoading] = useState(true)
   
@@ -276,6 +277,16 @@ export default function FestivalOverviewPage() {
           >
             Festival Overview
           </button>
+          <button
+            onClick={() => setActiveTab('coverage-reports')}
+            className={`px-6 py-2 rounded-t-lg font-medium ${
+              activeTab === 'coverage-reports'
+                ? 'bg-white border-t border-l border-r border-gray-300 text-green-600'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Press Coverage Reports
+          </button>
           {canEditFestivalOverview && (
             <button
               onClick={() => setActiveTab('settings')}
@@ -358,6 +369,11 @@ export default function FestivalOverviewPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Coverage Reports Tab */}
+        {activeTab === 'coverage-reports' && (
+          <CoverageReports availableYears={availableYears.map(y => y.year)} defaultYear={currentYear} />
         )}
 
         {/* Settings Tab */}
