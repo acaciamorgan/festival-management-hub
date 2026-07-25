@@ -129,15 +129,6 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
     cardTypes: ['titles', 'venues'],
     route: '/modules/ticketing'
   },
-  reportsAnalytics: {
-    id: 'reportsAnalytics',
-    name: 'Reports & Analytics',
-    icon: 'chart-bar',
-    hasGridView: true,
-    hasRSVP: false,
-    cardTypes: ['titles', 'guests', 'press', 'venues', 'programs'],
-    route: '/modules/reports-analytics'
-  },
   archives: {
     id: 'archives',
     name: 'Reports & Archives',

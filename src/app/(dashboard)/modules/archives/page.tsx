@@ -8,12 +8,13 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { exportFestivalToExcel } from '@/utils/excel-export'
 import { createNewFestivalYear, archiveFestivalYear, unarchiveFestivalYear } from '@/lib/festival-year-actions'
 import { getOrdinalSuffix } from '@/utils/ordinal'
+import CoverageReports from '@/components/reports/coverage-reports'
 
 export default function ArchivesPage() {
   const { user } = useAuth()
   const { permissions } = usePermissions()
   const { currentYear, availableYears, refreshYears } = useFestivalYear()
-  const [activeTab, setActiveTab] = useState<'years' | 'export'>('years')
+  const [activeTab, setActiveTab] = useState<'years' | 'coverage-reports' | 'export'>('years')
   const [exporting, setExporting] = useState(false)
 
   // Year Management states
@@ -202,17 +203,21 @@ export default function ArchivesPage() {
       <div className="bg-white border-b border-gray-200">
         <nav className="px-6">
           <div className="flex space-x-8">
-            {['years', 'export'].map((tab) => (
+            {[
+              { key: 'years', label: 'Years' },
+              { key: 'coverage-reports', label: 'Coverage Reports' },
+              { key: 'export', label: 'Export' },
+            ].map((tab) => (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab as any)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm capitalize ${
-                  activeTab === tab
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab.key
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                {tab === 'years' ? 'Years' : tab}
+                {tab.label}
               </button>
             ))}
           </div>
@@ -278,6 +283,10 @@ export default function ArchivesPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {activeTab === 'coverage-reports' && (
+          <CoverageReports />
         )}
 
         {activeTab === 'years' && (

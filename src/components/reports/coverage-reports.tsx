@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useAuth } from '@/components/providers/auth-provider'
-import { usePermissions } from '@/hooks/use-permissions'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { BreakType, CoverageOutletType, CoverageGeography } from '@/types'
 import * as XLSX from 'xlsx-js-style'
@@ -33,9 +31,7 @@ interface FilmOption {
 const BREAK_TYPES: BreakType[] = ['Festival Feature', 'Film Article', 'Review', 'Capsule', 'Listing', 'Mention']
 const GEOGRAPHIES: CoverageGeography[] = ['Local', 'Regional', 'National', 'International']
 
-export default function ReportsAnalyticsPage() {
-  const { } = useAuth()
-  const { permissions } = usePermissions()
+export default function CoverageReports() {
   const { currentYear } = useFestivalYear()
   const [reportType, setReportType] = useState<'coverage-summary' | 'coverage-by-title' | 'coverage-by-outlet'>('coverage-summary')
   const [coverage, setCoverage] = useState<CoverageEntry[]>([])
@@ -48,7 +44,6 @@ export default function ReportsAnalyticsPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [selectedFilmId, setSelectedFilmId] = useState<string>('all')
-  const [filmSearch, setFilmSearch] = useState('')
 
   const supabase = createClient()
 
@@ -163,24 +158,19 @@ export default function ReportsAnalyticsPage() {
   const summaryStats = useMemo(() => {
     const total = filteredCoverage.length
 
-    // Break type counts
     const byBreakType: Record<string, number> = {}
     BREAK_TYPES.forEach(t => { byBreakType[t] = 0 })
     filteredCoverage.forEach(e => { if (e.break_type) byBreakType[e.break_type] = (byBreakType[e.break_type] || 0) + 1 })
 
-    // Geography counts
     const byGeography: Record<string, number> = {}
     GEOGRAPHIES.forEach(g => { byGeography[g] = 0 })
     filteredCoverage.forEach(e => { if (e.geography) byGeography[e.geography] = (byGeography[e.geography] || 0) + 1 })
 
-    // Outlet type counts
     const byOutletType: Record<string, number> = {}
     filteredCoverage.forEach(e => { if (e.outlet_type) byOutletType[e.outlet_type] = (byOutletType[e.outlet_type] || 0) + 1 })
 
-    // Unique outlets
     const uniqueOutlets = new Set(filteredCoverage.map(e => e.outlet_name).filter(Boolean)).size
 
-    // Titles covered
     const titlesCovered = new Set<string>()
     filteredCoverage.forEach(e => e.film_tags.forEach(ft => titlesCovered.add(ft.film_id)))
 
@@ -220,13 +210,6 @@ export default function ReportsAnalyticsPage() {
     return Object.values(grouped).sort((a, b) => b.entries.length - a.entries.length)
   }, [filteredCoverage])
 
-  // Filtered films for the title dropdown
-  const filteredFilms = useMemo(() => {
-    if (!filmSearch) return allFilms
-    const lower = filmSearch.toLowerCase()
-    return allFilms.filter(f => f.title.toLowerCase().includes(lower))
-  }, [allFilms, filmSearch])
-
   const formatDate = (dateStr: string | null): string => {
     if (!dateStr) return ''
     const [year, month, day] = dateStr.split('-').map(Number)
@@ -236,9 +219,9 @@ export default function ReportsAnalyticsPage() {
   // Export to Excel
   const exportReport = () => {
     const wb = XLSX.utils.book_new()
+    const headerStyle = { font: { bold: true }, fill: { patternType: 'solid' as const, fgColor: { rgb: 'E8E8E8' } } }
 
     if (reportType === 'coverage-summary') {
-      // Summary sheet
       const summaryData = [
         ['Press Coverage Summary Report'],
         ['Festival Year', currentYear],
@@ -260,24 +243,13 @@ export default function ReportsAnalyticsPage() {
       ws['A1'] = { v: 'Press Coverage Summary Report', s: { font: { bold: true, sz: 14 } } }
       XLSX.utils.book_append_sheet(wb, ws, 'Summary')
 
-      // Detail sheet
       const detailHeaders = ['Headline', 'Break Type', 'Date', 'Outlet', 'Byline', 'UVM/Reach', 'Outlet Type', 'Geography', 'Titles Mentioned', 'URL', 'Notes', 'PDF/Clip']
       const detailRows = filteredCoverage.map(e => [
-        e.headline,
-        e.break_type || '',
-        formatDate(e.coverage_date),
-        e.outlet_name || '',
-        e.byline || '',
-        e.uvm_reach || '',
-        e.outlet_type || '',
-        e.geography || '',
-        e.film_tags.map(ft => ft.title).join(', '),
-        e.url || '',
-        e.notes || '',
-        e.pdf_clip_link || ''
+        e.headline, e.break_type || '', formatDate(e.coverage_date), e.outlet_name || '', e.byline || '',
+        e.uvm_reach || '', e.outlet_type || '', e.geography || '', e.film_tags.map(ft => ft.title).join(', '),
+        e.url || '', e.notes || '', e.pdf_clip_link || ''
       ])
       const ws2 = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailRows])
-      const headerStyle = { font: { bold: true }, fill: { patternType: 'solid', fgColor: { rgb: 'E8E8E8' } } }
       detailHeaders.forEach((_, i) => {
         const cell = ws2[XLSX.utils.encode_cell({ r: 0, c: i })]
         if (cell) cell.s = headerStyle
@@ -292,14 +264,12 @@ export default function ReportsAnalyticsPage() {
         [...new Set(t.entries.map(e => e.outlet_name).filter(Boolean))].join(', ')
       ])
       const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
-      const headerStyle = { font: { bold: true }, fill: { patternType: 'solid', fgColor: { rgb: 'E8E8E8' } } }
       headers.forEach((_, i) => {
         const cell = ws[XLSX.utils.encode_cell({ r: 0, c: i })]
         if (cell) cell.s = headerStyle
       })
       XLSX.utils.book_append_sheet(wb, ws, 'Coverage by Title')
 
-      // Per-title detail sheets (top 10)
       coverageByTitle.slice(0, 10).forEach(t => {
         const sheetName = t.title.substring(0, 28).replace(/[\\/*?[\]]/g, '')
         const detailHeaders = ['Headline', 'Break Type', 'Date', 'Outlet', 'Byline', 'UVM/Reach', 'URL']
@@ -316,15 +286,10 @@ export default function ReportsAnalyticsPage() {
     } else {
       const headers = ['Outlet', 'Outlet Type', 'Geography', 'UVM/Reach', 'Coverage Count', 'Break Types']
       const rows = coverageByOutlet.map(o => [
-        o.outlet,
-        o.outletType || '',
-        o.geography || '',
-        o.uvm || '',
-        o.entries.length,
+        o.outlet, o.outletType || '', o.geography || '', o.uvm || '', o.entries.length,
         [...new Set(o.entries.map(e => e.break_type).filter(Boolean))].join(', ')
       ])
       const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
-      const headerStyle = { font: { bold: true }, fill: { patternType: 'solid', fgColor: { rgb: 'E8E8E8' } } }
       headers.forEach((_, i) => {
         const cell = ws[XLSX.utils.encode_cell({ r: 0, c: i })]
         if (cell) cell.s = headerStyle
@@ -339,7 +304,7 @@ export default function ReportsAnalyticsPage() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading report data...</p>
@@ -349,22 +314,22 @@ export default function ReportsAnalyticsPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-gray-900">Reports & Analytics</h1>
+    <div className="space-y-6">
+      {/* Report Type Tabs + Export */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-medium text-gray-900">Press Coverage Reports</h2>
           <button
             onClick={exportReport}
             disabled={filteredCoverage.length === 0}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors font-medium disabled:opacity-50"
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors font-medium text-sm disabled:opacity-50"
           >
             Export to Excel
           </button>
         </div>
 
-        {/* Report Type Tabs */}
-        <div className="flex space-x-1 mt-4">
+        {/* Sub-tabs */}
+        <div className="flex space-x-1 mb-4">
           {[
             { key: 'coverage-summary' as const, label: 'Coverage Summary' },
             { key: 'coverage-by-title' as const, label: 'Coverage by Title' },
@@ -373,10 +338,10 @@ export default function ReportsAnalyticsPage() {
             <button
               key={tab.key}
               onClick={() => setReportType(tab.key)}
-              className={`px-4 py-2 text-sm font-medium rounded-t-md border-b-2 transition-colors ${
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 reportType === tab.key
-                  ? 'border-blue-600 text-blue-600 bg-blue-50'
-                  : 'border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
               }`}
             >
               {tab.label}
@@ -385,7 +350,7 @@ export default function ReportsAnalyticsPage() {
         </div>
 
         {/* Filters */}
-        <div className="mt-4 flex flex-wrap gap-4 items-end">
+        <div className="flex flex-wrap gap-4 items-end">
           <div className="flex items-center space-x-2">
             <label className="text-sm font-medium text-gray-700">Break Type:</label>
             <select
@@ -439,104 +404,148 @@ export default function ReportsAnalyticsPage() {
       </div>
 
       {/* Report Content */}
-      <div className="flex-1 overflow-auto p-6">
-        {filteredCoverage.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <p className="text-gray-500 text-lg">No coverage data {hasFilters ? 'matches the selected filters' : 'yet'}</p>
-            {!hasFilters && <p className="text-gray-400 mt-2">Add coverage entries in the Press Management module</p>}
+      {filteredCoverage.length === 0 ? (
+        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+          <p className="text-gray-500 text-lg">No coverage data {hasFilters ? 'matches the selected filters' : 'yet'}</p>
+          {!hasFilters && <p className="text-gray-400 mt-2">Add coverage entries in the Press Management module</p>}
+        </div>
+      ) : reportType === 'coverage-summary' ? (
+        <div className="space-y-6">
+          {/* Top-level stats */}
+          <div className="grid grid-cols-3 gap-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
+              <div className="text-3xl font-bold text-blue-600">{summaryStats.total}</div>
+              <div className="text-sm text-gray-600 mt-1">Total Coverage Entries</div>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
+              <div className="text-3xl font-bold text-green-600">{summaryStats.uniqueOutlets}</div>
+              <div className="text-sm text-gray-600 mt-1">Unique Outlets</div>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
+              <div className="text-3xl font-bold text-purple-600">{summaryStats.titlesCovered}</div>
+              <div className="text-sm text-gray-600 mt-1">Titles Covered</div>
+            </div>
           </div>
-        ) : reportType === 'coverage-summary' ? (
-          /* Summary Report */
-          <div className="space-y-6">
-            {/* Top-level stats */}
-            <div className="grid grid-cols-3 gap-6">
-              <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-                <div className="text-3xl font-bold text-blue-600">{summaryStats.total}</div>
-                <div className="text-sm text-gray-600 mt-1">Total Coverage Entries</div>
-              </div>
-              <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-                <div className="text-3xl font-bold text-green-600">{summaryStats.uniqueOutlets}</div>
-                <div className="text-sm text-gray-600 mt-1">Unique Outlets</div>
-              </div>
-              <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-                <div className="text-3xl font-bold text-purple-600">{summaryStats.titlesCovered}</div>
-                <div className="text-sm text-gray-600 mt-1">Titles Covered</div>
+
+          {/* Breakdowns */}
+          <div className="grid grid-cols-3 gap-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">By Break Type</h3>
+              <div className="space-y-3">
+                {Object.entries(summaryStats.byBreakType).filter(([, count]) => count > 0).sort(([,a], [,b]) => b - a).map(([type, count]) => (
+                  <div key={type} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">{type}</span>
+                    <div className="flex items-center">
+                      <div className="w-24 h-2 bg-gray-200 rounded-full mr-3">
+                        <div className="h-2 bg-blue-500 rounded-full" style={{ width: `${(count / summaryStats.total) * 100}%` }} />
+                      </div>
+                      <span className="text-sm font-medium text-gray-900 w-8 text-right">{count}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Breakdowns */}
-            <div className="grid grid-cols-3 gap-6">
-              {/* By Break Type */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">By Break Type</h3>
-                <div className="space-y-3">
-                  {Object.entries(summaryStats.byBreakType).filter(([, count]) => count > 0).sort(([,a], [,b]) => b - a).map(([type, count]) => (
-                    <div key={type} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700">{type}</span>
-                      <div className="flex items-center">
-                        <div className="w-24 h-2 bg-gray-200 rounded-full mr-3">
-                          <div className="h-2 bg-blue-500 rounded-full" style={{ width: `${(count / summaryStats.total) * 100}%` }} />
-                        </div>
-                        <span className="text-sm font-medium text-gray-900 w-8 text-right">{count}</span>
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">By Geography</h3>
+              <div className="space-y-3">
+                {Object.entries(summaryStats.byGeography).filter(([, count]) => count > 0).sort(([,a], [,b]) => b - a).map(([geo, count]) => (
+                  <div key={geo} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">{geo}</span>
+                    <div className="flex items-center">
+                      <div className="w-24 h-2 bg-gray-200 rounded-full mr-3">
+                        <div className="h-2 bg-green-500 rounded-full" style={{ width: `${(count / summaryStats.total) * 100}%` }} />
                       </div>
+                      <span className="text-sm font-medium text-gray-900 w-8 text-right">{count}</span>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* By Geography */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">By Geography</h3>
-                <div className="space-y-3">
-                  {Object.entries(summaryStats.byGeography).filter(([, count]) => count > 0).sort(([,a], [,b]) => b - a).map(([geo, count]) => (
-                    <div key={geo} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700">{geo}</span>
-                      <div className="flex items-center">
-                        <div className="w-24 h-2 bg-gray-200 rounded-full mr-3">
-                          <div className="h-2 bg-green-500 rounded-full" style={{ width: `${(count / summaryStats.total) * 100}%` }} />
-                        </div>
-                        <span className="text-sm font-medium text-gray-900 w-8 text-right">{count}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* By Outlet Type */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">By Outlet Type</h3>
-                <div className="space-y-3">
-                  {Object.entries(summaryStats.byOutletType).filter(([, count]) => count > 0).sort(([,a], [,b]) => b - a).map(([type, count]) => (
-                    <div key={type} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700">{type}</span>
-                      <div className="flex items-center">
-                        <div className="w-24 h-2 bg-gray-200 rounded-full mr-3">
-                          <div className="h-2 bg-purple-500 rounded-full" style={{ width: `${(count / summaryStats.total) * 100}%` }} />
-                        </div>
-                        <span className="text-sm font-medium text-gray-900 w-8 text-right">{count}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Detail table */}
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">All Coverage ({filteredCoverage.length})</h3>
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">By Outlet Type</h3>
+              <div className="space-y-3">
+                {Object.entries(summaryStats.byOutletType).filter(([, count]) => count > 0).sort(([,a], [,b]) => b - a).map(([type, count]) => (
+                  <div key={type} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">{type}</span>
+                    <div className="flex items-center">
+                      <div className="w-24 h-2 bg-gray-200 rounded-full mr-3">
+                        <div className="h-2 bg-purple-500 rounded-full" style={{ width: `${(count / summaryStats.total) * 100}%` }} />
+                      </div>
+                      <span className="text-sm font-medium text-gray-900 w-8 text-right">{count}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+            </div>
+          </div>
+
+          {/* Detail table */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">All Coverage ({filteredCoverage.length})</h3>
+            </div>
+            <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    {['Headline', 'Break Type', 'Date', 'Outlet', 'Byline', 'Geography', 'Titles'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredCoverage.map(entry => (
+                    <tr key={entry.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 text-sm text-gray-900">
+                        {entry.url ? (
+                          <a href={entry.url.startsWith('http') ? entry.url : `https://${entry.url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{entry.headline}</a>
+                        ) : entry.headline}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{entry.break_type || ''}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{formatDate(entry.coverage_date)}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{entry.outlet_name || ''}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{entry.byline || ''}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{entry.geography || ''}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{entry.film_tags.map(ft => ft.title).join(', ') || ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : reportType === 'coverage-by-title' ? (
+        <div className="space-y-4">
+          {coverageByTitle.length === 0 ? (
+            <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+              <p className="text-gray-500">No titles have been tagged in coverage entries yet</p>
+            </div>
+          ) : coverageByTitle.map(item => (
+            <div key={item.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{item.title}</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {item.type === 'feature' ? 'Feature Film' : item.type === 'short' ? 'Short Film' : item.type === 'shorts_program' ? 'Shorts Program' : 'Program'}
+                  </p>
+                </div>
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                  {item.entries.length} piece{item.entries.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50 sticky top-0">
+                  <thead className="bg-gray-50">
                     <tr>
-                      {['Headline', 'Break Type', 'Date', 'Outlet', 'Byline', 'Geography', 'Titles'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
+                      {['Headline', 'Break Type', 'Date', 'Outlet', 'Byline', 'UVM/Reach'].map(h => (
+                        <th key={h} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {filteredCoverage.map(entry => (
+                    {item.entries.map(entry => (
                       <tr key={entry.id} className="hover:bg-gray-50">
                         <td className="px-4 py-2 text-sm text-gray-900">
                           {entry.url ? (
@@ -547,112 +556,60 @@ export default function ReportsAnalyticsPage() {
                         <td className="px-4 py-2 text-sm text-gray-700">{formatDate(entry.coverage_date)}</td>
                         <td className="px-4 py-2 text-sm text-gray-700">{entry.outlet_name || ''}</td>
                         <td className="px-4 py-2 text-sm text-gray-700">{entry.byline || ''}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700">{entry.geography || ''}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700">{entry.film_tags.map(ft => ft.title).join(', ') || ''}</td>
+                        <td className="px-4 py-2 text-sm text-gray-700">{entry.uvm_reach || ''}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-          </div>
-        ) : reportType === 'coverage-by-title' ? (
-          /* By Title Report */
-          <div className="space-y-4">
-            {coverageByTitle.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-                <p className="text-gray-500">No titles have been tagged in coverage entries yet</p>
-              </div>
-            ) : coverageByTitle.map(item => (
-              <div key={item.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{item.title}</h3>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {item.type === 'feature' ? 'Feature Film' : item.type === 'short' ? 'Short Film' : item.type === 'shorts_program' ? 'Shorts Program' : 'Program'}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                    {item.entries.length} piece{item.entries.length !== 1 ? 's' : ''}
-                  </span>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {coverageByOutlet.map(item => (
+            <div key={item.outlet} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{item.outlet}</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {[item.outletType, item.geography, item.uvm ? `Reach: ${item.uvm}` : null].filter(Boolean).join(' · ')}
+                  </p>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        {['Headline', 'Break Type', 'Date', 'Outlet', 'Byline', 'UVM/Reach'].map(h => (
-                          <th key={h} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {item.entries.map(entry => (
-                        <tr key={entry.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {entry.url ? (
-                              <a href={entry.url.startsWith('http') ? entry.url : `https://${entry.url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{entry.headline}</a>
-                            ) : entry.headline}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-700">{entry.break_type || ''}</td>
-                          <td className="px-4 py-2 text-sm text-gray-700">{formatDate(entry.coverage_date)}</td>
-                          <td className="px-4 py-2 text-sm text-gray-700">{entry.outlet_name || ''}</td>
-                          <td className="px-4 py-2 text-sm text-gray-700">{entry.byline || ''}</td>
-                          <td className="px-4 py-2 text-sm text-gray-700">{entry.uvm_reach || ''}</td>
-                        </tr>
+                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                  {item.entries.length} piece{item.entries.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {['Headline', 'Break Type', 'Date', 'Byline', 'Titles'].map(h => (
+                        <th key={h} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          /* By Outlet Report */
-          <div className="space-y-4">
-            {coverageByOutlet.map(item => (
-              <div key={item.outlet} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{item.outlet}</h3>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {[item.outletType, item.geography, item.uvm ? `Reach: ${item.uvm}` : null].filter(Boolean).join(' · ')}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                    {item.entries.length} piece{item.entries.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        {['Headline', 'Break Type', 'Date', 'Byline', 'Titles'].map(h => (
-                          <th key={h} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
-                        ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {item.entries.map(entry => (
+                      <tr key={entry.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {entry.url ? (
+                            <a href={entry.url.startsWith('http') ? entry.url : `https://${entry.url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{entry.headline}</a>
+                          ) : entry.headline}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700">{entry.break_type || ''}</td>
+                        <td className="px-4 py-2 text-sm text-gray-700">{formatDate(entry.coverage_date)}</td>
+                        <td className="px-4 py-2 text-sm text-gray-700">{entry.byline || ''}</td>
+                        <td className="px-4 py-2 text-sm text-gray-700">{entry.film_tags.map(ft => ft.title).join(', ')}</td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {item.entries.map(entry => (
-                        <tr key={entry.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {entry.url ? (
-                              <a href={entry.url.startsWith('http') ? entry.url : `https://${entry.url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{entry.headline}</a>
-                            ) : entry.headline}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-700">{entry.break_type || ''}</td>
-                          <td className="px-4 py-2 text-sm text-gray-700">{formatDate(entry.coverage_date)}</td>
-                          <td className="px-4 py-2 text-sm text-gray-700">{entry.byline || ''}</td>
-                          <td className="px-4 py-2 text-sm text-gray-700">{entry.film_tags.map(ft => ft.title).join(', ')}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
