@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { BreakType, CoverageOutletType, CoverageGeography } from '@/types'
 import * as XLSX from 'xlsx-js-style'
@@ -29,13 +29,21 @@ interface FilmOption {
 
 const BREAK_TYPES: BreakType[] = ['Festival Feature', 'Film Article', 'Review', 'Capsule', 'Listing', 'Mention']
 const GEOGRAPHIES: CoverageGeography[] = ['Local', 'Regional', 'National', 'International']
+const OUTLET_TYPES: CoverageOutletType[] = ['Print Daily', 'Magazine', 'Print Weekly', 'Online', 'Radio', 'TV', 'Podcast', 'College', 'Trade']
+
+interface TitleFilter {
+  kind: 'film' | 'category'
+  value: string
+  label: string
+}
 
 interface CoverageReportsProps {
   availableYears: number[]
   defaultYear: number
+  canImport?: boolean
 }
 
-export default function CoverageReports({ availableYears, defaultYear }: CoverageReportsProps) {
+export default function CoverageReports({ availableYears, defaultYear, canImport }: CoverageReportsProps) {
   const [selectedYear, setSelectedYear] = useState(defaultYear)
   const [reportType, setReportType] = useState<'coverage-summary' | 'coverage-by-title' | 'coverage-by-outlet'>('coverage-summary')
   const [coverage, setCoverage] = useState<CoverageEntry[]>([])
@@ -45,7 +53,23 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
   // Filters
   const [breakTypeFilter, setBreakTypeFilter] = useState<string>('all')
   const [geographyFilter, setGeographyFilter] = useState<string>('all')
-  const [selectedFilmId, setSelectedFilmId] = useState<string>('all')
+  const [outletTypeFilter, setOutletTypeFilter] = useState<string>('all')
+  const [selectedFilmFilters, setSelectedFilmFilters] = useState<TitleFilter[]>([])
+  const [titleSearchQuery, setTitleSearchQuery] = useState('')
+  const [showTitleDropdown, setShowTitleDropdown] = useState(false)
+  const titleInputRef = useRef<HTMLInputElement>(null)
+  const titleDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Sort state
+  const [sortColumn, setSortColumn] = useState<string | null>(null)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+
+  // Import state
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importData, setImportData] = useState<Record<string, string>[]>([])
+  const [importing, setImporting] = useState(false)
+  const [importResults, setImportResults] = useState<{ imported: number, outletsCreated: number, errors: string[] } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const supabase = createClient()
 
@@ -142,17 +166,79 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
     loadData()
   }, [loadData])
 
+  // Click outside to close title dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        titleDropdownRef.current && !titleDropdownRef.current.contains(event.target as Node) &&
+        titleInputRef.current && !titleInputRef.current.contains(event.target as Node)
+      ) {
+        setShowTitleDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Title search results
+  const titleSearchResults = useMemo(() => {
+    const q = titleSearchQuery.toLowerCase().trim()
+    if (q.length < 1) return []
+
+    const selectedIds = new Set(selectedFilmFilters.filter(f => f.kind === 'film').map(f => f.value))
+    const selectedCategories = new Set(selectedFilmFilters.filter(f => f.kind === 'category').map(f => f.value))
+
+    const results: { kind: 'film' | 'category', value: string, label: string }[] = []
+
+    // Category matches
+    const categoryMap: Record<string, { keywords: string[], label: string }> = {
+      'feature': { keywords: ['feature', 'features'], label: 'All Feature Films' },
+      'short': { keywords: ['short', 'shorts', 'short film'], label: 'All Short Films' },
+      'shorts_program': { keywords: ['short', 'shorts', 'shorts program', 'program'], label: 'All Shorts Programs' },
+      'program': { keywords: ['program', 'programs', 'event', 'events'], label: 'All Programs' },
+    }
+
+    Object.entries(categoryMap).forEach(([value, { keywords, label }]) => {
+      if (selectedCategories.has(value)) return
+      if (keywords.some(kw => kw.includes(q) || q.includes(kw))) {
+        const count = allFilms.filter(f => f.type === value).length
+        if (count > 0) {
+          results.push({ kind: 'category', value, label: `${label} (${count})` })
+        }
+      }
+    })
+
+    // Individual film matches
+    allFilms.forEach(f => {
+      if (selectedIds.has(f.id)) return
+      if (f.title.toLowerCase().includes(q)) {
+        const typeLabel = f.type === 'feature' ? 'Feature' : f.type === 'short' ? 'Short' : f.type === 'shorts_program' ? 'Shorts Prog.' : 'Program'
+        results.push({ kind: 'film', value: f.id, label: `${f.title} (${typeLabel})` })
+      }
+    })
+
+    return results.slice(0, 15)
+  }, [titleSearchQuery, allFilms, selectedFilmFilters])
+
   // Apply filters
   const filteredCoverage = useMemo(() => {
     return coverage.filter(entry => {
       if (breakTypeFilter !== 'all' && entry.break_type !== breakTypeFilter) return false
       if (geographyFilter !== 'all' && entry.geography !== geographyFilter) return false
-      if (selectedFilmId !== 'all') {
-        if (!entry.film_tags.some(ft => ft.film_id === selectedFilmId)) return false
+      if (outletTypeFilter !== 'all' && entry.outlet_type !== outletTypeFilter) return false
+      if (selectedFilmFilters.length > 0) {
+        const matchesAny = selectedFilmFilters.some(filter => {
+          if (filter.kind === 'film') {
+            return entry.film_tags.some(ft => ft.film_id === filter.value)
+          } else {
+            return entry.film_tags.some(ft => ft.film_type === filter.value)
+          }
+        })
+        if (!matchesAny) return false
       }
       return true
     })
-  }, [coverage, breakTypeFilter, geographyFilter, selectedFilmId])
+  }, [coverage, breakTypeFilter, geographyFilter, outletTypeFilter, selectedFilmFilters])
 
   // Summary stats
   const summaryStats = useMemo(() => {
@@ -209,6 +295,190 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
 
     return Object.values(grouped).sort((a, b) => b.entries.length - a.entries.length)
   }, [filteredCoverage])
+
+  // Sortable coverage
+  const stripArticle = (s: string) => s.replace(/^(the|a|an)\s+/i, '')
+
+  const sortedCoverage = useMemo(() => {
+    if (!sortColumn) return filteredCoverage
+    return [...filteredCoverage].sort((a, b) => {
+      let valA: string, valB: string
+      switch (sortColumn) {
+        case 'headline': valA = a.headline.toLowerCase(); valB = b.headline.toLowerCase(); break
+        case 'break_type': valA = (a.break_type || '').toLowerCase(); valB = (b.break_type || '').toLowerCase(); break
+        case 'date': valA = a.coverage_date || ''; valB = b.coverage_date || ''; break
+        case 'outlet': valA = stripArticle(a.outlet_name || '').toLowerCase(); valB = stripArticle(b.outlet_name || '').toLowerCase(); break
+        case 'byline': valA = (a.byline || '').toLowerCase(); valB = (b.byline || '').toLowerCase(); break
+        case 'geography': valA = (a.geography || '').toLowerCase(); valB = (b.geography || '').toLowerCase(); break
+        case 'titles': valA = a.film_tags.map(ft => ft.title).join(', ').toLowerCase(); valB = b.film_tags.map(ft => ft.title).join(', ').toLowerCase(); break
+        default: return 0
+      }
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+  }, [filteredCoverage, sortColumn, sortDirection])
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
+
+  const sortIndicator = (column: string) => {
+    if (sortColumn !== column) return ' ↕'
+    return sortDirection === 'asc' ? ' ↑' : ' ↓'
+  }
+
+  // CSV Import
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const wb = XLSX.read(text, { type: 'string' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const allRows: (string | number)[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+
+      const dataRows = allRows.slice(7)
+      const parsed = dataRows
+        .filter(row => row[1] && String(row[1]).trim())
+        .map(row => ({
+          headline: String(row[1] || '').trim(),
+          break_type: String(row[2] || '').trim(),
+          date: String(row[3] || '').trim(),
+          outlet: String(row[4] || '').trim(),
+          byline: String(row[5] || '').trim(),
+          uvm_reach: String(row[6] || '').replace(/[",]/g, '').trim(),
+          outlet_type: String(row[7] || '').trim(),
+          geography: String(row[8] || '').trim(),
+          url: String(row[9] || '').trim(),
+          titles_mentioned: String(row[10] || '').trim(),
+          notes: String(row[11] || '').trim(),
+          pdf_clip_link: String(row[12] || '').trim(),
+        }))
+
+      setImportData(parsed)
+      setImportResults(null)
+      setShowImportModal(true)
+    } catch (error) {
+      console.error('Error parsing CSV:', error)
+    }
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const mapGeography = (geo: string): string | null => {
+    if (!geo) return null
+    if (geo.toLowerCase() === 'chicago') return 'Local'
+    const match = GEOGRAPHIES.find(g => g.toLowerCase() === geo.toLowerCase())
+    return match || null
+  }
+
+  const mapOutletType = (type: string): string | null => {
+    if (!type) return null
+    const match = OUTLET_TYPES.find(t => t.toLowerCase() === type.toLowerCase())
+    return match || null
+  }
+
+  const parseCSVDate = (dateStr: string): string | null => {
+    if (!dateStr) return null
+    const parts = dateStr.split('/')
+    if (parts.length !== 3) return null
+    const month = parseInt(parts[0])
+    const day = parseInt(parts[1])
+    let year = parseInt(parts[2])
+    if (isNaN(month) || isNaN(day) || isNaN(year)) return null
+    if (year < 100) year += 2000
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  }
+
+  const processImport = async () => {
+    setImporting(true)
+    const results = { imported: 0, outletsCreated: 0, errors: [] as string[] }
+
+    const { data: existingOutlets } = await supabase
+      .from('outlets')
+      .select('id, name')
+      .eq('festival_year', selectedYear)
+
+    const outletMap = new Map<string, string>()
+    ;(existingOutlets || []).forEach((o: any) => outletMap.set(o.name.toLowerCase(), o.id))
+
+    for (const row of importData) {
+      try {
+        let outletId: string | null = null
+        if (row.outlet) {
+          const key = row.outlet.toLowerCase()
+          if (outletMap.has(key)) {
+            outletId = outletMap.get(key)!
+          } else {
+            const { data: newOutlet, error: outletError } = await supabase
+              .from('outlets')
+              .insert({
+                name: row.outlet,
+                outlet_type: mapOutletType(row.outlet_type),
+                geography: mapGeography(row.geography),
+                uvm_reach: row.uvm_reach || null,
+                festival_year: selectedYear
+              })
+              .select('id')
+              .single()
+
+            if (outletError) throw outletError
+            outletId = newOutlet.id
+            outletMap.set(key, newOutlet.id)
+            results.outletsCreated++
+          }
+        }
+
+        const matchedBreakType = BREAK_TYPES.find(bt => bt.toLowerCase() === row.break_type.toLowerCase())
+
+        const { data: newCoverage, error: coverageError } = await supabase
+          .from('press_coverage')
+          .insert({
+            headline: row.headline,
+            break_type: matchedBreakType || null,
+            coverage_date: parseCSVDate(row.date),
+            outlet_id: outletId,
+            byline: row.byline || null,
+            url: row.url || null,
+            notes: row.notes || null,
+            pdf_clip_link: row.pdf_clip_link || null,
+            festival_year: selectedYear
+          })
+          .select('id')
+          .single()
+
+        if (coverageError) throw coverageError
+
+        if (row.titles_mentioned && newCoverage) {
+          const titleNames = row.titles_mentioned.split(/[,;]/).map((t: string) => t.trim()).filter(Boolean)
+          for (const titleName of titleNames) {
+            const match = allFilms.find(f => f.title.toLowerCase() === titleName.toLowerCase())
+            if (match) {
+              await supabase.from('press_coverage_films').insert({
+                coverage_id: newCoverage.id,
+                film_id: match.id,
+                film_type: match.type,
+                festival_year: selectedYear
+              })
+            }
+          }
+        }
+
+        results.imported++
+      } catch (error: any) {
+        results.errors.push(`"${row.headline}": ${error.message}`)
+      }
+    }
+
+    setImportResults(results)
+    setImporting(false)
+    loadData()
+  }
 
   const formatDate = (dateStr: string | null): string => {
     if (!dateStr) return ''
@@ -300,7 +570,7 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
     XLSX.writeFile(wb, `Press_Coverage_Report_${selectedYear}_${reportType}.xlsx`)
   }
 
-  const hasFilters = breakTypeFilter !== 'all' || geographyFilter !== 'all' || selectedFilmId !== 'all'
+  const hasFilters = breakTypeFilter !== 'all' || geographyFilter !== 'all' || outletTypeFilter !== 'all' || selectedFilmFilters.length > 0
 
   if (loading) {
     return (
@@ -319,13 +589,32 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-medium text-gray-900">Press Coverage Reports</h2>
-          <button
-            onClick={exportReport}
-            disabled={filteredCoverage.length === 0}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors font-medium text-sm disabled:opacity-50"
-          >
-            Export to Excel
-          </button>
+          <div className="flex items-center gap-2">
+            {canImport && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors font-medium text-sm"
+                >
+                  Import CSV
+                </button>
+              </>
+            )}
+            <button
+              onClick={exportReport}
+              disabled={filteredCoverage.length === 0}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors font-medium text-sm disabled:opacity-50"
+            >
+              Export to Excel
+            </button>
+          </div>
         </div>
 
         {/* Sub-tabs */}
@@ -352,11 +641,21 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
         {/* Filters */}
         <div className="flex flex-wrap gap-4 items-end">
           <div className="flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700">Year:</label>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+            >
+              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center space-x-2">
             <label className="text-sm font-medium text-gray-700">Break Type:</label>
             <select
               value={breakTypeFilter}
               onChange={(e) => setBreakTypeFilter(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
             >
               <option value="all">All</option>
               {BREAK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -367,41 +666,94 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
             <select
               value={geographyFilter}
               onChange={(e) => setGeographyFilter(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
             >
               <option value="all">All</option>
               {GEOGRAPHIES.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
           </div>
           <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">Year:</label>
+            <label className="text-sm font-medium text-gray-700">Outlet Type:</label>
             <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+              value={outletTypeFilter}
+              onChange={(e) => setOutletTypeFilter(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
             >
-              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">Title:</label>
-            <select
-              value={selectedFilmId}
-              onChange={(e) => setSelectedFilmId(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1 text-sm max-w-[200px]"
-            >
-              <option value="all">All Titles</option>
-              {allFilms.map(f => <option key={f.id} value={f.id}>{f.title}</option>)}
+              <option value="all">All</option>
+              {OUTLET_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
           {hasFilters && (
             <button
-              onClick={() => { setBreakTypeFilter('all'); setGeographyFilter('all'); setSelectedFilmId('all') }}
-              className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
+              onClick={() => { setBreakTypeFilter('all'); setGeographyFilter('all'); setOutletTypeFilter('all'); setSelectedFilmFilters([]) }}
+              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
             >
               Clear All
             </button>
           )}
+        </div>
+
+        {/* Title Tag Search */}
+        <div className="mt-4">
+          <label className="text-sm font-medium text-gray-700">Titles:</label>
+          <div className="mt-1 relative">
+            <div className="flex flex-wrap items-center gap-1.5 border border-gray-300 rounded-md px-2 py-1.5 bg-white min-h-[36px] focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
+              {selectedFilmFilters.map((filter, i) => (
+                <span
+                  key={`${filter.kind}-${filter.value}`}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                    filter.kind === 'category'
+                      ? 'bg-purple-100 text-purple-800'
+                      : 'bg-blue-100 text-blue-800'
+                  }`}
+                >
+                  {filter.label}
+                  <button
+                    onClick={() => setSelectedFilmFilters(prev => prev.filter((_, idx) => idx !== i))}
+                    className="hover:text-red-600 ml-0.5"
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={titleSearchQuery}
+                onChange={(e) => {
+                  setTitleSearchQuery(e.target.value)
+                  setShowTitleDropdown(true)
+                }}
+                onFocus={() => { if (titleSearchQuery.length >= 1) setShowTitleDropdown(true) }}
+                placeholder={selectedFilmFilters.length === 0 ? 'Search titles or type "shorts", "features"...' : 'Add more...'}
+                className="flex-1 min-w-[150px] outline-none text-sm py-0.5 bg-transparent"
+              />
+            </div>
+            {showTitleDropdown && titleSearchResults.length > 0 && (
+              <div
+                ref={titleDropdownRef}
+                className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto z-20 mt-1"
+              >
+                {titleSearchResults.map((result) => (
+                  <button
+                    key={`${result.kind}-${result.value}`}
+                    onClick={() => {
+                      setSelectedFilmFilters(prev => [...prev, { kind: result.kind, value: result.value, label: result.label }])
+                      setTitleSearchQuery('')
+                      setShowTitleDropdown(false)
+                      titleInputRef.current?.focus()
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between"
+                  >
+                    <span>{result.label}</span>
+                    {result.kind === 'category' && (
+                      <span className="text-xs text-purple-600 font-medium">Category</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -492,13 +844,27 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
-                    {['Headline', 'Break Type', 'Date', 'Outlet', 'Byline', 'Geography', 'Titles'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
+                    {[
+                      { key: 'headline', label: 'Headline' },
+                      { key: 'break_type', label: 'Break Type' },
+                      { key: 'date', label: 'Date' },
+                      { key: 'outlet', label: 'Outlet' },
+                      { key: 'byline', label: 'Byline' },
+                      { key: 'geography', label: 'Geography' },
+                      { key: 'titles', label: 'Titles' },
+                    ].map(col => (
+                      <th
+                        key={col.key}
+                        onClick={() => handleSort(col.key)}
+                        className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 select-none"
+                      >
+                        {col.label}{sortIndicator(col.key)}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredCoverage.map(entry => (
+                  {sortedCoverage.map(entry => (
                     <tr key={entry.id} className="hover:bg-gray-50">
                       <td className="px-4 py-2 text-sm text-gray-900">
                         {entry.url ? (
@@ -610,6 +976,101 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Import Coverage Data</h3>
+              <button
+                onClick={() => { setShowImportModal(false); setImportData([]); setImportResults(null) }}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="px-6 py-4 overflow-y-auto flex-1">
+              {importResults ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                      <span className="text-green-600 text-lg">✓</span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Import Complete</p>
+                      <p className="text-sm text-gray-600">
+                        {importResults.imported} entries imported · {importResults.outletsCreated} new outlets created
+                      </p>
+                    </div>
+                  </div>
+                  {importResults.errors.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                      <p className="text-sm font-medium text-red-800 mb-2">{importResults.errors.length} error{importResults.errors.length !== 1 ? 's' : ''}:</p>
+                      <ul className="text-sm text-red-700 space-y-1 max-h-32 overflow-y-auto">
+                        {importResults.errors.map((err, i) => <li key={i}>{err}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600">
+                    Ready to import <span className="font-semibold">{importData.length}</span> coverage entries into <span className="font-semibold">{selectedYear}</span>.
+                  </p>
+                  <div className="bg-gray-50 rounded-md border border-gray-200 overflow-x-auto">
+                    <table className="min-w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">Headline</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">Date</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">Outlet</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">Type</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {importData.slice(0, 10).map((row, i) => (
+                          <tr key={i}>
+                            <td className="px-3 py-1.5 text-gray-900 max-w-[200px] truncate">{row.headline}</td>
+                            <td className="px-3 py-1.5 text-gray-700">{row.date}</td>
+                            <td className="px-3 py-1.5 text-gray-700">{row.outlet}</td>
+                            <td className="px-3 py-1.5 text-gray-700">{row.break_type}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {importData.length > 10 && (
+                      <p className="px-3 py-2 text-xs text-gray-500 border-t border-gray-200">
+                        ...and {importData.length - 10} more rows
+                      </p>
+                    )}
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
+                    <p>New outlets will be auto-created. Dates will be parsed as M/D/YY. Geography &ldquo;Chicago&rdquo; maps to &ldquo;Local&rdquo;. Film title matching is best-effort against existing titles.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => { setShowImportModal(false); setImportData([]); setImportResults(null) }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                {importResults ? 'Close' : 'Cancel'}
+              </button>
+              {!importResults && (
+                <button
+                  onClick={processImport}
+                  disabled={importing}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {importing ? 'Importing...' : `Import ${importData.length} Entries`}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
