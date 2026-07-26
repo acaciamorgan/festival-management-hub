@@ -373,7 +373,7 @@ export default function FestivalOverviewPage() {
 
         {/* Coverage Reports Tab */}
         {activeTab === 'coverage-reports' && (
-          <CoverageReports availableYears={availableYears.map(y => y.year)} defaultYear={currentYear} canImport={canEditFestivalOverview} />
+          <CoverageReports availableYears={availableYears.map(y => y.year)} defaultYear={currentYear} />
         )}
 
         {/* Settings Tab */}

@@ -40,10 +40,9 @@ interface TitleFilter {
 interface CoverageReportsProps {
   availableYears: number[]
   defaultYear: number
-  canImport?: boolean
 }
 
-export default function CoverageReports({ availableYears, defaultYear, canImport }: CoverageReportsProps) {
+export default function CoverageReports({ availableYears, defaultYear }: CoverageReportsProps) {
   const [selectedYear, setSelectedYear] = useState(defaultYear)
   const [reportType, setReportType] = useState<'coverage-summary' | 'coverage-by-title' | 'coverage-by-outlet'>('coverage-summary')
   const [coverage, setCoverage] = useState<CoverageEntry[]>([])
@@ -64,12 +63,6 @@ export default function CoverageReports({ availableYears, defaultYear, canImport
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
-  // Import state
-  const [showImportModal, setShowImportModal] = useState(false)
-  const [importData, setImportData] = useState<Record<string, string>[]>([])
-  const [importing, setImporting] = useState(false)
-  const [importResults, setImportResults] = useState<{ imported: number, outletsCreated: number, errors: string[] } | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const supabase = createClient()
 
@@ -333,153 +326,6 @@ export default function CoverageReports({ availableYears, defaultYear, canImport
     return sortDirection === 'asc' ? ' ↑' : ' ↓'
   }
 
-  // CSV Import
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    try {
-      const text = await file.text()
-      const wb = XLSX.read(text, { type: 'string' })
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      const allRows: (string | number)[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
-
-      const dataRows = allRows.slice(7)
-      const parsed = dataRows
-        .filter(row => row[1] && String(row[1]).trim())
-        .map(row => ({
-          headline: String(row[1] || '').trim(),
-          break_type: String(row[2] || '').trim(),
-          date: String(row[3] || '').trim(),
-          outlet: String(row[4] || '').trim(),
-          byline: String(row[5] || '').trim(),
-          uvm_reach: String(row[6] || '').replace(/[",]/g, '').trim(),
-          outlet_type: String(row[7] || '').trim(),
-          geography: String(row[8] || '').trim(),
-          url: String(row[9] || '').trim(),
-          titles_mentioned: String(row[10] || '').trim(),
-          notes: String(row[11] || '').trim(),
-          pdf_clip_link: String(row[12] || '').trim(),
-        }))
-
-      setImportData(parsed)
-      setImportResults(null)
-      setShowImportModal(true)
-    } catch (error) {
-      console.error('Error parsing CSV:', error)
-    }
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  const mapGeography = (geo: string): string | null => {
-    if (!geo) return null
-    if (geo.toLowerCase() === 'chicago') return 'Local'
-    const match = GEOGRAPHIES.find(g => g.toLowerCase() === geo.toLowerCase())
-    return match || null
-  }
-
-  const mapOutletType = (type: string): string | null => {
-    if (!type) return null
-    const match = OUTLET_TYPES.find(t => t.toLowerCase() === type.toLowerCase())
-    return match || null
-  }
-
-  const parseCSVDate = (dateStr: string): string | null => {
-    if (!dateStr) return null
-    const parts = dateStr.split('/')
-    if (parts.length !== 3) return null
-    const month = parseInt(parts[0])
-    const day = parseInt(parts[1])
-    let year = parseInt(parts[2])
-    if (isNaN(month) || isNaN(day) || isNaN(year)) return null
-    if (year < 100) year += 2000
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  }
-
-  const processImport = async () => {
-    setImporting(true)
-    const results = { imported: 0, outletsCreated: 0, errors: [] as string[] }
-
-    const { data: existingOutlets } = await supabase
-      .from('outlets')
-      .select('id, name')
-      .eq('festival_year', selectedYear)
-
-    const outletMap = new Map<string, string>()
-    ;(existingOutlets || []).forEach((o: any) => outletMap.set(o.name.toLowerCase(), o.id))
-
-    for (const row of importData) {
-      try {
-        let outletId: string | null = null
-        if (row.outlet) {
-          const key = row.outlet.toLowerCase()
-          if (outletMap.has(key)) {
-            outletId = outletMap.get(key)!
-          } else {
-            const { data: newOutlet, error: outletError } = await supabase
-              .from('outlets')
-              .insert({
-                name: row.outlet,
-                outlet_type: mapOutletType(row.outlet_type),
-                geography: mapGeography(row.geography),
-                uvm_reach: row.uvm_reach || null,
-                festival_year: selectedYear
-              })
-              .select('id')
-              .single()
-
-            if (outletError) throw outletError
-            outletId = newOutlet.id
-            outletMap.set(key, newOutlet.id)
-            results.outletsCreated++
-          }
-        }
-
-        const matchedBreakType = BREAK_TYPES.find(bt => bt.toLowerCase() === row.break_type.toLowerCase())
-
-        const { data: newCoverage, error: coverageError } = await supabase
-          .from('press_coverage')
-          .insert({
-            headline: row.headline,
-            break_type: matchedBreakType || null,
-            coverage_date: parseCSVDate(row.date),
-            outlet_id: outletId,
-            byline: row.byline || null,
-            url: row.url || null,
-            notes: row.notes || null,
-            pdf_clip_link: row.pdf_clip_link || null,
-            festival_year: selectedYear
-          })
-          .select('id')
-          .single()
-
-        if (coverageError) throw coverageError
-
-        if (row.titles_mentioned && newCoverage) {
-          const titleNames = row.titles_mentioned.split(/[,;]/).map((t: string) => t.trim()).filter(Boolean)
-          for (const titleName of titleNames) {
-            const match = allFilms.find(f => f.title.toLowerCase() === titleName.toLowerCase())
-            if (match) {
-              await supabase.from('press_coverage_films').insert({
-                coverage_id: newCoverage.id,
-                film_id: match.id,
-                film_type: match.type,
-                festival_year: selectedYear
-              })
-            }
-          }
-        }
-
-        results.imported++
-      } catch (error: any) {
-        results.errors.push(`"${row.headline}": ${error.message}`)
-      }
-    }
-
-    setImportResults(results)
-    setImporting(false)
-    loadData()
-  }
-
   const formatDate = (dateStr: string | null): string => {
     if (!dateStr) return ''
     const [year, month, day] = dateStr.split('-').map(Number)
@@ -589,32 +435,13 @@ export default function CoverageReports({ availableYears, defaultYear, canImport
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-medium text-gray-900">Press Coverage Reports</h2>
-          <div className="flex items-center gap-2">
-            {canImport && (
-              <>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors font-medium text-sm"
-                >
-                  Import CSV
-                </button>
-              </>
-            )}
-            <button
-              onClick={exportReport}
-              disabled={filteredCoverage.length === 0}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors font-medium text-sm disabled:opacity-50"
-            >
-              Export to Excel
-            </button>
-          </div>
+          <button
+            onClick={exportReport}
+            disabled={filteredCoverage.length === 0}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors font-medium text-sm disabled:opacity-50"
+          >
+            Export to Excel
+          </button>
         </div>
 
         {/* Sub-tabs */}
@@ -979,100 +806,6 @@ export default function CoverageReports({ availableYears, defaultYear, canImport
         </div>
       )}
 
-      {/* Import Modal */}
-      {showImportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Import Coverage Data</h3>
-              <button
-                onClick={() => { setShowImportModal(false); setImportData([]); setImportResults(null) }}
-                className="text-gray-400 hover:text-gray-600 text-xl"
-              >
-                &times;
-              </button>
-            </div>
-            <div className="px-6 py-4 overflow-y-auto flex-1">
-              {importResults ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                      <span className="text-green-600 text-lg">✓</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Import Complete</p>
-                      <p className="text-sm text-gray-600">
-                        {importResults.imported} entries imported · {importResults.outletsCreated} new outlets created
-                      </p>
-                    </div>
-                  </div>
-                  {importResults.errors.length > 0 && (
-                    <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                      <p className="text-sm font-medium text-red-800 mb-2">{importResults.errors.length} error{importResults.errors.length !== 1 ? 's' : ''}:</p>
-                      <ul className="text-sm text-red-700 space-y-1 max-h-32 overflow-y-auto">
-                        {importResults.errors.map((err, i) => <li key={i}>{err}</li>)}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600">
-                    Ready to import <span className="font-semibold">{importData.length}</span> coverage entries into <span className="font-semibold">{selectedYear}</span>.
-                  </p>
-                  <div className="bg-gray-50 rounded-md border border-gray-200 overflow-x-auto">
-                    <table className="min-w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="px-3 py-2 text-left font-medium text-gray-600">Headline</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-600">Date</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-600">Outlet</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-600">Type</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {importData.slice(0, 10).map((row, i) => (
-                          <tr key={i}>
-                            <td className="px-3 py-1.5 text-gray-900 max-w-[200px] truncate">{row.headline}</td>
-                            <td className="px-3 py-1.5 text-gray-700">{row.date}</td>
-                            <td className="px-3 py-1.5 text-gray-700">{row.outlet}</td>
-                            <td className="px-3 py-1.5 text-gray-700">{row.break_type}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {importData.length > 10 && (
-                      <p className="px-3 py-2 text-xs text-gray-500 border-t border-gray-200">
-                        ...and {importData.length - 10} more rows
-                      </p>
-                    )}
-                  </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
-                    <p>New outlets will be auto-created. Dates will be parsed as M/D/YY. Geography &ldquo;Chicago&rdquo; maps to &ldquo;Local&rdquo;. Film title matching is best-effort against existing titles.</p>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => { setShowImportModal(false); setImportData([]); setImportResults(null) }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                {importResults ? 'Close' : 'Cancel'}
-              </button>
-              {!importResults && (
-                <button
-                  onClick={processImport}
-                  disabled={importing}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {importing ? 'Importing...' : `Import ${importData.length} Entries`}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
