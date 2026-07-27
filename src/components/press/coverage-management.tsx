@@ -449,7 +449,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
       const payload = {
         headline: newEntry.headline.trim(),
         break_type: newEntry.break_type || null,
-        coverage_date: newEntry.coverage_date || null,
+        coverage_date: parseDateInput(newEntry.coverage_date),
         outlet_id: newEntry.outlet_id || null,
         byline: newEntry.byline.trim() || null,
         url: newEntry.url.trim() || null,
@@ -481,7 +481,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
     setEditFormData({
       headline: row.headline,
       break_type: row.break_type || '',
-      coverage_date: row.coverage_date || '',
+      coverage_date: formatDateForEdit(row.coverage_date),
       outlet_id: row.outlet_id || '',
       outlet_name: row.outlet_name || '',
       byline: row.byline || '',
@@ -512,7 +512,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
       const payload = {
         headline: editFormData.headline.trim(),
         break_type: editFormData.break_type || null,
-        coverage_date: editFormData.coverage_date || null,
+        coverage_date: parseDateInput(editFormData.coverage_date),
         outlet_id: editFormData.outlet_id || null,
         byline: editFormData.byline.trim() || null,
         url: editFormData.url.trim() || null,
@@ -671,7 +671,25 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
   const formatDate = (dateStr: string | null | undefined): string => {
     if (!dateStr) return ''
     const [year, month, day] = dateStr.split('-').map(Number)
-    return `${month}/${day}/${year}`
+    return `${month}/${day}/${String(year).slice(-2)}`
+  }
+
+  const formatDateForEdit = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return ''
+    const [year, month, day] = dateStr.split('-').map(Number)
+    return `${month}/${day}/${String(year).slice(-2)}`
+  }
+
+  const parseDateInput = (input: string): string | null => {
+    if (!input) return null
+    const parts = input.split('/')
+    if (parts.length !== 3) return null
+    const month = parseInt(parts[0])
+    const day = parseInt(parts[1])
+    let year = parseInt(parts[2])
+    if (isNaN(month) || isNaN(day) || isNaN(year)) return null
+    if (year < 100) year += 2000
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   }
 
   // Close dropdowns on outside click
@@ -814,67 +832,9 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {/* Existing rows */}
-                  {sortedCoverage.map((row) => (
-                    <tr key={row.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 font-medium">{row.headline}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
-                        {row.break_type && (
-                          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">{row.break_type}</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">{formatDate(row.coverage_date)}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">{row.outlet_name}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">{row.byline}</td>
-                      <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-100">{row.uvm_reach || ''}</td>
-                      <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-100">{row.outlet_type || ''}</td>
-                      <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-100">{row.geography || ''}</td>
-                      <td className="px-3 py-2 text-sm border-r border-gray-100">
-                        {row.film_tags && row.film_tags.length > 0 ? (
-                          <button
-                            onClick={() => canEdit && openFilmTagging(row)}
-                            className="text-xs text-blue-600 hover:text-blue-800"
-                          >
-                            {row.film_tags.length} title{row.film_tags.length !== 1 ? 's' : ''}
-                          </button>
-                        ) : canEdit ? (
-                          <button
-                            onClick={() => openFilmTagging(row)}
-                            className="text-xs text-gray-400 hover:text-blue-600"
-                          >
-                            + Tag
-                          </button>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2 text-sm border-r border-gray-100">
-                        {row.url && (
-                          <a href={row.url.startsWith('http') ? row.url : `https://${row.url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
-                            Link
-                          </a>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 truncate max-w-[150px]" title={row.notes || ''}>{row.notes}</td>
-                      <td className="px-3 py-2 text-sm border-r border-gray-100">
-                        {row.pdf_clip_link && (
-                          <a href={row.pdf_clip_link.startsWith('http') ? row.pdf_clip_link : `https://${row.pdf_clip_link}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
-                            Clip
-                          </a>
-                        )}
-                      </td>
-                      {canEdit && (
-                        <td className="px-3 py-2 text-sm border-r border-gray-100">
-                          <div className="flex space-x-1">
-                            <button onClick={() => openEdit(row)} className="text-blue-600 hover:text-blue-800 text-xs font-medium">Edit</button>
-                            <button onClick={() => handleDelete(row)} className="text-red-600 hover:text-red-800 text-xs font-medium">Del</button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-
-                  {/* New entry row */}
+                  {/* New entry row (top) */}
                   {canEdit && (
-                    <tr className="bg-green-50 border-t-2 border-green-300">
+                    <tr className="bg-green-50 border-b-2 border-green-300 sticky top-[41px] z-[5]">
                       {/* Headline */}
                       <td className="px-2 py-2 border-r border-gray-100">
                         <input
@@ -900,7 +860,8 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                       {/* Date */}
                       <td className="px-2 py-2 border-r border-gray-100">
                         <input
-                          type="date"
+                          type="text"
+                          placeholder="M/D/YY"
                           value={newEntry.coverage_date}
                           onChange={(e) => setNewEntry(prev => ({ ...prev, coverage_date: e.target.value }))}
                           className="w-full px-1 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -1026,6 +987,65 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                       </td>
                     </tr>
                   )}
+
+                  {/* Existing rows */}
+                  {sortedCoverage.map((row) => (
+                    <tr key={row.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 font-medium">{row.headline}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">
+                        {row.break_type && (
+                          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">{row.break_type}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">{formatDate(row.coverage_date)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">{row.outlet_name}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">{row.byline}</td>
+                      <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-100">{row.uvm_reach || ''}</td>
+                      <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-100">{row.outlet_type || ''}</td>
+                      <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-100">{row.geography || ''}</td>
+                      <td className="px-3 py-2 text-sm border-r border-gray-100">
+                        {row.film_tags && row.film_tags.length > 0 ? (
+                          <button
+                            onClick={() => canEdit && openFilmTagging(row)}
+                            className="text-xs text-blue-600 hover:text-blue-800"
+                          >
+                            {row.film_tags.length} title{row.film_tags.length !== 1 ? 's' : ''}
+                          </button>
+                        ) : canEdit ? (
+                          <button
+                            onClick={() => openFilmTagging(row)}
+                            className="text-xs text-gray-400 hover:text-blue-600"
+                          >
+                            + Tag
+                          </button>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-2 text-sm border-r border-gray-100">
+                        {row.url && (
+                          <a href={row.url.startsWith('http') ? row.url : `https://${row.url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
+                            Link
+                          </a>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 truncate max-w-[150px]" title={row.notes || ''}>{row.notes}</td>
+                      <td className="px-3 py-2 text-sm border-r border-gray-100">
+                        {row.pdf_clip_link && (
+                          <a href={row.pdf_clip_link.startsWith('http') ? row.pdf_clip_link : `https://${row.pdf_clip_link}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
+                            Clip
+                          </a>
+                        )}
+                      </td>
+                      {canEdit && (
+                        <td className="px-3 py-2 text-sm border-r border-gray-100">
+                          <div className="flex space-x-1">
+                            <button onClick={() => openEdit(row)} className="text-blue-600 hover:text-blue-800 text-xs font-medium">Edit</button>
+                            <button onClick={() => handleDelete(row)} className="text-red-600 hover:text-red-800 text-xs font-medium">Del</button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+
                 </tbody>
               </table>
             </div>
@@ -1068,7 +1088,8 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                   <input
-                    type="date"
+                    type="text"
+                    placeholder="M/D/YY"
                     value={editFormData.coverage_date}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, coverage_date: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
