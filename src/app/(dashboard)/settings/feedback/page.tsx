@@ -78,6 +78,8 @@ export default function FeedbackViewerPage() {
       setFeedback((prev) =>
         prev.map((f) => (f.id === item.id ? { ...f, status: newStatus as FeedbackRow['status'] } : f))
       )
+      // Notify sidebar to update feedback badge count
+      window.dispatchEvent(new Event('feedback-status-changed'))
     }
   }
 

@@ -63,7 +63,15 @@ export function Sidebar() {
 
     // Poll every 60 seconds
     const interval = setInterval(fetchCount, 60000)
-    return () => clearInterval(interval)
+
+    // Instantly refresh when status is changed on the feedback page
+    const handleChange = () => fetchCount()
+    window.addEventListener('feedback-status-changed', handleChange)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('feedback-status-changed', handleChange)
+    }
   }, [permissions?.isSuperAdmin, supabase])
 
   // Can user view past/archived years?
