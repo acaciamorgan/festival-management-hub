@@ -6,6 +6,12 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { getFestivalYear } from '@/lib/smart-date-parser'
 
+interface FilmProgram {
+  id: string
+  name: string
+  festival_year: number
+}
+
 interface Contact {
   id: string
   contact_company: string | null
@@ -43,8 +49,8 @@ interface ProgrammingFilm {
   approved: string | null // matches CSV "Approved" (Logline, X, etc.)
   content_consideration: string | null // matches CSV "Content Consideration"
   
-  // Program assignments - stored as array like other modules
-  programs: string[] // array of program names, up to 5
+  // Program assignments via junction table
+  program_assignments: Array<{ film_program: FilmProgram; position: number }>
   
   // Materials and submission tracking
   contacted_for_materials: boolean // matches CSV "Contacted for materials"
@@ -87,13 +93,9 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [existingContacts, setExistingContacts] = useState<Contact[]>([])
-
-  const PROGRAM_OPTIONS = [
-    'Opening', 'Closing', 'Centerpiece', 'Special Presentation', 'After Dark',
-    'Black Perspectives', 'City & State', 'Comedy', 'Documentary', 'Documentary Competition',
-    'International Competition', 'New Directors Competition', 'OutLook', 'Retrospective',
-    'Snapshots', 'Spotlight'
-  ]
+  const [existingPrograms, setExistingPrograms] = useState<FilmProgram[]>([])
+  const [programSearches, setProgramSearches] = useState<string[]>(['', '', '', '', ''])
+  const [activeProgramDropdown, setActiveProgramDropdown] = useState<number | null>(null)
 
   const [formData, setFormData] = useState({
     film: '',
@@ -137,27 +139,37 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
   const supabase = createClient()
   const { currentYear } = useFestivalYear()
 
-  // Load existing contacts for autocomplete
+  // Load existing contacts and film programs for autocomplete
   useEffect(() => {
-    const loadContacts = async () => {
+    const loadData = async () => {
       try {
-        const { data, error } = await supabase
-          .from('contacts')
-          .select('*')
-          .eq('festival_year', currentYear)
-          .order('contact_name')
+        const [contactsResult, programsResult] = await Promise.all([
+          supabase
+            .from('contacts')
+            .select('*')
+            .eq('festival_year', currentYear)
+            .order('contact_name'),
+          supabase
+            .from('film_programs')
+            .select('*')
+            .eq('festival_year', currentYear)
+            .order('name')
+        ])
 
-        if (error) throw error
-        setExistingContacts(data || [])
+        if (contactsResult.error) throw contactsResult.error
+        if (programsResult.error) throw programsResult.error
+
+        setExistingContacts(contactsResult.data || [])
+        setExistingPrograms(programsResult.data || [])
       } catch (error) {
-        console.error('Error loading contacts:', error)
+        console.error('Error loading data:', error)
       }
     }
 
     if (isOpen) {
-      loadContacts()
+      loadData()
     }
-  }, [isOpen, supabase])
+  }, [isOpen, supabase, currentYear])
 
   // Set form data when film prop changes
   useEffect(() => {
@@ -174,7 +186,9 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
         written: film.written || false,
         approved: !!film.approved,
         content_consideration: film.content_consideration || '',
-        programs: film.programs || [],
+        programs: (film.program_assignments || [])
+          .sort((a, b) => a.position - b.position)
+          .map(a => a.film_program.name),
         contacted_for_materials: film.contacted_for_materials || false,
         form_submitted: film.form_submitted || false,
         uploaded_materials: film.uploaded_materials || false,
@@ -357,69 +371,45 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
       const festivalYear = await getFestivalYear()
       let filmId: string
 
+      const filmPayload = {
+        film: formData.film.trim(),
+        original_title: formData.original_title.trim() || null,
+        director: formData.director.trim() || null,
+        country: formData.country.trim() || null,
+        category: formData.category,
+        runtime: formData.runtime,
+        travel: formData.travel.trim() || null,
+        synopsis: formData.synopsis.trim() || null,
+        written: formData.written,
+        approved: formData.approved ? 'X' : null,
+        content_consideration: formData.content_consideration.trim() || null,
+        contacted_for_materials: formData.contacted_for_materials,
+        form_submitted: formData.form_submitted,
+        uploaded_materials: formData.uploaded_materials,
+        materials_received: formData.materials_received,
+        accessibility_screening: formData.accessibility_screening,
+        premiere_status: formData.premiere_status.trim() || null,
+        cards_made: formData.cards_made,
+        color_highlight: formData.color_highlight.trim() || null,
+        travel_notes: formData.travel_notes.trim() || null,
+        synopsis_notes: formData.synopsis_notes.trim() || null,
+        materials_notes: formData.materials_notes.trim() || null,
+        programming_notes: formData.programming_notes.trim() || null
+      }
+
       if (film) {
-        // Update existing film
         const { error: filmError } = await supabase
           .from('programming_films')
-          .update({
-            film: formData.film.trim(),
-            original_title: formData.original_title.trim() || null,
-            director: formData.director.trim() || null,
-            country: formData.country.trim() || null,
-            category: formData.category,
-            runtime: formData.runtime,
-            travel: formData.travel.trim() || null,
-            synopsis: formData.synopsis.trim() || null,
-            written: formData.written,
-            approved: formData.approved ? 'X' : null,
-            content_consideration: formData.content_consideration.trim() || null,
-            programs: formData.programs.filter(p => p.trim() !== ''),
-            contacted_for_materials: formData.contacted_for_materials,
-            form_submitted: formData.form_submitted,
-            uploaded_materials: formData.uploaded_materials,
-            materials_received: formData.materials_received,
-            accessibility_screening: formData.accessibility_screening,
-            premiere_status: formData.premiere_status.trim() || null,
-            cards_made: formData.cards_made,
-            color_highlight: formData.color_highlight.trim() || null,
-            travel_notes: formData.travel_notes.trim() || null,
-            synopsis_notes: formData.synopsis_notes.trim() || null,
-            materials_notes: formData.materials_notes.trim() || null,
-            programming_notes: formData.programming_notes.trim() || null
-          })
+          .update(filmPayload)
           .eq('id', film.id)
 
         if (filmError) throw filmError
         filmId = film.id
       } else {
-        // Create new film
         const { data: newFilm, error: filmError } = await supabase
           .from('programming_films')
           .insert({
-            film: formData.film.trim(),
-            original_title: formData.original_title.trim() || null,
-            director: formData.director.trim() || null,
-            country: formData.country.trim() || null,
-            category: formData.category,
-            runtime: formData.runtime,
-            travel: formData.travel.trim() || null,
-            synopsis: formData.synopsis.trim() || null,
-            written: formData.written,
-            approved: formData.approved ? 'X' : null,
-            content_consideration: formData.content_consideration.trim() || null,
-            programs: formData.programs.filter(p => p.trim() !== ''),
-            contacted_for_materials: formData.contacted_for_materials,
-            form_submitted: formData.form_submitted,
-            uploaded_materials: formData.uploaded_materials,
-            materials_received: formData.materials_received,
-            accessibility_screening: formData.accessibility_screening,
-            premiere_status: formData.premiere_status.trim() || null,
-            cards_made: formData.cards_made,
-            color_highlight: formData.color_highlight.trim() || null,
-            travel_notes: formData.travel_notes.trim() || null,
-            synopsis_notes: formData.synopsis_notes.trim() || null,
-            materials_notes: formData.materials_notes.trim() || null,
-            programming_notes: formData.programming_notes.trim() || null,
+            ...filmPayload,
             festival_year: parseInt(festivalYear, 10),
             created_by: user?.id
           })
@@ -430,9 +420,52 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
         filmId = newFilm.id
       }
 
+      // Handle program assignments
+      // Delete existing assignments first
+      await supabase
+        .from('film_program_assignments')
+        .delete()
+        .eq('programming_film_id', filmId)
+
+      const programNames = formData.programs.filter(p => p.trim() !== '')
+      const fyInt = parseInt(festivalYear, 10)
+
+      for (let i = 0; i < programNames.length; i++) {
+        const programName = programNames[i].trim()
+
+        // Find existing program or create new one
+        let programId: string
+        const existing = existingPrograms.find(
+          p => p.name.toLowerCase() === programName.toLowerCase()
+        )
+
+        if (existing) {
+          programId = existing.id
+        } else {
+          const { data: newProgram, error: progError } = await supabase
+            .from('film_programs')
+            .insert({ name: programName, festival_year: fyInt })
+            .select()
+            .single()
+
+          if (progError) throw progError
+          programId = newProgram.id
+          // Add to local list so subsequent slots can find it
+          setExistingPrograms(prev => [...prev, newProgram])
+        }
+
+        await supabase
+          .from('film_program_assignments')
+          .insert({
+            programming_film_id: filmId,
+            film_program_id: programId,
+            position: i + 1,
+            festival_year: fyInt
+          })
+      }
+
       // Handle contacts
       if (film) {
-        // Delete existing film-contact relationships
         await supabase
           .from('programming_film_contacts')
           .delete()
@@ -694,32 +727,123 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Program Assignments</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[0, 1, 2, 3, 4].map(index => (
-                  <div key={index}>
-                    <label htmlFor={`program_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
-                      Program {index + 1}
-                    </label>
-                    <select
-                      id={`program_${index}`}
-                      value={formData.programs[index] || ''}
-                      onChange={(e) => {
-                        const newPrograms = [...formData.programs]
-                        if (e.target.value) {
-                          newPrograms[index] = e.target.value
-                        } else {
-                          newPrograms.splice(index, 1)
-                        }
-                        setFormData(prev => ({ ...prev, programs: newPrograms }))
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Select Program...</option>
-                      {PROGRAM_OPTIONS.map(program => (
-                        <option key={program} value={program}>{program}</option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
+                {[0, 1, 2, 3, 4].map(index => {
+                  const searchTerm = programSearches[index] ?? ''
+                  const currentValue = formData.programs[index] || ''
+                  const filtered = searchTerm.length > 0
+                    ? existingPrograms.filter(p =>
+                        p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+                        !formData.programs.includes(p.name)
+                      ).slice(0, 8)
+                    : []
+                  const exactMatch = existingPrograms.some(
+                    p => p.name.toLowerCase() === searchTerm.toLowerCase()
+                  )
+
+                  return (
+                    <div key={index} className="relative">
+                      <label htmlFor={`program_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
+                        Program {index + 1}
+                      </label>
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          id={`program_${index}`}
+                          value={activeProgramDropdown === index ? searchTerm : currentValue}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setProgramSearches(prev => {
+                              const next = [...prev]
+                              next[index] = val
+                              return next
+                            })
+                            setActiveProgramDropdown(index)
+                          }}
+                          onFocus={() => {
+                            setProgramSearches(prev => {
+                              const next = [...prev]
+                              next[index] = currentValue
+                              return next
+                            })
+                            setActiveProgramDropdown(index)
+                          }}
+                          onBlur={() => {
+                            // Delay to allow dropdown click to register
+                            setTimeout(() => {
+                              if (activeProgramDropdown === index) {
+                                // If user typed something, commit it
+                                const typed = programSearches[index]?.trim()
+                                if (typed) {
+                                  const newPrograms = [...formData.programs]
+                                  newPrograms[index] = typed
+                                  setFormData(prev => ({ ...prev, programs: newPrograms }))
+                                }
+                                setActiveProgramDropdown(null)
+                              }
+                            }, 200)
+                          }}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Type to search or create..."
+                        />
+                        {currentValue && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newPrograms = [...formData.programs]
+                              newPrograms[index] = ''
+                              setFormData(prev => ({ ...prev, programs: newPrograms.filter((p, i) => p || i >= index) }))
+                              setProgramSearches(prev => {
+                                const next = [...prev]
+                                next[index] = ''
+                                return next
+                              })
+                            }}
+                            className="px-2 text-gray-400 hover:text-red-500"
+                            title="Clear"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+
+                      {activeProgramDropdown === index && searchTerm.length > 0 && (
+                        <div className="absolute z-20 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
+                          {filtered.map(program => (
+                            <button
+                              key={program.id}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                const newPrograms = [...formData.programs]
+                                newPrograms[index] = program.name
+                                setFormData(prev => ({ ...prev, programs: newPrograms }))
+                                setActiveProgramDropdown(null)
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm border-b border-gray-100 last:border-b-0"
+                            >
+                              {program.name}
+                            </button>
+                          ))}
+                          {searchTerm.trim() && !exactMatch && (
+                            <button
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                const newPrograms = [...formData.programs]
+                                newPrograms[index] = searchTerm.trim()
+                                setFormData(prev => ({ ...prev, programs: newPrograms }))
+                                setActiveProgramDropdown(null)
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-green-50 text-sm text-green-700 font-medium"
+                            >
+                              + Create "{searchTerm.trim()}"
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
