@@ -627,7 +627,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                 type="text"
                 value={formData.title || ''}
                 onChange={(e) => handleFieldChange('title', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -636,7 +636,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                 type="text"
                 value={formData.source || ''}
                 onChange={(e) => handleFieldChange('source', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -645,7 +645,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                 type="text"
                 value={formData.original_language_title || ''}
                 onChange={(e) => handleFieldChange('original_language_title', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -654,7 +654,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                 type="text"
                 value={formData.director || ''}
                 onChange={(e) => handleFieldChange('director', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -663,7 +663,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                 type="text"
                 value={formData.countries || ''}
                 onChange={(e) => handleFieldChange('countries', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -672,7 +672,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                 type="number"
                 value={formData.run_time || ''}
                 onChange={(e) => handleFieldChange('run_time', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -681,7 +681,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                 type="text"
                 value={formData.language || ''}
                 onChange={(e) => handleFieldChange('language', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -690,7 +690,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                 type="text"
                 value={formData.subtitles || ''}
                 onChange={(e) => handleFieldChange('subtitles', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -699,7 +699,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                 type="text"
                 value={formData.captions || ''}
                 onChange={(e) => handleFieldChange('captions', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -708,7 +708,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                 type="number"
                 value={formData.original_release_year || ''}
                 onChange={(e) => handleFieldChange('original_release_year', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -723,7 +723,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.program_1 || ''}
                   onChange={(e) => handleFieldChange('program_1', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -732,7 +732,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.genre_1 || ''}
                   onChange={(e) => handleFieldChange('genre_1', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -741,7 +741,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.program_2 || ''}
                   onChange={(e) => handleFieldChange('program_2', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -750,7 +750,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.genre_2 || ''}
                   onChange={(e) => handleFieldChange('genre_2', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -759,7 +759,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.program_3 || ''}
                   onChange={(e) => handleFieldChange('program_3', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -768,7 +768,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.genre_3 || ''}
                   onChange={(e) => handleFieldChange('genre_3', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               {filmType === 'feature' && (
@@ -779,7 +779,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                       type="text"
                       value={(formData as FeatureFilm).program_4 || ''}
                       onChange={(e) => handleFieldChange('program_4', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
@@ -788,7 +788,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                       type="text"
                       value={(formData as FeatureFilm).genre_4 || ''}
                       onChange={(e) => handleFieldChange('genre_4', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </>
@@ -860,7 +860,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.screenwriter || ''}
                   onChange={(e) => handleFieldChange('screenwriter', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -869,7 +869,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.cinematographer || ''}
                   onChange={(e) => handleFieldChange('cinematographer', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -878,7 +878,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.archivist || ''}
                   onChange={(e) => handleFieldChange('archivist', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -887,7 +887,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.editor || ''}
                   onChange={(e) => handleFieldChange('editor', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -896,7 +896,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.principal_cast || ''}
                   onChange={(e) => handleFieldChange('principal_cast', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -905,7 +905,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.sound_designer || ''}
                   onChange={(e) => handleFieldChange('sound_designer', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -914,7 +914,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.music_score || ''}
                   onChange={(e) => handleFieldChange('music_score', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -923,7 +923,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.producer || ''}
                   onChange={(e) => handleFieldChange('producer', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -932,7 +932,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.executive_producer || ''}
                   onChange={(e) => handleFieldChange('executive_producer', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -941,7 +941,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="text"
                   value={formData.production_companies || ''}
                   onChange={(e) => handleFieldChange('production_companies', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -957,7 +957,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="url"
                   value={formData.film_website || ''}
                   onChange={(e) => handleFieldChange('film_website', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -966,7 +966,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   type="url"
                   value={formData.trailer_url || ''}
                   onChange={(e) => handleFieldChange('trailer_url', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               {filmType === 'feature' && (
@@ -976,7 +976,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                     type="text"
                     value={(formData as FeatureFilm).premiere_status || ''}
                     onChange={(e) => handleFieldChange('premiere_status', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               )}
@@ -986,7 +986,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   value={formData.content_considerations || ''}
                   onChange={(e) => handleFieldChange('content_considerations', e.target.value)}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -1022,7 +1022,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                           setShowSuggestions({ ...showSuggestions, [index]: false })
                         }, 200)
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                       placeholder="Start typing to see suggestions..."
                     />
                     {showSuggestions[index] && contactSuggestions[index] && contactSuggestions[index].length > 0 && (
@@ -1049,7 +1049,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                       type="text"
                       value={contact.company || ''}
                       onChange={(e) => updateContact(index, 'company', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     />
                   </div>
                   <div className="col-span-3">
@@ -1058,7 +1058,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                       type="email"
                       value={contact.email || ''}
                       onChange={(e) => updateContact(index, 'email', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     />
                   </div>
                   <div className="col-span-2">
@@ -1066,7 +1066,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                     <select
                       value={contact.contact_type}
                       onChange={(e) => updateContact(index, 'contact_type', e.target.value as FilmContactType)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     >
                       <option value="Distributor/Studio">Distributor/Studio</option>
                       <option value="Production Team">Production Team</option>

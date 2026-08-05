@@ -670,7 +670,7 @@ export default function PhotoShootsPage() {
             placeholder="Search titles, subjects, photographers, videographers..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
 
@@ -682,7 +682,7 @@ export default function PhotoShootsPage() {
             <select
               value={selectsFilter}
               onChange={(e) => setSelectsFilter(e.target.value as 'all' | 'pending' | 'received')}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">All</option>
               <option value="pending">Pending</option>
@@ -696,7 +696,7 @@ export default function PhotoShootsPage() {
             <select
               value={prFilter}
               onChange={(e) => setPrFilter(e.target.value as 'all' | 'pending' | 'sent')}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">All</option>
               <option value="pending">Pending</option>

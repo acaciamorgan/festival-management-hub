@@ -529,7 +529,7 @@ export function PressRequestFormModal({
                   onChange={(e) => setFormData({ ...formData, requester_name: e.target.value })}
                   onFocus={() => setShowPressSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowPressSuggestions(false), 200)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
                 {showPressSuggestions && filteredPressSuggestions.length > 0 && (
@@ -557,7 +557,7 @@ export function PressRequestFormModal({
                   type="text"
                   value={formData.requester_outlet}
                   onChange={(e) => setFormData({ ...formData, requester_outlet: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
@@ -570,7 +570,7 @@ export function PressRequestFormModal({
                   type="email"
                   value={formData.requester_email}
                   onChange={(e) => setFormData({ ...formData, requester_email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
@@ -585,7 +585,7 @@ export function PressRequestFormModal({
                 <select
                   value={formData.request_type}
                   onChange={(e) => setFormData({ ...formData, request_type: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 >
                   <option value="screener_link">Screener Link</option>
@@ -601,7 +601,7 @@ export function PressRequestFormModal({
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="new">New</option>
                     <option value="requested">Requested</option>
@@ -743,7 +743,7 @@ export function PressRequestFormModal({
                       onBlur={() => setTimeout(() => setShowFilmSuggestions(false), 200)}
                       onKeyDown={handleFilmKeyDown}
                       placeholder="Type to search for films..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     {showFilmSuggestions && filteredFilmSuggestions.length > 0 && (
                       <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-y-auto shadow-lg">

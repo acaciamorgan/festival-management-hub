@@ -1069,7 +1069,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                   type="text"
                   value={editFormData.headline}
                   onChange={(e) => setEditFormData(prev => ({ ...prev, headline: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -1079,7 +1079,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                   <select
                     value={editFormData.break_type}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, break_type: e.target.value as BreakType }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select...</option>
                     {BREAK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -1092,7 +1092,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                     placeholder="M/D/YY"
                     value={editFormData.coverage_date}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, coverage_date: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
@@ -1111,7 +1111,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                       searchOutletsForEdit(e.target.value)
                     }}
                     onFocus={() => { if (editOutletQuery.length >= 1) { searchOutletsForEdit(editOutletQuery); setShowEditOutletDropdown(true) } }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                   {showEditOutletDropdown && (
                     <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
@@ -1164,7 +1164,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                       searchBylines(e.target.value, 'edit')
                     }}
                     onFocus={() => { if (editFormData.byline.length >= 1 && editBylineSuggestions.length > 0) setShowEditBylineDropdown(true) }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                   {showEditBylineDropdown && editBylineSuggestions.length > 0 && (
                     <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
@@ -1192,7 +1192,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                   type="text"
                   value={editFormData.url}
                   onChange={(e) => setEditFormData(prev => ({ ...prev, url: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -1203,7 +1203,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                     value={editFormData.notes}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, notes: e.target.value }))}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -1212,7 +1212,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                     type="text"
                     value={editFormData.pdf_clip_link}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, pdf_clip_link: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
@@ -1394,7 +1394,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                   type="text"
                   value={newOutletName}
                   onChange={(e) => setNewOutletName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1403,7 +1403,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                   <select
                     value={newOutletType}
                     onChange={(e) => setNewOutletType(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select...</option>
                     {['Print Daily', 'Magazine', 'Print Weekly', 'Online', 'Radio', 'TV', 'Podcast', 'College', 'Trade'].map(t => (
@@ -1416,7 +1416,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                   <select
                     value={newOutletGeography}
                     onChange={(e) => setNewOutletGeography(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select...</option>
                     {['Local', 'Regional', 'National', 'International'].map(g => (
@@ -1431,7 +1431,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                   type="text"
                   value={newOutletUvm}
                   onChange={(e) => setNewOutletUvm(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Optional — can fill in later"
                 />
               </div>

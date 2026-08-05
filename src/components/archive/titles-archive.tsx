@@ -164,7 +164,7 @@ export default function TitlesArchive({ archiveYear }: TitlesArchiveProps) {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder={`Search ${viewMode === 'features' ? 'feature films' : 'short films'}...`}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm"
         />
         <div className="text-sm text-gray-600 mt-2">
           Showing {filteredData.length} of {currentData.length} {viewMode === 'features' ? 'feature films' : 'short films'}

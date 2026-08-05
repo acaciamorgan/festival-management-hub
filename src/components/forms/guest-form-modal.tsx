@@ -556,7 +556,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      className={`w-full px-3 py-2 border rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                         errors.name ? 'border-red-300' : 'border-gray-300'
                       }`}
                       placeholder="Enter guest name"
@@ -571,7 +571,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                     <select
                       value={formData.guest_type}
                       onChange={(e) => setFormData(prev => ({ ...prev, guest_type: e.target.value as GuestType }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="Features">Features</option>
                       <option value="Shorts">Shorts</option>
@@ -590,7 +590,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                       type="text"
                       value={formData.country}
                       onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Country of citizenship"
                     />
                   </div>
@@ -603,7 +603,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                       type="text"
                       value={formData.role}
                       onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Director, Actor, Producer, etc."
                     />
                   </div>
@@ -657,7 +657,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         // Delay hiding suggestions to allow selection
                         setTimeout(() => setShowSuggestions(false), 200)
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter film or program titles separated by commas"
                     />
                     
@@ -697,7 +697,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                       type="text"
                       value={formData.contact_name}
                       onChange={(e) => setFormData(prev => ({ ...prev, contact_name: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Contact person name"
                     />
                   </div>
@@ -710,7 +710,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                       type="email"
                       value={formData.contact_email}
                       onChange={(e) => setFormData(prev => ({ ...prev, contact_email: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="contact@email.com"
                     />
                   </div>
@@ -729,7 +729,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                     type="text"
                     value={formData.arranging_travel}
                     onChange={(e) => setFormData(prev => ({ ...prev, arranging_travel: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="e.g., Festival, Studio, Local, etc."
                   />
                 </div>
@@ -750,7 +750,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                             setFormData(prev => ({ ...prev, arrival_date: normalized }))
                           }
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                     <div>
@@ -759,7 +759,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="time"
                         value={formData.arrival_takeoff_time}
                         onChange={(e) => setFormData(prev => ({ ...prev, arrival_takeoff_time: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                     <div>
@@ -768,7 +768,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="time"
                         value={formData.arrival_landing_time}
                         onChange={(e) => setFormData(prev => ({ ...prev, arrival_landing_time: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                     <div>
@@ -777,7 +777,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="text"
                         value={formData.arrival_airline}
                         onChange={(e) => setFormData(prev => ({ ...prev, arrival_airline: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Airline name"
                       />
                     </div>
@@ -787,7 +787,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="text"
                         value={formData.arrival_flight_number}
                         onChange={(e) => setFormData(prev => ({ ...prev, arrival_flight_number: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Flight number"
                       />
                     </div>
@@ -797,7 +797,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="text"
                         value={formData.arrival_origin}
                         onChange={(e) => setFormData(prev => ({ ...prev, arrival_origin: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Origin airport"
                       />
                     </div>
@@ -807,7 +807,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="text"
                         value={formData.arrival_destination}
                         onChange={(e) => setFormData(prev => ({ ...prev, arrival_destination: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Destination airport"
                       />
                     </div>
@@ -830,7 +830,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                             setFormData(prev => ({ ...prev, departure_date: normalized }))
                           }
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                     <div>
@@ -839,7 +839,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="time"
                         value={formData.departure_takeoff_time}
                         onChange={(e) => setFormData(prev => ({ ...prev, departure_takeoff_time: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                     <div>
@@ -848,7 +848,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="time"
                         value={formData.departure_landing_time}
                         onChange={(e) => setFormData(prev => ({ ...prev, departure_landing_time: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                     <div>
@@ -857,7 +857,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="text"
                         value={formData.departure_airline}
                         onChange={(e) => setFormData(prev => ({ ...prev, departure_airline: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Airline name"
                       />
                     </div>
@@ -867,7 +867,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="text"
                         value={formData.departure_flight_number}
                         onChange={(e) => setFormData(prev => ({ ...prev, departure_flight_number: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Flight number"
                       />
                     </div>
@@ -877,7 +877,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="text"
                         value={formData.departure_origin}
                         onChange={(e) => setFormData(prev => ({ ...prev, departure_origin: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Origin airport"
                       />
                     </div>
@@ -887,7 +887,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                         type="text"
                         value={formData.departure_destination}
                         onChange={(e) => setFormData(prev => ({ ...prev, departure_destination: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Destination airport"
                       />
                     </div>
@@ -907,7 +907,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                       type="text"
                       value={formData.hotel_name}
                       onChange={(e) => setFormData(prev => ({ ...prev, hotel_name: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Hotel name"
                     />
                   </div>
@@ -920,7 +920,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                       type="text"
                       value={formData.hotel_confirmation_number}
                       onChange={(e) => setFormData(prev => ({ ...prev, hotel_confirmation_number: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Confirmation number"
                     />
                   </div>
@@ -933,7 +933,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                       value={formData.hotel_address}
                       onChange={(e) => setFormData(prev => ({ ...prev, hotel_address: e.target.value }))}
                       rows={2}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Hotel address"
                     />
                   </div>
@@ -948,7 +948,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                     value={formData.notes}
                     onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Additional notes about this guest..."
                   />
                 </div>

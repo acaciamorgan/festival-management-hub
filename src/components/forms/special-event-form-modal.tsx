@@ -594,7 +594,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     errors.title ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder="Enter event name"
@@ -607,7 +607,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                 <select
                   value={formData.event_type}
                   onChange={(e) => setFormData(prev => ({ ...prev, event_type: e.target.value as EventType }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select type...</option>
                   <option value="Reception">Reception</option>
@@ -669,7 +669,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="date"
                   value={formData.event_date}
                   onChange={(e) => setFormData(prev => ({ ...prev, event_date: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div>
@@ -678,7 +678,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="time"
                   value={formData.access_time}
                   onChange={(e) => setFormData(prev => ({ ...prev, access_time: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">Staff setup time</p>
               </div>
@@ -688,7 +688,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="time"
                   value={formData.start_time}
                   onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">Guest arrival</p>
               </div>
@@ -698,7 +698,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="time"
                   value={formData.end_time}
                   onChange={(e) => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -710,7 +710,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                 <select
                   value={formData.venue_id}
                   onChange={(e) => handleVenueChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select venue...</option>
                   {availableVenues.map(venue => (
@@ -724,7 +724,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.location_details}
                   onChange={(e) => setFormData(prev => ({ ...prev, location_details: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Room, floor, or additional details"
                 />
               </div>
@@ -738,7 +738,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.venue_contact_name}
                   onChange={(e) => setFormData(prev => ({ ...prev, venue_contact_name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Contact person at venue"
                 />
               </div>
@@ -748,7 +748,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.venue_contact_phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, venue_contact_phone: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Contact phone number"
                 />
               </div>
@@ -762,7 +762,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.lead_staff}
                   onChange={(e) => setFormData(prev => ({ ...prev, lead_staff: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Staff member name"
                 />
               </div>
@@ -772,7 +772,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.lead_volunteer}
                   onChange={(e) => setFormData(prev => ({ ...prev, lead_volunteer: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Volunteer name"
                 />
               </div>
@@ -782,7 +782,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.number_of_vols}
                   onChange={(e) => setFormData(prev => ({ ...prev, number_of_vols: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="e.g., 5"
                 />
               </div>
@@ -801,7 +801,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                     onBlur={() => {
                       setTimeout(() => setShowInvitedSuggestions(false), 200)
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Filmmakers, Sponsors, VIPs..."
                   />
 
@@ -831,7 +831,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.number_expected}
                   onChange={(e) => setFormData(prev => ({ ...prev, number_expected: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="e.g. 50-75"
                 />
               </div>
@@ -845,7 +845,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.beverages}
                   onChange={(e) => setFormData(prev => ({ ...prev, beverages: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Wine, beer, cocktails..."
                 />
               </div>
@@ -855,7 +855,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.bartender}
                   onChange={(e) => setFormData(prev => ({ ...prev, bartender: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Bartender name"
                 />
               </div>
@@ -865,7 +865,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.food}
                   onChange={(e) => setFormData(prev => ({ ...prev, food: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Appetizers, dinner..."
                 />
               </div>
@@ -875,7 +875,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.caterer}
                   onChange={(e) => setFormData(prev => ({ ...prev, caterer: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Catering company"
                 />
               </div>
@@ -889,7 +889,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.photography}
                   onChange={(e) => setFormData(prev => ({ ...prev, photography: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Photography details or photographer name"
                 />
               </div>
@@ -921,7 +921,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="url"
                   value={formData.rsvp_responder_link}
                   onChange={(e) => setFormData(prev => ({ ...prev, rsvp_responder_link: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="https://forms.google.com/..."
                 />
                 <p className="text-xs text-gray-500 mt-1">Link to share for RSVPs</p>
@@ -932,7 +932,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="url"
                   value={formData.rsvp_response_link}
                   onChange={(e) => setFormData(prev => ({ ...prev, rsvp_response_link: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="https://docs.google.com/..."
                 />
                 <p className="text-xs text-gray-500 mt-1">Link to view responses</p>
@@ -947,7 +947,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   type="text"
                   value={formData.actual_attendance}
                   onChange={(e) => setFormData(prev => ({ ...prev, actual_attendance: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Post-event attendance count"
                 />
               </div>
@@ -957,7 +957,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   value={formData.notes}
                   onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Additional notes or special requirements"
                 />
               </div>

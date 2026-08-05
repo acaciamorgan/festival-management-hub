@@ -363,7 +363,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                       errors.name ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter venue name"
@@ -382,7 +382,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
                       venue_type: e.target.value as VenueType,
                       houses: e.target.value === 'Movie Theater' ? prev.houses : []
                     }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="Restaurant">Restaurant</option>
                     <option value="Movie Theater">Movie Theater</option>
@@ -399,7 +399,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
                   value={formData.address}
                   onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                   rows={2}
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     errors.address ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder="Enter full address"
@@ -416,7 +416,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
                   value={formData.accessibility}
                   onChange={(e) => setFormData(prev => ({ ...prev, accessibility: e.target.value }))}
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="e.g., Stairs to restrooms, wheelchair ramp at entrance, captioning equipment available..."
                 />
               </div>
@@ -441,21 +441,21 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
                       value={formData.contact_names[index]}
                       onChange={(e) => updateContact(index, 'names', e.target.value)}
                       placeholder="Contact name"
-                      className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <input
                       type="email"
                       value={formData.contact_emails[index]}
                       onChange={(e) => updateContact(index, 'emails', e.target.value)}
                       placeholder="Email address"
-                      className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <input
                       type="tel"
                       value={formData.contact_phones[index]}
                       onChange={(e) => updateContact(index, 'phones', e.target.value)}
                       placeholder="Phone number"
-                      className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <button
                       type="button"
@@ -497,7 +497,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
                           value={house.house_name}
                           onChange={(e) => updateHouse(index, 'house_name', e.target.value)}
                           placeholder="House name/number"
-                          className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          className={`w-full px-3 py-2 border rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                             errors[`house_name_${index}`] ? 'border-red-300' : 'border-gray-300'
                           }`}
                         />
@@ -512,7 +512,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
                           onChange={(e) => updateHouse(index, 'seat_count', parseInt(e.target.value) || 0)}
                           placeholder="Seat count"
                           min="1"
-                          className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          className={`w-full px-3 py-2 border rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                             errors[`house_seats_${index}`] ? 'border-red-300' : 'border-gray-300'
                           }`}
                         />
@@ -526,7 +526,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
                           value={house.short_code || ''}
                           onChange={(e) => updateHouse(index, 'short_code', e.target.value)}
                           placeholder="Short code (e.g., AMC 1)"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
                       <button

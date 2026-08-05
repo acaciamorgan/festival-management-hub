@@ -558,7 +558,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                     type="text"
                     value={editFormData.name}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
@@ -569,7 +569,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                     type="email"
                     value={editFormData.email}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
@@ -580,7 +580,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                     type="tel"
                     value={editFormData.phone}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 
@@ -590,7 +590,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                     type="text"
                     value={editFormData.media_outlet}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, media_outlet: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
@@ -600,7 +600,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                   <select
                     value={editFormData.outlet_type}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, outlet_type: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Type</option>
                     <option value="Print/Online">Print/Online</option>
@@ -617,7 +617,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                   <select
                     value={editFormData.accreditation_level}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, accreditation_level: e.target.value as AccreditationLevel }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="Unassigned">Unassigned</option>
                     <option value="G">G - General Press</option>
@@ -632,7 +632,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                 <textarea
                   value={editFormData.secondary_outlets}
                   onChange={(e) => setEditFormData(prev => ({ ...prev, secondary_outlets: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   rows={2}
                   placeholder="Comma-separated list of additional outlets"
                 />
@@ -647,7 +647,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                     ...prev, 
                     social_media: { ...prev.social_media, twitter: e.target.value }
                   }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="@username"
                 />
               </div>
@@ -658,7 +658,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                   type="text"
                   value={editFormData.critics_groups}
                   onChange={(e) => setEditFormData(prev => ({ ...prev, critics_groups: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Film critics organizations"
                 />
               </div>

@@ -395,7 +395,7 @@ export default function FestivalOverviewPage() {
                       type="number"
                       value={editionNumber}
                       onChange={(e) => setEditionNumber(parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
                   <div>
@@ -406,7 +406,7 @@ export default function FestivalOverviewPage() {
                       type="text"
                       value={festivalName}
                       onChange={(e) => setFestivalName(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
                 </div>
@@ -420,7 +420,7 @@ export default function FestivalOverviewPage() {
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
                   <div>
@@ -431,7 +431,7 @@ export default function FestivalOverviewPage() {
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
                 </div>
@@ -464,7 +464,7 @@ export default function FestivalOverviewPage() {
                         placeholder="Link Title"
                         value={link.title}
                         onChange={(e) => updateImportantLink(index, 'title', e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
                         draggable={false}
                       />
                       <input
@@ -472,7 +472,7 @@ export default function FestivalOverviewPage() {
                         placeholder="URL"
                         value={link.url}
                         onChange={(e) => updateImportantLink(index, 'url', e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
                         draggable={false}
                       />
                       <button

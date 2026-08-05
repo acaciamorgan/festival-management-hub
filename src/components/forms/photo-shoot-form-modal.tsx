@@ -535,7 +535,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
                 <select
                   value={formData.venue_id}
                   onChange={(e) => handleVenueChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select venue...</option>
                   {availableVenues.map(venue => (
@@ -553,7 +553,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
                   <select
                     value={formData.house}
                     onChange={(e) => setFormData(prev => ({ ...prev, house: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select house...</option>
                     {selectedVenueHouses.map(house => (
@@ -578,7 +578,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
                       setFormData(prev => ({ ...prev, shoot_date: normalized }))
                     }
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div>
@@ -587,7 +587,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
                   type="time"
                   value={formData.call_time}
                   onChange={(e) => setFormData(prev => ({ ...prev, call_time: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div>
@@ -596,7 +596,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
                   type="time"
                   value={formData.shoot_time}
                   onChange={(e) => setFormData(prev => ({ ...prev, shoot_time: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div>
@@ -605,7 +605,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
                   type="time"
                   value={formData.film_program_start_time}
                   onChange={(e) => setFormData(prev => ({ ...prev, film_program_start_time: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -618,7 +618,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
                   type="text"
                   value={formData.photographer}
                   onChange={(e) => setFormData(prev => ({ ...prev, photographer: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Photographer name"
                 />
               </div>
@@ -628,7 +628,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
                   type="text"
                   value={formData.videographer}
                   onChange={(e) => setFormData(prev => ({ ...prev, videographer: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Videographer name"
                 />
               </div>
@@ -637,7 +637,7 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
                 <select
                   value={formData.intro_qa}
                   onChange={(e) => setFormData(prev => ({ ...prev, intro_qa: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select...</option>
                   <option value="Intro">Intro</option>

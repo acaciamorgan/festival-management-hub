@@ -41,6 +41,30 @@ export function Sidebar() {
   const { currentYear, availableYears, setCurrentYear, loading: yearLoading } = useFestivalYear()
   const modules = getAllModules()
   const [showYearDropdown, setShowYearDropdown] = useState(false)
+  const [newFeedbackCount, setNewFeedbackCount] = useState(0)
+  const supabase = createClient()
+
+  // Fetch new feedback count for super admin
+  useEffect(() => {
+    if (!permissions?.isSuperAdmin) return
+
+    const fetchCount = async () => {
+      const { count, error } = await supabase
+        .from('feedback')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'new')
+
+      if (!error && count !== null) {
+        setNewFeedbackCount(count)
+      }
+    }
+
+    fetchCount()
+
+    // Poll every 60 seconds
+    const interval = setInterval(fetchCount, 60000)
+    return () => clearInterval(interval)
+  }, [permissions?.isSuperAdmin, supabase])
 
   // Can user view past/archived years?
   const canAccessPastYears = permissions?.isAdmin || permissions?.isSuperAdmin || permissions?.modulePermissions['archives']?.canRead || false
@@ -207,6 +231,11 @@ export function Sidebar() {
               >
                 <User className="w-4 h-4 mr-3" />
                 Settings
+                {permissions?.isSuperAdmin && newFeedbackCount > 0 && (
+                  <span className="ml-auto px-2 py-0.5 text-xs bg-red-600 text-white rounded-full">
+                    {newFeedbackCount}
+                  </span>
+                )}
               </Link>
             </li>
             <li>

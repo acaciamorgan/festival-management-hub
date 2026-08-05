@@ -303,23 +303,23 @@ export default function ArchivesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                  <input type="number" value={newYear} onChange={(e) => setNewYear(parseInt(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="number" value={newYear} onChange={(e) => setNewYear(parseInt(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Edition Number</label>
-                  <input type="number" value={newEditionNumber} onChange={(e) => setNewEditionNumber(parseInt(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="number" value={newEditionNumber} onChange={(e) => setNewEditionNumber(parseInt(e.target.value) || 0)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900" />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Festival Name</label>
-                  <input type="text" value={newFestivalName} onChange={(e) => setNewFestivalName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="text" value={newFestivalName} onChange={(e) => setNewFestivalName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                  <input type="date" value={newStartDate} onChange={(e) => setNewStartDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="date" value={newStartDate} onChange={(e) => setNewStartDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                  <input type="date" value={newEndDate} onChange={(e) => setNewEndDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="date" value={newEndDate} onChange={(e) => setNewEndDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900" />
                 </div>
               </div>
 

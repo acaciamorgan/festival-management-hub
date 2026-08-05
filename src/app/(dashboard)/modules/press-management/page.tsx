@@ -1206,7 +1206,7 @@ export default function PressManagementPage() {
                     type="text"
                     value={addFormData.name}
                     onChange={(e) => setAddFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
@@ -1217,7 +1217,7 @@ export default function PressManagementPage() {
                     type="email"
                     value={addFormData.email}
                     onChange={(e) => setAddFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
@@ -1228,7 +1228,7 @@ export default function PressManagementPage() {
                     type="tel"
                     value={addFormData.phone}
                     onChange={(e) => setAddFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 
@@ -1238,7 +1238,7 @@ export default function PressManagementPage() {
                     type="text"
                     value={addFormData.media_outlet}
                     onChange={(e) => setAddFormData(prev => ({ ...prev, media_outlet: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
@@ -1248,7 +1248,7 @@ export default function PressManagementPage() {
                   <select
                     value={addFormData.outlet_type}
                     onChange={(e) => setAddFormData(prev => ({ ...prev, outlet_type: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Type</option>
                     <option value="Print/Online">Print/Online</option>
@@ -1265,7 +1265,7 @@ export default function PressManagementPage() {
                   <select
                     value={addFormData.accreditation_level}
                     onChange={(e) => setAddFormData(prev => ({ ...prev, accreditation_level: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="Unassigned">Unassigned</option>
                     <option value="G">G - General Press</option>
@@ -1280,7 +1280,7 @@ export default function PressManagementPage() {
                 <textarea
                   value={addFormData.secondary_outlets}
                   onChange={(e) => setAddFormData(prev => ({ ...prev, secondary_outlets: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   rows={2}
                   placeholder="Comma-separated list of additional outlets"
                 />
@@ -1295,7 +1295,7 @@ export default function PressManagementPage() {
                     ...prev, 
                     social_media: { ...prev.social_media, twitter: e.target.value }
                   }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="@username"
                 />
               </div>
@@ -1306,7 +1306,7 @@ export default function PressManagementPage() {
                   type="text"
                   value={addFormData.critics_groups}
                   onChange={(e) => setAddFormData(prev => ({ ...prev, critics_groups: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Film critics organizations"
                 />
               </div>
@@ -1369,7 +1369,7 @@ export default function PressManagementPage() {
                     type="text"
                     value={editFormData.name}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
@@ -1380,7 +1380,7 @@ export default function PressManagementPage() {
                     type="email"
                     value={editFormData.email}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
@@ -1391,7 +1391,7 @@ export default function PressManagementPage() {
                     type="tel"
                     value={editFormData.phone}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
 
@@ -1401,7 +1401,7 @@ export default function PressManagementPage() {
                     type="text"
                     value={editFormData.media_outlet}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, media_outlet: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
@@ -1411,7 +1411,7 @@ export default function PressManagementPage() {
                   <select
                     value={editFormData.outlet_type}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, outlet_type: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Type</option>
                     <option value="Print/Online">Print/Online</option>
@@ -1428,7 +1428,7 @@ export default function PressManagementPage() {
                   <select
                     value={editFormData.accreditation_level}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, accreditation_level: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="Unassigned">Unassigned</option>
                     <option value="G">G - General Press</option>
@@ -1443,7 +1443,7 @@ export default function PressManagementPage() {
                 <textarea
                   value={editFormData.secondary_outlets}
                   onChange={(e) => setEditFormData(prev => ({ ...prev, secondary_outlets: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   rows={2}
                   placeholder="Comma-separated list of additional outlets"
                 />
@@ -1458,7 +1458,7 @@ export default function PressManagementPage() {
                     ...prev,
                     social_media: { ...prev.social_media, twitter: e.target.value }
                   }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="@username"
                 />
               </div>
@@ -1469,7 +1469,7 @@ export default function PressManagementPage() {
                   type="text"
                   value={editFormData.critics_groups}
                   onChange={(e) => setEditFormData(prev => ({ ...prev, critics_groups: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Film critics organizations"
                 />
               </div>

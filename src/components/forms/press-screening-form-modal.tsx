@@ -394,7 +394,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
                   }
                 }}
                 onFocus={() => setShowFilmDropdown(true)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Search for a film..."
                 required
               />
@@ -430,7 +430,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
                 <input
                   type="text"
                   value={`${formData.runtime} minutes`}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 bg-gray-50"
                   readOnly
                 />
               </div>
@@ -452,7 +452,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
                       setFormData(prev => ({ ...prev, screening_date: normalized }))
                     }
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div>
@@ -463,7 +463,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
                   type="time"
                   value={formData.screening_time}
                   onChange={(e) => setFormData(prev => ({ ...prev, screening_time: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -482,7 +482,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
                   setFormData(prev => ({ ...prev, short_code: e.target.value }))
                 }}
                 onFocus={() => setShowShortCodeDropdown(true)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Type venue short code (e.g., AMC 1, Music Box A)..."
               />
               {showShortCodeDropdown && filteredShortCodes.length > 0 && (
@@ -553,7 +553,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
                 type="text"
                 value={formData.staffer}
                 onChange={(e) => setFormData(prev => ({ ...prev, staffer: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter staffer name..."
               />
             </div>
@@ -571,7 +571,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
                     type="url"
                     value={formData.rsvp_form_url}
                     onChange={(e) => setFormData(prev => ({ ...prev, rsvp_form_url: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="https://forms.gle/..."
                   />
                 </div>
@@ -584,7 +584,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
                     type="url"
                     value={formData.rsvp_responses_url}
                     onChange={(e) => setFormData(prev => ({ ...prev, rsvp_responses_url: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="https://docs.google.com/forms/..."
                   />
                 </div>
@@ -620,7 +620,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
                 value={formData.notes}
                 onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter notes..."
               />
             </div>

@@ -52,7 +52,7 @@ function FilmSearchSelect({ films, selectedFilmIds, onSelectionChange }: FilmSea
           onFocus={() => setShowSuggestions(true)}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
           placeholder="Type to search films..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         
         {/* Auto-suggestions */}
@@ -478,7 +478,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
                 type="text"
                 value={formData.contact_name}
                 onChange={(e) => handleFieldChange('contact_name', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
@@ -488,7 +488,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
                 type="text"
                 value={formData.contact_company}
                 onChange={(e) => handleFieldChange('contact_company', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -497,7 +497,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
                 type="email"
                 value={formData.contact_email}
                 onChange={(e) => handleFieldChange('contact_email', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -507,7 +507,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
                 value={formData.phone}
                 onChange={(e) => handleFieldChange('phone', formatPhoneNumber(e.target.value))}
                 placeholder="123-456-7890 or +1-234-567-8900"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -515,7 +515,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
               <select
                 value={formData.contact_type}
                 onChange={(e) => handleFieldChange('contact_type', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select type...</option>
                 {contactTypes.map(type => (
@@ -529,7 +529,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
                 value={formData.mailing_address}
                 onChange={(e) => handleFieldChange('mailing_address', e.target.value)}
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -540,7 +540,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
               value={formData.notes}
               onChange={(e) => handleFieldChange('notes', e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 

@@ -1275,7 +1275,7 @@ export default function ContactsPage() {
               placeholder={viewMode === 'by-film' ? "Search films, contacts, companies..." : "Search contacts, companies, films..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -1284,7 +1284,7 @@ export default function ContactsPage() {
             <select
               value={selectedContactType}
               onChange={(e) => setSelectedContactType(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Types</option>
               {contactTypes.map(type => (
@@ -1628,7 +1628,7 @@ export default function ContactsPage() {
                   <select
                     value={contactRole}
                     onChange={(e) => setContactRole(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select role...</option>
                     <option value="Distributor/Studio">Distributor/Studio</option>

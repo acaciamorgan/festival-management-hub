@@ -497,7 +497,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                 onFocus={() => setShowJournalistDropdown(true)}
                 onBlur={() => setTimeout(() => setShowJournalistDropdown(false), 150)}
                 placeholder="Search journalists or enter name..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {pressId && (
                 <div className="mt-1 flex items-center">
@@ -545,7 +545,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                 value={outlet}
                 onChange={(e) => setOutlet(e.target.value)}
                 readOnly={!!pressId}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${pressId ? 'bg-gray-100 text-gray-600' : ''}`}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${pressId ? 'bg-gray-100 text-gray-600' : ''}`}
               />
               {pressId && <p className="mt-1 text-xs text-gray-500">Auto-filled from press card</p>}
             </div>
@@ -556,7 +556,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 readOnly={!!pressId}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${pressId ? 'bg-gray-100 text-gray-600' : ''}`}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${pressId ? 'bg-gray-100 text-gray-600' : ''}`}
               />
               {pressId && <p className="mt-1 text-xs text-gray-500">Auto-filled from press card</p>}
             </div>
@@ -582,7 +582,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as InterviewStatus)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="TBD">TBD</option>
               <option value="Pitching">Pitching</option>
@@ -612,7 +612,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                   onChange={(e) => setInterviewDate(e.target.value)}
                   placeholder="MM/DD/YYYY or any date format"
                   readOnly={status === 'Complete'}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
                 />
               </div>
               <div>
@@ -623,7 +623,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                   onChange={(e) => setInterviewTime(e.target.value)}
                   placeholder="e.g. 3:00 PM"
                   readOnly={status === 'Complete'}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
                 />
               </div>
               <div>
@@ -635,7 +635,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                   placeholder="30"
                   min="1"
                   readOnly={status === 'Complete'}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
                 />
               </div>
             </div>
@@ -646,7 +646,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                 value={venueId}
                 onChange={(e) => setVenueId(e.target.value)}
                 disabled={status === 'Complete'}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
               >
                 <option value="">No venue</option>
                 {venues.map((v) => (
@@ -664,7 +664,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Phone, Zoom link, or other details..."
                 readOnly={status === 'Complete'}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
               />
               <p className="mt-1 text-xs text-gray-500">For non-venue locations (phone, Zoom, etc.)</p>
             </div>
@@ -694,7 +694,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 

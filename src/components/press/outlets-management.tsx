@@ -414,7 +414,7 @@ export function OutletsManagement({ canEdit }: OutletsManagementProps) {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
@@ -425,7 +425,7 @@ export function OutletsManagement({ canEdit }: OutletsManagementProps) {
                   <select
                     value={formData.outlet_type}
                     onChange={(e) => setFormData(prev => ({ ...prev, outlet_type: e.target.value as CoverageOutletType }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Type</option>
                     {OUTLET_TYPES.map(type => (
@@ -439,7 +439,7 @@ export function OutletsManagement({ canEdit }: OutletsManagementProps) {
                   <select
                     value={formData.geography}
                     onChange={(e) => setFormData(prev => ({ ...prev, geography: e.target.value as CoverageGeography }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Geography</option>
                     {GEOGRAPHIES.map(geo => (
@@ -455,7 +455,7 @@ export function OutletsManagement({ canEdit }: OutletsManagementProps) {
                   type="text"
                   value={formData.uvm_reach}
                   onChange={(e) => setFormData(prev => ({ ...prev, uvm_reach: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="e.g. 1.2M, 50,000, etc."
                 />
               </div>
@@ -466,7 +466,7 @@ export function OutletsManagement({ canEdit }: OutletsManagementProps) {
                   type="text"
                   value={formData.website}
                   onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="https://..."
                 />
               </div>

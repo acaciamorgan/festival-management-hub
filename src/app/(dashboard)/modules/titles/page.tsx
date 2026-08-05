@@ -3027,7 +3027,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.title}
               onChange={(e) => handleInputChange('title', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
             />
           </div>
@@ -3041,7 +3041,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.source}
               onChange={(e) => handleInputChange('source', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3054,7 +3054,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.original_language_title}
               onChange={(e) => handleInputChange('original_language_title', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3067,7 +3067,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.director}
               onChange={(e) => handleInputChange('director', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3080,7 +3080,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.countries}
               onChange={(e) => handleInputChange('countries', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3093,7 +3093,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="number"
               value={formData.run_time}
               onChange={(e) => handleInputChange('run_time', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3106,7 +3106,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.language}
               onChange={(e) => handleInputChange('language', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3119,7 +3119,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.subtitles}
               onChange={(e) => handleInputChange('subtitles', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3132,7 +3132,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.captions}
               onChange={(e) => handleInputChange('captions', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3145,7 +3145,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="number"
               value={formData.original_release_year}
               onChange={(e) => handleInputChange('original_release_year', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3159,7 +3159,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               value={formData.program_1}
               onChange={(e) => handleInputChange('program_1', e.target.value)}
               onFocus={() => toggleProgramDropdown('program_1')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Select or type program..."
             />
             {programDropdowns.program_1 && (
@@ -3190,7 +3190,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               value={formData.program_2}
               onChange={(e) => handleInputChange('program_2', e.target.value)}
               onFocus={() => toggleProgramDropdown('program_2')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Select or type program..."
             />
             {programDropdowns.program_2 && (
@@ -3221,7 +3221,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               value={formData.program_3}
               onChange={(e) => handleInputChange('program_3', e.target.value)}
               onFocus={() => toggleProgramDropdown('program_3')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Select or type program..."
             />
             {programDropdowns.program_3 && (
@@ -3252,7 +3252,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               value={formData.program_4}
               onChange={(e) => handleInputChange('program_4', e.target.value)}
               onFocus={() => toggleProgramDropdown('program_4')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Select or type program..."
             />
             {programDropdowns.program_4 && (
@@ -3284,7 +3284,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               value={formData.genre_1}
               onChange={(e) => handleInputChange('genre_1', e.target.value)}
               onFocus={() => toggleGenreDropdown('genre_1')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Select or type genre..."
             />
             {genreDropdowns.genre_1 && (
@@ -3315,7 +3315,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               value={formData.genre_2}
               onChange={(e) => handleInputChange('genre_2', e.target.value)}
               onFocus={() => toggleGenreDropdown('genre_2')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Select or type genre..."
             />
             {genreDropdowns.genre_2 && (
@@ -3346,7 +3346,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               value={formData.genre_3}
               onChange={(e) => handleInputChange('genre_3', e.target.value)}
               onFocus={() => toggleGenreDropdown('genre_3')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Select or type genre..."
             />
             {genreDropdowns.genre_3 && (
@@ -3377,7 +3377,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               value={formData.genre_4}
               onChange={(e) => handleInputChange('genre_4', e.target.value)}
               onFocus={() => toggleGenreDropdown('genre_4')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Select or type genre..."
             />
             {genreDropdowns.genre_4 && (
@@ -3408,7 +3408,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.screenwriter}
               onChange={(e) => handleInputChange('screenwriter', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3420,7 +3420,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.cinematographer}
               onChange={(e) => handleInputChange('cinematographer', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3432,7 +3432,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.animator}
               onChange={(e) => handleInputChange('animator', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3444,7 +3444,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.editor}
               onChange={(e) => handleInputChange('editor', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3456,7 +3456,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.sound_designer}
               onChange={(e) => handleInputChange('sound_designer', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3468,7 +3468,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.music_score}
               onChange={(e) => handleInputChange('music_score', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3480,7 +3480,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.producer}
               onChange={(e) => handleInputChange('producer', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3492,7 +3492,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.executive_producer}
               onChange={(e) => handleInputChange('executive_producer', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3504,7 +3504,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.archivist}
               onChange={(e) => handleInputChange('archivist', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3516,7 +3516,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.premiere_status}
               onChange={(e) => handleInputChange('premiere_status', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3529,7 +3529,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.principal_cast}
               onChange={(e) => handleInputChange('principal_cast', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3541,7 +3541,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="text"
               value={formData.production_companies}
               onChange={(e) => handleInputChange('production_companies', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3553,7 +3553,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="url"
               value={formData.film_website}
               onChange={(e) => handleInputChange('film_website', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3565,7 +3565,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               type="url"
               value={formData.trailer_url}
               onChange={(e) => handleInputChange('trailer_url', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -3577,7 +3577,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
               value={formData.content_considerations}
               onChange={(e) => handleInputChange('content_considerations', e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
         </div>
@@ -3847,7 +3847,7 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
               value={programName}
               onChange={(e) => setProgramName(e.target.value)}
               placeholder="e.g. Shorts 1 - Comedic Shorts: Doing the Most"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -4179,7 +4179,7 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase, curr
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Industry Panel: The Future of Distribution"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
             />
           </div>
@@ -4198,7 +4198,7 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase, curr
                     setEventDate(normalized)
                   }
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div>
@@ -4207,7 +4207,7 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase, curr
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div>
@@ -4216,7 +4216,7 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase, curr
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
           </div>
@@ -4229,7 +4229,7 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase, curr
               value={venueName}
               onChange={(e) => setVenueName(e.target.value)}
               placeholder="Search venues or enter manually..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               list="venues-datalist"
             />
             <datalist id="venues-datalist">
@@ -4250,7 +4250,7 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase, curr
               onChange={(e) => setParticipants(e.target.value)}
               placeholder="List participants (names will auto-suggest from Guest Cards)..."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -4262,7 +4262,7 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase, curr
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief description of the program/event..."
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 

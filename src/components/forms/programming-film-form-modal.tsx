@@ -571,7 +571,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                   id="film"
                   value={formData.film}
                   onChange={(e) => setFormData(prev => ({ ...prev, film: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
@@ -585,7 +585,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                   id="original_title"
                   value={formData.original_title}
                   onChange={(e) => setFormData(prev => ({ ...prev, original_title: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -598,7 +598,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                   id="director"
                   value={formData.director}
                   onChange={(e) => setFormData(prev => ({ ...prev, director: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -611,7 +611,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                   id="country"
                   value={formData.country}
                   onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -623,7 +623,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                   id="category"
                   value={formData.category}
                   onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="feature">Feature</option>
                   <option value="short">Short</option>
@@ -639,7 +639,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                   id="runtime"
                   value={formData.runtime || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, runtime: e.target.value ? parseInt(e.target.value) : null }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="90"
                 />
               </div>
@@ -657,7 +657,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                   id="travel"
                   value={formData.travel}
                   onChange={(e) => setFormData(prev => ({ ...prev, travel: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Yes/No/Maybe/TBD"
                 />
               </div>
@@ -671,7 +671,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                   id="content_consideration"
                   value={formData.content_consideration}
                   onChange={(e) => setFormData(prev => ({ ...prev, content_consideration: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -684,7 +684,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                   id="synopsis"
                   value={formData.synopsis}
                   onChange={(e) => setFormData(prev => ({ ...prev, synopsis: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Writer name"
                 />
               </div>
@@ -782,7 +782,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                               }
                             }, 200)
                           }}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           placeholder="Type to search or create..."
                         />
                         {currentValue && (
@@ -861,7 +861,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                     id="premiere_status"
                     value={formData.premiere_status}
                     onChange={(e) => setFormData(prev => ({ ...prev, premiere_status: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="World, North American, US, etc."
                   />
                 </div>
@@ -949,7 +949,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                         type="text"
                         value={contact.contact_name}
                         onChange={(e) => updateContactPair(index, 'contact_name', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Start typing to search existing contacts..."
                       />
                       
@@ -988,7 +988,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                         type="text"
                         value={contact.company}
                         onChange={(e) => updateContactPair(index, 'company', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
 
@@ -1000,7 +1000,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                         type="email"
                         value={contact.email}
                         onChange={(e) => updateContactPair(index, 'email', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
 
@@ -1012,7 +1012,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                         type="tel"
                         value={contact.phone}
                         onChange={(e) => updateContactPair(index, 'phone', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
 
@@ -1024,7 +1024,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                         type="text"
                         value={contact.role}
                         onChange={(e) => updateContactPair(index, 'role', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="e.g., Sales Agent, Producer, Distributor"
                       />
                     </div>
@@ -1044,7 +1044,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                   value={formData.travel_notes}
                   onChange={(e) => setFormData(prev => ({ ...prev, travel_notes: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -1057,7 +1057,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                   value={formData.synopsis_notes}
                   onChange={(e) => setFormData(prev => ({ ...prev, synopsis_notes: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -1070,7 +1070,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                   value={formData.materials_notes}
                   onChange={(e) => setFormData(prev => ({ ...prev, materials_notes: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -1083,7 +1083,7 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
                   value={formData.programming_notes}
                   onChange={(e) => setFormData(prev => ({ ...prev, programming_notes: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>

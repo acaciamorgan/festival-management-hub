@@ -206,7 +206,7 @@ function ScreeningBoard({
                 placeholder="Find screening..."
                 value={screeningSearchTerm}
                 onChange={(e) => setScreeningSearchTerm(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-48"
+                className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-48"
               />
               {searchResults.length > 0 && (
                 <div className="absolute right-2 top-2 flex items-center space-x-2">
@@ -2702,7 +2702,7 @@ export default function TicketingPage() {
             placeholder="Search screenings..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-md px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="max-w-md px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
       )}
@@ -2928,7 +2928,7 @@ export default function TicketingPage() {
                     setShowFilmSuggestions(true)
                   }}
                   onFocus={() => setShowFilmSuggestions(true)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 {showFilmSuggestions && filteredFilms.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
@@ -2965,7 +2965,7 @@ export default function TicketingPage() {
                   <select
                     value={formData.screening_type || ''}
                     onChange={(e) => setFormData(prev => ({...prev, screening_type: e.target.value as 'P&I' | 'Jury'}))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Type</option>
                     <option value="P&I">P&I</option>
@@ -2984,7 +2984,7 @@ export default function TicketingPage() {
                     type="text"
                     value={formData.tech_contact || ''}
                     onChange={(e) => setFormData(prev => ({...prev, tech_contact: e.target.value}))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               )}
@@ -2998,7 +2998,7 @@ export default function TicketingPage() {
                   type="date"
                   value={formData.screening_date}
                   onChange={(e) => setFormData(prev => ({...prev, screening_date: e.target.value}))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -3011,7 +3011,7 @@ export default function TicketingPage() {
                   type="time"
                   value={formData.start_time}
                   onChange={(e) => setFormData(prev => ({...prev, start_time: e.target.value}))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -3043,7 +3043,7 @@ export default function TicketingPage() {
                   }}
                   onFocus={() => setShowVenueSuggestions(true)}
                   placeholder="Search venue or enter short code..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 {showVenueSuggestions && filteredVenues.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
@@ -3082,7 +3082,7 @@ export default function TicketingPage() {
                       ...prev, 
                       run_time: e.target.value ? parseInt(e.target.value) : null
                     }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 
@@ -3098,7 +3098,7 @@ export default function TicketingPage() {
                         ...prev, 
                         capacity: e.target.value ? parseInt(e.target.value) : null
                       }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                 )}
@@ -3113,7 +3113,7 @@ export default function TicketingPage() {
                   value={formData.notes}
                   onChange={(e) => setFormData(prev => ({...prev, notes: e.target.value}))}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Optional notes about this screening..."
                 />
               </div>
@@ -3163,7 +3163,7 @@ export default function TicketingPage() {
                     setShowFilmSuggestions(true)
                   }}
                   onFocus={() => setShowFilmSuggestions(true)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 {showFilmSuggestions && filteredFilms.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
@@ -3200,7 +3200,7 @@ export default function TicketingPage() {
                   <select
                     value={formData.screening_type || ''}
                     onChange={(e) => setFormData(prev => ({...prev, screening_type: e.target.value as 'P&I' | 'Jury'}))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Type</option>
                     <option value="P&I">P&I</option>
@@ -3219,7 +3219,7 @@ export default function TicketingPage() {
                     type="text"
                     value={formData.tech_contact || ''}
                     onChange={(e) => setFormData(prev => ({...prev, tech_contact: e.target.value}))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               )}
@@ -3233,7 +3233,7 @@ export default function TicketingPage() {
                   type="date"
                   value={formData.screening_date}
                   onChange={(e) => setFormData(prev => ({...prev, screening_date: e.target.value}))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -3246,7 +3246,7 @@ export default function TicketingPage() {
                   type="time"
                   value={formData.start_time}
                   onChange={(e) => setFormData(prev => ({...prev, start_time: e.target.value}))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -3278,7 +3278,7 @@ export default function TicketingPage() {
                   }}
                   onFocus={() => setShowVenueSuggestions(true)}
                   placeholder="Search venue or enter short code..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 {showVenueSuggestions && filteredVenues.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
@@ -3317,7 +3317,7 @@ export default function TicketingPage() {
                       ...prev, 
                       run_time: e.target.value ? parseInt(e.target.value) : null
                     }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 
@@ -3333,7 +3333,7 @@ export default function TicketingPage() {
                         ...prev, 
                         capacity: e.target.value ? parseInt(e.target.value) : null
                       }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                 )}
@@ -3348,7 +3348,7 @@ export default function TicketingPage() {
                   value={formData.notes}
                   onChange={(e) => setFormData(prev => ({...prev, notes: e.target.value}))}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Optional notes about this screening..."
                 />
               </div>

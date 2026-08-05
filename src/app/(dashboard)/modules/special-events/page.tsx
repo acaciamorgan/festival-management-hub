@@ -1039,7 +1039,7 @@ export default function SpecialEventsPage() {
                   placeholder="Search events..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -1096,7 +1096,7 @@ export default function SpecialEventsPage() {
             <select
               value={eventTypeFilter}
               onChange={(e) => setEventTypeFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Event Types</option>
               <option value="Reception">Reception</option>
@@ -1109,7 +1109,7 @@ export default function SpecialEventsPage() {
             <select
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Locations</option>
               <option value="no-location">No Location Set</option>
@@ -1122,7 +1122,7 @@ export default function SpecialEventsPage() {
             <select
               value={openPressFilter}
               onChange={(e) => setOpenPressFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Press Access</option>
               <option value="Yes">Open Press</option>
@@ -1134,7 +1134,7 @@ export default function SpecialEventsPage() {
             <select
               value={photographyFilter}
               onChange={(e) => setPhotographyFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Photography</option>
               <option value="yes">Has Photography</option>
@@ -1145,7 +1145,7 @@ export default function SpecialEventsPage() {
             <select
               value={confirmedFilter}
               onChange={(e) => setConfirmedFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Status</option>
               <option value="confirmed">Confirmed</option>
