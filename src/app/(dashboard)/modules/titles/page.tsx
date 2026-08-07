@@ -149,15 +149,12 @@ export default function TitlesPage() {
     // Define headers with proper display names
     const headerMapping = [
       { field: 'title', display: 'Title' },
-      { field: 'source', display: 'Source' },
       { field: 'original_language_title', display: 'Original Language Title' },
       { field: 'director', display: 'Director' },
-      { field: 'countries', display: 'Countries' },
-      { field: 'original_release_year', display: 'Original Release Year' },
+      { field: 'countries', display: 'Country/ies' },
       { field: 'run_time', display: 'Run Time' },
       { field: 'language', display: 'Language' },
-      { field: 'subtitles', display: 'Subtitles' },
-      { field: 'captions', display: 'Captions' },
+      { field: 'subtitles', display: 'Subtitles (Y/N)' },
       { field: 'program_1', display: 'Program 1' },
       { field: 'program_2', display: 'Program 2' },
       { field: 'program_3', display: 'Program 3' },
@@ -166,32 +163,30 @@ export default function TitlesPage() {
       { field: 'genre_2', display: 'Genre 2' },
       { field: 'genre_3', display: 'Genre 3' },
       { field: 'genre_4', display: 'Genre 4' },
-      { field: 'premiere_status', display: 'Premiere Status' },
       { field: 'principal_cast', display: 'Principal Cast' },
+      { field: 'producer', display: 'Producer' },
+      { field: 'production_companies', display: 'Production Companies' },
+      { field: 'executive_producer', display: 'Executive Producer' },
       { field: 'screenwriter', display: 'Screenwriter' },
       { field: 'cinematographer', display: 'Cinematographer' },
       { field: 'editor', display: 'Editor' },
-      { field: 'animator', display: 'Animator' },
-      { field: 'sound_designer', display: 'Sound Designer' },
-      { field: 'music_score', display: 'Music Score' },
-      { field: 'producer', display: 'Producer' },
-      { field: 'executive_producer', display: 'Executive Producer' },
-      { field: 'archivist', display: 'Archivist' },
-      { field: 'production_companies', display: 'Production Companies' },
+      { field: 'music_score', display: 'Music/Score' },
       { field: 'film_website', display: 'Film Website' },
-      { field: 'trailer_url', display: 'Trailer URL' },
-      { field: 'content_considerations', display: 'Content Considerations' }
+      { field: 'trailer_url', display: 'Trailer (YouTube or Vimeo only)' },
+      { field: 'premiere_status', display: 'Premiere Status' },
+      { field: 'content_considerations', display: 'Content Considerations' },
+      { field: 'captions', display: 'Captions' }
     ]
-    
+
     const headers = headerMapping.map(h => h.display)
-    
+
     // Create workbook and worksheet
     const wb = XLSX.utils.book_new()
     const ws = XLSX.utils.aoa_to_sheet([headers])
-    
+
     // Style headers - bold with light grey background
-    const headerStyle = { 
-      font: { bold: true, sz: 12, name: 'Arial' }, 
+    const headerStyle = {
+      font: { bold: true, sz: 12, name: 'Arial' },
       fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
       alignment: { horizontal: "center", vertical: "center" },
       border: {
@@ -201,23 +196,23 @@ export default function TitlesPage() {
         right: { style: "thin", color: { rgb: "CCCCCC" } }
       }
     }
-    
+
     // Apply styles and set column widths based on header length
     const cols: any[] = []
     headers.forEach((header, index) => {
       const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
       if (!ws[cellRef]) ws[cellRef] = {}
       ws[cellRef].s = headerStyle
-      
+
       // Calculate column width based on header length (min 15, max 30)
       cols.push({ wch: Math.min(Math.max(header.length + 2, 15), 30) })
     })
-    
+
     ws['!cols'] = cols
-    
+
     // Freeze the header row
     ws['!freeze'] = { xSplit: 0, ySplit: 1 }
-    
+
     XLSX.utils.book_append_sheet(wb, ws, 'Features Template')
     XLSX.writeFile(wb, 'features_import_template.xlsx')
   }
@@ -227,16 +222,12 @@ export default function TitlesPage() {
     // Define headers with proper display names
     const headerMapping = [
       { field: 'title', display: 'Title' },
-      { field: 'source', display: 'Source' },
       { field: 'original_language_title', display: 'Original Language Title' },
       { field: 'director', display: 'Director' },
-      { field: 'countries', display: 'Countries' },
-      { field: 'original_release_year', display: 'Original Release Year' },
+      { field: 'countries', display: 'Country/ies' },
       { field: 'run_time', display: 'Run Time' },
       { field: 'language', display: 'Language' },
-      { field: 'subtitles', display: 'Subtitles' },
-      { field: 'captions', display: 'Captions' },
-      { field: 'shorts_program_id', display: 'Shorts Program ID' },
+      { field: 'subtitles', display: 'Subtitles (Y/N)' },
       { field: 'shorts_program_name', display: 'Shorts Program Name' },
       { field: 'program_order', display: 'Program Order' },
       { field: 'program_1', display: 'Program 1' },
@@ -246,19 +237,17 @@ export default function TitlesPage() {
       { field: 'genre_2', display: 'Genre 2' },
       { field: 'genre_3', display: 'Genre 3' },
       { field: 'principal_cast', display: 'Principal Cast' },
+      { field: 'producer', display: 'Producer' },
+      { field: 'production_companies', display: 'Production Companies' },
+      { field: 'executive_producer', display: 'Executive Producer' },
       { field: 'screenwriter', display: 'Screenwriter' },
       { field: 'cinematographer', display: 'Cinematographer' },
       { field: 'editor', display: 'Editor' },
-      { field: 'animator', display: 'Animator' },
-      { field: 'sound_designer', display: 'Sound Designer' },
-      { field: 'music_score', display: 'Music Score' },
-      { field: 'producer', display: 'Producer' },
-      { field: 'executive_producer', display: 'Executive Producer' },
-      { field: 'archivist', display: 'Archivist' },
-      { field: 'production_companies', display: 'Production Companies' },
+      { field: 'music_score', display: 'Music/Score' },
       { field: 'film_website', display: 'Film Website' },
-      { field: 'trailer_url', display: 'Trailer URL' },
-      { field: 'content_considerations', display: 'Content Considerations' }
+      { field: 'trailer_url', display: 'Trailer (YouTube or Vimeo only)' },
+      { field: 'content_considerations', display: 'Content Considerations' },
+      { field: 'captions', display: 'Captions' }
     ]
     
     const headers = headerMapping.map(h => h.display)
@@ -2784,10 +2773,12 @@ interface AddFilmModalProps {
 function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGenres, currentYear }: AddFilmModalProps) {
   const [formData, setFormData] = useState({
     title: '',
-    source: '',
     original_language_title: '',
     director: '',
     countries: '',
+    run_time: '',
+    language: '',
+    subtitles: '',
     program_1: '',
     program_2: '',
     program_3: '',
@@ -2796,26 +2787,19 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
     genre_2: '',
     genre_3: '',
     genre_4: '',
-    run_time: '',
-    language: '',
-    subtitles: '',
-    captions: '',
-    original_release_year: '',
+    principal_cast: '',
+    producer: '',
+    production_companies: '',
+    executive_producer: '',
     screenwriter: '',
     cinematographer: '',
-    animator: '',
     editor: '',
-    principal_cast: '',
-    sound_designer: '',
     music_score: '',
-    producer: '',
-    executive_producer: '',
-    archivist: '',
-    production_companies: '',
     film_website: '',
     trailer_url: '',
     premiere_status: '',
-    content_considerations: ''
+    content_considerations: '',
+    captions: ''
   })
   
   const [saving, setSaving] = useState(false)
@@ -2904,8 +2888,7 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
     try {
       const filmData = {
         ...formData,
-        run_time: formData.run_time ? parseInt(formData.run_time) : null,
-        original_release_year: formData.original_release_year ? parseInt(formData.original_release_year) : null
+        run_time: formData.run_time ? parseInt(formData.run_time) : null
       }
 
       const { error } = await supabase
@@ -3012,19 +2995,6 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
             />
           </div>
 
-          {/* Source */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Source
-            </label>
-            <input
-              type="text"
-              value={formData.source}
-              onChange={(e) => handleInputChange('source', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
           {/* Original Language Title */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -3051,10 +3021,10 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
             />
           </div>
 
-          {/* Countries */}
+          {/* Country/ies */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Countries
+              Country/ies
             </label>
             <input
               type="text"
@@ -3064,10 +3034,10 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
             />
           </div>
 
-          {/* Runtime */}
+          {/* Run Time */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Runtime (minutes)
+              Run Time
             </label>
             <input
               type="number"
@@ -3090,41 +3060,15 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
             />
           </div>
 
-          {/* Subtitles */}
+          {/* Subtitles (Y/N) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Subtitles
+              Subtitles (Y/N)
             </label>
             <input
               type="text"
               value={formData.subtitles}
               onChange={(e) => handleInputChange('subtitles', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          {/* Captions */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Captions
-            </label>
-            <input
-              type="text"
-              value={formData.captions}
-              onChange={(e) => handleInputChange('captions', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          {/* Original Release Year */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Original Release Year
-            </label>
-            <input
-              type="number"
-              value={formData.original_release_year}
-              onChange={(e) => handleInputChange('original_release_year', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -3379,7 +3323,56 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
             )}
           </div>
 
+          {/* Full width fields */}
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Principal Cast
+            </label>
+            <input
+              type="text"
+              value={formData.principal_cast}
+              onChange={(e) => handleInputChange('principal_cast', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
           {/* Crew Fields */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Producer
+            </label>
+            <input
+              type="text"
+              value={formData.producer}
+              onChange={(e) => handleInputChange('producer', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Executive Producer
+            </label>
+            <input
+              type="text"
+              value={formData.executive_producer}
+              onChange={(e) => handleInputChange('executive_producer', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Production Companies
+            </label>
+            <input
+              type="text"
+              value={formData.production_companies}
+              onChange={(e) => handleInputChange('production_companies', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Screenwriter
@@ -3406,18 +3399,6 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Animator
-            </label>
-            <input
-              type="text"
-              value={formData.animator}
-              onChange={(e) => handleInputChange('animator', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
               Editor
             </label>
             <input
@@ -3430,97 +3411,12 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sound Designer
-            </label>
-            <input
-              type="text"
-              value={formData.sound_designer}
-              onChange={(e) => handleInputChange('sound_designer', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
               Music/Score
             </label>
             <input
               type="text"
               value={formData.music_score}
               onChange={(e) => handleInputChange('music_score', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Producer
-            </label>
-            <input
-              type="text"
-              value={formData.producer}
-              onChange={(e) => handleInputChange('producer', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Executive Producer
-            </label>
-            <input
-              type="text"
-              value={formData.executive_producer}
-              onChange={(e) => handleInputChange('executive_producer', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Archivist
-            </label>
-            <input
-              type="text"
-              value={formData.archivist}
-              onChange={(e) => handleInputChange('archivist', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Premiere Status
-            </label>
-            <input
-              type="text"
-              value={formData.premiere_status}
-              onChange={(e) => handleInputChange('premiere_status', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          {/* Full width fields */}
-          <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Principal Cast
-            </label>
-            <input
-              type="text"
-              value={formData.principal_cast}
-              onChange={(e) => handleInputChange('principal_cast', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Production Companies
-            </label>
-            <input
-              type="text"
-              value={formData.production_companies}
-              onChange={(e) => handleInputChange('production_companies', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -3539,12 +3435,36 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
 
           <div className="col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Trailer URL
+              Trailer (YouTube or Vimeo only)
             </label>
             <input
               type="url"
               value={formData.trailer_url}
               onChange={(e) => handleInputChange('trailer_url', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Premiere Status
+            </label>
+            <input
+              type="text"
+              value={formData.premiere_status}
+              onChange={(e) => handleInputChange('premiere_status', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Captions
+            </label>
+            <input
+              type="text"
+              value={formData.captions}
+              onChange={(e) => handleInputChange('captions', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
