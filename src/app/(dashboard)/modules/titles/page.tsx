@@ -11,6 +11,7 @@ import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { ProgramCardPopup } from '@/components/cards/program-card-popup'
 import { FilmEditModal } from '@/components/forms/film-edit-modal'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
+import { ReadOnlyScreeningBoard } from '@/components/shared/readonly-screening-board'
 import { normalizeDateValue } from '@/lib/date-utils'
 import { isCSVRowStrikethrough } from '@/lib/excel-utils'
 import { fetchFieldChanges, getCellHighlightClass } from '@/lib/field-changes'
@@ -99,7 +100,7 @@ interface ShortFilm {
   }
 }
 
-type ViewMode = 'features' | 'shorts' | 'programs'
+type ViewMode = 'features' | 'shorts' | 'programs' | 'screening-board'
 
 export default function TitlesPage() {
   const { } = useAuth()
@@ -1835,8 +1836,10 @@ export default function TitlesPage() {
               {viewMode === 'features' && `${filteredFilms.length} of ${films.length} films`}
               {viewMode === 'shorts' && `${filteredShorts.length} of ${shorts.length} shorts`}
               {viewMode === 'programs' && `${filteredPrograms.length} of ${programs.length} programs`}
+              {viewMode === 'screening-board' && 'Screening Board (Read Only)'}
             </p>
           </div>
+          {viewMode !== 'screening-board' && (
           <div className="flex items-center space-x-4">
             {canEditTitles && (
               <>
@@ -1877,8 +1880,8 @@ export default function TitlesPage() {
             <button
               onClick={() => setShowGuestMode(!showGuestMode)}
               className={`px-4 py-2 rounded-md transition-colors font-medium ${
-                showGuestMode 
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                showGuestMode
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
                   : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
               }`}
             >
@@ -1938,46 +1941,59 @@ export default function TitlesPage() {
               </label>
             )}
           </div>
+          )}
         </div>
         
         {/* View Mode Toggle */}
         <div className="mt-4">
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
+          <div className="flex items-center space-x-3">
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
+              <button
+                onClick={() => setViewMode('features')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'features'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Features
+              </button>
+              <button
+                onClick={() => setViewMode('shorts')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'shorts'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Shorts
+              </button>
+              <button
+                onClick={() => setViewMode('programs')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'programs'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Programs
+              </button>
+            </div>
             <button
-              onClick={() => setViewMode('features')}
+              onClick={() => setViewMode(viewMode === 'screening-board' ? 'features' : 'screening-board')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'features'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                viewMode === 'screening-board'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
               }`}
             >
-              Features
-            </button>
-            <button
-              onClick={() => setViewMode('shorts')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'shorts'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Shorts
-            </button>
-            <button
-              onClick={() => setViewMode('programs')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'programs'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Programs
+              Screening Board
             </button>
           </div>
         </div>
 
         {/* Search and Filters */}
-        {viewMode !== 'programs' && (
+        {viewMode !== 'programs' && viewMode !== 'screening-board' && (
           <div className="mt-4 space-y-4">
           {/* Search Bar */}
           <div className="relative">
@@ -2087,7 +2103,19 @@ export default function TitlesPage() {
       </div>
       
       <div className="flex-1 overflow-auto p-6">
-        {viewMode === 'programs' ? (
+        {viewMode === 'screening-board' ? (
+          <ReadOnlyScreeningBoard
+            currentYear={currentYear}
+            onFilmClick={(screening) => {
+              const filmData = {
+                id: screening.film_id || screening.id,
+                title: screening.film_title,
+                run_time: screening.run_time,
+              }
+              setSelectedFilm(filmData as any)
+            }}
+          />
+        ) : viewMode === 'programs' ? (
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
             <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
               <table className="min-w-full divide-y divide-gray-200">
