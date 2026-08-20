@@ -14,7 +14,7 @@ import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { ReadOnlyScreeningBoard } from '@/components/shared/readonly-screening-board'
 import { normalizeDateValue } from '@/lib/date-utils'
 import { isCSVRowStrikethrough } from '@/lib/excel-utils'
-import { fetchFieldChanges, getCellHighlightClass } from '@/lib/field-changes'
+import { fetchFieldChanges, getCellHighlightClass, detectChangedFields, logFieldChanges } from '@/lib/field-changes'
 import * as XLSX from 'xlsx-js-style'
 
 interface FeatureFilm {
@@ -1365,6 +1365,9 @@ export default function TitlesPage() {
           console.error(`Error updating card "${filmData.title}":`, error)
         } else {
           updated++
+          const trackedFields = Object.keys(filmData).filter(f => f !== 'festival_year')
+          const changed = detectChangedFields(existingCard, filmData, trackedFields)
+          await logFieldChanges('feature_films', existingCard.id, changed, currentYear)
         }
       } else {
         // CREATE new Card
@@ -1545,6 +1548,9 @@ export default function TitlesPage() {
           return
         } else {
           updated++
+          const trackedFields = Object.keys(shortData).filter(f => f !== 'festival_year')
+          const changed = detectChangedFields(existingShort, shortData, trackedFields)
+          await logFieldChanges('short_films', existingShort.id, changed, currentYear)
         }
       } else {
         // Create new short
@@ -1633,7 +1639,7 @@ export default function TitlesPage() {
     // Pre-fetch all existing shorts for this festival year (avoid re-querying per row)
     let { data: allShorts } = await supabase
       .from('short_films')
-      .select('id, title, shorts_program_id, program_order')
+      .select('*')
       .eq('festival_year', currentYear)
 
     // Process each row directly (start after header row)
@@ -1789,6 +1795,9 @@ export default function TitlesPage() {
           return
         } else {
           updated++
+          const trackedFields = Object.keys(shortData).filter(f => f !== 'festival_year')
+          const changed = detectChangedFields(existingRecord, shortData, trackedFields)
+          await logFieldChanges('short_films', existingRecord.id, changed, currentYear)
         }
       } else {
         // Insert new record

@@ -12,6 +12,7 @@ import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
+import { detectChangedFields, logFieldChanges } from '@/lib/field-changes'
 import * as XLSX from 'xlsx-js-style'
 
 interface JunctionFilm {
@@ -392,7 +393,7 @@ export default function SpecialEventsPage() {
         // Check if event already exists (match on title, date, and start time)
         const { data: existingEvent } = await supabase
           .from('special_events')
-          .select('id')
+          .select('*')
           .eq('title', event.title)
           .eq('event_date', event.event_date)
           .eq('start_time', event.start_time)
@@ -412,6 +413,9 @@ export default function SpecialEventsPage() {
             return
           }
           updatedCount++
+          const trackedFields = Object.keys(event).filter(f => f !== 'festival_year')
+          const changed = detectChangedFields(existingEvent, event, trackedFields)
+          await logFieldChanges('special_events', existingEvent.id, changed, currentYear)
         } else {
           // Insert new event
           const { error: insertError } = await supabase
