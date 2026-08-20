@@ -107,29 +107,13 @@ export async function POST(request: Request) {
       
       // Generate new temp password for existing user
       const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!${Math.floor(Math.random() * 9) + 1}`
-      
-      // Update the existing user's password
-      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
-        existingAuthUserByEmail.id,
-        { 
-          password: tempPassword,
-          user_metadata: {
-            ...existingAuthUserByEmail.user_metadata,
-            needs_password_change: true
-          }
-        }
-      )
-      
-      if (passwordError) {
-        console.error('Error updating password for existing user:', passwordError)
-      }
-      
-      // Send email with the new password
-      const emailResponse = await fetch(`https://xqzjthbearpqcrzfdfer.supabase.co/functions/v1/send-gmail-email`, {
+
+      // Send email FIRST — if it fails, user keeps their current password
+      const emailResponse = await fetch(`${process.env.GMAIL_EDGE_FUNCTION_URL}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhxemp0aGJlYXJwcWNyemZkZmVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMTQ2MDUsImV4cCI6MjA2ODg5MDYwNX0.DUz_xMU4IW0Z4MsXZ9kVPT5hDp3frdXsHIm6BSfYKvk`
+          'Authorization': `Bearer ${process.env.GMAIL_EDGE_FUNCTION_KEY}`
         },
         body: JSON.stringify({
           to: email,
@@ -139,11 +123,27 @@ export async function POST(request: Request) {
           type: 'invite'
         })
       })
-      
+
       if (!emailResponse.ok) {
         const emailError = await emailResponse.json()
         console.error('Error sending invitation email to existing user:', emailError)
         return NextResponse.json({ error: 'Failed to send invitation email' }, { status: 500 })
+      }
+
+      // Email sent successfully — now update the password
+      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
+        existingAuthUserByEmail.id,
+        {
+          password: tempPassword,
+          user_metadata: {
+            ...existingAuthUserByEmail.user_metadata,
+            needs_password_change: true
+          }
+        }
+      )
+
+      if (passwordError) {
+        console.error('Error updating password for existing user:', passwordError)
       }
       
       return NextResponse.json({
@@ -211,11 +211,11 @@ export async function POST(request: Request) {
     }
 
     // Send invitation email with temporary password via Gmail function
-    const emailResponse = await fetch(`https://xqzjthbearpqcrzfdfer.supabase.co/functions/v1/send-gmail-email`, {
+    const emailResponse = await fetch(`${process.env.GMAIL_EDGE_FUNCTION_URL}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhxemp0aGJlYXJwcWNyemZkZmVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMTQ2MDUsImV4cCI6MjA2ODg5MDYwNX0.DUz_xMU4IW0Z4MsXZ9kVPT5hDp3frdXsHIm6BSfYKvk`
+        'Authorization': `Bearer ${process.env.GMAIL_EDGE_FUNCTION_KEY}`
       },
       body: JSON.stringify({
         to: email,

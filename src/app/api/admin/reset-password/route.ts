@@ -57,29 +57,13 @@ export async function POST(request: Request) {
 
     // Generate secure temporary password
     const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!${Math.floor(Math.random() * 9) + 1}`
-    
-    // Update the user's password to the temporary password
-    const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
-      targetUser.user_id,
-      { 
-        password: tempPassword,
-        user_metadata: {
-          needs_password_change: true
-        }
-      }
-    )
-    
-    if (passwordError) {
-      console.error('Error updating user password:', passwordError)
-      return NextResponse.json({ error: 'Failed to update user password' }, { status: 500 })
-    }
 
-    // Send custom email via Gmail API using Supabase Edge Function
-    const emailResponse = await fetch(`https://xqzjthbearpqcrzfdfer.supabase.co/functions/v1/send-gmail-email`, {
+    // Send email FIRST — if it fails, user keeps their current password
+    const emailResponse = await fetch(`${process.env.GMAIL_EDGE_FUNCTION_URL}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhxemp0aGJlYXJwcWNyemZkZmVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMTQ2MDUsImV4cCI6MjA2ODg5MDYwNX0.DUz_xMU4IW0Z4MsXZ9kVPT5hDp3frdXsHIm6BSfYKvk`
+        'Authorization': `Bearer ${process.env.GMAIL_EDGE_FUNCTION_KEY}`
       },
       body: JSON.stringify({
         to: email,
@@ -94,6 +78,22 @@ export async function POST(request: Request) {
       const emailError = await emailResponse.json()
       console.error('Error sending reset email:', emailError)
       return NextResponse.json({ error: 'Failed to send password reset email' }, { status: 500 })
+    }
+
+    // Email sent successfully — now update the password
+    const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
+      targetUser.user_id,
+      {
+        password: tempPassword,
+        user_metadata: {
+          needs_password_change: true
+        }
+      }
+    )
+
+    if (passwordError) {
+      console.error('Error updating user password:', passwordError)
+      return NextResponse.json({ error: 'Failed to update user password' }, { status: 500 })
     }
 
     return NextResponse.json({ 
