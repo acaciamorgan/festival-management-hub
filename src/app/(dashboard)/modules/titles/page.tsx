@@ -814,7 +814,8 @@ export default function TitlesPage() {
     if (!text) return ''
     return text
       .toLowerCase()
-      .replace(/^(the|a|an)\s+/g, '')
+      .trim()
+      .replace(/^(the|a|an)\s+/, '')
       .replace(/[^a-z0-9\s]/g, '')
       .trim()
   }
@@ -1133,11 +1134,15 @@ export default function TitlesPage() {
       )
     }
 
-    // If still no match and it's Countries, try flexible matching
+    // If still no match, try flexible matching for problematic headers
     if (index === -1 && targetHeader === 'Countries') {
-      // Look for any header that starts with "Country" to handle malformed CSV
       index = headers.findIndex(header =>
         header && header.toLowerCase().trim().startsWith('country')
+      )
+    }
+    if (index === -1 && targetHeader === 'Subtitles') {
+      index = headers.findIndex(header =>
+        header && header.toLowerCase().trim().startsWith('subtitle')
       )
     }
 
@@ -1457,6 +1462,9 @@ export default function TitlesPage() {
         if (!dbField && cleanHeader.toLowerCase().startsWith('country')) {
           dbField = 'countries'
         }
+        if (!dbField && cleanHeader.toLowerCase().startsWith('subtitle')) {
+          dbField = 'subtitles'
+        }
         
         if (dbField && row[index]) {
           let value = row[index].trim()
@@ -1592,7 +1600,7 @@ export default function TitlesPage() {
       source: findHeaderIndex(['Source']),
       original_language_title: findHeaderIndex(['Original Language Title']),
       language: findHeaderIndex(['Language']),
-      subtitles: findHeaderIndex(['Subtitles']),
+      subtitles: findHeaderIndex(['Subtitles', 'Subtitles (Y/N)', 'Subtitles? (Yes or No)']),
       run_time: findHeaderIndex(['Runtime', 'Run Time', 'Run time']),
       director: findHeaderIndex(['Director']),
       countries: findHeaderIndex(['Countries', 'Country']),

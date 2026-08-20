@@ -76,12 +76,17 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0)
 
-  // Combine all screenings with type tags
+  // Screening type visibility toggles
+  const [showTicketing, setShowTicketing] = useState(true)
+  const [showPIJury, setShowPIJury] = useState(true)
+  const [showTechCheck, setShowTechCheck] = useState(true)
+
+  // Combine all screenings with type tags, filtered by visibility toggles
   const allScreenings = useMemo(() => [
-    ...publishedScreenings.map(s => ({ ...s, type: 'published' })),
-    ...piJuryScreenings.map(s => ({ ...s, type: 'pi-jury' })),
-    ...techCheckScreenings.map(s => ({ ...s, type: 'tech-check' }))
-  ], [publishedScreenings, piJuryScreenings, techCheckScreenings])
+    ...(showTicketing ? publishedScreenings.map(s => ({ ...s, type: 'published' })) : []),
+    ...(showPIJury ? piJuryScreenings.map(s => ({ ...s, type: 'pi-jury' })) : []),
+    ...(showTechCheck ? techCheckScreenings.map(s => ({ ...s, type: 'tech-check' })) : [])
+  ], [publishedScreenings, piJuryScreenings, techCheckScreenings, showTicketing, showPIJury, showTechCheck])
 
   // Group screenings by date
   const screeningsByDate = useMemo(() => {
@@ -338,11 +343,40 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
           <span className="text-sm text-gray-500">
             {screeningsByDate.length} day{screeningsByDate.length !== 1 ? 's' : ''} &middot; {allScreenings.length} screening{allScreenings.length !== 1 ? 's' : ''}
           </span>
+          <div className="flex items-center space-x-4 ml-auto">
+            <label className="flex items-center space-x-1.5 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showTicketing}
+                onChange={(e) => setShowTicketing(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>Ticketing</span>
+            </label>
+            <label className="flex items-center space-x-1.5 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showPIJury}
+                onChange={(e) => setShowPIJury(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>P&I/Jury</span>
+            </label>
+            <label className="flex items-center space-x-1.5 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showTechCheck}
+                onChange={(e) => setShowTechCheck(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>Tech Check</span>
+            </label>
+          </div>
         </div>
       </div>
 
       {/* P&I Legend */}
-      {allScreenings.some(s => s.type === 'pi-jury') && (
+      {showPIJury && allScreenings.some(s => s.type === 'pi-jury') && (
         <div className="bg-gray-50 px-6 py-2 border-b border-gray-200">
           <div className="flex items-center space-x-6 text-xs">
             <span className="text-gray-600 font-medium">P&I Status:</span>
