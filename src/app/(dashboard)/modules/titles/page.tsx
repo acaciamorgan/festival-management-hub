@@ -552,7 +552,6 @@ export default function TitlesPage() {
       const { data, error } = await supabase
         .from('guest_films')
         .select('film_id, guests (name)')
-        .in('film_type', ['feature', 'short'])
         .eq('festival_year', currentYear)
 
       if (error || !data) return

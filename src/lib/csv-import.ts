@@ -695,7 +695,8 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
               filmAssociations.push({
                 guest_id: savedGuest.id,
                 film_id: matchedFilm.id,
-                film_type: filmType
+                film_type: filmType,
+                festival_year: festivalYearInt2
               })
             }
 
@@ -715,7 +716,8 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
                     filmAssociations.push({
                       guest_id: savedGuest.id,
                       film_id: shortsProgram.id,
-                      film_type: 'shorts_program'
+                      film_type: 'shorts_program',
+                      festival_year: festivalYearInt2
                     })
                   }
                 }
@@ -733,7 +735,8 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
               filmAssociations.push({
                 guest_id: savedGuest.id,
                 film_id: matchedProgram.id,
-                film_type: 'program'
+                film_type: 'program',
+                festival_year: festivalYearInt2
               })
             }
           } else {
