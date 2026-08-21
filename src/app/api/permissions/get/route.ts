@@ -32,14 +32,14 @@ export async function POST(request: NextRequest) {
 
     let data = initialData
 
-    if (error) {
-      console.error('Error fetching permissions:', error)
+    if (error || !data) {
+      if (error) console.error('Error fetching permissions by user_id:', error)
 
-      // Try by email as fallback
+      // Try by email as fallback (case-insensitive)
       const { data: emailData, error: emailError } = await supabaseAdmin
         .from('user_permissions')
         .select('*')
-        .eq('user_email', email)
+        .ilike('user_email', email)
         .maybeSingle()
 
       if (emailError) {
