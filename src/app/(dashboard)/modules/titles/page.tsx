@@ -139,6 +139,8 @@ export default function TitlesPage() {
   const [confirmedGuests, setConfirmedGuests] = useState<Set<string>>(new Set())
   const [showAddFilmModal, setShowAddFilmModal] = useState(false)
   const [fieldChangesMap, setFieldChangesMap] = useState<Map<string, Set<string>>>(new Map())
+  const [filmGuestsMap, setFilmGuestsMap] = useState<Map<string, string[]>>(new Map())
+  const [showHasGuestsOnly, setShowHasGuestsOnly] = useState(false)
 
   const supabase = createClient()
 
@@ -544,6 +546,30 @@ export default function TitlesPage() {
     }
   }, [supabase, currentYear])
 
+  // Load guest-to-film mapping for Guests column
+  const loadFilmGuests = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('guest_films')
+        .select('film_id, guests (name)')
+        .in('film_type', ['feature', 'short'])
+        .eq('festival_year', currentYear)
+
+      if (error || !data) return
+
+      const map = new Map<string, string[]>()
+      data.forEach((gf: any) => {
+        if (gf.film_id && gf.guests?.name) {
+          if (!map.has(gf.film_id)) map.set(gf.film_id, [])
+          map.get(gf.film_id)!.push(gf.guests.name)
+        }
+      })
+      setFilmGuestsMap(map)
+    } catch (error) {
+      console.error('Error loading film guests:', error)
+    }
+  }, [supabase, currentYear])
+
   const formatTime = (timeString: string | null): string => {
     if (!timeString) return ''
     
@@ -923,6 +949,12 @@ export default function TitlesPage() {
         return false
       }
 
+      // Has guests filter
+      if (showHasGuestsOnly) {
+        const guests = filmGuestsMap.get(item.id)
+        if (!guests || guests.length === 0) return false
+      }
+
       return true
     })
 
@@ -942,7 +974,7 @@ export default function TitlesPage() {
     }
 
     return filtered
-  }, [films, shorts, searchTerm, selectedProgram, selectedGenre, selectedPremiereStatus, sortConfig, viewMode])
+  }, [films, shorts, searchTerm, selectedProgram, selectedGenre, selectedPremiereStatus, showHasGuestsOnly, filmGuestsMap, sortConfig, viewMode])
 
   // Filtering and sorting for programs view
   const applyProgramsFilterAndSort = useMemo(() => {
@@ -982,6 +1014,91 @@ export default function TitlesPage() {
       }
       return { key, direction: 'asc' }
     })
+  }
+
+  // Export current filtered view as Excel
+  const exportCurrentView = () => {
+    const wb = XLSX.utils.book_new()
+    let data: any[][]
+    let sheetName: string
+
+    if (viewMode === 'features') {
+      const headers = [
+        'Title', 'Original Language Title', 'Director', 'Country/ies', 'Run Time',
+        'Language', 'Subtitles (Y/N)', 'Programs', 'Genres', 'Guests',
+        'Principal Cast', 'Producer', 'Production Companies', 'Executive Producer',
+        'Screenwriter', 'Cinematographer', 'Editor', 'Music/Score',
+        'Film Website', 'Trailer URL', 'Premiere Status', 'Content Considerations', 'Captions'
+      ]
+      data = [headers, ...filteredFilms.map(film => [
+        film.title, film.original_language_title, film.director, film.countries, film.run_time,
+        film.language, film.subtitles, film.programs, film.genres,
+        (filmGuestsMap.get(film.id) || []).join(', '),
+        film.principal_cast, film.producer, film.production_companies, film.executive_producer,
+        film.screenwriter, film.cinematographer, film.editor, film.music_score,
+        film.film_website, film.trailer_url, film.premiere_status, film.content_considerations, film.captions
+      ])]
+      sheetName = 'Feature Films'
+    } else if (viewMode === 'shorts') {
+      const headers = [
+        'Title', 'Original Language Title', 'Director', 'Country/ies', 'Run Time',
+        'Language', 'Subtitles (Y/N)', 'Shorts Program', 'Program Order', 'Programs', 'Genres', 'Guests',
+        'Principal Cast', 'Producer', 'Production Companies', 'Executive Producer',
+        'Screenwriter', 'Cinematographer', 'Editor', 'Music/Score',
+        'Film Website', 'Trailer URL', 'Content Considerations'
+      ]
+      data = [headers, ...filteredShorts.map(short => [
+        short.title, short.original_language_title, short.director, short.countries, short.run_time,
+        short.language, short.subtitles,
+        short.shorts_program?.program_name || '', short.program_order,
+        short.programs, short.genres,
+        (filmGuestsMap.get(short.id) || []).join(', '),
+        short.principal_cast, short.producer, short.production_companies, short.executive_producer,
+        short.screenwriter, short.cinematographer, short.editor, short.music_score,
+        short.film_website, short.trailer_url, short.content_considerations
+      ])]
+      sheetName = 'Short Films'
+    } else {
+      const headers = [
+        'Program Title', 'Date', 'Start Time', 'End Time', 'Venue', 'Participants', 'Description', 'Industry Days'
+      ]
+      data = [headers, ...filteredPrograms.map(program => [
+        program.title, program.event_date, program.start_time, program.end_time,
+        program.venue_name, program.participants, program.description,
+        program.is_industry_days ? 'Yes' : 'No'
+      ])]
+      sheetName = 'Programs'
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(data)
+
+    // Style headers
+    const headerStyle = {
+      font: { bold: true, sz: 12, name: 'Arial' },
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" }
+    }
+    const headerCount = data[0].length
+    for (let i = 0; i < headerCount; i++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: 0, c: i })]
+      if (cell) cell.s = headerStyle
+    }
+
+    // Set column widths
+    ws['!cols'] = data[0].map(() => ({ wch: 20 }))
+
+    XLSX.utils.book_append_sheet(wb, ws, sheetName)
+
+    const filters = []
+    if (searchTerm) filters.push(`search-${searchTerm}`)
+    if (selectedProgram) filters.push(selectedProgram)
+    if (selectedGenre) filters.push(selectedGenre)
+    if (selectedPremiereStatus) filters.push(selectedPremiereStatus)
+    if (showHasGuestsOnly) filters.push('has-guests')
+    const filterSuffix = filters.length > 0 ? ` (${filters.join(', ')})` : ''
+    const filename = `${sheetName} Export${filterSuffix}.xlsx`
+
+    XLSX.writeFile(wb, filename)
   }
 
   const getSortIcon = (key: string) => {
@@ -1836,12 +1953,14 @@ export default function TitlesPage() {
   useEffect(() => {
     if (viewMode === 'features') {
       loadFilms()
+      loadFilmGuests()
     } else if (viewMode === 'shorts') {
       loadShorts()
+      loadFilmGuests()
     } else if (viewMode === 'programs') {
       loadPrograms()
     }
-  }, [loadFilms, loadShorts, loadPrograms, viewMode])
+  }, [loadFilms, loadShorts, loadPrograms, loadFilmGuests, viewMode])
   
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -1903,6 +2022,12 @@ export default function TitlesPage() {
               }`}
             >
               👥 {showGuestMode ? 'Hide Guests' : 'Show Guests'}
+            </button>
+            <button
+              onClick={exportCurrentView}
+              className="px-4 py-2 rounded-md transition-colors font-medium bg-teal-600 hover:bg-teal-700 text-white"
+            >
+              Export View
             </button>
             {canEditTitles && viewMode === 'shorts' && (
               <>
@@ -2088,14 +2213,26 @@ export default function TitlesPage() {
               </select>
             </div>
             
+            {/* Has Guests Filter */}
+            <label className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showHasGuestsOnly}
+                onChange={(e) => setShowHasGuestsOnly(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>Has Guests</span>
+            </label>
+
             {/* Clear Filters */}
-            {(searchTerm || selectedProgram || selectedGenre || selectedPremiereStatus) && (
+            {(searchTerm || selectedProgram || selectedGenre || selectedPremiereStatus || showHasGuestsOnly) && (
               <button
                 onClick={() => {
                   setSearchTerm('')
                   setSelectedProgram('')
                   setSelectedGenre('')
                   setSelectedPremiereStatus('')
+                  setShowHasGuestsOnly(false)
                   setShowSuggestions(false)
                 }}
                 className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
@@ -2334,6 +2471,7 @@ export default function TitlesPage() {
                       { key: 'subtitles', label: 'Subtitles (Y/N)', width: 90 },
                       { key: 'programs', label: 'Programs', width: 150 },
                       { key: 'genres', label: 'Genres', width: 120 },
+                      { key: 'guests', label: 'Guests', width: 180 },
                       { key: 'principal_cast', label: 'Principal Cast', width: 200 },
                       { key: 'producer', label: 'Producer', width: 150 },
                       { key: 'production_companies', label: 'Production Companies', width: 180 },
@@ -2415,6 +2553,7 @@ export default function TitlesPage() {
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('subtitles')}`} style={{ minWidth: `${columnWidths['subtitles'] || 90}px` }}>{film.subtitles}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('program_1')}`} style={{ minWidth: `${columnWidths['programs'] || 150}px` }}>{film.programs}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('genre_1')}`} style={{ minWidth: `${columnWidths['genres'] || 120}px` }}>{film.genres}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guests'] || 180}px` }}>{renderPersonName((filmGuestsMap.get(film.id) || []).join(', '))}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('principal_cast')}`} style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{renderPersonName(film.principal_cast)}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('producer')}`} style={{ minWidth: `${columnWidths['producer'] || 150}px` }}>{renderPersonName(film.producer)}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('production_companies')}`} style={{ minWidth: `${columnWidths['production_companies'] || 180}px` }}>{film.production_companies}</td>
@@ -2551,6 +2690,7 @@ export default function TitlesPage() {
                             { key: 'program_order', label: 'Program Order', width: 80 },
                             { key: 'programs', label: 'Programs', width: 150 },
                             { key: 'genres', label: 'Genres', width: 120 },
+                            { key: 'guests', label: 'Guests', width: 180 },
                             { key: 'principal_cast', label: 'Principal Cast', width: 200 },
                             { key: 'producer', label: 'Producer', width: 150 },
                             { key: 'production_companies', label: 'Production Companies', width: 180 },
@@ -2644,6 +2784,7 @@ export default function TitlesPage() {
                             </td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('program_1')}`} style={{ minWidth: `${columnWidths['programs'] || 150}px` }}>{short.programs}</td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('genre_1')}`} style={{ minWidth: `${columnWidths['genres'] || 120}px` }}>{short.genres}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guests'] || 180}px` }}>{renderPersonName((filmGuestsMap.get(short.id) || []).join(', '))}</td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('principal_cast')}`} style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{renderPersonName(short.principal_cast)}</td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('producer')}`} style={{ minWidth: `${columnWidths['producer'] || 150}px` }}>{renderPersonName(short.producer)}</td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('production_companies')}`} style={{ minWidth: `${columnWidths['production_companies'] || 180}px` }}>{short.production_companies}</td>
