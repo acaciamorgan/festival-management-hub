@@ -2471,7 +2471,6 @@ export default function TitlesPage() {
                       { key: 'subtitles', label: 'Subtitles (Y/N)', width: 90 },
                       { key: 'programs', label: 'Programs', width: 150 },
                       { key: 'genres', label: 'Genres', width: 120 },
-                      { key: 'guests', label: 'Guests', width: 180 },
                       { key: 'principal_cast', label: 'Principal Cast', width: 200 },
                       { key: 'producer', label: 'Producer', width: 150 },
                       { key: 'production_companies', label: 'Production Companies', width: 180 },
@@ -2485,6 +2484,7 @@ export default function TitlesPage() {
                       { key: 'premiere_status', label: 'Premiere Status', width: 120 },
                       { key: 'content_considerations', label: 'Content Considerations', width: 150 },
                       { key: 'captions', label: 'Captions', width: 80 },
+                      { key: 'guests', label: 'Guests', width: 180 },
                       ...(canEditTitles ? [{ key: 'actions', label: 'Actions', width: 80 }] : [])
                     ].map((column) => (
                       <th
@@ -2553,7 +2553,6 @@ export default function TitlesPage() {
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('subtitles')}`} style={{ minWidth: `${columnWidths['subtitles'] || 90}px` }}>{film.subtitles}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('program_1')}`} style={{ minWidth: `${columnWidths['programs'] || 150}px` }}>{film.programs}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('genre_1')}`} style={{ minWidth: `${columnWidths['genres'] || 120}px` }}>{film.genres}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guests'] || 180}px` }}>{renderPersonName((filmGuestsMap.get(film.id) || []).join(', '))}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('principal_cast')}`} style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{renderPersonName(film.principal_cast)}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('producer')}`} style={{ minWidth: `${columnWidths['producer'] || 150}px` }}>{renderPersonName(film.producer)}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('production_companies')}`} style={{ minWidth: `${columnWidths['production_companies'] || 180}px` }}>{film.production_companies}</td>
@@ -2579,6 +2578,7 @@ export default function TitlesPage() {
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('premiere_status')}`} style={{ minWidth: `${columnWidths['premiere_status'] || 120}px` }}>{film.premiere_status}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('content_considerations')}`} style={{ minWidth: `${columnWidths['content_considerations'] || 150}px` }}>{film.content_considerations}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('captions')}`} style={{ minWidth: `${columnWidths['captions'] || 80}px` }}>{film.captions}</td>
+                      <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guests'] || 180}px` }}>{renderPersonName((filmGuestsMap.get(film.id) || []).join(', '))}</td>
                       <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 80}px` }}>
                         <button
                           onClick={(e) => {
@@ -2690,7 +2690,6 @@ export default function TitlesPage() {
                             { key: 'program_order', label: 'Program Order', width: 80 },
                             { key: 'programs', label: 'Programs', width: 150 },
                             { key: 'genres', label: 'Genres', width: 120 },
-                            { key: 'guests', label: 'Guests', width: 180 },
                             { key: 'principal_cast', label: 'Principal Cast', width: 200 },
                             { key: 'producer', label: 'Producer', width: 150 },
                             { key: 'production_companies', label: 'Production Companies', width: 180 },
@@ -2703,6 +2702,7 @@ export default function TitlesPage() {
                             { key: 'trailer_url', label: 'Trailer (YouTube or Vimeo only)', width: 180 },
                             { key: 'content_considerations', label: 'Content Considerations', width: 150 },
                             { key: 'captions', label: 'Captions', width: 80 },
+                            { key: 'guests', label: 'Guests', width: 180 },
                             ...(canEditTitles ? [{ key: 'actions', label: 'Actions', width: 80 }] : [])
                           ].map((column) => (
                             <th
@@ -2784,7 +2784,6 @@ export default function TitlesPage() {
                             </td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('program_1')}`} style={{ minWidth: `${columnWidths['programs'] || 150}px` }}>{short.programs}</td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('genre_1')}`} style={{ minWidth: `${columnWidths['genres'] || 120}px` }}>{short.genres}</td>
-                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guests'] || 180}px` }}>{renderPersonName((filmGuestsMap.get(short.id) || []).join(', '))}</td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('principal_cast')}`} style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{renderPersonName(short.principal_cast)}</td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('producer')}`} style={{ minWidth: `${columnWidths['producer'] || 150}px` }}>{renderPersonName(short.producer)}</td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('production_companies')}`} style={{ minWidth: `${columnWidths['production_companies'] || 180}px` }}>{short.production_companies}</td>
@@ -2809,6 +2808,7 @@ export default function TitlesPage() {
                             </td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('content_considerations')}`} style={{ minWidth: `${columnWidths['content_considerations'] || 150}px` }}>{short.content_considerations}</td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('captions')}`} style={{ minWidth: `${columnWidths['captions'] || 80}px` }}>{short.captions}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guests'] || 180}px` }}>{renderPersonName((filmGuestsMap.get(short.id) || []).join(', '))}</td>
                             <td className="px-3 py-2 text-sm text-gray-900" style={{ minWidth: `${columnWidths['actions'] || 80}px` }}>
                               <button
                                 onClick={(e) => {
