@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/components/providers/auth-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
-import { loadScreeningBoardSettings } from '@/lib/screening-board-settings'
+import { loadScreeningBoardSettings, saveScreeningBoardSettings } from '@/lib/screening-board-settings'
 
 interface PublishedScreening {
   id: string
@@ -55,9 +57,14 @@ interface ReadOnlyScreeningBoardProps {
 
 export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScreeningBoardProps) {
   const supabase = createClient()
+  const { user } = useAuth()
+  const { permissions } = usePermissions()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const daySectionRefs = useRef<Map<string, HTMLElement>>(new Map())
   const [hasScrolledToToday, setHasScrolledToToday] = useState(false)
+
+  // Check if user has read access to ticketing (required for Set View)
+  const canSetView = permissions?.modulePermissions?.['ticketing']?.canRead || permissions?.isAdmin || permissions?.isSuperAdmin || false
 
   const [publishedScreenings, setPublishedScreenings] = useState<PublishedScreening[]>([])
   const [piJuryScreenings, setPiJuryScreenings] = useState<PIJuryScreening[]>([])
@@ -80,6 +87,42 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
   const [showTicketing, setShowTicketing] = useState(true)
   const [showPIJury, setShowPIJury] = useState(true)
   const [showTechCheck, setShowTechCheck] = useState(true)
+
+  // Set View modal
+  const [showSetViewModal, setShowSetViewModal] = useState(false)
+
+  // Get all unique programs from film data
+  const allPrograms = useMemo(() => {
+    const programs = new Set<string>()
+    featureFilms.forEach(film => {
+      if (film.program_1) programs.add(film.program_1)
+      if (film.program_2) programs.add(film.program_2)
+      if (film.program_3) programs.add(film.program_3)
+      if (film.program_4) programs.add(film.program_4)
+    })
+    shortFilms.forEach(film => {
+      if (film.program_1) programs.add(film.program_1)
+      if (film.program_2) programs.add(film.program_2)
+      if (film.program_3) programs.add(film.program_3)
+    })
+    if (shortsPrograms.length > 0) {
+      programs.add('Shorts')
+    }
+    return Array.from(programs).sort()
+  }, [featureFilms, shortFilms, shortsPrograms])
+
+  // Initialize venue selection when modal opens (only if no saved settings)
+  useEffect(() => {
+    if (showSetViewModal && selectedVenues.length === 0) {
+      const allVenues = Array.from(new Set([
+        ...publishedScreenings.map(s => s.venue_short_code),
+        ...piJuryScreenings.map(s => s.venue_short_code),
+        ...techCheckScreenings.map(s => s.venue_short_code)
+      ])).filter(Boolean).sort()
+      setSelectedVenues(allVenues)
+      setVenueOrder(allVenues)
+    }
+  }, [showSetViewModal, publishedScreenings, piJuryScreenings, techCheckScreenings, selectedVenues.length])
 
   // Combine all screenings with type tags, filtered by visibility toggles
   const allScreenings = useMemo(() => [
@@ -301,7 +344,7 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
-      {/* Header with search */}
+      {/* Header with search, toggles, and Set View */}
       <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
         <div className="flex items-center space-x-4">
           <div className="relative">
@@ -371,6 +414,14 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
               />
               <span>Tech Check</span>
             </label>
+            {canSetView && (
+              <button
+                onClick={() => setShowSetViewModal(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+              >
+                Set View
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -453,6 +504,222 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
           </div>
         )}
       </div>
+
+      {/* Set View Modal */}
+      {showSetViewModal && (
+        <div className="fixed inset-0 bg-transparent z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 w-[600px] max-h-[90vh] overflow-y-auto shadow-xl border border-gray-200">
+            <h3 className="text-lg font-semibold mb-6">Set Screening Board View</h3>
+
+            {/* Venue Selection */}
+            <div className="mb-6">
+              <h4 className="text-md font-medium mb-3">Select Venues to Display</h4>
+              <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded p-3">
+                {Array.from(new Set([
+                  ...publishedScreenings.map(s => s.venue_short_code),
+                  ...piJuryScreenings.map(s => s.venue_short_code),
+                  ...techCheckScreenings.map(s => s.venue_short_code)
+                ])).filter(Boolean).sort().map(venue => (
+                  <label key={venue} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedVenues.includes(venue)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedVenues([...selectedVenues, venue])
+                          if (!venueOrder.includes(venue)) {
+                            setVenueOrder([...venueOrder, venue])
+                          }
+                        } else {
+                          setSelectedVenues(selectedVenues.filter(v => v !== venue))
+                          setVenueOrder(venueOrder.filter(v => v !== venue))
+                        }
+                      }}
+                      className="w-4 h-4 text-blue-600 rounded"
+                    />
+                    <span className="text-sm">{venue}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Venue Order */}
+            {selectedVenues.length > 1 && (
+              <div className="mb-6">
+                <h4 className="text-md font-medium mb-3">Venue Display Order</h4>
+                <div className="space-y-2">
+                  {venueOrder.filter(venue => selectedVenues.includes(venue)).map((venue, index) => (
+                    <div key={venue} className="flex items-center space-x-2 bg-gray-50 p-2 rounded">
+                      <span className="text-sm font-medium w-8">{index + 1}.</span>
+                      <span className="flex-1 text-sm">{venue}</span>
+                      <div className="flex space-x-1">
+                        {index > 0 && (
+                          <button
+                            onClick={() => {
+                              const newOrder = [...venueOrder]
+                              const currentIdx = newOrder.indexOf(venue)
+                              const prevIdx = newOrder.indexOf(venueOrder.filter(v => selectedVenues.includes(v))[index - 1])
+                              ;[newOrder[currentIdx], newOrder[prevIdx]] = [newOrder[prevIdx], newOrder[currentIdx]]
+                              setVenueOrder(newOrder)
+                            }}
+                            className="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded"
+                          >
+                            ↑
+                          </button>
+                        )}
+                        {index < venueOrder.filter(v => selectedVenues.includes(v)).length - 1 && (
+                          <button
+                            onClick={() => {
+                              const newOrder = [...venueOrder]
+                              const currentIdx = newOrder.indexOf(venue)
+                              const nextIdx = newOrder.indexOf(venueOrder.filter(v => selectedVenues.includes(v))[index + 1])
+                              ;[newOrder[currentIdx], newOrder[nextIdx]] = [newOrder[nextIdx], newOrder[currentIdx]]
+                              setVenueOrder(newOrder)
+                            }}
+                            className="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 rounded"
+                          >
+                            ↓
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Program Colors */}
+            <div className="mb-6">
+              <h4 className="text-md font-medium mb-3">Program Colors</h4>
+              <div className="space-y-3 max-h-60 overflow-y-auto border border-gray-200 rounded p-3">
+                {/* Special categories */}
+                <div className="pb-2 border-b border-gray-200">
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      checked={programSettings['P&I/Jury']?.enabled || false}
+                      onChange={(e) => setProgramSettings({
+                        ...programSettings,
+                        'P&I/Jury': {
+                          enabled: e.target.checked,
+                          color: programSettings['P&I/Jury']?.color || '#ffffff'
+                        }
+                      })}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm font-medium w-32">P&I/Jury</span>
+                    <input
+                      type="color"
+                      value={programSettings['P&I/Jury']?.color || '#ffffff'}
+                      onChange={(e) => setProgramSettings({
+                        ...programSettings,
+                        'P&I/Jury': {
+                          ...programSettings['P&I/Jury'],
+                          enabled: programSettings['P&I/Jury']?.enabled || false,
+                          color: e.target.value
+                        }
+                      })}
+                      disabled={!programSettings['P&I/Jury']?.enabled}
+                      className="w-8 h-8 rounded border border-gray-300 disabled:opacity-50"
+                    />
+                    <span className="text-xs text-gray-500 font-mono">{programSettings['P&I/Jury']?.color || '#ffffff'}</span>
+                  </div>
+                  <div className="flex items-center space-x-3 mt-2">
+                    <input
+                      type="checkbox"
+                      checked={programSettings['Tech Check']?.enabled || false}
+                      onChange={(e) => setProgramSettings({
+                        ...programSettings,
+                        'Tech Check': {
+                          enabled: e.target.checked,
+                          color: programSettings['Tech Check']?.color || '#000000'
+                        }
+                      })}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm font-medium w-32">Tech Check</span>
+                    <input
+                      type="color"
+                      value={programSettings['Tech Check']?.color || '#000000'}
+                      onChange={(e) => setProgramSettings({
+                        ...programSettings,
+                        'Tech Check': {
+                          ...programSettings['Tech Check'],
+                          enabled: programSettings['Tech Check']?.enabled || false,
+                          color: e.target.value
+                        }
+                      })}
+                      disabled={!programSettings['Tech Check']?.enabled}
+                      className="w-8 h-8 rounded border border-gray-300 disabled:opacity-50"
+                    />
+                    <span className="text-xs text-gray-500 font-mono">{programSettings['Tech Check']?.color || '#000000'}</span>
+                  </div>
+                </div>
+
+                {/* Film Programs */}
+                {allPrograms.map(program => (
+                  <div key={program} className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      checked={programSettings[program]?.enabled || false}
+                      onChange={(e) => setProgramSettings({
+                        ...programSettings,
+                        [program]: {
+                          enabled: e.target.checked,
+                          color: programSettings[program]?.color || '#3b82f6'
+                        }
+                      })}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm font-medium w-32 truncate" title={program}>{program}</span>
+                    <input
+                      type="color"
+                      value={programSettings[program]?.color || '#3b82f6'}
+                      onChange={(e) => setProgramSettings({
+                        ...programSettings,
+                        [program]: {
+                          ...programSettings[program],
+                          enabled: programSettings[program]?.enabled || false,
+                          color: e.target.value
+                        }
+                      })}
+                      disabled={!programSettings[program]?.enabled}
+                      className="w-8 h-8 rounded border border-gray-300 disabled:opacity-50"
+                    />
+                    <span className="text-xs text-gray-500 font-mono">{programSettings[program]?.color || '#3b82f6'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowSetViewModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const settings = {
+                    selectedVenues,
+                    venueOrder,
+                    programSettings
+                  }
+                  if (user) {
+                    await saveScreeningBoardSettings(settings, user.id)
+                  }
+                  setShowSetViewModal(false)
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              >
+                Apply View Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
