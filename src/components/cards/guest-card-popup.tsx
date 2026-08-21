@@ -730,7 +730,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
             <span className="text-2xl mr-3">{getGuestTypeIcon(guest.guest_type)}</span>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">{guest.name}</h2>
-              <p className="text-sm text-gray-600">{guest.guest_type}</p>
+              <p className="text-sm text-gray-600">{guest.guest_type}{guest.jury_name ? ` — ${guest.jury_name}` : ''}</p>
             </div>
           </div>
           <div className="flex items-center space-x-4">
@@ -767,7 +767,7 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
               </div>
               <div>
                 <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Guest Type</span>
-                <p className="text-sm text-gray-900 mt-1">{guest.guest_type}</p>
+                <p className="text-sm text-gray-900 mt-1">{guest.guest_type}{guest.jury_name ? ` — ${guest.jury_name}` : ''}</p>
               </div>
               <div>
                 <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Country</span>

@@ -309,6 +309,44 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
     }))
   }
 
+  // Jury tagging
+  const [availableJuries, setAvailableJuries] = useState<string[]>([])
+
+  useEffect(() => {
+    const loadJuries = async () => {
+      const { data } = await supabase
+        .from('guests')
+        .select('jury_name')
+        .eq('festival_year', currentYear)
+        .eq('guest_type', 'Jury')
+        .not('jury_name', 'is', null)
+      const names = [...new Set((data || []).map((g: any) => g.jury_name).filter(Boolean))] as string[]
+      setAvailableJuries(names.sort())
+    }
+    if (isOpen) loadJuries()
+  }, [isOpen, supabase, currentYear])
+
+  const handleTagJuryForPair = async (pairIndex: number, juryName: string) => {
+    const { data } = await supabase
+      .from('guests')
+      .select('id, name')
+      .eq('festival_year', currentYear)
+      .eq('guest_type', 'Jury')
+      .eq('jury_name', juryName)
+    if (!data) return
+    const pair = formData.film_subject_pairs[pairIndex]
+    const existingIds = new Set(pair.subjectChips.filter(c => c.id).map(c => c.id))
+    const newChips = data
+      .filter(g => !existingIds.has(g.id))
+      .map(g => ({ id: g.id, label: g.name }))
+    setFormData(prev => ({
+      ...prev,
+      film_subject_pairs: prev.film_subject_pairs.map((p, i) =>
+        i === pairIndex ? { ...p, subjectChips: [...p.subjectChips, ...newChips] } : p
+      )
+    }))
+  }
+
   // Handle subject chips change for a specific pair
   const handleSubjectChipsChange = (pairIndex: number, items: ChipItem[]) => {
     setFormData(prev => ({
@@ -580,15 +618,34 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
 
                       {/* Subjects ChipSelect */}
                       <div>
-                        <ChipSelect
-                          items={pair.subjectChips}
-                          onChange={(items) => handleSubjectChipsChange(pairIndex, items)}
-                          onSearch={handleSubjectSearch}
-                          placeholder="Search guests..."
-                          label="Subject(s)"
-                          allowFreeText={true}
-                          helpText="Search for guests or type to add free text."
-                        />
+                        <div className="flex items-end gap-2 mb-1">
+                          <ChipSelect
+                            items={pair.subjectChips}
+                            onChange={(items) => handleSubjectChipsChange(pairIndex, items)}
+                            onSearch={handleSubjectSearch}
+                            placeholder="Search guests..."
+                            label="Subject(s)"
+                            allowFreeText={true}
+                            helpText="Search for guests or type to add free text."
+                          />
+                          {availableJuries.length > 0 && (
+                            <select
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleTagJuryForPair(pairIndex, e.target.value)
+                                  e.target.value = ''
+                                }
+                              }}
+                              className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 whitespace-nowrap"
+                              defaultValue=""
+                            >
+                              <option value="" disabled>Tag Jury...</option>
+                              {availableJuries.map(name => (
+                                <option key={name} value={name}>{name} Jury</option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

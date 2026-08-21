@@ -55,6 +55,9 @@ interface GuestFormData {
   checked_in: boolean
   notes: string
   
+  // Jury
+  jury_name: string
+
   // Films (as string for form input)
   film_titles: string
 }
@@ -90,6 +93,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
     hotel_confirmation_number: '',
     checked_in: false,
     notes: '',
+    jury_name: '',
     film_titles: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -102,6 +106,9 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
   const [availablePrograms, setAvailablePrograms] = useState<{id: string, title: string}[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [filteredSuggestions, setFilteredSuggestions] = useState<{id: string, title: string, type: 'film' | 'program'}[]>([])
+  const [juryNameSuggestions, setJuryNameSuggestions] = useState<string[]>([])
+  const [showJurySuggestions, setShowJurySuggestions] = useState(false)
+  const [allJuryNames, setAllJuryNames] = useState<string[]>([])
 
   const supabase = createClient()
 
@@ -122,6 +129,15 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
         setAvailableFilms(allFilms)
         setAvailablePrograms(programs.data || [])
+
+        // Load existing jury names for autocomplete
+        const { data: juryGuests } = await supabase
+          .from('guests')
+          .select('jury_name')
+          .eq('festival_year', currentYear)
+          .not('jury_name', 'is', null)
+        const uniqueNames = [...new Set((juryGuests || []).map((g: any) => g.jury_name).filter(Boolean))] as string[]
+        setAllJuryNames(uniqueNames.sort())
       } catch (error) {
         console.error('Error loading films and programs:', error)
       }
@@ -198,6 +214,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         hotel_confirmation_number: guest.hotel_confirmation_number || '',
         checked_in: guest.checked_in || false,
         notes: guest.notes || '',
+        jury_name: guest.jury_name || '',
         film_titles: guest.films_display || ''
       })
     } else {
@@ -229,6 +246,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         hotel_confirmation_number: '',
         checked_in: false,
         notes: '',
+        jury_name: '',
         film_titles: ''
       })
     }
@@ -367,6 +385,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         hotel_confirmation_number: formData.hotel_confirmation_number.trim() || null,
         checked_in: formData.checked_in,
         notes: formData.notes.trim() || null,
+        jury_name: formData.guest_type === 'Jury' ? (formData.jury_name.trim() || null) : null,
         festival_year: currentYear,
         updated_at: nowStr
       }
@@ -581,6 +600,58 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                       <option value="Other">Other</option>
                     </select>
                   </div>
+
+                  {formData.guest_type === 'Jury' && (
+                    <div className="relative">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Jury Name
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.jury_name}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setFormData(prev => ({ ...prev, jury_name: val }))
+                          if (val.trim()) {
+                            const filtered = allJuryNames.filter(n => n.toLowerCase().includes(val.toLowerCase()))
+                            setJuryNameSuggestions(filtered)
+                            setShowJurySuggestions(filtered.length > 0)
+                          } else {
+                            setShowJurySuggestions(false)
+                          }
+                        }}
+                        onFocus={() => {
+                          if (formData.jury_name.trim()) {
+                            const filtered = allJuryNames.filter(n => n.toLowerCase().includes(formData.jury_name.toLowerCase()))
+                            setJuryNameSuggestions(filtered)
+                            setShowJurySuggestions(filtered.length > 0)
+                          } else if (allJuryNames.length > 0) {
+                            setJuryNameSuggestions(allJuryNames)
+                            setShowJurySuggestions(true)
+                          }
+                        }}
+                        onBlur={() => setTimeout(() => setShowJurySuggestions(false), 200)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="e.g. International, Shorts, CineYouth"
+                      />
+                      {showJurySuggestions && juryNameSuggestions.length > 0 && (
+                        <ul className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-40 overflow-y-auto">
+                          {juryNameSuggestions.map((name) => (
+                            <li
+                              key={name}
+                              className="px-3 py-2 text-sm text-gray-900 hover:bg-blue-50 cursor-pointer"
+                              onMouseDown={() => {
+                                setFormData(prev => ({ ...prev, jury_name: name }))
+                                setShowJurySuggestions(false)
+                              }}
+                            >
+                              {name}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
