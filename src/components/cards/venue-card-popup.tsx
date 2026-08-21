@@ -157,14 +157,6 @@ export function VenueCardPopup({ venue, onClose, onUpdate, onDelete }: VenueCard
           </div>
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => {
-                // TODO: Open edit modal - will be implemented when edit functionality is added
-              }}
-              className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm font-medium"
-            >
-              Edit
-            </button>
-            <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 text-xl"
             >
