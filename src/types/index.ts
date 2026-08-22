@@ -323,7 +323,7 @@ export interface ContactCard {
 }
 
 // Film Contact Types
-export type FilmContactType = 'Distributor/Studio' | 'Production Team' | 'Publicity' | 'Other'
+export type FilmContactType = 'Distributor/Studio' | 'Production Team' | 'Publicity' | 'Sales Agent' | 'Filmmaker' | 'Producer' | 'Director' | 'Print Traffic' | 'Festival' | 'Other'
 
 export interface FilmContact {
   id: string
