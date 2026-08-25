@@ -85,6 +85,10 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
   const [filmChips, setFilmChips] = useState<(ChipItem & { filmType?: string })[]>([])
   const [allFilms, setAllFilms] = useState<{ id: string, title: string, type: string }[]>([])
 
+  // New entry film chips
+  const [newEntryFilmChips, setNewEntryFilmChips] = useState<(ChipItem & { filmType?: string })[]>([])
+  const [showNewEntryFilmPicker, setShowNewEntryFilmPicker] = useState(false)
+
   // New outlet inline creation
   const [showNewOutletModal, setShowNewOutletModal] = useState(false)
   const [newOutletName, setNewOutletName] = useState('')
@@ -460,12 +464,27 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
         updated_at: new Date().toISOString()
       }
 
-      const { error } = await supabase.from('press_coverage').insert([payload])
+      const { data: newRow, error } = await supabase.from('press_coverage').insert([payload]).select('id').single()
       if (error) throw error
+
+      // Insert film tags if any were selected
+      if (newRow && newEntryFilmChips.length > 0) {
+        const fkFilms = newEntryFilmChips.filter(c => c.id)
+        if (fkFilms.length > 0) {
+          const inserts = fkFilms.map(chip => ({
+            coverage_id: newRow.id,
+            film_id: chip.id!,
+            film_type: chip.type || chip.filmType || 'feature',
+            festival_year: currentYear
+          }))
+          await supabase.from('press_coverage_films').insert(inserts)
+        }
+      }
 
       setNewEntry({ ...emptyEntry })
       setOutletQuery('')
       setSelectedOutletData(null)
+      setNewEntryFilmChips([])
       await loadCoverage()
     } catch (error) {
       console.error('Error saving coverage:', error)
@@ -593,6 +612,32 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
   const handleCreateOutlet = async () => {
     if (!newOutletName.trim()) return
     try {
+      // Check for duplicate
+      const { data: existing } = await supabase
+        .from('outlets')
+        .select('id, name')
+        .eq('festival_year', currentYear)
+        .ilike('name', newOutletName.trim())
+        .maybeSingle()
+
+      if (existing) {
+        alert(`An outlet named "${existing.name}" already exists. Selecting it instead.`)
+        const outlet: OutletCard = { ...existing, festival_year: currentYear, outlet_type: null, uvm_reach: null, geography: null, website: null }
+        if (pendingOutletFor === 'new') {
+          selectOutlet(outlet)
+        } else {
+          setEditFormData(prev => ({ ...prev, outlet_id: outlet.id, outlet_name: outlet.name }))
+          setEditOutletQuery(outlet.name)
+          setEditOutletData(outlet)
+        }
+        setShowNewOutletModal(false)
+        setNewOutletName('')
+        setNewOutletType('')
+        setNewOutletGeography('')
+        setNewOutletUvm('')
+        return
+      }
+
       const { data, error } = await supabase
         .from('outlets')
         .insert([{
@@ -668,6 +713,13 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
     return sortConfig.direction === 'asc' ? '↑' : '↓'
   }
 
+  const formatUvm = (val: string | null | undefined): string => {
+    if (!val) return ''
+    const num = parseInt(val.replace(/[^0-9]/g, ''))
+    if (isNaN(num)) return val
+    return num.toLocaleString()
+  }
+
   const formatDate = (dateStr: string | null | undefined): string => {
     if (!dateStr) return ''
     const [year, month, day] = dateStr.split('-').map(Number)
@@ -683,12 +735,18 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
   const parseDateInput = (input: string): string | null => {
     if (!input) return null
     const parts = input.split('/')
-    if (parts.length !== 3) return null
+    if (parts.length < 2 || parts.length > 3) return null
     const month = parseInt(parts[0])
     const day = parseInt(parts[1])
-    let year = parseInt(parts[2])
-    if (isNaN(month) || isNaN(day) || isNaN(year)) return null
-    if (year < 100) year += 2000
+    if (isNaN(month) || isNaN(day)) return null
+    let year: number
+    if (parts.length === 3) {
+      year = parseInt(parts[2])
+      if (isNaN(year)) return null
+      if (year < 100) year += 2000
+    } else {
+      year = currentYear
+    }
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   }
 
@@ -938,13 +996,29 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                         )}
                       </td>
                       {/* UVM/Reach (auto-filled) */}
-                      <td className="px-2 py-2 text-xs text-gray-400 border-r border-gray-100">{selectedOutletData?.uvm_reach || ''}</td>
+                      <td className="px-2 py-2 text-xs text-gray-400 border-r border-gray-100">{formatUvm(selectedOutletData?.uvm_reach)}</td>
                       {/* Outlet Type (auto-filled) */}
                       <td className="px-2 py-2 text-xs text-gray-400 border-r border-gray-100">{selectedOutletData?.outlet_type || ''}</td>
                       {/* Geography (auto-filled) */}
                       <td className="px-2 py-2 text-xs text-gray-400 border-r border-gray-100">{selectedOutletData?.geography || ''}</td>
-                      {/* Titles (tag after save) */}
-                      <td className="px-2 py-2 text-xs text-gray-400 border-r border-gray-100">Save first</td>
+                      {/* Titles */}
+                      <td className="px-2 py-2 text-xs border-r border-gray-100">
+                        {newEntryFilmChips.length > 0 ? (
+                          <button
+                            onClick={() => setShowNewEntryFilmPicker(true)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            {newEntryFilmChips.length} title{newEntryFilmChips.length !== 1 ? 's' : ''}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setShowNewEntryFilmPicker(true)}
+                            className="text-gray-400 hover:text-blue-600"
+                          >
+                            + Tag
+                          </button>
+                        )}
+                      </td>
                       {/* URL */}
                       <td className="px-2 py-2 border-r border-gray-100">
                         <input
@@ -1000,7 +1074,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">{formatDate(row.coverage_date)}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">{row.outlet_name}</td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100">{row.byline}</td>
-                      <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-100">{row.uvm_reach || ''}</td>
+                      <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-100">{formatUvm(row.uvm_reach)}</td>
                       <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-100">{row.outlet_type || ''}</td>
                       <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-100">{row.geography || ''}</td>
                       <td className="px-3 py-2 text-sm border-r border-gray-100">
@@ -1149,7 +1223,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                   )}
                   {editOutletData && (
                     <div className="mt-1 text-xs text-gray-500">
-                      {[editOutletData.outlet_type, editOutletData.geography, editOutletData.uvm_reach].filter(Boolean).join(' · ')}
+                      {[editOutletData.outlet_type, editOutletData.geography, formatUvm(editOutletData.uvm_reach)].filter(Boolean).join(' · ')}
                     </div>
                   )}
                 </div>
@@ -1277,6 +1351,42 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
               >
                 Save Tags
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Entry Film Picker Modal */}
+      {showNewEntryFilmPicker && (
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Tag Titles</h2>
+              <button onClick={() => setShowNewEntryFilmPicker(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+
+            <ChipSelect
+              items={newEntryFilmChips}
+              onChange={(items) => {
+                setNewEntryFilmChips(items.map(item => {
+                  const filmOption = allFilms.find(f => f.id === item.id)
+                  return { ...item, filmType: filmOption?.type || item.type || undefined }
+                }))
+              }}
+              onSearch={handleFilmSearch}
+              placeholder="Search films or programs..."
+              label="Content / Titles Mentioned"
+              allowFreeText={true}
+              helpText="Search for titles or type to add free text."
+            />
+
+            <div className="flex justify-end pt-6">
+              <button
+                onClick={() => setShowNewEntryFilmPicker(false)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+              >
+                Done
               </button>
             </div>
           </div>
