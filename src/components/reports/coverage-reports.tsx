@@ -250,10 +250,15 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
 
     const uniqueOutlets = new Set(filteredCoverage.map(e => e.outlet_name).filter(Boolean)).size
 
-    const titlesCovered = new Set<string>()
-    filteredCoverage.forEach(e => e.film_tags.forEach(ft => titlesCovered.add(ft.film_id)))
+    let totalImpressions = 0
+    filteredCoverage.forEach(e => {
+      if (e.uvm_reach) {
+        const num = parseInt(e.uvm_reach.replace(/[^0-9]/g, ''))
+        if (!isNaN(num)) totalImpressions += num
+      }
+    })
 
-    return { total, byBreakType, byGeography, byOutletType, uniqueOutlets, titlesCovered: titlesCovered.size }
+    return { total, byBreakType, byGeography, byOutletType, uniqueOutlets, totalImpressions }
   }, [filteredCoverage])
 
   // By-title grouped data
@@ -344,7 +349,7 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
         [''],
         ['Total Coverage Entries', summaryStats.total],
         ['Unique Outlets', summaryStats.uniqueOutlets],
-        ['Titles Covered', summaryStats.titlesCovered],
+        ['Total Impressions', summaryStats.totalImpressions],
         [''],
         ['By Break Type'],
         ...Object.entries(summaryStats.byBreakType).map(([type, count]) => [type, count]),
@@ -603,8 +608,8 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
               <div className="text-sm text-gray-600 mt-1">Unique Outlets</div>
             </div>
             <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
-              <div className="text-3xl font-bold text-purple-600">{summaryStats.titlesCovered}</div>
-              <div className="text-sm text-gray-600 mt-1">Titles Covered</div>
+              <div className="text-3xl font-bold text-purple-600">{summaryStats.totalImpressions.toLocaleString()}</div>
+              <div className="text-sm text-gray-600 mt-1">Total Impressions</div>
             </div>
           </div>
 
