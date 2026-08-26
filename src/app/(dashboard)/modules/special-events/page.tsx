@@ -80,6 +80,7 @@ export default function SpecialEventsPage() {
       { field: 'venue_name', display: 'Location' },
       { field: 'venue_contact_name', display: 'Venue Contact Name' },
       { field: 'venue_contact_phone', display: 'Venue Contact Phone' },
+      { field: 'venue_contact_email', display: 'Venue Contact Email' },
       { field: 'lead_staff', display: 'Lead Staff' },
       { field: 'lead_volunteer', display: 'Lead Volunteer' },
       { field: 'number_of_vols', display: 'Number of Vols' },
@@ -220,6 +221,7 @@ export default function SpecialEventsPage() {
         'Location': 'venue_name',
         'Venue Contact Name': 'venue_contact_name',
         'Venue Contact Phone': 'venue_contact_phone',
+        'Venue Contact Email': 'venue_contact_email',
         'Lead Staff': 'lead_staff',
         'Lead Volunteer': 'lead_volunteer',
         'Number of Vols': 'number_of_vols',
@@ -1236,6 +1238,7 @@ export default function SpecialEventsPage() {
                     { key: 'venue_name', label: 'Location', width: 150, sortable: true },
                     { key: 'venue_contact_name', label: 'Venue Contact Name', width: 150, sortable: false },
                     { key: 'venue_contact_phone', label: 'Venue Contact Phone', width: 150, sortable: false },
+                    { key: 'venue_contact_email', label: 'Venue Contact Email', width: 180, sortable: false },
                     { key: 'lead_staff', label: 'Lead Staff', width: 120, sortable: true },
                     { key: 'lead_volunteer', label: 'Lead Volunteer', width: 120, sortable: true },
                     { key: 'number_of_vols', label: 'Number of Vols', width: 100, sortable: false },
@@ -1366,6 +1369,13 @@ export default function SpecialEventsPage() {
                     {/* Venue Contact Phone */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['venue_contact_phone'] || 150}px` }}>
                       {event.venue_contact_phone || '—'}
+                    </td>
+
+                    {/* Venue Contact Email */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['venue_contact_email'] || 180}px` }}>
+                      {event.venue_contact_email ? (
+                        <a href={`mailto:${event.venue_contact_email}`} className="text-blue-600 hover:text-blue-800">{event.venue_contact_email}</a>
+                      ) : '—'}
                     </td>
                     
                     {/* Lead Staff */}

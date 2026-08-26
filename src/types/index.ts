@@ -496,6 +496,7 @@ export interface SpecialEventCard {
   venue_address_from_fk?: string | null // From view
   venue_contact_name_from_fk?: string | null // From view
   venue_contact_phone_from_fk?: string | null // From view
+  venue_contact_email?: string | null
   location_details?: string | null
 
   // Associations (hybrid display strings: relational + free text)

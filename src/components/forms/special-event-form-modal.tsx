@@ -30,6 +30,7 @@ interface SpecialEventFormData {
   venue_id: string
   venue_contact_name: string
   venue_contact_phone: string
+  venue_contact_email: string
   location_details: string
   filmChips: (ChipItem & { filmType?: string })[]
   guestChips: ChipItem[]
@@ -64,6 +65,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
     venue_id: '',
     venue_contact_name: '',
     venue_contact_phone: '',
+    venue_contact_email: '',
     location_details: '',
     filmChips: [],
     guestChips: [],
@@ -242,6 +244,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
           venue_id: event.venue_id || '',
           venue_contact_name: event.venue_contact_name || '',
           venue_contact_phone: event.venue_contact_phone || '',
+          venue_contact_email: event.venue_contact_email || '',
           location_details: event.location_details || '',
           filmChips,
           guestChips,
@@ -430,7 +433,8 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
           ...prev,
           location_details: prev.location_details || selectedVenue.address || '',
           venue_contact_name: selectedVenue.contact_names?.[0] || prev.venue_contact_name || '',
-          venue_contact_phone: selectedVenue.contact_phones?.[0] || prev.venue_contact_phone || ''
+          venue_contact_phone: selectedVenue.contact_phones?.[0] || prev.venue_contact_phone || '',
+          venue_contact_email: selectedVenue.contact_emails?.[0] || prev.venue_contact_email || ''
         }))
       }
     }
@@ -477,6 +481,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
         venue_id: formData.venue_id || null,
         venue_contact_name: formData.venue_contact_name?.trim?.() || null,
         venue_contact_phone: formData.venue_contact_phone?.trim?.() || null,
+        venue_contact_email: formData.venue_contact_email?.trim?.() || null,
         location_details: formData.location_details?.trim?.() || null,
         film_program_description: freeTextFilms.length > 0 ? freeTextFilms.map(c => c.label).join(', ') : null,
         guests_description: freeTextGuests.length > 0 ? freeTextGuests.map(c => c.label).join(', ') : null,
@@ -782,7 +787,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
             </div>
 
             {/* Row 5.5: Venue Contact Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Venue Contact Name</label>
                 <input
@@ -801,6 +806,16 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
                   onChange={(e) => setFormData(prev => ({ ...prev, venue_contact_phone: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Contact phone number"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Venue Contact Email</label>
+                <input
+                  type="email"
+                  value={formData.venue_contact_email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, venue_contact_email: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Contact email"
                 />
               </div>
             </div>
