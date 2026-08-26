@@ -331,6 +331,13 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
     return sortDirection === 'asc' ? ' ↑' : ' ↓'
   }
 
+  const formatUvm = (val: string | null | undefined): string => {
+    if (!val) return ''
+    const num = parseInt(val.replace(/[^0-9]/g, ''))
+    if (isNaN(num)) return val
+    return num.toLocaleString()
+  }
+
   const formatDate = (dateStr: string | null): string => {
     if (!dateStr) return ''
     const [year, month, day] = dateStr.split('-').map(Number)
@@ -756,7 +763,7 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
                         <td className="px-4 py-2 text-sm text-gray-700">{formatDate(entry.coverage_date)}</td>
                         <td className="px-4 py-2 text-sm text-gray-700">{entry.outlet_name || ''}</td>
                         <td className="px-4 py-2 text-sm text-gray-700">{entry.byline || ''}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700">{entry.uvm_reach || ''}</td>
+                        <td className="px-4 py-2 text-sm text-gray-700">{formatUvm(entry.uvm_reach)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -773,7 +780,7 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
                 <div>
                   <h3 className="font-semibold text-gray-900">{item.outlet}</h3>
                   <p className="text-xs text-gray-500 mt-1">
-                    {[item.outletType, item.geography, item.uvm ? `Reach: ${item.uvm}` : null].filter(Boolean).join(' · ')}
+                    {[item.outletType, item.geography, item.uvm ? `Reach: ${formatUvm(item.uvm)}` : null].filter(Boolean).join(' · ')}
                   </p>
                 </div>
                 <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
