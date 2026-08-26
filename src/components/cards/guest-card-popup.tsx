@@ -729,7 +729,14 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           <div className="flex items-center">
             <span className="text-2xl mr-3">{getGuestTypeIcon(guest.guest_type)}</span>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">{guest.name}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-semibold text-gray-900">{guest.name}</h2>
+                {guest.pronouns && (
+                  <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700">
+                    {guest.pronouns}
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-gray-600">{guest.guest_type}{guest.jury_name ? ` — ${guest.jury_name}` : ''}</p>
             </div>
           </div>
@@ -770,6 +777,10 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                 <p className="text-sm text-gray-900 mt-1">{guest.guest_type}{guest.jury_name ? ` — ${guest.jury_name}` : ''}</p>
               </div>
               <div>
+                <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Pronouns</span>
+                <p className="text-sm text-gray-900 mt-1">{guest.pronouns || 'Not specified'}</p>
+              </div>
+              <div>
                 <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Country</span>
                 <p className="text-sm text-gray-900 mt-1">{guest.country || 'Not specified'}</p>
               </div>
@@ -778,14 +789,18 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                 <p className="text-sm text-gray-900 mt-1">{guest.role || 'Not specified'}</p>
               </div>
               <div>
-                <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Confirmed</span>
+                <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Confirmation Status</span>
                 <p className="text-sm mt-1">
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    guest.confirmed 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-yellow-100 text-yellow-800'
+                    guest.confirmation_status === 'Confirmed'
+                      ? 'bg-green-100 text-green-800'
+                      : guest.confirmation_status === 'Arrangements Pending'
+                      ? 'bg-blue-100 text-blue-800'
+                      : guest.confirmation_status === 'Tentative'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-gray-100 text-gray-600'
                   }`}>
-                    {guest.confirmed ? 'Yes' : 'No'}
+                    {guest.confirmation_status || 'Not set'}
                   </span>
                 </p>
               </div>
@@ -811,11 +826,11 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
           </CollapsibleSection>
 
           {/* Contact Information */}
-          <CollapsibleSection 
-            title="Contact Information" 
-            isEmpty={!guest.contact_name && !guest.contact_email}
+          <CollapsibleSection
+            title="Contact Information"
+            isEmpty={!guest.contact_name && !guest.contact_email && !guest.contact_info}
           >
-            {guest.contact_name || guest.contact_email ? (
+            {guest.contact_name || guest.contact_email || guest.contact_info ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {guest.contact_name && (
                   <div>
@@ -831,6 +846,12 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
                         {guest.contact_email}
                       </a>
                     </p>
+                  </div>
+                )}
+                {guest.contact_info && (
+                  <div className="md:col-span-2">
+                    <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Contact Info</span>
+                    <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{guest.contact_info}</p>
                   </div>
                 )}
               </div>

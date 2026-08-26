@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
-import { GuestCard, GuestType } from '@/types'
+import { GuestCard, GuestType, ConfirmationStatus } from '@/types'
 import { detectChangedFields, logFieldChanges } from '@/lib/field-changes'
 
 interface GuestFormModalProps {
@@ -16,9 +16,11 @@ interface GuestFormModalProps {
 
 interface GuestFormData {
   name: string
+  pronouns: string
   country: string
   guest_type: GuestType
   confirmed: boolean
+  confirmation_status: ConfirmationStatus | ''
   role: string
   
   // Contact
@@ -51,10 +53,13 @@ interface GuestFormData {
   hotel_address: string
   hotel_confirmation_number: string
   
+  // Contact Info
+  contact_info: string
+
   // Management
   checked_in: boolean
   notes: string
-  
+
   // Jury
   jury_name: string
 
@@ -67,9 +72,11 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
   const { currentYear } = useFestivalYear()
   const [formData, setFormData] = useState<GuestFormData>({
     name: '',
+    pronouns: '',
     country: '',
     guest_type: 'Features',
     confirmed: false,
+    confirmation_status: '',
     role: '',
     contact_name: '',
     contact_email: '',
@@ -91,6 +98,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
     hotel_name: '',
     hotel_address: '',
     hotel_confirmation_number: '',
+    contact_info: '',
     checked_in: false,
     notes: '',
     jury_name: '',
@@ -188,9 +196,11 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
       originalGuestRef.current = { ...guest }
       setFormData({
         name: guest.name || '',
+        pronouns: guest.pronouns || '',
         country: guest.country || '',
         guest_type: guest.guest_type || 'Features',
         confirmed: guest.confirmed || false,
+        confirmation_status: guest.confirmation_status || '',
         role: guest.role || '',
         contact_name: guest.contact_name || '',
         contact_email: guest.contact_email || '',
@@ -212,6 +222,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         hotel_name: guest.hotel_name || '',
         hotel_address: guest.hotel_address || '',
         hotel_confirmation_number: guest.hotel_confirmation_number || '',
+        contact_info: guest.contact_info || '',
         checked_in: guest.checked_in || false,
         notes: guest.notes || '',
         jury_name: guest.jury_name || '',
@@ -220,9 +231,11 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
     } else {
       setFormData({
         name: '',
+        pronouns: '',
         country: '',
         guest_type: 'Features',
         confirmed: false,
+        confirmation_status: '',
         role: '',
         contact_name: '',
         contact_email: '',
@@ -244,6 +257,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         hotel_name: '',
         hotel_address: '',
         hotel_confirmation_number: '',
+        contact_info: '',
         checked_in: false,
         notes: '',
         jury_name: '',
@@ -359,9 +373,11 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
       const guestData = {
         name: formData.name.trim(),
+        pronouns: formData.pronouns.trim() || null,
         country: formData.country.trim() || null,
         guest_type: formData.guest_type,
-        confirmed: formData.confirmed,
+        confirmed: formData.confirmation_status === 'Confirmed',
+        confirmation_status: formData.confirmation_status || null,
         role: formData.role.trim() || null,
         contact_name: formData.contact_name.trim() || null,
         contact_email: formData.contact_email.trim() || null,
@@ -383,6 +399,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         hotel_name: formData.hotel_name.trim() || null,
         hotel_address: formData.hotel_address.trim() || null,
         hotel_confirmation_number: formData.hotel_confirmation_number.trim() || null,
+        contact_info: formData.contact_info.trim() || null,
         checked_in: formData.checked_in,
         notes: formData.notes.trim() || null,
         jury_name: formData.guest_type === 'Jury' ? (formData.jury_name.trim() || null) : null,
@@ -585,6 +602,19 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Pronouns
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.pronouns}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pronouns: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g. he/him, she/her, they/them"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Guest Type <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -679,17 +709,20 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                     />
                   </div>
 
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="confirmed"
-                      checked={formData.confirmed}
-                      onChange={(e) => setFormData(prev => ({ ...prev, confirmed: e.target.checked }))}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="confirmed" className="ml-2 block text-sm text-gray-900">
-                      Confirmed
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Confirmation Status
                     </label>
+                    <select
+                      value={formData.confirmation_status}
+                      onChange={(e) => setFormData(prev => ({ ...prev, confirmation_status: e.target.value as ConfirmationStatus | '' }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">— Select —</option>
+                      <option value="Tentative">Tentative</option>
+                      <option value="Arrangements Pending">Arrangements Pending</option>
+                      <option value="Confirmed">Confirmed</option>
+                    </select>
                   </div>
 
                   <div className="flex items-center">
@@ -1008,6 +1041,20 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                       placeholder="Hotel address"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Contact Info */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Contact Info</h3>
+                <div>
+                  <textarea
+                    value={formData.contact_info}
+                    onChange={(e) => setFormData(prev => ({ ...prev, contact_info: e.target.value }))}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Contact details, phone numbers, agent info, etc."
+                  />
                 </div>
               </div>
 

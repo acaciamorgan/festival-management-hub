@@ -194,12 +194,16 @@ export interface GuestFilm {
   film_title?: string // resolved from guest_film_titles view (not a stored cache)
 }
 
+export type ConfirmationStatus = 'Tentative' | 'Arrangements Pending' | 'Confirmed'
+
 export interface GuestCard {
   id: string
   name: string
+  pronouns?: string | null
   country?: string
   guest_type: GuestType
   confirmed: boolean
+  confirmation_status?: ConfirmationStatus | null
   festival_year: number
   role?: string
   
@@ -233,6 +237,9 @@ export interface GuestCard {
   hotel_address?: string
   hotel_confirmation_number?: string
   
+  // Contact Info
+  contact_info?: string | null
+
   // Management
   checked_in: boolean
   notes?: string

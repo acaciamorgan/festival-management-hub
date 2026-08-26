@@ -35,8 +35,10 @@ export interface CSVGuestRow {
   'Film/Program Titles': string
   'Database Match': string
   'Name': string
+  'Pronouns': string
   'Country': string
   'Confirmed': string
+  'Confirmation Status': string
   'Contact': string
   'Email': string
   'Welcome Email Sent': string
@@ -46,19 +48,30 @@ export interface CSVGuestRow {
   'Arrival Date': string
   'Arrival Airline': string
   'Arrival Flight Number': string
+  'Inbound Flight': string
+  'Inbound Flight #': string
   'Inbound Departure Time': string
+  'Inbound Depart Time': string
   'Arrival Origin Airport': string
+  'Origin': string
   'Arrival Airport': string
   'Inbound Arrival Time': string
+  'Inbound Arrive Time': string
   'Departure Date': string
   'Outbound Departure Time': string
+  'Outbound Depart Time': string
   'Departure Airline': string
   'Departure Flight Number': string
+  'Outbound Flight': string
+  'Outbound Flight #': string
   'Departure Airport': string
   'Destination Airport': string
+  'Destination': string
   'Outbound Arrival Time': string
+  'Outbound Arrive Time': string
   'Screening 1': string
   'Screening 2': string
+  'Contact Info': string
   'Notes': string
 }
 
@@ -455,8 +468,9 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
         // Use the Arranging Travel column as open text - no validation
         const arrangingTravel = primaryRow['Arranging Travel']?.trim() || null
 
-        // Use exact template header: 'Confirmed'
-        const confirmed = primaryRow['Confirmed']?.toLowerCase().trim() === 'yes'
+        // Confirmation status (new 3-option field)
+        const confirmationStatus = primaryRow['Confirmation Status']?.trim() || null
+        const confirmed = confirmationStatus === 'Confirmed' || primaryRow['Confirmed']?.toLowerCase().trim() === 'yes'
 
         // Parse dates using smart date parser with festival year
         const arrivalDate = primaryRow['Arrival Date']?.trim()
@@ -465,28 +479,50 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
         const departureDate = primaryRow['Departure Date']?.trim()
         const parsedDepartureDate = parseSmartDate(departureDate, festivalYear)
 
-        // Use updated header names with unique inbound/outbound prefixes
-        const arrivalAirline = primaryRow['Arrival Airline']?.trim() || null
-        const arrivalFlightNumber = primaryRow['Inbound Flight #']?.trim() || null
-        const arrivalTakeoffTime = primaryRow['Inbound Depart Time']?.trim() || null
-        const arrivalOrigin = primaryRow['Origin']?.trim() || null
+        // Parse inbound flight — supports merged "Inbound Flight" (e.g. "AA 1234") or separate columns
+        let arrivalAirline = primaryRow['Arrival Airline']?.trim() || null
+        let arrivalFlightNumber = primaryRow['Inbound Flight #']?.trim() || null
+        const inboundFlightCombined = primaryRow['Inbound Flight']?.trim()
+        if (inboundFlightCombined && !arrivalAirline && !arrivalFlightNumber) {
+          const parts = inboundFlightCombined.split(/\s+/)
+          if (parts.length >= 2) {
+            arrivalAirline = parts[0]
+            arrivalFlightNumber = parts.slice(1).join(' ')
+          } else {
+            arrivalFlightNumber = inboundFlightCombined
+          }
+        }
+        const arrivalTakeoffTime = primaryRow['Inbound Depart Time']?.trim() || primaryRow['Inbound Departure Time']?.trim() || null
+        const arrivalOrigin = primaryRow['Origin']?.trim() || primaryRow['Arrival Origin Airport']?.trim() || null
         const arrivalDestination = primaryRow['Arrival Airport']?.trim() || null
-        const arrivalLandingTime = primaryRow['Inbound Arrive Time']?.trim() || null
-        
-        // For departure fields - use outbound prefixes
-        const departureTakeoffTime = primaryRow['Outbound Depart Time']?.trim() || null
-        const departureAirline = primaryRow['Departure Airline']?.trim() || null
-        const departureFlightNumber = primaryRow['Outbound Flight #']?.trim() || null
+        const arrivalLandingTime = primaryRow['Inbound Arrive Time']?.trim() || primaryRow['Inbound Arrival Time']?.trim() || null
+
+        // Parse outbound flight — supports merged "Outbound Flight" (e.g. "UA 567") or separate columns
+        let departureAirline = primaryRow['Departure Airline']?.trim() || null
+        let departureFlightNumber = primaryRow['Outbound Flight #']?.trim() || primaryRow['Departure Flight Number']?.trim() || null
+        const outboundFlightCombined = primaryRow['Outbound Flight']?.trim()
+        if (outboundFlightCombined && !departureAirline && !departureFlightNumber) {
+          const parts = outboundFlightCombined.split(/\s+/)
+          if (parts.length >= 2) {
+            departureAirline = parts[0]
+            departureFlightNumber = parts.slice(1).join(' ')
+          } else {
+            departureFlightNumber = outboundFlightCombined
+          }
+        }
+        const departureTakeoffTime = primaryRow['Outbound Depart Time']?.trim() || primaryRow['Outbound Departure Time']?.trim() || null
         const departureOrigin = primaryRow['Departure Airport']?.trim() || null
-        const departureDestination = primaryRow['Destination']?.trim() || null
-        const departureLandingTime = primaryRow['Outbound Arrive Time']?.trim() || null
+        const departureDestination = primaryRow['Destination']?.trim() || primaryRow['Destination Airport']?.trim() || null
+        const departureLandingTime = primaryRow['Outbound Arrive Time']?.trim() || primaryRow['Outbound Arrival Time']?.trim() || null
 
         // Create guest record
         const guestData = {
           name: guestName,
+          pronouns: primaryRow['Pronouns']?.trim() || null,
           country: primaryRow['Country']?.trim() || null,
           guest_type: guestType,
           confirmed,
+          confirmation_status: confirmationStatus,
           role: primaryRow['Role']?.trim() || null,
           contact_name: primaryRow['Contact']?.trim() || null,
           contact_email: primaryRow['Email']?.trim() || null,
@@ -505,8 +541,9 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
           departure_airport: departureOrigin,
           destination_airport: departureDestination,
           outbound_arrival_time: departureLandingTime,
-          hotel_name: primaryRow['Hotel']?.trim() || null,  // Template uses 'Hotel'
+          hotel_name: primaryRow['Hotel']?.trim() || null,
           hotel_confirmation_number: primaryRow['Hotel Confirmation']?.trim() || null,
+          contact_info: primaryRow['Contact Info']?.trim() || null,
           checked_in: false,
           notes: primaryRow['Notes']?.trim() || null,
           created_at: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') + ' ' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0') + ':' + String(new Date().getSeconds()).padStart(2, '0'),

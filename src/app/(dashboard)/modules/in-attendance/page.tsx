@@ -28,7 +28,7 @@ export default function InAttendancePage() {
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedGuestType, setSelectedGuestType] = useState('')
-  const [confirmedFilter, setConfirmedFilter] = useState<'all' | 'yes' | 'no'>('all')
+  const [confirmedFilter, setConfirmedFilter] = useState<string>('all')
   const [checkedInFilter, setCheckedInFilter] = useState<'all' | 'in' | 'out'>('all')
   const [arrangingTravelFilter, setArrangingTravelFilter] = useState('')
   const [todayDate, setTodayDate] = useState('')
@@ -277,30 +277,30 @@ export default function InAttendancePage() {
     // Define headers with proper display names
     const headerMapping = [
       { field: 'name', display: 'Name' },
+      { field: 'pronouns', display: 'Pronouns' },
       { field: 'role', display: 'Role' },
       { field: 'films_display', display: 'Film/Program Titles' },
       { field: 'database_match', display: 'Database Match' },
-      { field: 'checked_in', display: 'Checked In' },
       { field: 'guest_type', display: 'Type' },
       { field: 'arranging_travel', display: 'Arranging Travel' },
       { field: 'country', display: 'Country' },
       { field: 'arrival_date', display: 'Arrival Date' },
-      { field: 'arrival_airline', display: 'Arrival Airline' },
-      { field: 'arrival_flight_number', display: 'Inbound Flight #' },
       { field: 'inbound_departure_time', display: 'Inbound Depart Time' },
+      { field: 'inbound_arrival_time', display: 'Inbound Arrive Time' },
+      { field: 'inbound_flight', display: 'Inbound Flight' },
       { field: 'arrival_origin_airport', display: 'Origin' },
       { field: 'arrival_airport', display: 'Arrival Airport' },
-      { field: 'inbound_arrival_time', display: 'Inbound Arrive Time' },
       { field: 'departure_date', display: 'Departure Date' },
       { field: 'outbound_departure_time', display: 'Outbound Depart Time' },
-      { field: 'departure_airline', display: 'Departure Airline' },
-      { field: 'departure_flight_number', display: 'Outbound Flight #' },
+      { field: 'outbound_arrival_time', display: 'Outbound Arrive Time' },
+      { field: 'outbound_flight', display: 'Outbound Flight' },
       { field: 'departure_airport', display: 'Departure Airport' },
       { field: 'destination_airport', display: 'Destination' },
-      { field: 'outbound_arrival_time', display: 'Outbound Arrive Time' },
       { field: 'hotel_name', display: 'Hotel' },
+      { field: 'contact_info', display: 'Contact Info' },
       { field: 'notes', display: 'Notes' },
-      { field: 'confirmed', display: 'Confirmed' }
+      { field: 'confirmation_status', display: 'Confirmation Status' },
+      { field: 'checked_in', display: 'Checked In' }
     ]
     
     const headers = headerMapping.map(h => h.display)
@@ -537,10 +537,10 @@ export default function InAttendancePage() {
         return false
       }
 
-      // Confirmed filter
+      // Confirmation status filter
       if (confirmedFilter !== 'all') {
-        if (confirmedFilter === 'yes' && !guest.confirmed) return false
-        if (confirmedFilter === 'no' && guest.confirmed) return false
+        if (confirmedFilter === 'unset' && guest.confirmation_status) return false
+        else if (confirmedFilter !== 'unset' && guest.confirmation_status !== confirmedFilter) return false
       }
 
       // Checked in filter
@@ -1327,12 +1327,14 @@ export default function InAttendancePage() {
               <label className="text-sm font-medium text-gray-700">Confirmed:</label>
               <select
                 value={confirmedFilter}
-                onChange={(e) => setConfirmedFilter(e.target.value as 'all' | 'yes' | 'no')}
+                onChange={(e) => setConfirmedFilter(e.target.value)}
                 className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="all">All</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
+                <option value="Tentative">Tentative</option>
+                <option value="Arrangements Pending">Arrangements Pending</option>
+                <option value="Confirmed">Confirmed</option>
+                <option value="unset">Not Set</option>
               </select>
             </div>
 
@@ -1489,30 +1491,30 @@ export default function InAttendancePage() {
               <tr>
                 {[
                   { key: 'name', label: 'Name', width: 150, sortable: true },
+                  { key: 'pronouns', label: 'Pronouns', width: 100, sortable: false },
                   { key: 'role', label: 'Role', width: 120, sortable: false },
                   { key: 'films_display', label: 'Film / Program Titles', width: 200, sortable: true },
                   { key: 'appearing_at_screenings', label: 'Appearing At Screening(s)', width: 250, sortable: false },
-                  { key: 'checked_in', label: 'Checked In', width: 80, sortable: true },
                   { key: 'guest_type', label: 'Type', width: 80, sortable: true },
                   { key: 'arranging_travel', label: 'Arranging Travel', width: 120, sortable: true },
                   { key: 'country', label: 'Country', width: 100, sortable: true },
                   { key: 'arrival_date', label: 'Arrival Date', width: 100, sortable: true },
-                  { key: 'arrival_airline', label: 'Arrival Airline', width: 100, sortable: false },
-                  { key: 'arrival_flight_number', label: 'Flight #', width: 80, sortable: false },
                   { key: 'inbound_departure_time', label: 'Depart Time', width: 100, sortable: false },
-                  { key: 'arrival_origin_airport', label: 'Origin', width: 80, sortable: false },
-                  { key: 'arrival_airport', label: 'Arrival Airport', width: 100, sortable: false },
                   { key: 'inbound_arrival_time', label: 'Arrive Time', width: 100, sortable: false },
+                  { key: 'inbound_flight', label: 'Flight', width: 120, sortable: false },
+                  { key: 'arrival_origin_airport', label: 'Origin', width: 80, sortable: false },
+                  { key: 'arrival_airport', label: 'Destination', width: 100, sortable: false },
                   { key: 'departure_date', label: 'Departure Date', width: 100, sortable: true },
                   { key: 'outbound_departure_time', label: 'Depart Time', width: 100, sortable: false },
-                  { key: 'departure_airline', label: 'Departure Airline', width: 100, sortable: false },
-                  { key: 'departure_flight_number', label: 'Flight #', width: 80, sortable: false },
-                  { key: 'departure_airport', label: 'Departure Airport', width: 100, sortable: false },
-                  { key: 'destination_airport', label: 'Destination', width: 100, sortable: false },
                   { key: 'outbound_arrival_time', label: 'Arrive Time', width: 100, sortable: false },
+                  { key: 'outbound_flight', label: 'Flight', width: 120, sortable: false },
+                  { key: 'departure_airport', label: 'Origin', width: 100, sortable: false },
+                  { key: 'destination_airport', label: 'Destination', width: 100, sortable: false },
                   { key: 'hotel_name', label: 'Hotel', width: 120, sortable: false },
+                  { key: 'contact_info', label: 'Contact Info', width: 150, sortable: false },
                   { key: 'notes', label: 'Notes', width: 200, sortable: false },
-                  { key: 'confirmed', label: 'Confirmed', width: 80, sortable: true }
+                  { key: 'confirmation_status', label: 'Confirmed', width: 120, sortable: true },
+                  { key: 'checked_in', label: 'Checked In', width: 80, sortable: true }
                 ].map((column) => (
                   <th
                     key={column.key}
@@ -1588,6 +1590,9 @@ export default function InAttendancePage() {
                       {guest.name}
                     </button>
                   </td>
+                  <td className={`px-3 py-2 text-sm text-gray-500 border-r border-gray-100 ${hl('pronouns')}`} style={{ minWidth: `${columnWidths['pronouns'] || 100}px` }}>
+                    {guest.pronouns || '—'}
+                  </td>
                   <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('role')}`} style={{ minWidth: `${columnWidths['role'] || 120}px` }}>
                     {guest.role || '—'}
                   </td>
@@ -1596,6 +1601,75 @@ export default function InAttendancePage() {
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['appearing_at_screenings'] || 250}px` }}>
                     {renderScreeningAttendance(guest)}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('guest_type')}`} style={{ minWidth: `${columnWidths['guest_type'] || 100}px` }}>
+                    {guest.guest_type}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arranging_travel')}`} style={{ minWidth: `${columnWidths['arranging_travel'] || 80}px` }}>
+                    {guest.arranging_travel || '—'}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('country')}`} style={{ minWidth: `${columnWidths['country'] || 100}px` }}>
+                    {guest.country || '—'}
+                  </td>
+                  {/* Arrival block: Date → Depart Time → Arrive Time → Flight → Origin → Destination */}
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_date')}`} style={{ minWidth: `${columnWidths['arrival_date'] || 100}px` }}>
+                    {formatDate(guest.arrival_date)}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('inbound_departure_time')}`} style={{ minWidth: `${columnWidths['inbound_departure_time'] || 100}px` }}>
+                    {formatTime(guest.inbound_departure_time)}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('inbound_arrival_time')}`} style={{ minWidth: `${columnWidths['inbound_arrival_time'] || 100}px` }}>
+                    {formatTime(guest.inbound_arrival_time)}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_flight_number')}`} style={{ minWidth: `${columnWidths['inbound_flight'] || 120}px` }}>
+                    {[guest.arrival_airline, guest.arrival_flight_number].filter(Boolean).join(' ') || '—'}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_origin_airport')}`} style={{ minWidth: `${columnWidths['arrival_origin_airport'] || 80}px` }}>
+                    {guest.arrival_origin_airport || '—'}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_airport')}`} style={{ minWidth: `${columnWidths['arrival_airport'] || 100}px` }}>
+                    {guest.arrival_airport || '—'}
+                  </td>
+                  {/* Departure block: Date → Depart Time → Arrive Time → Flight → Origin → Destination */}
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('departure_date')}`} style={{ minWidth: `${columnWidths['departure_date'] || 100}px` }}>
+                    {formatDate(guest.departure_date)}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('outbound_departure_time')}`} style={{ minWidth: `${columnWidths['outbound_departure_time'] || 100}px` }}>
+                    {formatTime(guest.outbound_departure_time)}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('outbound_arrival_time')}`} style={{ minWidth: `${columnWidths['outbound_arrival_time'] || 100}px` }}>
+                    {formatTime(guest.outbound_arrival_time)}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('departure_flight_number')}`} style={{ minWidth: `${columnWidths['outbound_flight'] || 120}px` }}>
+                    {[guest.departure_airline, guest.departure_flight_number].filter(Boolean).join(' ') || '—'}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('departure_airport')}`} style={{ minWidth: `${columnWidths['departure_airport'] || 100}px` }}>
+                    {guest.departure_airport || '—'}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('destination_airport')}`} style={{ minWidth: `${columnWidths['destination_airport'] || 100}px` }}>
+                    {guest.destination_airport || '—'}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('hotel_name')}`} style={{ minWidth: `${columnWidths['hotel_name'] || 120}px` }}>
+                    {guest.hotel_name || '—'}
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-600 border-r border-gray-100 ${hl('contact_info')}`} style={{ minWidth: `${columnWidths['contact_info'] || 150}px` }}>
+                    <div className="text-xs truncate" title={guest.contact_info || ''}>{guest.contact_info || '—'}</div>
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-600 border-r border-gray-100 ${hl('notes')}`} style={{ minWidth: `${columnWidths['notes'] || 200}px` }}>
+                    <div className="text-xs truncate" title={guest.notes || ''}>{guest.notes || '—'}</div>
+                  </td>
+                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('confirmation_status')}`} style={{ minWidth: `${columnWidths['confirmation_status'] || 120}px` }}>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      guest.confirmation_status === 'Confirmed'
+                        ? 'bg-green-100 text-green-800'
+                        : guest.confirmation_status === 'Arrangements Pending'
+                        ? 'bg-blue-100 text-blue-800'
+                        : guest.confirmation_status === 'Tentative'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {guest.confirmation_status || '—'}
+                    </span>
                   </td>
                   <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center ${hl('checked_in')}`} style={{ minWidth: `${columnWidths['checked_in'] || 80}px` }}>
                     <input
@@ -1608,72 +1682,6 @@ export default function InAttendancePage() {
                       disabled={!canEditInAttendance}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:cursor-not-allowed"
                     />
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('guest_type')}`} style={{ minWidth: `${columnWidths['guest_type'] || 100}px` }}>
-                    {guest.guest_type}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arranging_travel')}`} style={{ minWidth: `${columnWidths['arranging_travel'] || 80}px` }}>
-                    {guest.arranging_travel || '—'}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('country')}`} style={{ minWidth: `${columnWidths['country'] || 100}px` }}>
-                    {guest.country || '—'}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_date')}`} style={{ minWidth: `${columnWidths['arrival_date'] || 100}px` }}>
-                    {formatDate(guest.arrival_date)}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_airline')}`} style={{ minWidth: `${columnWidths['arrival_airline'] || 100}px` }}>
-                    {guest.arrival_airline || '—'}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_flight_number')}`} style={{ minWidth: `${columnWidths['arrival_flight_number'] || 80}px` }}>
-                    {guest.arrival_flight_number || '—'}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('inbound_departure_time')}`} style={{ minWidth: `${columnWidths['inbound_departure_time'] || 100}px` }}>
-                    {formatTime(guest.inbound_departure_time)}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_origin_airport')}`} style={{ minWidth: `${columnWidths['arrival_origin_airport'] || 80}px` }}>
-                    {guest.arrival_origin_airport || '—'}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('arrival_airport')}`} style={{ minWidth: `${columnWidths['arrival_airport'] || 100}px` }}>
-                    {guest.arrival_airport || '—'}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('inbound_arrival_time')}`} style={{ minWidth: `${columnWidths['inbound_arrival_time'] || 100}px` }}>
-                    {formatTime(guest.inbound_arrival_time)}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('departure_date')}`} style={{ minWidth: `${columnWidths['departure_date'] || 100}px` }}>
-                    {formatDate(guest.departure_date)}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('outbound_departure_time')}`} style={{ minWidth: `${columnWidths['outbound_departure_time'] || 100}px` }}>
-                    {formatTime(guest.outbound_departure_time)}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('departure_airline')}`} style={{ minWidth: `${columnWidths['departure_airline'] || 100}px` }}>
-                    {guest.departure_airline || '—'}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('departure_flight_number')}`} style={{ minWidth: `${columnWidths['departure_flight_number'] || 80}px` }}>
-                    {guest.departure_flight_number || '—'}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('departure_airport')}`} style={{ minWidth: `${columnWidths['departure_airport'] || 100}px` }}>
-                    {guest.departure_airport || '—'}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('destination_airport')}`} style={{ minWidth: `${columnWidths['destination_airport'] || 100}px` }}>
-                    {guest.destination_airport || '—'}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('outbound_arrival_time')}`} style={{ minWidth: `${columnWidths['outbound_arrival_time'] || 100}px` }}>
-                    {formatTime(guest.outbound_arrival_time)}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('hotel_name')}`} style={{ minWidth: `${columnWidths['hotel_name'] || 120}px` }}>
-                    {guest.hotel_name || '—'}
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-600 border-r border-gray-100 ${hl('notes')}`} style={{ minWidth: `${columnWidths['notes'] || 200}px` }}>
-                    <div className="text-xs truncate" title={guest.notes || ''}>{guest.notes || '—'}</div>
-                  </td>
-                  <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('confirmed')}`} style={{ minWidth: `${columnWidths['confirmed'] || 80}px` }}>
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      guest.confirmed 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {guest.confirmed ? 'Yes' : 'No'}
-                    </span>
                   </td>
                   {canEditInAttendance && (
                     <td className="px-3 py-2 text-center text-sm font-medium">
