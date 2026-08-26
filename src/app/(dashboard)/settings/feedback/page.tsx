@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Reply } from 'lucide-react'
 import Link from 'next/link'
 
 interface FeedbackRow {
@@ -197,13 +197,23 @@ export default function FeedbackViewerPage() {
                       <div className={expandedId === item.id ? '' : 'line-clamp-2'}>{item.description}</div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <button
-                        onClick={() => cycleStatus(item)}
-                        className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full cursor-pointer hover:opacity-80 ${STATUS_COLORS[item.status]}`}
-                        title="Click to change status"
-                      >
-                        {item.status}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); cycleStatus(item) }}
+                          className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full cursor-pointer hover:opacity-80 ${STATUS_COLORS[item.status]}`}
+                          title="Click to change status"
+                        >
+                          {item.status}
+                        </button>
+                        <a
+                          href={`mailto:${item.user_email}?subject=${encodeURIComponent(`Re: Your ${item.feedback_type} report on Callsheet`)}&body=${encodeURIComponent(`\n\n--- Original ${item.feedback_type} (${new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}) ---\nPage: ${item.current_page}\n\n${item.description}`)}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-gray-400 hover:text-blue-600 transition-colors"
+                          title="Reply via email"
+                        >
+                          <Reply className="w-4 h-4" />
+                        </a>
+                      </div>
                     </td>
                   </tr>
                 ))}
