@@ -183,6 +183,13 @@ export function OutletsManagement({ canEdit }: OutletsManagementProps) {
     }
   }
 
+  const formatUvm = (val: string | null | undefined): string => {
+    if (!val) return ''
+    const num = parseInt(val.replace(/[^0-9]/g, ''))
+    if (isNaN(num)) return val
+    return num.toLocaleString()
+  }
+
   const missingReachCount = outlets.filter(o => !o.uvm_reach).length
 
   const columns = [
@@ -355,7 +362,7 @@ export function OutletsManagement({ canEdit }: OutletsManagementProps) {
                         {outlet.geography}
                       </td>
                       <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['uvm_reach'] || 150}px` }}>
-                        {outlet.uvm_reach || (
+                        {outlet.uvm_reach ? formatUvm(outlet.uvm_reach) : (
                           <span className="text-amber-500 text-xs">Missing</span>
                         )}
                       </td>
