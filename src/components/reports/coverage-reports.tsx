@@ -276,7 +276,7 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
 
     return Object.entries(grouped)
       .map(([id, data]) => ({ id, ...data }))
-      .sort((a, b) => b.entries.length - a.entries.length)
+      .sort((a, b) => stripArticle(a.title).localeCompare(stripArticle(b.title)))
   }, [filteredCoverage])
 
   // By-outlet grouped data
@@ -291,7 +291,7 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
       grouped[key].entries.push(entry)
     })
 
-    return Object.values(grouped).sort((a, b) => b.entries.length - a.entries.length)
+    return Object.values(grouped).sort((a, b) => stripArticle(a.outlet).localeCompare(stripArticle(b.outlet)))
   }, [filteredCoverage])
 
   // Sortable coverage
