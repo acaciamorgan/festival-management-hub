@@ -45,6 +45,7 @@ export default function FeedbackViewerPage() {
   const [loading, setLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const isAdmin = permissions?.isAdmin || permissions?.isSuperAdmin || false
 
@@ -173,7 +174,7 @@ export default function FeedbackViewerPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filtered.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
+                  <tr key={item.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
                     <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                       {new Date(item.created_at).toLocaleDateString('en-US', {
                         month: 'short',
@@ -193,7 +194,7 @@ export default function FeedbackViewerPage() {
                       {item.current_page}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900 max-w-md">
-                      <div className="line-clamp-2">{item.description}</div>
+                      <div className={expandedId === item.id ? '' : 'line-clamp-2'}>{item.description}</div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <button
