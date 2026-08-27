@@ -261,6 +261,8 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
     return { total, byBreakType, byGeography, byOutletType, uniqueOutlets, totalImpressions }
   }, [filteredCoverage])
 
+  const stripArticle = (s: string) => s.replace(/^(the|a|an)\s+/i, '')
+
   // By-title grouped data
   const coverageByTitle = useMemo(() => {
     const grouped: Record<string, { title: string, type: string, entries: CoverageEntry[] }> = {}
@@ -293,9 +295,6 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
 
     return Object.values(grouped).sort((a, b) => stripArticle(a.outlet).localeCompare(stripArticle(b.outlet)))
   }, [filteredCoverage])
-
-  // Sortable coverage
-  const stripArticle = (s: string) => s.replace(/^(the|a|an)\s+/i, '')
 
   const sortedCoverage = useMemo(() => {
     if (!sortColumn) return filteredCoverage
