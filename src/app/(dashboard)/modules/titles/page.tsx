@@ -395,9 +395,17 @@ export default function TitlesPage() {
     }
   }
 
+  const formatSubtitles = (val: string | undefined | null): string => {
+    if (!val) return ''
+    const v = val.trim().toLowerCase()
+    if (v === 'y' || v === 'yes') return 'Yes'
+    if (v === 'n' || v === 'no') return 'No'
+    return val
+  }
+
   const renderPersonName = (name: string | undefined) => {
     if (!name) return '—'
-    
+
     // Split by comma and check each name for guest card existence
     const names = name.split(',').map(n => n.trim()).filter(n => n)
     if (names.length === 0) return '—'
@@ -2551,7 +2559,7 @@ export default function TitlesPage() {
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('countries')}`} style={{ minWidth: `${columnWidths['countries'] || 150}px` }}>{film.countries}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('run_time')}`} style={{ minWidth: `${columnWidths['run_time'] || 80}px` }}>{film.run_time ? `${film.run_time} min` : ''}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('language')}`} style={{ minWidth: `${columnWidths['language'] || 100}px` }}>{film.language}</td>
-                      <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('subtitles')}`} style={{ minWidth: `${columnWidths['subtitles'] || 90}px` }}>{film.subtitles}</td>
+                      <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('subtitles')}`} style={{ minWidth: `${columnWidths['subtitles'] || 90}px` }}>{formatSubtitles(film.subtitles)}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('program_1')}`} style={{ minWidth: `${columnWidths['programs'] || 150}px` }}>{film.programs}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('genre_1')}`} style={{ minWidth: `${columnWidths['genres'] || 120}px` }}>{film.genres}</td>
                       <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('principal_cast')}`} style={{ minWidth: `${columnWidths['principal_cast'] || 200}px` }}>{renderPersonName(film.principal_cast)}</td>
@@ -2779,7 +2787,7 @@ export default function TitlesPage() {
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('countries')}`} style={{ minWidth: `${columnWidths['countries'] || 150}px` }}>{short.countries}</td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('run_time')}`} style={{ minWidth: `${columnWidths['run_time'] || 80}px` }}>{short.run_time ? `${short.run_time} min` : ''}</td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('language')}`} style={{ minWidth: `${columnWidths['language'] || 100}px` }}>{short.language}</td>
-                            <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('subtitles')}`} style={{ minWidth: `${columnWidths['subtitles'] || 90}px` }}>{short.subtitles}</td>
+                            <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('subtitles')}`} style={{ minWidth: `${columnWidths['subtitles'] || 90}px` }}>{formatSubtitles(short.subtitles)}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['shorts_program_name'] || 180}px` }}>{short.shorts_program?.program_name || ''}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 text-center font-medium" style={{ minWidth: `${columnWidths['program_order'] || 80}px` }}>
                               {short.program_order}
