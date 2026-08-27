@@ -82,6 +82,7 @@ interface ShortFilm {
   production_companies: string
   film_website: string
   trailer_url: string
+  premiere_status: string
   content_considerations: string
   shorts_program_id: string
   program_order: number
@@ -249,19 +250,20 @@ export default function TitlesPage() {
       { field: 'music_score', display: 'Music/Score' },
       { field: 'film_website', display: 'Film Website' },
       { field: 'trailer_url', display: 'Trailer (YouTube or Vimeo only)' },
+      { field: 'premiere_status', display: 'Premiere Status' },
       { field: 'content_considerations', display: 'Content Considerations' },
       { field: 'captions', display: 'Captions' }
     ]
-    
+
     const headers = headerMapping.map(h => h.display)
-    
+
     // Create workbook and worksheet
     const wb = XLSX.utils.book_new()
     const ws = XLSX.utils.aoa_to_sheet([headers])
-    
+
     // Style headers - bold with light grey background
-    const headerStyle = { 
-      font: { bold: true, sz: 12, name: 'Arial' }, 
+    const headerStyle = {
+      font: { bold: true, sz: 12, name: 'Arial' },
       fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
       alignment: { horizontal: "center", vertical: "center" },
       border: {
@@ -1044,7 +1046,7 @@ export default function TitlesPage() {
         'Language', 'Subtitles (Y/N)', 'Shorts Program', 'Program Order', 'Programs', 'Genres', 'Guests',
         'Principal Cast', 'Producer', 'Production Companies', 'Executive Producer',
         'Screenwriter', 'Cinematographer', 'Editor', 'Music/Score',
-        'Film Website', 'Trailer URL', 'Content Considerations'
+        'Film Website', 'Trailer URL', 'Premiere Status', 'Content Considerations'
       ]
       data = [headers, ...filteredShorts.map(short => [
         short.title, short.original_language_title, short.director, short.countries, short.run_time,
@@ -1054,7 +1056,7 @@ export default function TitlesPage() {
         (filmGuestsMap.get(short.id) || []).join(', '),
         short.principal_cast, short.producer, short.production_companies, short.executive_producer,
         short.screenwriter, short.cinematographer, short.editor, short.music_score,
-        short.film_website, short.trailer_url, short.content_considerations
+        short.film_website, short.trailer_url, short.premiere_status, short.content_considerations
       ])]
       sheetName = 'Short Films'
     } else {
@@ -2699,6 +2701,7 @@ export default function TitlesPage() {
                             { key: 'music_score', label: 'Music/Score', width: 120 },
                             { key: 'film_website', label: 'Film Website', width: 150 },
                             { key: 'trailer_url', label: 'Trailer (YouTube or Vimeo only)', width: 180 },
+                            { key: 'premiere_status', label: 'Premiere Status', width: 120 },
                             { key: 'content_considerations', label: 'Content Considerations', width: 150 },
                             { key: 'captions', label: 'Captions', width: 80 },
                             { key: 'guests', label: 'Guests', width: 180 },
@@ -2805,6 +2808,7 @@ export default function TitlesPage() {
                                 </a>
                               )}
                             </td>
+                            <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('premiere_status')}`} style={{ minWidth: `${columnWidths['premiere_status'] || 120}px` }}>{short.premiere_status}</td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('content_considerations')}`} style={{ minWidth: `${columnWidths['content_considerations'] || 150}px` }}>{short.content_considerations}</td>
                             <td className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-100 ${hl('captions')}`} style={{ minWidth: `${columnWidths['captions'] || 80}px` }}>{short.captions}</td>
                             <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guests'] || 180}px` }}>{renderPersonName((filmGuestsMap.get(short.id) || []).join(', '))}</td>

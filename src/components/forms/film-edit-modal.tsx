@@ -257,8 +257,8 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
       }
       
       // Add type-specific fields
+      updateData.premiere_status = formData.premiere_status
       if (filmType === 'feature') {
-        updateData.premiere_status = (formData as FeatureFilm).premiere_status
         updateData.program_4 = (formData as FeatureFilm).program_4
         updateData.genre_4 = (formData as FeatureFilm).genre_4
       }
@@ -969,18 +969,16 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              {filmType === 'feature' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Premiere Status</label>
-                  <input
-                    type="text"
-                    value={(formData as FeatureFilm).premiere_status || ''}
-                    onChange={(e) => handleFieldChange('premiere_status', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              )}
-              <div className={filmType === 'feature' ? '' : 'col-span-2'}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Premiere Status</label>
+                <input
+                  type="text"
+                  value={formData.premiere_status || ''}
+                  onChange={(e) => handleFieldChange('premiere_status', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Content Considerations</label>
                 <textarea
                   value={formData.content_considerations || ''}
