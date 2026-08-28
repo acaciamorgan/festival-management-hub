@@ -672,15 +672,15 @@ export default function ScreenerAccessPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center">
             <span className="text-2xl mr-3">🎬</span>
             <h1 className="text-2xl font-semibold text-gray-900">Screener Access</h1>
           </div>
-          
-          <div className="flex items-center space-x-4">
+
+          <div className="flex flex-wrap items-center gap-3">
             {canEditScreenerAccess && (
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={exportFeaturesTemplate}
                   className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
@@ -712,8 +712,8 @@ export default function ScreenerAccessPage() {
 
       {/* Filters */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setAccessTypeFilter('all')}
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
@@ -781,7 +781,7 @@ export default function ScreenerAccessPage() {
           </div>
         </div>
         
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="flex-1 max-w-md">
             <input
               type="text"

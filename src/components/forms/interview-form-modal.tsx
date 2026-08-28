@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { InterviewCard, InterviewStatus, PressCard } from '@/types'
 import { ChipSelect, ChipItem, ChipSelectSuggestion } from '@/components/ui/chip-select'
+import { useModalDrag } from '@/hooks/use-modal-drag'
 
 interface InterviewFormModalProps {
   interview: InterviewCard | null
@@ -51,10 +52,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
   const [notes, setNotes] = useState('')
 
   const [loading, setLoading] = useState(false)
-  const [position, setPosition] = useState({ x: 100, y: 100 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const [size] = useState({ width: 600, height: 700 })
+  const { handleMouseDown, modalStyle, isMobile, isDragging } = useModalDrag()
 
   // Data for dropdowns
   const [allFilms, setAllFilms] = useState<FilmOption[]>([])
@@ -181,31 +179,6 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
       setNotes('')
     }
   }, [interview])
-
-  // Dragging handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
-  }
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y })
-    }
-  }, [isDragging, dragStart])
-
-  const handleMouseUp = useCallback(() => setIsDragging(false), [])
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-      }
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp])
 
   // Film search for ChipSelect
   const handleFilmSearch = useCallback(async (query: string): Promise<ChipSelectSuggestion[]> => {
@@ -438,17 +411,15 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
       <div
         className="bg-white rounded-lg shadow-2xl border border-gray-300 overflow-y-auto pointer-events-auto"
         style={{
-          left: `${position.x}px`,
-          top: `${position.y}px`,
-          width: `${size.width}px`,
-          maxHeight: `${size.height}px`,
-          position: 'fixed',
-          cursor: isDragging ? 'grabbing' : 'default',
+          ...modalStyle,
+          width: isMobile ? '95vw' : '600px',
+          maxWidth: isMobile ? '95vw' : '600px',
+          maxHeight: '90vh',
         }}
       >
         {/* Draggable Header */}
         <div
-          className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 cursor-grab active:cursor-grabbing"
+          className={`flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
           onMouseDown={handleMouseDown}
         >
           <h1 className="text-lg font-semibold text-gray-900">
@@ -537,7 +508,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Outlet</label>
               <input
@@ -603,7 +574,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
               )}
             </h3>
 
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
                 <input

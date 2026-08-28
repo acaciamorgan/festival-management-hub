@@ -540,13 +540,13 @@ export default function InterviewManagementPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center">
             <span className="text-2xl mr-3">🎤</span>
             <h1 className="text-2xl font-semibold text-gray-900">Interview Management</h1>
           </div>
-          
-          <div className="flex items-center space-x-4">
+
+          <div className="flex flex-wrap items-center gap-3">
             {canEditInterviews && (
               <button
                 onClick={handleAddInterview}
@@ -561,7 +561,7 @@ export default function InterviewManagementPage() {
 
       {/* Filters */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center space-x-4 mb-4">
+        <div className="flex flex-wrap items-center gap-4 mb-4">
           {/* Search */}
           <div className="flex-1 max-w-md">
             <input
@@ -606,7 +606,7 @@ export default function InterviewManagementPage() {
         </div>
 
         {/* Toggle Buttons */}
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setShowJournalists(!showJournalists)}
             className={`px-3 py-1 text-sm font-medium rounded-md border ${

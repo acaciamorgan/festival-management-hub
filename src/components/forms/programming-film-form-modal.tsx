@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { getFestivalYear } from '@/lib/smart-date-parser'
+import { useModalDrag } from '@/hooks/use-modal-drag'
 
 interface FilmProgram {
   id: string
@@ -89,9 +90,7 @@ interface ProgrammingFilmFormModalProps {
 export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: ProgrammingFilmFormModalProps) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
-  const [position, setPosition] = useState({ x: 100, y: 100 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const { handleMouseDown, modalStyle, isMobile, isDragging } = useModalDrag()
   const [existingContacts, setExistingContacts] = useState<Contact[]>([])
   const [existingPrograms, setExistingPrograms] = useState<FilmProgram[]>([])
   const [programSearches, setProgramSearches] = useState<string[]>(['', '', '', '', ''])
@@ -262,39 +261,6 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
       })
     }
   }, [film])
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    })
-  }
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      })
-    }
-  }, [isDragging, dragStart.x, dragStart.y])
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    }
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragging, handleMouseMove])
 
   const addContactPair = () => {
     setFormData(prev => ({
@@ -531,18 +497,19 @@ export function ProgrammingFilmFormModal({ film, isOpen, onClose, onSave }: Prog
     <>
       
       {/* Modal */}
-      <div 
-        className="fixed bg-white rounded-lg shadow-2xl border border-gray-300 z-50 max-w-4xl w-[90vw] max-h-[calc(100vh-2rem)] overflow-y-auto"
-        style={{ 
-          left: `${position.x}px`, 
-          top: `${position.y}px`,
-          cursor: isDragging ? 'grabbing' : 'default'
+      <div
+        className="bg-white rounded-lg shadow-2xl border border-gray-300 z-50 overflow-y-auto"
+        style={{
+          ...modalStyle,
+          width: isMobile ? '95vw' : '90vw',
+          maxWidth: isMobile ? '95vw' : '56rem',
+          maxHeight: isMobile ? '90vh' : 'calc(100vh - 2rem)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Draggable Header */}
         <div 
-          className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 cursor-grab active:cursor-grabbing"
+          className={`flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
           onMouseDown={handleMouseDown}
         >
           <h1 className="text-lg font-semibold text-gray-900">

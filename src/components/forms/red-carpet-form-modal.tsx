@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { ChipSelect, ChipItem, ChipSelectSuggestion } from '@/components/ui/chip-select'
+import { useModalDrag } from '@/hooks/use-modal-drag'
 
 interface RedCarpetFormModalProps {
   redCarpet?: any[] | null
@@ -54,9 +55,7 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [isDragging, setIsDragging] = useState(false)
-  const [position, setPosition] = useState({ x: 100, y: 100 })
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const { handleMouseDown, modalStyle, isMobile, isDragging } = useModalDrag()
 
   // Data for suggestions
   const [allFilms, setAllFilms] = useState<FilmOption[]>([])
@@ -67,40 +66,6 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
   const [showHouseField, setShowHouseField] = useState(false)
 
   const supabase = createClient()
-
-  // Drag handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    })
-  }
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      })
-    }
-  }, [isDragging, dragStart.x, dragStart.y])
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragging, handleMouseMove])
 
   // Load available data for suggestions
   useEffect(() => {
@@ -536,21 +501,19 @@ export function RedCarpetFormModal({ redCarpet, isOpen, onClose, onSave }: RedCa
   return (
     <div className="fixed inset-0 z-50 pointer-events-none">
       <div
-        className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto pointer-events-auto"
+        className="bg-white rounded-lg shadow-xl overflow-y-auto pointer-events-auto"
         onClick={(e) => e.stopPropagation()}
         style={{
-          left: `${position.x}px`,
-          top: `${position.y}px`,
-          cursor: isDragging ? 'grabbing' : 'default',
-          maxWidth: '1000px',
-          width: '90vw',
-          position: 'fixed'
+          ...modalStyle,
+          width: isMobile ? '95vw' : '90vw',
+          maxWidth: isMobile ? '95vw' : '1000px',
+          maxHeight: '90vh',
         }}
       >
         <form onSubmit={handleSubmit}>
           {/* Draggable Header */}
           <div
-            className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg cursor-grab active:cursor-grabbing flex justify-between items-center"
+            className={`bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg flex justify-between items-center ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
             onMouseDown={handleMouseDown}
           >
             <h2 className="text-xl font-semibold text-gray-900">

@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { PressScreeningCard, VenueCard, TheaterHouse } from '@/types'
 import { normalizeDateValue } from '@/lib/date-utils'
+import { useModalDrag } from '@/hooks/use-modal-drag'
 
 interface PressScreeningFormModalProps {
   screening: PressScreeningCard | null
@@ -42,9 +43,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
     rsvp_responses_url: ''
   })
   const [loading, setLoading] = useState(false)
-  const [position, setPosition] = useState({ x: 100, y: 100 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const { handleMouseDown, modalStyle, isMobile, isDragging } = useModalDrag()
   const [films, setFilms] = useState<FilmOption[]>([])
   const [venueShortCodes, setVenueShortCodes] = useState<string[]>([])
   const [size, setSize] = useState({ width: 600, height: 700 })
@@ -196,33 +195,18 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
     setShowShortCodeDropdown(false)
   }
 
-  // Drag handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    })
-  }
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      })
-    }
+  // Resize handlers (drag is handled by useModalDrag hook)
+  const handleResizeMove = useCallback((e: MouseEvent) => {
     if (isResizing) {
       const newWidth = Math.max(400, resizeStart.width + (e.clientX - resizeStart.x))
       const newHeight = Math.max(500, resizeStart.height + (e.clientY - resizeStart.y))
       setSize({ width: newWidth, height: newHeight })
     }
-  }, [isDragging, isResizing, dragStart.x, dragStart.y, resizeStart])
+  }, [isResizing, resizeStart])
 
-  const handleMouseUp = () => {
-    setIsDragging(false)
+  const handleResizeUp = useCallback(() => {
     setIsResizing(false)
-  }
+  }, [])
 
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -237,16 +221,16 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
   }
 
   useEffect(() => {
-    if (isDragging || isResizing) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
+    if (isResizing) {
+      document.addEventListener('mousemove', handleResizeMove)
+      document.addEventListener('mouseup', handleResizeUp)
     }
-    
+
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('mousemove', handleResizeMove)
+      document.removeEventListener('mouseup', handleResizeUp)
     }
-  }, [isDragging, isResizing, handleMouseMove])
+  }, [isResizing, handleResizeMove, handleResizeUp])
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -343,20 +327,18 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
 
   return (
     <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 pointer-events-none">
-      <div 
+      <div
         className="bg-white rounded-lg shadow-2xl border border-gray-300 overflow-y-auto pointer-events-auto"
-        style={{ 
-          left: `${position.x}px`, 
-          top: `${position.y}px`,
-          width: `${size.width}px`,
-          maxHeight: `${size.height}px`,
-          position: 'fixed',
-          cursor: isDragging ? 'grabbing' : 'default'
+        style={{
+          ...modalStyle,
+          width: isMobile ? '95vw' : `${size.width}px`,
+          maxWidth: isMobile ? '95vw' : `${size.width}px`,
+          maxHeight: isMobile ? '90vh' : `${size.height}px`,
         }}
       >
         {/* Draggable Header */}
         <div 
-          className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 cursor-grab active:cursor-grabbing"
+          className={`flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
           onMouseDown={handleMouseDown}
         >
           <h1 className="text-lg font-semibold text-gray-900">
@@ -437,7 +419,7 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
             )}
 
             {/* Date and Time */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Screening Date
@@ -646,13 +628,15 @@ export function PressScreeningFormModal({ screening, isOpen, onClose, onSave }: 
         </form>
 
         {/* Resize Handle */}
-        <div
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-gray-300 hover:bg-gray-400"
-          onMouseDown={handleResizeStart}
-          style={{
-            clipPath: 'polygon(100% 0%, 0% 100%, 100% 100%)'
-          }}
-        />
+        {!isMobile && (
+          <div
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-gray-300 hover:bg-gray-400"
+            onMouseDown={handleResizeStart}
+            style={{
+              clipPath: 'polygon(100% 0%, 0% 100%, 100% 100%)'
+            }}
+          />
+        )}
       </div>
     </div>
   )

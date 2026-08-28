@@ -481,13 +481,13 @@ export default function PressScreeningsPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center">
             <span className="text-2xl mr-3">🎬</span>
             <h1 className="text-2xl font-semibold text-gray-900">Press Screenings</h1>
           </div>
-          
-          <div className="flex items-center space-x-4">
+
+          <div className="flex flex-wrap items-center gap-3">
             {canEditPressScreenings && (
               <button
                 onClick={handleAddScreening}
@@ -502,7 +502,7 @@ export default function PressScreeningsPage() {
 
       {/* Filters */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-wrap items-center gap-4">
           {/* Search */}
           <div className="flex-1 max-w-md">
             <input

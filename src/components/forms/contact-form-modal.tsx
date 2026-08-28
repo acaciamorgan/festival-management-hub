@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ContactCard } from '@/types'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { useAuth } from '@/components/providers/auth-provider'
+import { useModalDrag } from '@/hooks/use-modal-drag'
 
 // Film Search Select Component
 interface FilmSearchSelectProps {
@@ -146,9 +147,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
     mailing_address: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [position, setPosition] = useState({ x: 100, y: 100 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const { handleMouseDown, modalStyle, isMobile, isDragging } = useModalDrag()
   
   // Film attachment state
   const [availableFilms, setAvailableFilms] = useState<Film[]>([])
@@ -260,38 +259,6 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
       console.error('Error loading existing film assignments:', error)
     }
   }
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    })
-  }
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging) return
-    setPosition({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
-    })
-  }
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    }
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragging])
 
   const handleFieldChange = (field: keyof ContactFormData, value: string) => {
     setFormData(prev => ({
@@ -445,16 +412,17 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-      <div 
-        className="bg-white rounded-lg shadow-xl w-full max-w-2xl pointer-events-auto relative"
-        style={{ 
-          left: `${position.x}px`, 
-          top: `${position.y}px`,
-          cursor: isDragging ? 'grabbing' : 'default'
+      <div
+        className="bg-white rounded-lg shadow-xl pointer-events-auto relative"
+        style={{
+          ...modalStyle,
+          width: isMobile ? '95vw' : undefined,
+          maxWidth: isMobile ? '95vw' : '42rem',
+          maxHeight: '90vh',
         }}
       >
         <div 
-          className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg cursor-grab active:cursor-grabbing flex justify-between items-center"
+          className={`bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg flex justify-between items-center ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
           onMouseDown={handleMouseDown}
         >
           <h2 className="text-xl font-semibold text-gray-900">
@@ -469,7 +437,7 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
         </div>
 
         <div className="p-6 max-h-96 overflow-y-auto">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Name <span className="text-red-500">*</span>

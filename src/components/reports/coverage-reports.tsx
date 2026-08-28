@@ -444,7 +444,7 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
     <div className="space-y-6">
       {/* Report Type Tabs + Export */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <h2 className="text-lg font-medium text-gray-900">Press Coverage Reports</h2>
           <button
             onClick={exportReport}
@@ -456,7 +456,7 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
         </div>
 
         {/* Sub-tabs */}
-        <div className="flex space-x-1 mb-4">
+        <div className="flex flex-wrap gap-1 mb-4">
           {[
             { key: 'coverage-summary' as const, label: 'Coverage Summary' },
             { key: 'coverage-by-title' as const, label: 'Coverage by Title' },
@@ -604,7 +604,7 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
       ) : reportType === 'coverage-summary' ? (
         <div className="space-y-6">
           {/* Top-level stats */}
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
               <div className="text-3xl font-bold text-blue-600">{summaryStats.total}</div>
               <div className="text-sm text-gray-600 mt-1">Total Coverage Entries</div>
@@ -620,7 +620,7 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
           </div>
 
           {/* Breakdowns */}
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">By Break Type</h3>
               <div className="space-y-3">

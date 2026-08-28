@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { VenueCard, TheaterHouse, VenueType } from '@/types'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
+import { useModalDrag } from '@/hooks/use-modal-drag'
 
 interface VenueFormModalProps {
   venue?: VenueCard | null
@@ -39,9 +40,7 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [isDragging, setIsDragging] = useState(false)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const { handleMouseDown, modalStyle, isMobile, isDragging } = useModalDrag({ initialPosition: { x: 0, y: 0 } })
 
   const supabase = createClient()
 
@@ -53,40 +52,6 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
     }
     return phone // Return original if not 10 digits
   }
-
-  // Drag handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    })
-  }
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      })
-    }
-  }, [isDragging, dragStart.x, dragStart.y])
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    }
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragging, handleMouseMove])
 
   // Initialize form data when venue changes
   useEffect(() => {
@@ -325,18 +290,19 @@ export function VenueFormModal({ venue, isOpen, onClose, onSave, currentYear: cu
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 bg-transparent pointer-events-none">
-      <div 
-        className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto pointer-events-auto relative"
-        style={{ 
-          left: `${position.x}px`, 
-          top: `${position.y}px`,
-          cursor: isDragging ? 'grabbing' : 'default'
+      <div
+        className="bg-white rounded-lg shadow-xl overflow-y-auto pointer-events-auto relative"
+        style={{
+          ...modalStyle,
+          width: isMobile ? '95vw' : undefined,
+          maxWidth: isMobile ? '95vw' : '56rem',
+          maxHeight: '90vh',
         }}
       >
         <form onSubmit={handleSubmit}>
           {/* Draggable Header */}
           <div 
-            className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg cursor-grab active:cursor-grabbing flex justify-between items-center"
+            className={`bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg flex justify-between items-center ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
             onMouseDown={handleMouseDown}
           >
             <h2 className="text-xl font-semibold text-gray-900">

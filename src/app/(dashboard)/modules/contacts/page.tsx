@@ -1181,7 +1181,7 @@ export default function ContactsPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
           <div className="flex items-center">
             <span className="text-2xl mr-3">📇</span>
             <h1 className="text-2xl font-semibold text-gray-900">Contacts Management</h1>
@@ -1189,7 +1189,7 @@ export default function ContactsPage() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex space-x-1 mb-4">
+        <div className="flex flex-wrap gap-1 mb-4">
           <button
             onClick={() => setViewMode('by-film')}
             className={`px-4 py-2 rounded-t-lg font-medium ${
@@ -1214,10 +1214,10 @@ export default function ContactsPage() {
 
 
         {/* Action buttons */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div></div>
-          
-          <div className="flex items-center space-x-4">
+
+          <div className="flex flex-wrap items-center gap-3">
             {canEditContacts && (
               <>
                 <button
@@ -1267,7 +1267,7 @@ export default function ContactsPage() {
 
       {/* Filters */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-wrap items-center gap-4">
           {/* Search */}
           <div className="flex-1 max-w-md">
             <input
@@ -1435,7 +1435,7 @@ export default function ContactsPage() {
               <>
                 {/* Film Type Toggle */}
                 <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
-                  <div className="flex items-center space-x-4">
+                  <div className="flex flex-wrap items-center gap-3">
                     <button
                       onClick={() => setFilmViewMode('features')}
                       className={`px-4 py-2 rounded-md font-medium ${
