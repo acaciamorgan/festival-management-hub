@@ -3,7 +3,7 @@ import { GuestCard, GuestType } from '@/types'
 import { getFestivalYear, parseSmartDate } from '@/lib/smart-date-parser'
 import { findBestTitleMatch, normalizeTitle } from '@/lib/title-utils'
 import { isCSVRowStrikethrough } from '@/lib/excel-utils'
-import { detectChangedFields, logFieldChanges } from '@/lib/field-changes'
+import { detectChangedFields, logFieldChanges, logNewRecord } from '@/lib/field-changes'
 
 // Normalize names by removing accents and special characters for matching
 function normalizeName(name: string): string {
@@ -642,6 +642,10 @@ export async function importGuestsFromCSV(csvRows: CSVGuestRow[], confirmedMappi
             continue
           }
           savedGuest = newGuest
+
+          // Highlight all fields of the new record
+          const trackedFields = Object.keys(guestData).filter(f => !['festival_year', 'created_at', 'created_by'].includes(f))
+          await logNewRecord('guests', newGuest, trackedFields, festivalYearInt)
         }
 
         // Get existing film associations if guest already existed

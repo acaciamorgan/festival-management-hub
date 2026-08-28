@@ -39,7 +39,7 @@ export default function InAttendancePage() {
   const [showGuestCard, setShowGuestCard] = useState<GuestCard | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<string>('')
-  const [showFilmsMode, setShowFilmsMode] = useState(false)
+
   const [existingFilms, setExistingFilms] = useState<Set<string>>(new Set())
   const [showDailyReportDropdown, setShowDailyReportDropdown] = useState(false)
   const [customReportDate, setCustomReportDate] = useState('')
@@ -320,14 +320,9 @@ export default function InAttendancePage() {
     URL.revokeObjectURL(url)
   }
 
-  // Load existing films and programs only when Show Films toggle is activated
+  // Load existing films and programs on mount
   useEffect(() => {
     const loadExistingFilms = async () => {
-      if (!showFilmsMode) {
-        setExistingFilms(new Set())
-        return
-      }
-
       try {
         const [featureFilms, shortFilms, programs] = await Promise.all([
           supabase.from('feature_films').select('title').eq('festival_year', currentYear),
@@ -354,7 +349,7 @@ export default function InAttendancePage() {
     }
 
     loadExistingFilms()
-  }, [showFilmsMode, supabase, currentYear])
+  }, [supabase, currentYear])
 
   const loadGuests = useCallback(async () => {
     setLoading(true)
@@ -817,7 +812,7 @@ export default function InAttendancePage() {
         <div className="flex flex-wrap gap-1">
           {simpleTitles.map((title, index) => {
             const trimmedTitle = title.trim()
-            const isExistingFilm = showFilmsMode && existingFilms.has(trimmedTitle)
+            const isExistingFilm = existingFilms.has(trimmedTitle)
             
             return (
               <span key={index}>
@@ -846,7 +841,7 @@ export default function InAttendancePage() {
       <div className="flex flex-wrap gap-1">
         {filmTitles.map((title, index) => {
           const trimmedTitle = title.trim()
-          const isExistingFilm = showFilmsMode && existingFilms.has(trimmedTitle)
+          const isExistingFilm = existingFilms.has(trimmedTitle)
           
           return (
             <span key={index}>
@@ -1200,16 +1195,6 @@ export default function InAttendancePage() {
                 Create Guest CSV Template
               </button>
             )}
-            <button
-              onClick={() => setShowFilmsMode(!showFilmsMode)}
-              className={`px-4 py-2 rounded-md transition-colors font-medium ${
-                showFilmsMode 
-                  ? 'bg-purple-600 hover:bg-purple-700 text-white' 
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-              }`}
-            >
-              🎬 {showFilmsMode ? 'Hide Films' : 'Show Films'}
-            </button>
             {canEditInAttendance && (
               <button
                 onClick={() => setShowAddModal(true)}

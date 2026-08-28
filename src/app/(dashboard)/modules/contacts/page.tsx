@@ -129,7 +129,7 @@ export default function ContactsPage() {
     XLSX.writeFile(wb, 'contacts_import_template.xlsx')
   }
 
-  // Load existing films and programs only when Show Films toggle is activated
+  // Load existing films and programs on mount
   useEffect(() => {
     const loadExistingFilms = async () => {
       try {
@@ -1307,9 +1307,10 @@ export default function ContactsPage() {
       </div>
 
       {/* Contacts Table */}
-      <div className="flex-1 p-6">
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-auto p-6">
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-350px)]">
+          <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
             
             {/* BY CONTACT VIEW */}
             {viewMode === 'by-contact' && (
@@ -1576,6 +1577,7 @@ export default function ContactsPage() {
           </div>
         )}
 
+      </div>
       </div>
 
       {/* Contact Form Modal */}

@@ -10,7 +10,7 @@ import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
 import { ReadOnlyScreeningBoard } from '@/components/shared/readonly-screening-board'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { isCSVRowStrikethrough } from '@/lib/excel-utils'
-import { detectChangedFields, logFieldChanges, fetchFieldChanges, getCellHighlightClass } from '@/lib/field-changes'
+import { detectChangedFields, logFieldChanges, logNewRecord, fetchFieldChanges, getCellHighlightClass } from '@/lib/field-changes'
 import * as XLSX from 'xlsx-js-style'
 
 // Helper functions for calendar calculations without Date objects
@@ -1231,10 +1231,17 @@ export default function TicketingPage() {
         }
       } else {
         // Create new screening
-        const { error: insertError } = await supabase
+        const { data: newScreening, error: insertError } = await supabase
           .from(tableName)
           .insert([screeningData])
+          .select()
+          .single()
         error = insertError
+
+        if (!insertError && newScreening) {
+          const trackedFields = Object.keys(screeningData).filter(f => !['festival_year', 'day_of_week'].includes(f))
+          await logNewRecord(tableName, newScreening, trackedFields, currentYear)
+        }
       }
 
       if (error) throw error

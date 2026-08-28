@@ -91,6 +91,27 @@ export async function fetchFieldChanges(
 }
 
 /**
+ * Log all non-null fields of a newly inserted record as changed.
+ * This gives brand-new records the same yellow highlight as edited cells.
+ */
+export async function logNewRecord(
+  tableName: string,
+  record: Record<string, unknown>,
+  fieldsToTrack: string[],
+  festivalYear: number
+): Promise<void> {
+  const recordId = String(record.id ?? '')
+  if (!recordId) return
+
+  const changedFields = fieldsToTrack.filter(field => {
+    const val = record[field]
+    return val !== null && val !== undefined && val !== ''
+  })
+
+  await logFieldChanges(tableName, recordId, changedFields, festivalYear)
+}
+
+/**
  * Returns 'bg-yellow-100' if the field was recently changed, '' otherwise.
  */
 export function getCellHighlightClass(

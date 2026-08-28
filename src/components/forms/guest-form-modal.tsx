@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { GuestCard, GuestType, ConfirmationStatus } from '@/types'
-import { detectChangedFields, logFieldChanges } from '@/lib/field-changes'
+import { detectChangedFields, logFieldChanges, logNewRecord } from '@/lib/field-changes'
 
 interface GuestFormModalProps {
   guest?: GuestCard | null
@@ -457,6 +457,10 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
         if (error) throw error
         savedGuest = data
+
+        // Highlight all fields of the new record
+        const trackedFields = Object.keys(guestData).filter(f => !['festival_year', 'created_at', 'created_by'].includes(f))
+        await logNewRecord('guests', data, trackedFields, currentYear)
       }
 
       // Handle film and program associations

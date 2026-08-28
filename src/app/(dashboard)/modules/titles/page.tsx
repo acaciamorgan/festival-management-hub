@@ -14,7 +14,7 @@ import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { ReadOnlyScreeningBoard } from '@/components/shared/readonly-screening-board'
 import { normalizeDateValue } from '@/lib/date-utils'
 import { isCSVRowStrikethrough } from '@/lib/excel-utils'
-import { fetchFieldChanges, getCellHighlightClass, detectChangedFields, logFieldChanges } from '@/lib/field-changes'
+import { fetchFieldChanges, getCellHighlightClass, detectChangedFields, logFieldChanges, logNewRecord } from '@/lib/field-changes'
 import * as XLSX from 'xlsx-js-style'
 
 interface FeatureFilm {
@@ -136,7 +136,7 @@ export default function TitlesPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showGuestCard, setShowGuestCard] = useState<GuestCard | null>(null)
   const [showProgramCard, setShowProgramCard] = useState<ProgramCard | null>(null)
-  const [showGuestMode, setShowGuestMode] = useState(false)
+
   const [confirmedGuests, setConfirmedGuests] = useState<Set<string>>(new Set())
   const [showAddFilmModal, setShowAddFilmModal] = useState(false)
   const [fieldChangesMap, setFieldChangesMap] = useState<Map<string, Set<string>>>(new Map())
@@ -343,14 +343,9 @@ export default function TitlesPage() {
     XLSX.writeFile(wb, 'programs_import_template.xlsx')
   }
 
-  // Load confirmed guests only when Show Guests toggle is activated
+  // Load confirmed guests on mount
   useEffect(() => {
     const loadConfirmedGuests = async () => {
-      if (!showGuestMode) {
-        setConfirmedGuests(new Set())
-        return
-      }
-
       try {
         const { data: guests, error } = await supabase
           .from('guests')
@@ -367,7 +362,7 @@ export default function TitlesPage() {
     }
 
     loadConfirmedGuests()
-  }, [showGuestMode, supabase, currentYear])
+  }, [supabase, currentYear])
 
   const openGuestCard = async (guestName: string) => {
     try {
@@ -413,8 +408,7 @@ export default function TitlesPage() {
     return (
       <div className="flex flex-wrap gap-1">
         {names.map((personName, index) => {
-          // Only show as clickable if Show Guests mode is on AND person exists as a guest
-          const isGuest = showGuestMode && confirmedGuests.has(personName)
+          const isGuest = confirmedGuests.has(personName)
           
           return (
             <span key={index}>
@@ -1502,14 +1496,18 @@ export default function TitlesPage() {
         }
       } else {
         // CREATE new Card
-        const { error } = await supabase
+        const { data: newFilm, error } = await supabase
           .from('feature_films')
           .insert([{ ...filmData, festival_year: currentYear }])
-        
+          .select()
+          .single()
+
         if (error) {
           console.error(`Error creating card "${filmData.title}":`, error)
         } else {
           created++
+          const trackedFields = Object.keys(filmData).filter(f => f !== 'festival_year')
+          await logNewRecord('feature_films', newFilm, trackedFields, currentYear)
         }
       }
     }
@@ -1688,9 +1686,11 @@ export default function TitlesPage() {
         }
       } else {
         // Create new short
-        const { error: insertError } = await supabase
+        const { data: newShort, error: insertError } = await supabase
           .from('short_films')
           .insert([{ ...shortData, festival_year: currentYear }])
+          .select()
+          .single()
 
         if (insertError) {
           console.error('Insert error:', insertError)
@@ -1698,6 +1698,8 @@ export default function TitlesPage() {
           return
         } else {
           created++
+          const trackedFields = Object.keys(shortData).filter(f => f !== 'festival_year')
+          await logNewRecord('short_films', newShort, trackedFields, currentYear)
         }
       }
     }
@@ -1935,9 +1937,11 @@ export default function TitlesPage() {
         }
       } else {
         // Insert new record
-        const { error: insertError } = await supabase
+        const { data: newShort, error: insertError } = await supabase
           .from('short_films')
           .insert([{ ...shortData, festival_year: currentYear }])
+          .select()
+          .single()
 
         if (insertError) {
           console.error('Insert error:', insertError)
@@ -1945,6 +1949,8 @@ export default function TitlesPage() {
           return
         } else {
           created++
+          const trackedFields = Object.keys(shortData).filter(f => f !== 'festival_year')
+          await logNewRecord('short_films', newShort, trackedFields, currentYear)
         }
       }
     }
@@ -2022,16 +2028,6 @@ export default function TitlesPage() {
                 )}
               </>
             )}
-            <button
-              onClick={() => setShowGuestMode(!showGuestMode)}
-              className={`px-4 py-2 rounded-md transition-colors font-medium ${
-                showGuestMode
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-              }`}
-            >
-              👥 {showGuestMode ? 'Hide Guests' : 'Show Guests'}
-            </button>
             <button
               onClick={exportCurrentView}
               className="px-4 py-2 rounded-md transition-colors font-medium bg-teal-600 hover:bg-teal-700 text-white"
@@ -3088,11 +3084,17 @@ function AddFilmModal({ isOpen, onClose, onSave, availablePrograms, availableGen
         run_time: formData.run_time ? parseInt(formData.run_time) : null
       }
 
-      const { error } = await supabase
+      const { data: newFilm, error } = await supabase
         .from('feature_films')
         .insert([{ ...filmData, festival_year: currentYear }])
+        .select()
+        .single()
 
       if (error) throw error
+
+      // Highlight all fields of the new record
+      const trackedFields = Object.keys(filmData).filter(f => f !== 'festival_year')
+      await logNewRecord('feature_films', newFilm, trackedFields, currentYear)
 
       alert('Film added successfully!')
       onSave()
