@@ -6,6 +6,7 @@ import { ProgramCard, FilmCard, InterviewCard } from '@/types'
 import { FilmCardPopup } from './film-card-popup'
 import { GuestCardPopup } from './guest-card-popup'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
+import { useModalDrag } from '@/hooks/use-modal-drag'
 
 interface ProgramCardPopupProps {
   program: ProgramCard
@@ -53,9 +54,7 @@ function CollapsibleSection({ title, children, isEmpty = false }: CollapsibleSec
 }
 
 export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete }: ProgramCardPopupProps) {
-  const [isDragging, setIsDragging] = useState(false)
-  const [position, setPosition] = useState({ x: 100, y: 100 })
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const { handleMouseDown: hookMouseDown, modalStyle, isMobile, isDragging } = useModalDrag()
   const [selectedFilm, setSelectedFilm] = useState<FilmCard | null>(null)
   const [selectedGuest, setSelectedGuest] = useState<any | null>(null)
   const [films, setFilms] = useState<FilmCard[]>([])
@@ -185,37 +184,8 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button, input, select, textarea, .no-drag')) return
-    
-    setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    })
-  }, [position])
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging) return
-    
-    setPosition({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
-    })
-  }, [isDragging, dragStart])
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false)
-  }, [])
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-      }
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp])
+    hookMouseDown(e)
+  }, [hookMouseDown])
 
   const openGuestCard = (guest: any) => {
     setSelectedGuest(guest)
@@ -244,10 +214,10 @@ export function ProgramCardPopup({ program, onClose, onEdit, onUpdate, onDelete 
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-lg max-h-[90vh] overflow-y-auto w-full"
           style={{
-            transform: `translate(${position.x}px, ${position.y}px)`,
-            cursor: isDragging ? 'grabbing' : 'grab'
+            maxWidth: isMobile ? '95vw' : '896px',
+            cursor: isMobile ? 'default' : (isDragging ? 'grabbing' : 'grab')
           }}
           onMouseDown={handleMouseDown}
         >

@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { GuestCard, GuestType, ConfirmationStatus } from '@/types'
 import { detectChangedFields, logFieldChanges, logNewRecord } from '@/lib/field-changes'
+import { useModalDrag } from '@/hooks/use-modal-drag'
 
 interface GuestFormModalProps {
   guest?: GuestCard | null
@@ -107,9 +108,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const originalGuestRef = useRef<Record<string, unknown> | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const { handleMouseDown: dragMouseDown, modalStyle, isMobile, isDragging } = useModalDrag({ initialPosition: { x: 0, y: 0 } })
   const [availableFilms, setAvailableFilms] = useState<{id: string, title: string, type: 'feature' | 'short'}[]>([])
   const [availablePrograms, setAvailablePrograms] = useState<{id: string, title: string}[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -156,39 +155,6 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
     }
   }, [isOpen, supabase, currentYear])
 
-  // Drag handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    })
-  }
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      })
-    }
-  }, [isDragging, dragStart.x, dragStart.y])
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    }
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragging, handleMouseMove])
 
   // Initialize form data when guest changes
   useEffect(() => {
@@ -556,19 +522,21 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-      <div 
-        className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto pointer-events-auto relative"
-        style={{ 
-          left: `${position.x}px`, 
-          top: `${position.y}px`,
+      <div
+        className="bg-white rounded-lg shadow-xl w-full overflow-y-auto pointer-events-auto relative"
+        style={{
+          ...modalStyle,
+          ...(isMobile
+            ? { width: '95vw', maxWidth: '95vw', maxHeight: '90vh' }
+            : { maxWidth: '72rem', maxHeight: '90vh', margin: '0 1rem' }),
           cursor: isDragging ? 'grabbing' : 'default'
         }}
       >
         <form onSubmit={handleSubmit}>
           {/* Draggable Header */}
-          <div 
-            className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg cursor-grab active:cursor-grabbing flex justify-between items-center"
-            onMouseDown={handleMouseDown}
+          <div
+            className={`bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg flex justify-between items-center ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
+            onMouseDown={dragMouseDown}
           >
             <h2 className="text-xl font-semibold text-gray-900">
               {guest ? 'Edit Guest' : 'Add New Guest'}

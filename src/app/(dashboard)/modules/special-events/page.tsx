@@ -985,12 +985,12 @@ export default function SpecialEventsPage() {
             <h1 className="text-2xl font-semibold text-gray-900">Special Events</h1>
           </div>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-wrap items-center gap-3">
             {canEditSpecialEvents && (
               <>
                 <button
                   onClick={exportSpecialEventsTemplate}
-                  className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
+                  className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white text-sm"
                 >
                   Create Special Event CSV Template
                 </button>

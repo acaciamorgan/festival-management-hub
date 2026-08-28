@@ -1481,14 +1481,14 @@ export default function TicketingPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">🎟️ Ticketing Grid</h1>
             <p className="text-sm text-gray-600 mt-1">
               {sortedData.length} of {getCurrentData().length} screenings
             </p>
             {viewMode === 'pi-jury' && (
-              <div className="flex items-center space-x-4 mt-2 text-xs">
+              <div className="flex items-center gap-x-4 gap-y-1 flex-wrap mt-2 text-xs">
                 <span className="flex items-center">
                   <span className="w-3 h-3 bg-gray-100 border border-gray-400 border-dashed rounded inline-block mr-1"></span>
                   <span className="text-gray-500">Not Approved</span>
@@ -1504,7 +1504,7 @@ export default function TicketingPage() {
               </div>
             )}
           </div>
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap gap-2">
             {viewMode === 'pi-jury' && (
               <button
                 onClick={syncPressScreenings}

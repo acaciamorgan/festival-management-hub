@@ -6,6 +6,7 @@ import { GuestCard, FilmCard, InterviewCard } from '@/types'
 import { FilmCardPopup } from './film-card-popup'
 import { getInterviewsForGuestCard } from '@/lib/interviews-client'
 import { getFestivalYear } from '@/lib/smart-date-parser'
+import { useModalDrag } from '@/hooks/use-modal-drag'
 
 interface GuestCardPopupProps {
   guest: GuestCard
@@ -46,19 +47,11 @@ function CollapsibleSection({ title, children, isEmpty = false, defaultExpanded 
 }
 
 export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: GuestCardPopupProps) {
-  const [isDragging, setIsDragging] = useState(false)
-  const [position, setPosition] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const modalWidth = Math.min(window.innerWidth * 0.9, 1000)
-      const modalHeight = window.innerHeight * 0.9
-      return {
-        x: (window.innerWidth - modalWidth) / 2,
-        y: (window.innerHeight - modalHeight) / 2
-      }
-    }
-    return { x: 100, y: 100 }
+  const { handleMouseDown, modalStyle, isMobile, isDragging } = useModalDrag({
+    initialPosition: typeof window !== 'undefined'
+      ? { x: (window.innerWidth - Math.min(window.innerWidth * 0.9, 1000)) / 2, y: (window.innerHeight - window.innerHeight * 0.9) / 2 }
+      : { x: 100, y: 100 }
   })
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [showFilmCard, setShowFilmCard] = useState<FilmCard | null>(null)
   const [photoShoots, setPhotoShoots] = useState<any[]>([])
   const [redCarpets, setRedCarpets] = useState<any[]>([])
@@ -524,39 +517,6 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guest.name, guest.id])
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    })
-  }
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      })
-    }
-  }, [isDragging, dragStart.x, dragStart.y])
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    }
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragging, handleMouseMove])
-
   const getGuestTypeIcon = (type: string) => {
     switch (type) {
       case 'Features':
@@ -709,22 +669,19 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
       />
       
       <div
-        className="fixed bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden z-[110] flex flex-col"
+        className="bg-white rounded-lg shadow-xl max-h-[90vh] overflow-hidden z-[110] flex flex-col"
         onClick={(e) => e.stopPropagation()}
         style={{
-          left: `${position.x}px`,
-          top: `${position.y}px`,
-          cursor: isDragging ? 'grabbing' : 'default',
-          maxWidth: '1000px',
-          width: '90vw',
+          ...modalStyle,
+          maxWidth: isMobile ? '95vw' : '1000px',
+          width: isMobile ? '95vw' : '90vw',
           maxHeight: '90vh'
         }}
       >
         {/* Header with drag handle */}
         <div
-          className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg flex justify-between items-center flex-shrink-0"
+          className={`bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg flex justify-between items-center flex-shrink-0 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
           onMouseDown={handleMouseDown}
-          style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
         >
           <div className="flex items-center">
             <span className="text-2xl mr-3">{getGuestTypeIcon(guest.guest_type)}</span>

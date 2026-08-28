@@ -34,7 +34,11 @@ const moduleIcons: Record<string, any> = {
   archives: Archive,
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void
+}
+
+export function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname()
   const { signOut } = useAuth()
   const { permissions } = usePermissions()
@@ -175,6 +179,7 @@ export function Sidebar() {
               <li key={module.id}>
                 <Link
                   href={module.route}
+                  onClick={onNavigate}
                   className={`flex items-center px-4 py-2 text-sm font-medium transition-colors ${
                     isActive
                       ? 'bg-gray-800 text-white border-r-2 border-blue-500'
@@ -201,6 +206,7 @@ export function Sidebar() {
               <li>
                 <Link
                   href="/admin"
+                  onClick={onNavigate}
                   className={`flex items-center px-4 py-2 text-sm font-medium transition-colors ${
                     pathname === '/admin'
                       ? 'bg-gray-800 text-white border-r-2 border-blue-500'
@@ -231,6 +237,7 @@ export function Sidebar() {
             <li>
               <Link
                 href="/settings"
+                onClick={onNavigate}
                 className={`flex items-center px-4 py-2 text-sm font-medium transition-colors ${
                   pathname === '/settings'
                     ? 'bg-gray-800 text-white border-r-2 border-blue-500'

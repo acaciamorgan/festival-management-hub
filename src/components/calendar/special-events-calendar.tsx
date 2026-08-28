@@ -193,7 +193,8 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
       </div>
       
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7">
+      <div className="overflow-x-auto">
+      <div className="grid grid-cols-7 min-w-[500px]">
         {/* Day Headers */}
         {dayNames.map(day => (
           <div key={day} className="bg-gray-50 px-2 py-3 text-center text-xs font-medium text-gray-700 uppercase border-b border-r border-gray-200">
@@ -255,10 +256,11 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
           )
         })}
       </div>
-      
+      </div>
+
       {/* Legend */}
       <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
-        <div className="flex items-center space-x-4 text-xs flex-wrap">
+        <div className="flex items-center gap-x-4 gap-y-2 text-xs flex-wrap">
           <span className="font-medium text-gray-700">Event Types:</span>
           {['Interview', 'Reception', 'Mixer', 'Party', 'Awards'].map(type => (
             <div key={type} className="flex items-center">

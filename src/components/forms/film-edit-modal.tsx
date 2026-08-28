@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { FilmContact, FilmContactType } from '@/types'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { detectChangedFields, logFieldChanges } from '@/lib/field-changes'
+import { useModalDrag } from '@/hooks/use-modal-drag'
 
 interface FeatureFilm {
   id: string
@@ -99,9 +100,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
   const [filmContacts, setFilmContacts] = useState<FilmContact[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const originalFilmRef = useRef<Record<string, unknown> | null>(null)
-  const [position, setPosition] = useState({ x: 100, y: 100 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const { handleMouseDown: dragMouseDown, modalStyle, isMobile, isDragging } = useModalDrag({ initialPosition: { x: 100, y: 100 } })
   const [modalSize, setModalSize] = useState({ width: 1000, height: 600 })
   const [isResizing, setIsResizing] = useState(false)
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 })
@@ -529,24 +528,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
     await saveContacts()
   }
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    })
-  }
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging) return
-    setPosition({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
-    })
-  }
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
+  const handleResizeMouseUp = () => {
     setIsResizing(false)
   }
 
@@ -573,39 +555,34 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
   }
 
   useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    }
     if (isResizing) {
       document.addEventListener('mousemove', handleResize)
-      document.addEventListener('mouseup', handleMouseUp)
+      document.addEventListener('mouseup', handleResizeMouseUp)
     }
-    
+
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mousemove', handleResize)
-      document.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('mouseup', handleResizeMouseUp)
     }
-  }, [isDragging, isResizing])
+  }, [isResizing])
 
   if (!isOpen || !film) return null
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-      <div 
+      <div
         className="bg-white rounded-lg shadow-xl pointer-events-auto relative"
-        style={{ 
-          left: `${position.x}px`, 
-          top: `${position.y}px`,
-          width: `${modalSize.width}px`,
-          height: `${modalSize.height}px`,
+        style={{
+          ...modalStyle,
+          ...(isMobile
+            ? { width: '95vw', maxWidth: '95vw', maxHeight: '90vh' }
+            : { width: `${modalSize.width}px`, height: `${modalSize.height}px` }),
           cursor: isDragging ? 'grabbing' : isResizing ? 'nw-resize' : 'default'
         }}
       >
-        <div 
-          className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg cursor-grab active:cursor-grabbing flex justify-between items-center"
-          onMouseDown={handleMouseDown}
+        <div
+          className={`bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg flex justify-between items-center ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
+          onMouseDown={dragMouseDown}
         >
           <h2 className="text-xl font-semibold text-gray-900">
             Edit {filmType === 'feature' ? 'Feature Film' : 'Short Film'}
@@ -618,9 +595,9 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
           </button>
         </div>
 
-        <div className="p-6 space-y-6 overflow-y-auto" style={{ height: `${modalSize.height - 140}px` }}>
+        <div className="p-6 space-y-6 overflow-y-auto" style={isMobile ? { maxHeight: 'calc(90vh - 140px)' } : { height: `${modalSize.height - 140}px` }}>
           {/* Basic Information */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
               <input
@@ -716,7 +693,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
           {/* Programs and Genres */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Programs & Genres</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Program 1</label>
                 <input
@@ -853,7 +830,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
           {/* Crew Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Crew Information</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Screenwriter</label>
                 <input
@@ -950,7 +927,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
           {/* Links and Additional Info */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Links & Additional Information</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Film Website</label>
                 <input
@@ -995,8 +972,8 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
             <h3 className="text-lg font-medium text-gray-900">Contact Information</h3>
             <div className="space-y-3">
               {filmContacts.map((contact, index) => (
-                <div key={index} className="grid grid-cols-12 gap-2 items-end p-3 bg-gray-50 rounded-md">
-                  <div className="col-span-3 relative">
+                <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end p-3 bg-gray-50 rounded-md">
+                  <div className="md:col-span-3 relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
                     <input
                       type="text"
@@ -1041,7 +1018,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                       </div>
                     )}
                   </div>
-                  <div className="col-span-3">
+                  <div className="md:col-span-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
                     <input
                       type="text"
@@ -1050,7 +1027,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     />
                   </div>
-                  <div className="col-span-3">
+                  <div className="md:col-span-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                     <input
                       type="email"
@@ -1059,7 +1036,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
                     <select
                       value={contact.contact_type}
@@ -1072,7 +1049,7 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                       <option value="Other">Other</option>
                     </select>
                   </div>
-                  <div className="col-span-1">
+                  <div className="md:col-span-1">
                     <button
                       onClick={() => removeContact(index)}
                       className="w-full px-2 py-2 text-red-600 hover:text-red-800 text-sm"
@@ -1118,13 +1095,15 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
         </div>
 
         {/* Resize Handle */}
-        <div
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-nw-resize bg-gray-300 hover:bg-gray-400"
-          style={{
-            background: 'linear-gradient(-45deg, transparent 30%, #9ca3af 30%, #9ca3af 70%, transparent 70%)'
-          }}
-          onMouseDown={handleResizeStart}
-        />
+        {!isMobile && (
+          <div
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-nw-resize bg-gray-300 hover:bg-gray-400"
+            style={{
+              background: 'linear-gradient(-45deg, transparent 30%, #9ca3af 30%, #9ca3af 70%, transparent 70%)'
+            }}
+            onMouseDown={handleResizeStart}
+          />
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}

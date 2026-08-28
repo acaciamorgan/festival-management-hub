@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { VenueCard, TheaterHouse } from '@/types'
+import { useModalDrag } from '@/hooks/use-modal-drag'
 
 interface VenueCardPopupProps {
   venue: VenueCard
@@ -41,44 +42,9 @@ function CollapsibleSection({ title, children, isEmpty = false }: CollapsibleSec
 }
 
 export function VenueCardPopup({ venue, onClose, onUpdate, onDelete }: VenueCardPopupProps) {
-  const [isDragging, setIsDragging] = useState(false)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const { handleMouseDown, modalStyle, isMobile, isDragging } = useModalDrag()
 
   const supabase = createClient()
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    })
-  }
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      })
-    }
-  }, [isDragging, dragStart.x, dragStart.y])
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    }
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragging, handleMouseMove])
 
   const handleDelete = async () => {
     if (!confirm(`Are you sure you want to delete ${venue.name}? This action cannot be undone.`)) {
@@ -130,22 +96,25 @@ export function VenueCardPopup({ venue, onClose, onUpdate, onDelete }: VenueCard
   }
 
   return (
-    <div 
-      className="fixed inset-0 bg-transparent flex items-center justify-center z-50"
-      onClick={onClose}
-    >
+    <>
       <div
-        className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto relative"
+        className="fixed inset-0 bg-transparent z-50"
+        onClick={onClose}
+      />
+
+      <div
+        className="bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto z-[60] flex flex-col"
         onClick={(e) => e.stopPropagation()}
-        style={{ 
-          left: `${position.x}px`, 
-          top: `${position.y}px`,
-          cursor: isDragging ? 'grabbing' : 'default'
+        style={{
+          ...modalStyle,
+          maxHeight: '90vh',
+          width: isMobile ? '95vw' : '800px',
+          maxWidth: isMobile ? '95vw' : '800px',
         }}
       >
         {/* Header with drag handle */}
-        <div 
-          className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg cursor-grab active:cursor-grabbing flex justify-between items-center"
+        <div
+          className={`bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg flex justify-between items-center flex-shrink-0 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
           onMouseDown={handleMouseDown}
         >
           <div className="flex items-center">
@@ -278,6 +247,6 @@ export function VenueCardPopup({ venue, onClose, onUpdate, onDelete }: VenueCard
           </CollapsibleSection>
         </div>
       </div>
-    </div>
+    </>
   )
 }

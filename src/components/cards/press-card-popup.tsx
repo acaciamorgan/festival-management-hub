@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { PressCard, AccreditationLevel, InterviewCard } from '@/types'
 import { getInterviewsForPressCard } from '@/lib/interviews-client'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
+import { useModalDrag } from '@/hooks/use-modal-drag'
 
 interface PressCardProps {
   press: PressCard
@@ -58,9 +59,10 @@ function CollapsibleSection({ title, children, isEmpty = false }: CollapsibleSec
 
 export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCardProps) {
   const { currentYear } = useFestivalYear()
-  const [position, setPosition] = useState({ x: 100, y: 100 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const { handleMouseDown, modalStyle, isMobile, isDragging } = useModalDrag({ initialPosition: { x: 100, y: 100 } })
+  const { handleMouseDown: handleEditModalMouseDown, modalStyle: editModalStyle, isMobile: editIsMobile } = useModalDrag({
+    initialPosition: typeof window !== 'undefined' ? { x: window.innerWidth / 2 - 320, y: 100 } : { x: 300, y: 100 }
+  })
   const [pickedUpCredentials, setPickedUpCredentials] = useState(press.picked_up_credentials)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editFormData, setEditFormData] = useState({
@@ -77,20 +79,15 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
   })
   const [pressInterviews, setPressInterviews] = useState<InterviewCard[]>([])
 
-  // Edit modal dragging state
-  const [editModalPosition, setEditModalPosition] = useState(() => ({ x: typeof window !== 'undefined' ? window.innerWidth / 2 - 320 : 300, y: 100 }))
-  const [isEditModalDragging, setIsEditModalDragging] = useState(false)
-  const [editModalDragStart, setEditModalDragStart] = useState({ x: 0, y: 0 })
-
   const supabase = createClient()
 
   // Phone number formatting helper
   const formatPhoneNumber = (phone: string): string => {
     if (!phone) return ''
-    
+
     // Remove all non-digit characters
     const digits = phone.replace(/\D/g, '')
-    
+
     // Handle US numbers (10 or 11 digits)
     if (digits.length === 10) {
       return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
@@ -98,70 +95,10 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
       const tenDigits = digits.slice(1)
       return `${tenDigits.slice(0, 3)}-${tenDigits.slice(3, 6)}-${tenDigits.slice(6)}`
     }
-    
+
     // For international numbers or non-standard formats, clean up spacing but preserve structure
     return phone.replace(/\s+/g, ' ').replace(/[()]/g, '').replace(/\./g, '-').trim()
   }
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    })
-  }
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      })
-    }
-  }, [isDragging, dragStart.x, dragStart.y])
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  // Edit modal drag handlers
-  const handleEditModalMouseMove = useCallback((e: MouseEvent) => {
-    if (isEditModalDragging) {
-      setEditModalPosition({
-        x: e.clientX - editModalDragStart.x,
-        y: e.clientY - editModalDragStart.y
-      })
-    }
-  }, [isEditModalDragging, editModalDragStart.x, editModalDragStart.y])
-
-  const handleEditModalMouseUp = () => {
-    setIsEditModalDragging(false)
-  }
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    }
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragging, dragStart])
-
-  // Handle edit modal dragging
-  useEffect(() => {
-    if (isEditModalDragging) {
-      document.addEventListener('mousemove', handleEditModalMouseMove)
-      document.addEventListener('mouseup', handleEditModalMouseUp)
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleEditModalMouseMove)
-      document.removeEventListener('mouseup', handleEditModalMouseUp)
-    }
-  }, [isEditModalDragging, editModalDragStart])
 
   const handleCredentialPickupToggle = async () => {
     try {
@@ -321,17 +258,18 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
 
   return (
     <>
-      <div 
-        className="fixed bg-white rounded-lg shadow-2xl border border-gray-300 z-50 max-w-4xl w-[800px] max-h-[calc(100vh-2rem)] overflow-y-auto"
-        style={{ 
-          left: `${position.x}px`, 
-          top: `${position.y}px`,
-          cursor: isDragging ? 'grabbing' : 'default'
+      <div
+        className="fixed bg-white rounded-lg shadow-2xl border border-gray-300 z-50 max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col"
+        style={{
+          ...modalStyle,
+          maxHeight: isMobile ? '90vh' : 'calc(100vh-2rem)',
+          width: isMobile ? '95vw' : '800px',
+          maxWidth: isMobile ? '95vw' : '800px',
         }}
       >
         {/* Draggable Header */}
-        <div 
-          className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 cursor-grab active:cursor-grabbing"
+        <div
+          className={`flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 flex-shrink-0 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
           onMouseDown={handleMouseDown}
         >
           <h1 className="text-lg font-semibold text-gray-900">Press Details</h1>
@@ -524,21 +462,17 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
       {showEditModal && (
         <div className="fixed inset-0 bg-transparent z-[60]">
           <div
-            className="absolute bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto"
+            className="bg-white rounded-lg shadow-2xl max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col"
             style={{
-              left: `${editModalPosition.x}px`,
-              top: `${editModalPosition.y}px`,
+              ...editModalStyle,
+              width: editIsMobile ? '95vw' : '640px',
+              maxWidth: editIsMobile ? '95vw' : '640px',
+              maxHeight: editIsMobile ? '90vh' : 'calc(100vh-2rem)',
             }}
           >
             <div
-              className="flex justify-between items-center mb-4 p-6 pb-0 cursor-move bg-gray-50 border-b"
-              onMouseDown={(e) => {
-                setIsEditModalDragging(true)
-                setEditModalDragStart({
-                  x: e.clientX - editModalPosition.x,
-                  y: e.clientY - editModalPosition.y
-                })
-              }}
+              className={`flex justify-between items-center mb-4 p-6 pb-0 bg-gray-50 border-b flex-shrink-0 ${editIsMobile ? '' : 'cursor-move'}`}
+              onMouseDown={handleEditModalMouseDown}
             >
               <h2 className="text-xl font-semibold select-none">Edit Journalist</h2>
               <button

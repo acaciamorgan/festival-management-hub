@@ -1980,7 +1980,7 @@ export default function TitlesPage() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">🎬 Titles & Programs</h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -1991,7 +1991,7 @@ export default function TitlesPage() {
             </p>
           </div>
           {viewMode !== 'screening-board' && (
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-wrap items-center gap-3">
             {canEditTitles && (
               <>
                 {viewMode === 'features' && (
@@ -2093,7 +2093,7 @@ export default function TitlesPage() {
         
         {/* View Mode Toggle */}
         <div className="mt-4">
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
               <button
                 onClick={() => setViewMode('features')}

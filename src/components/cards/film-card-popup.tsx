@@ -6,6 +6,7 @@ import { FilmContact, InterviewCard } from '@/types'
 import { GuestCardPopup } from './guest-card-popup'
 import { getInterviewsForFilmCard } from '@/lib/interviews-client'
 import { getFestivalYear } from '@/lib/smart-date-parser'
+import { useModalDrag } from '@/hooks/use-modal-drag'
 
 interface FilmCardProps {
   film: {
@@ -70,9 +71,7 @@ function CollapsibleSection({ title, children, isEmpty = false, badge }: Collaps
 }
 
 export function FilmCardPopup({ film, onClose }: FilmCardProps) {
-  const [position, setPosition] = useState({ x: 100, y: 100 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const { handleMouseDown, modalStyle, isMobile, isDragging } = useModalDrag()
   const [filmPhotoShoots, setFilmPhotoShoots] = useState<any[]>([])
   const [filmRedCarpets, setFilmRedCarpets] = useState<any[]>([])
   const [filmContacts, setFilmContacts] = useState<FilmContact[]>([])
@@ -182,39 +181,6 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
     const day = parts[2]
     return `${month}/${day}/${year}`
   }
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    })
-  }
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      })
-    }
-  }, [isDragging, dragStart.x, dragStart.y])
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    }
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragging, handleMouseMove])
 
   // Load photo shoots and red carpets for this film
   useEffect(() => {
@@ -676,20 +642,19 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
         onClick={onClose}
       />
       
-      <div 
-        className="fixed bg-white rounded-lg shadow-2xl border border-gray-300 max-w-4xl w-[800px] max-h-[calc(100vh-2rem)] overflow-y-auto z-[60] flex flex-col"
+      <div
+        className="bg-white rounded-lg shadow-2xl border border-gray-300 max-h-[calc(100vh-2rem)] overflow-y-auto z-[60] flex flex-col"
         onClick={(e) => e.stopPropagation()}
-        style={{ 
-          left: `${position.x}px`, 
-          top: `${position.y}px`,
-          cursor: isDragging ? 'grabbing' : 'default',
-          maxHeight: 'calc(100vh - 2rem)',
-          overflowY: 'auto'
+        style={{
+          ...modalStyle,
+          maxHeight: isMobile ? '90vh' : 'calc(100vh - 2rem)',
+          width: isMobile ? '95vw' : '800px',
+          maxWidth: isMobile ? '95vw' : '800px',
         }}
       >
       {/* Draggable Header */}
-      <div 
-        className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 cursor-grab active:cursor-grabbing"
+      <div
+        className={`flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
         onMouseDown={handleMouseDown}
       >
         <h1 className="text-lg font-semibold text-gray-900">Film Details</h1>
