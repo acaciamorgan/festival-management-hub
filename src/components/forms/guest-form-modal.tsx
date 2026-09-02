@@ -116,6 +116,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
   const [juryNameSuggestions, setJuryNameSuggestions] = useState<string[]>([])
   const [showJurySuggestions, setShowJurySuggestions] = useState(false)
   const [allJuryNames, setAllJuryNames] = useState<string[]>([])
+  const [duplicateConflict, setDuplicateConflict] = useState<{ id: string, guest_type: string } | null>(null)
 
   const supabase = createClient()
 
@@ -306,19 +307,24 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
+      return
+    }
+
+    // If editing an existing guest, skip duplicate check entirely
+    if (guest) {
+      await performSave(null)
       return
     }
 
     setIsSubmitting(true)
 
     try {
-
       // Check for existing guest by name (case-insensitive) within current festival year
       const { data: existingGuests, error: checkError } = await supabase
         .from('guests')
-        .select('id')
+        .select('id, guest_type')
         .ilike('name', formData.name.trim())
         .eq('festival_year', currentYear)
 
@@ -326,14 +332,32 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
       const existingGuest = existingGuests && existingGuests.length > 0 ? existingGuests[0] : null
 
-      // Warn user if a guest with this name already exists (only when creating new, not editing)
-      if (!guest && existingGuest) {
-        if (!confirm(`A guest named "${formData.name.trim()}" already exists. Update the existing record instead of creating a new one?`)) {
-          setIsSubmitting(false)
-          return
-        }
+      if (existingGuest) {
+        // Show duplicate conflict dialog instead of browser confirm
+        setDuplicateConflict({ id: existingGuest.id, guest_type: existingGuest.guest_type || 'Unknown' })
+        setIsSubmitting(false)
+        return
       }
 
+      // No duplicate — insert new
+      await performSave(null)
+    } catch (error) {
+      console.error('Error checking for duplicates:', error)
+      alert('Error saving guest. Please try again.')
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDuplicateChoice = async (choice: 'update' | 'add_new') => {
+    const conflictId = duplicateConflict?.id || null
+    setDuplicateConflict(null)
+    await performSave(choice === 'update' ? conflictId : null)
+  }
+
+  const performSave = async (updateExistingId: string | null) => {
+    setIsSubmitting(true)
+
+    try {
       const now = new Date()
       const nowStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0')
 
@@ -374,13 +398,14 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
       }
 
       let savedGuest: GuestCard
+      const isEditing = !!guest
 
-      if (guest) {
-        // Update existing guest (editing mode)
+      if (isEditing) {
+        // Update existing guest (editing mode — clicked into a card)
         const { data, error } = await supabase
           .from('guests')
           .update(guestData)
-          .eq('id', guest.id)
+          .eq('id', guest!.id)
           .select()
           .single()
 
@@ -391,14 +416,14 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         if (originalGuestRef.current) {
           const trackedFields = Object.keys(guestData).filter(f => f !== 'updated_at' && f !== 'festival_year')
           const changed = detectChangedFields(originalGuestRef.current, guestData, trackedFields)
-          await logFieldChanges('guests', guest.id, changed, currentYear)
+          await logFieldChanges('guests', guest!.id, changed, currentYear)
         }
-      } else if (existingGuest) {
-        // Update existing guest found by name
+      } else if (updateExistingId) {
+        // Update existing guest found by name (user chose "Update Existing")
         const { data, error } = await supabase
           .from('guests')
           .update({ ...guestData, updated_at: nowStr })
-          .eq('id', existingGuest.id)
+          .eq('id', updateExistingId)
           .select()
           .single()
 
@@ -407,8 +432,8 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
         // Log field-level changes for highlighting
         const trackedFields = Object.keys(guestData).filter(f => f !== 'updated_at' && f !== 'festival_year')
-        const changed = detectChangedFields(existingGuest, guestData, trackedFields)
-        await logFieldChanges('guests', existingGuest.id, changed, currentYear)
+        const changed = detectChangedFields({ id: updateExistingId }, guestData, trackedFields)
+        await logFieldChanges('guests', updateExistingId, changed, currentYear)
       } else {
         // Create new guest
         const { data, error } = await supabase
@@ -431,7 +456,7 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
 
       // Handle film and program associations
       // Delete existing associations if editing or updating existing guest
-      if (guest || existingGuest) {
+      if (isEditing || updateExistingId) {
         await supabase.from('guest_films').delete().eq('guest_id', savedGuest.id).eq('festival_year', currentYear)
       }
 
@@ -521,6 +546,38 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
   if (!isOpen) return null
 
   return (
+    <>
+    {duplicateConflict && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/50" onClick={() => setDuplicateConflict(null)} />
+        <div className="relative bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Duplicate Guest Found</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            A guest named <span className="font-medium">&ldquo;{formData.name.trim()}&rdquo;</span> already exists as <span className="font-medium">{duplicateConflict.guest_type}</span>.
+          </p>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => handleDuplicateChoice('update')}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+            >
+              Update Existing
+            </button>
+            <button
+              onClick={() => handleDuplicateChoice('add_new')}
+              className="w-full px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm font-medium"
+            >
+              Add As Duplicate
+            </button>
+            <button
+              onClick={() => setDuplicateConflict(null)}
+              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm font-medium"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
       <div
         className="bg-white rounded-lg shadow-xl w-full overflow-y-auto pointer-events-auto relative"
@@ -1098,5 +1155,6 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         </form>
       </div>
     </div>
+    </>
   )
 }
