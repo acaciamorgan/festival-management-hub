@@ -61,7 +61,6 @@ export default function ContactsPage() {
   const [assigningContact, setAssigningContact] = useState<ContactCard | null>(null)
   const [availableFilms, setAvailableFilms] = useState<any[]>([])
   const [selectedFilmIds, setSelectedFilmIds] = useState<Set<string>>(new Set())
-  const [contactRole, setContactRole] = useState('')
 
   const supabase = createClient()
 
@@ -87,7 +86,6 @@ export default function ContactsPage() {
       { field: 'contact_type', display: 'Contact Type' },
       { field: 'mailing_address', display: 'Mailing Address' },
       { field: 'notes', display: 'Notes' },
-      { field: 'contact_role', display: 'Contact Role' }
     ]
     
     const headers = headerMapping.map(h => h.display)
@@ -435,7 +433,6 @@ export default function ContactsPage() {
         'Contact Type': 'contact_type',
         'Mailing Address': 'mailing_address',
         'Notes': 'notes',
-        'Contact Role': 'contact_role'
       }
 
       // Group contacts by email to avoid duplicates
@@ -457,16 +454,13 @@ export default function ContactsPage() {
         
         const contactRecord: any = {}
         let filmTitle = ''
-        let contactRole = ''
-        
+
         headers.forEach((header, index) => {
           const fieldName = fieldMap[header]
           if (fieldName && row[index]) {
             let value = row[index].trim()
             if (fieldName === 'film_title') {
               filmTitle = value
-            } else if (fieldName === 'contact_role') {
-              contactRole = value
             } else {
               contactRecord[fieldName] = value
             }
@@ -531,11 +525,12 @@ export default function ContactsPage() {
               if (filmTitle) {
                 const contactEntry = contactsByEmail.get(email)!
                 // Check if this film assignment already exists
+                const contactType = contactRecord.contact_type || 'Other'
                 const existingAssignment = contactEntry.filmAssignments.find(
-                  fa => fa.filmTitle === filmTitle && fa.role === contactRole
+                  fa => fa.filmTitle === filmTitle && fa.role === contactType
                 )
                 if (!existingAssignment) {
-                  contactEntry.filmAssignments.push({ filmTitle, role: contactRole || 'Other' })
+                  contactEntry.filmAssignments.push({ filmTitle, role: contactType })
 
                 }
               } else {
@@ -1120,8 +1115,8 @@ export default function ContactsPage() {
   }
 
   const handleSaveFilmAssignments = async () => {
-    if (!assigningContact || selectedFilmIds.size === 0 || !contactRole) {
-      alert('Please select films and specify a contact role')
+    if (!assigningContact || selectedFilmIds.size === 0) {
+      alert('Please select at least one film')
       return
     }
 
@@ -1135,7 +1130,7 @@ export default function ContactsPage() {
           name: assigningContact.contact_name,
           company: assigningContact.contact_company,
           email: assigningContact.contact_email,
-          contact_type: contactRole,
+          contact_type: assigningContact.contact_type || 'Other',
           contact_id: assigningContact.id,
           festival_year: currentYear
         }
@@ -1621,30 +1616,6 @@ export default function ContactsPage() {
                 <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                   Assign Films to {assigningContact.contact_name}
                 </h3>
-
-                {/* Contact Role Selection */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Contact Role *
-                  </label>
-                  <select
-                    value={contactRole}
-                    onChange={(e) => setContactRole(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Select role...</option>
-                    <option value="Distributor/Studio">Distributor/Studio</option>
-                    <option value="Production Team">Production Team</option>
-                    <option value="Publicity">Publicity</option>
-                    <option value="Sales Agent">Sales Agent</option>
-                    <option value="Filmmaker">Filmmaker</option>
-                    <option value="Producer">Producer</option>
-                    <option value="Director">Director</option>
-                    <option value="Print Traffic">Print Traffic</option>
-                    <option value="Festival">Festival</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
 
                 {/* Film Selection */}
                 <div className="mb-4">
