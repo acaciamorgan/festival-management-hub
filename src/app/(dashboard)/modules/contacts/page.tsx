@@ -130,6 +130,64 @@ export default function ContactsPage() {
     XLSX.writeFile(wb, 'contacts_import_template.xlsx')
   }
 
+  // Export contacts by film (populated data, not just a template)
+  const exportContactsByFilm = () => {
+    const headers = ['Film Title', 'Film Type', 'Contact Name', 'Company', 'Email', 'Contact Type', 'Phone', 'Mailing Address']
+
+    const rows: string[][] = []
+    for (const film of filteredFilms) {
+      if (film.contacts && film.contacts.length > 0) {
+        for (const contact of film.contacts) {
+          rows.push([
+            film.title || '',
+            film.film_type === 'feature' ? 'Feature' : 'Short',
+            contact.name || '',
+            contact.company || '',
+            contact.email || '',
+            contact.contact_type || '',
+            '',
+            ''
+          ])
+        }
+      } else {
+        rows.push([
+          film.title || '',
+          film.film_type === 'feature' ? 'Feature' : 'Short',
+          '', '', '', '', '', ''
+        ])
+      }
+    }
+
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+
+    const headerStyle = {
+      font: { bold: true, sz: 12, name: 'Arial' },
+      fill: { patternType: "solid", fgColor: { rgb: "E8E8E8" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } }
+      }
+    }
+
+    const cols: any[] = []
+    headers.forEach((header, index) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: index })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      ws[cellRef].s = headerStyle
+      cols.push({ wch: Math.min(Math.max(header.length + 5, 15), 40) })
+    })
+
+    ws['!cols'] = cols
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Contacts by Film')
+    XLSX.writeFile(wb, `contacts_by_film_${currentYear}.xlsx`)
+  }
+
   // Load existing films and programs on mount
   useEffect(() => {
     const loadExistingFilms = async () => {
@@ -1264,6 +1322,12 @@ export default function ContactsPage() {
                   className="px-4 py-2 rounded-md transition-colors font-medium bg-green-600 hover:bg-green-700 text-white"
                 >
                   Create Contact CSV Template
+                </button>
+                <button
+                  onClick={exportContactsByFilm}
+                  className="px-4 py-2 rounded-md transition-colors font-medium bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  Export Contacts by Film
                 </button>
                 <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer transition-colors font-medium">
                   {uploading ? 'Uploading...' : 'Upload Contact CSV'}
