@@ -33,7 +33,6 @@ export default function ContactsPage() {
   
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [deduplicating, setDeduplicating] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedContactType, setSelectedContactType] = useState('')
@@ -810,122 +809,6 @@ export default function ContactsPage() {
     }
   }
 
-  // Deduplicate contacts: find contacts with same email, keep oldest, reassign film_contacts, delete dupes
-  const handleDeduplicateContacts = async () => {
-    if (!confirm('This will find contacts with duplicate emails, keep the oldest entry for each, reassign film assignments from duplicates to the original, and delete the duplicates. Continue?')) {
-      return
-    }
-
-    setDeduplicating(true)
-    setUploadStatus('Scanning for duplicate contacts...')
-
-    try {
-      // Fetch all contacts for the year
-      const { data: allContacts, error: fetchError } = await supabase
-        .from('contacts')
-        .select('id, contact_email, contact_name, created_at')
-        .eq('festival_year', currentYear)
-        .order('created_at', { ascending: true })
-
-      if (fetchError) {
-        setUploadStatus(`Error: ${fetchError.message}`)
-        return
-      }
-
-      // Group by lowercase email
-      const emailGroups = new Map<string, any[]>()
-      for (const contact of allContacts || []) {
-        if (!contact.contact_email) continue
-        const key = contact.contact_email.toLowerCase()
-        if (!emailGroups.has(key)) {
-          emailGroups.set(key, [])
-        }
-        emailGroups.get(key)!.push(contact)
-      }
-
-      // Find groups with duplicates
-      const duplicateGroups = Array.from(emailGroups.entries()).filter(([, group]) => group.length > 1)
-
-      if (duplicateGroups.length === 0) {
-        setUploadStatus('No duplicate contacts found.')
-        return
-      }
-
-      let totalReassigned = 0
-      let totalDeleted = 0
-
-      for (const [email, group] of duplicateGroups) {
-        // Keep the first (oldest by created_at, already sorted)
-        const keeper = group[0]
-        const dupes = group.slice(1)
-        const dupeIds = dupes.map(d => d.id)
-
-        // Reassign film_contacts from duplicates to the keeper
-        const { data: dupeFilmContacts } = await supabase
-          .from('film_contacts')
-          .select('id, film_id, film_type, contact_type')
-          .in('contact_id', dupeIds)
-
-        if (dupeFilmContacts && dupeFilmContacts.length > 0) {
-          // Check which film assignments the keeper already has to avoid duplicates
-          const { data: keeperFilmContacts } = await supabase
-            .from('film_contacts')
-            .select('film_id, film_type, contact_type')
-            .eq('contact_id', keeper.id)
-
-          const keeperAssignments = new Set(
-            (keeperFilmContacts || []).map(fc => `${fc.film_id}|${fc.film_type}|${fc.contact_type}`)
-          )
-
-          for (const fc of dupeFilmContacts) {
-            const key = `${fc.film_id}|${fc.film_type}|${fc.contact_type}`
-            if (!keeperAssignments.has(key)) {
-              // Reassign to keeper
-              await supabase
-                .from('film_contacts')
-                .update({ contact_id: keeper.id })
-                .eq('id', fc.id)
-              totalReassigned++
-              keeperAssignments.add(key)
-            } else {
-              // Duplicate assignment — just delete it
-              await supabase
-                .from('film_contacts')
-                .delete()
-                .eq('id', fc.id)
-            }
-          }
-        }
-
-        // Delete the duplicate contacts
-        const { error: deleteError } = await supabase
-          .from('contacts')
-          .delete()
-          .in('id', dupeIds)
-
-        if (deleteError) {
-          console.error(`Error deleting duplicates for ${email}:`, deleteError)
-        } else {
-          totalDeleted += dupeIds.length
-        }
-      }
-
-      setUploadStatus(`Successfully deduplicated: removed ${totalDeleted} duplicate contacts across ${duplicateGroups.length} email groups${totalReassigned > 0 ? `, reassigned ${totalReassigned} film assignments` : ''}.`)
-
-      // Reload
-      if (viewMode === 'by-contact') {
-        loadContacts()
-      } else {
-        loadFilms()
-      }
-    } catch (error) {
-      console.error('Dedup error:', error)
-      setUploadStatus(`Error: ${error instanceof Error ? error.message : String(error)}`)
-    } finally {
-      setDeduplicating(false)
-    }
-  }
-
   const handleFilmClick = (filmData: any) => {
     setSelectedFilm(filmData)
     setShowFilmCard(true)
@@ -1392,13 +1275,6 @@ export default function ContactsPage() {
                     className="hidden"
                   />
                 </label>
-                <button
-                  onClick={handleDeduplicateContacts}
-                  disabled={deduplicating}
-                  className="px-4 py-2 rounded-md transition-colors font-medium bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
-                >
-                  {deduplicating ? 'Deduplicating...' : 'Deduplicate Contacts'}
-                </button>
               </>
             )}
             {canEditContacts && (
