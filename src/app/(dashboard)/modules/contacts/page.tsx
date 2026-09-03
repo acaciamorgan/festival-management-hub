@@ -8,6 +8,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { ContactCard } from '@/types'
 import { ContactFormModal } from '@/components/forms/contact-form-modal'
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
+import { FilmEditModal } from '@/components/forms/film-edit-modal'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { isCSVRowStrikethrough } from '@/lib/excel-utils'
 import * as XLSX from 'xlsx-js-style'
@@ -54,6 +55,8 @@ export default function ContactsPage() {
   const [editingContact, setEditingContact] = useState<ContactCard | null>(null)
   const [selectedFilm, setSelectedFilm] = useState<any>(null)
   const [showFilmCard, setShowFilmCard] = useState(false)
+  const [editingFilm, setEditingFilm] = useState<any>(null)
+  const [editingFilmType, setEditingFilmType] = useState<'feature' | 'short'>('feature')
   const [existingFilms, setExistingFilms] = useState<Set<string>>(new Set())
   
   // Film assignment modal state
@@ -178,7 +181,7 @@ export default function ContactsPage() {
           .order('title'),
         supabase
           .from('film_contacts')
-          .select('film_id, film_type, name, company, email, contact_type')
+          .select('film_id, film_type, name, company, email, contact_type, contact_id')
           .eq('festival_year', currentYear)
       ])
 
@@ -200,7 +203,8 @@ export default function ContactsPage() {
           name: contact.name,
           company: contact.company,
           email: contact.email,
-          contact_type: contact.contact_type
+          contact_type: contact.contact_type,
+          contact_id: contact.contact_id
         })
       }
 
@@ -800,6 +804,38 @@ export default function ContactsPage() {
   const handleFilmClick = (filmData: any) => {
     setSelectedFilm(filmData)
     setShowFilmCard(true)
+  }
+
+  const handleFilmEdit = async (filmData: any) => {
+    // Fetch full film data for the edit modal
+    const table = filmData.film_type === 'short' ? 'short_films' : 'feature_films'
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .eq('id', filmData.id)
+      .single()
+
+    if (error || !data) {
+      console.error('Error loading film for editing:', error)
+      return
+    }
+    setEditingFilm(data)
+    setEditingFilmType(filmData.film_type)
+  }
+
+  const handleContactNameClick = async (contactId: string) => {
+    if (!contactId) return
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('id', contactId)
+      .single()
+
+    if (error || !data) {
+      console.error('Error loading contact for editing:', error)
+      return
+    }
+    setEditingContact(data)
   }
 
   // Filter and search
@@ -1494,25 +1530,40 @@ export default function ContactsPage() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {sortedFilms.map((film) => {
                       // Consolidate all contacts into comma-separated values
-                      const contactNames = film.contacts?.map(c => c.name).filter(Boolean).join(', ') || 'No contacts'
-                      const contactCompanies = film.contacts?.map(c => c.company).filter(Boolean).join(', ') || '-'
-                      const contactEmails = film.contacts?.map(c => c.email).filter(Boolean).join(', ') || '-'
-                      const contactTypes = film.contacts?.map(c => c.contact_type).filter(Boolean).join(', ') || '-'
+                      const contacts = film.contacts || []
+                      const contactCompanies = contacts.map(c => c.company).filter(Boolean).join(', ') || '-'
+                      const contactEmails = contacts.map(c => c.email).filter(Boolean).join(', ') || '-'
 
                       return (
                         <tr key={film.id} className="hover:bg-gray-50">
                           <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['title'] || 300}px`, width: `${columnWidths['title'] || 300}px` }}>
                             <button
-                              onClick={() => handleFilmClick(film)}
+                              onClick={() => handleFilmEdit(film)}
                               className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
                             >
                               {film.title}
                             </button>
                           </td>
                           <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_name'] || 200}px`, width: `${columnWidths['contact_name'] || 200}px` }}>
-                            <span className={contactNames === 'No contacts' ? 'text-gray-400 italic' : 'font-medium text-gray-900'}>
-                              {contactNames}
-                            </span>
+                            {contacts.length > 0 ? (
+                              contacts.map((c, index) => (
+                                <span key={c.contact_id || index}>
+                                  {c.contact_id ? (
+                                    <button
+                                      onClick={() => handleContactNameClick(c.contact_id)}
+                                      className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
+                                    >
+                                      {c.name}
+                                    </button>
+                                  ) : (
+                                    <span className="font-medium text-gray-900">{c.name}</span>
+                                  )}
+                                  {index < contacts.length - 1 && ', '}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-gray-400 italic">No contacts</span>
+                            )}
                           </td>
                           <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['contact_company'] || 200}px`, width: `${columnWidths['contact_company'] || 200}px` }}>
                             <span className={contactCompanies === '-' ? 'text-gray-400' : 'text-gray-900'}>
@@ -1578,7 +1629,7 @@ export default function ContactsPage() {
       {/* Contact Form Modal */}
       <ContactFormModal
         contact={editingContact}
-        isOpen={showAddModal}
+        isOpen={showAddModal || !!editingContact}
         onClose={() => {
           setShowAddModal(false)
           setEditingContact(null)
@@ -1586,7 +1637,27 @@ export default function ContactsPage() {
         onSave={() => {
           setShowAddModal(false)
           setEditingContact(null)
-          loadContacts()
+          if (viewMode === 'by-contact') {
+            loadContacts()
+          } else {
+            loadFilms()
+          }
+        }}
+      />
+
+      {/* Film Edit Modal */}
+      <FilmEditModal
+        film={editingFilm}
+        filmType={editingFilmType}
+        isOpen={!!editingFilm}
+        onClose={() => setEditingFilm(null)}
+        onSave={() => {
+          setEditingFilm(null)
+          loadFilms()
+        }}
+        onDelete={() => {
+          setEditingFilm(null)
+          loadFilms()
         }}
       />
 
