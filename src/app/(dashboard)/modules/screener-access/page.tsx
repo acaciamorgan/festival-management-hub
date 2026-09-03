@@ -330,39 +330,34 @@ export default function ScreenerAccessPage() {
   const sortedFilms = useMemo(() => {
     if (!sortConfig) return filteredFilms
 
+    const getSortValue = (film: UnifiedFilm, key: string): string => {
+      switch (key) {
+        case 'title':
+          return film.title.replace(/^(The |A |An )/i, '').toLowerCase().trim()
+        case 'contacts':
+          return film.contacts.map(c => c.name).join(', ').toLowerCase()
+        case 'all_emails':
+          return film.contacts.map(c => c.email).filter(Boolean).join(', ').toLowerCase()
+        case 'access_type':
+          return film.screener_data?.access_type || 'tbd'
+        case 'link':
+          return film.screener_data?.link_url || ''
+        case 'password':
+          return film.screener_data?.link_password || ''
+        case 'instructions_sent':
+          return film.screener_data?.cinesend_instructions_sent ? '1' : '0'
+        case 'uploaded':
+          return film.screener_data?.cinesend_uploaded ? '1' : '0'
+        default:
+          return ''
+      }
+    }
+
     return [...filteredFilms].sort((a, b) => {
-      // For programs, sort by program number first
-      if (a.isProgram && b.isProgram && a.program_number && b.program_number) {
-        return (a.program_number - b.program_number) * (sortConfig.direction === 'asc' ? 1 : -1)
-      }
-
-      // For mixed or feature films, sort by title
-      const aVal = a[sortConfig.key as keyof UnifiedFilm]
-      const bVal = b[sortConfig.key as keyof UnifiedFilm]
-
-      if (aVal == null && bVal == null) return 0
-      if (aVal == null) return 1
-      if (bVal == null) return -1
-
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        // If sorting by title, ignore articles
-        if (sortConfig.key === 'title') {
-          const getTitleForSort = (title: string) => {
-            return title.replace(/^(The |A |An )/i, '').toLowerCase().trim()
-          }
-          const aSortTitle = getTitleForSort(aVal)
-          const bSortTitle = getTitleForSort(bVal)
-          const result = aSortTitle.localeCompare(bSortTitle)
-          return sortConfig.direction === 'asc' ? result : -result
-        } else {
-          const result = aVal.localeCompare(bVal)
-          return sortConfig.direction === 'asc' ? result : -result
-        }
-      }
-
-      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1
-      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1
-      return 0
+      const aVal = getSortValue(a, sortConfig.key)
+      const bVal = getSortValue(b, sortConfig.key)
+      const result = aVal.localeCompare(bVal)
+      return sortConfig.direction === 'asc' ? result : -result
     })
   }, [filteredFilms, sortConfig])
 
@@ -812,13 +807,13 @@ export default function ScreenerAccessPage() {
               <tr>
                 {[
                   { key: 'title', label: 'Film Title / Shorts Program', width: 180, sortable: true },
-                  { key: 'contacts', label: 'Contacts', width: 160, sortable: false },
-                  { key: 'all_emails', label: 'All Emails', width: 200, sortable: false },
+                  { key: 'contacts', label: 'Contacts', width: 160, sortable: true },
+                  { key: 'all_emails', label: 'All Emails', width: 200, sortable: true },
                   { key: 'access_type', label: 'Access Type', width: 120, sortable: true },
-                  { key: 'link', label: 'Link', width: 180, sortable: false },
-                  { key: 'password', label: 'Password', width: 100, sortable: false },
-                  { key: 'instructions_sent', label: 'Instructions Sent', width: 110, sortable: false },
-                  { key: 'uploaded', label: 'Uploaded', width: 90, sortable: false }
+                  { key: 'link', label: 'Link', width: 180, sortable: true },
+                  { key: 'password', label: 'Password', width: 100, sortable: true },
+                  { key: 'instructions_sent', label: 'Instructions Sent', width: 110, sortable: true },
+                  { key: 'uploaded', label: 'Uploaded', width: 90, sortable: true }
                 ].map((column) => (
                     <th
                       key={column.key}

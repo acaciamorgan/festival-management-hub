@@ -1046,6 +1046,12 @@ export function FilmEditModal({ film, filmType, isOpen, onClose, onSave, onDelet
                       <option value="Distributor/Studio">Distributor/Studio</option>
                       <option value="Production Team">Production Team</option>
                       <option value="Publicity">Publicity</option>
+                      <option value="Sales Agent">Sales Agent</option>
+                      <option value="Filmmaker">Filmmaker</option>
+                      <option value="Producer">Producer</option>
+                      <option value="Director">Director</option>
+                      <option value="Print Traffic">Print Traffic</option>
+                      <option value="Festival">Festival</option>
                       <option value="Other">Other</option>
                     </select>
                   </div>
