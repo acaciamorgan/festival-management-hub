@@ -12,6 +12,7 @@ import { GuestCardPopup } from '@/components/cards/guest-card-popup'
 import { InterviewFormModal } from '@/components/forms/interview-form-modal'
 import { createAccentInsensitiveFilter } from '@/lib/search-utils'
 import { matchSubjectsToGuests } from '@/lib/guest-matching'
+import { parseSmartDate, parseSmartTime } from '@/lib/smart-date-parser'
 
 export default function InterviewManagementPage() {
   const { user } = useAuth()
@@ -383,16 +384,31 @@ export default function InterviewManagementPage() {
     if (!editingCell) return
 
     try {
+      let valueToSave = editValue
+
+      // Parse date/time fields before saving
+      if (editingCell.field === 'interview_date' && editValue) {
+        const parsed = parseSmartDate(editValue, currentYear.toString())
+        if (parsed) {
+          valueToSave = parsed
+        }
+      } else if (editingCell.field === 'interview_time' && editValue) {
+        const parsed = parseSmartTime(editValue)
+        if (parsed) {
+          valueToSave = parsed
+        }
+      }
+
       const { error } = await supabase
         .from('interviews')
-        .update({ [editingCell.field]: editValue })
+        .update({ [editingCell.field]: valueToSave || null })
         .eq('id', editingCell.interviewId)
 
       if (error) throw error
 
-      setInterviews(prev => prev.map(interview => 
-        interview.id === editingCell.interviewId 
-          ? { ...interview, [editingCell.field]: editValue } 
+      setInterviews(prev => prev.map(interview =>
+        interview.id === editingCell.interviewId
+          ? { ...interview, [editingCell.field]: valueToSave }
           : interview
       ))
 
@@ -414,9 +430,11 @@ export default function InterviewManagementPage() {
     const isEditing = editingCell?.interviewId === interview.id && editingCell?.field === field
 
     if (isEditing) {
+      const placeholder = inputType === 'date' ? '9/10, Sept 10...' :
+                          inputType === 'time' ? '10am, 3:30 PM...' : ''
       return (
         <input
-          type={inputType}
+          type="text"
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
           onKeyDown={(e) => {
@@ -424,6 +442,7 @@ export default function InterviewManagementPage() {
             if (e.key === 'Escape') handleCellCancel()
           }}
           onBlur={handleCellSave}
+          placeholder={placeholder}
           className="w-full px-1 py-0 text-sm border border-blue-500 rounded focus:outline-none"
           autoFocus
         />

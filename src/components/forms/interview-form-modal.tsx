@@ -7,6 +7,7 @@ import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { InterviewCard, InterviewStatus, PressCard } from '@/types'
 import { ChipSelect, ChipItem, ChipSelectSuggestion } from '@/components/ui/chip-select'
 import { useModalDrag } from '@/hooks/use-modal-drag'
+import { parseSmartDate, parseSmartTime } from '@/lib/smart-date-parser'
 
 interface InterviewFormModalProps {
   interview: InterviewCard | null
@@ -286,6 +287,43 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     }
   }, [selectedFilms.length, loadFilmGuests, interview])
 
+  // Date/time blur handlers — parse natural input into DB format
+  const handleDateBlur = () => {
+    if (!interviewDate) return
+    const parsed = parseSmartDate(interviewDate, currentYear.toString())
+    if (parsed) {
+      setInterviewDate(parsed)
+    }
+  }
+
+  const handleTimeBlur = () => {
+    if (!interviewTime) return
+    const parsed = parseSmartTime(interviewTime)
+    if (parsed) {
+      setInterviewTime(parsed)
+    }
+  }
+
+  // Format helpers for preview display
+  const formatDatePreview = (dateStr: string): string | null => {
+    if (!dateStr) return null
+    const parsed = parseSmartDate(dateStr, currentYear.toString())
+    if (!parsed || !/^\d{4}-\d{2}-\d{2}$/.test(parsed)) return null
+    const [y, m, d] = parsed.split('-').map(Number)
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    return `${monthNames[m - 1]} ${d}, ${y}`
+  }
+
+  const formatTimePreview = (timeStr: string): string | null => {
+    if (!timeStr) return null
+    const parsed = parseSmartTime(timeStr)
+    if (!parsed) return null
+    const [h, m] = parsed.split(':').map(Number)
+    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    return `${hour12}:${m.toString().padStart(2, '0')} ${ampm}`
+  }
+
   // Journalist selection
   const handleJournalistSelect = (press: PressCard) => {
     setPressId(press.id)
@@ -326,6 +364,10 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
       const subjectNames = allNames.join(', ') || null
       const hasAnyGuestIds = subjectGuestIds.some(id => id !== null)
 
+      // Parse date/time before saving (safety net — blur handlers should have already parsed)
+      const parsedDate = interviewDate ? parseSmartDate(interviewDate, currentYear.toString()) : null
+      const parsedTime = interviewTime ? parseSmartTime(interviewTime) : null
+
       // Shared fields across all records
       const sharedData = {
         custom_title: selectedFilms.length === 0 ? (customTitle.trim() || null) : null,
@@ -336,8 +378,8 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         subject_names: subjectNames,
         subject_guest_ids: hasAnyGuestIds ? subjectGuestIds : null,
         status,
-        interview_date: interviewDate || null,
-        interview_time: interviewTime || null,
+        interview_date: parsedDate,
+        interview_time: parsedTime,
         duration_minutes: durationMinutes ? parseInt(durationMinutes) : null,
         venue_id: venueId || null,
         location: location || null,
@@ -618,10 +660,17 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                   type="text"
                   value={interviewDate}
                   onChange={(e) => setInterviewDate(e.target.value)}
-                  placeholder="MM/DD/YYYY or any date format"
+                  onBlur={handleDateBlur}
+                  placeholder="9/10, Sept 10, 09/10/2026..."
                   readOnly={status === 'Complete'}
                   className={`w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
                 />
+                {interviewDate && formatDatePreview(interviewDate) && (
+                  <p className="mt-1 text-xs text-green-600">{formatDatePreview(interviewDate)}</p>
+                )}
+                {interviewDate && !formatDatePreview(interviewDate) && !/^\d{4}-\d{2}-\d{2}$/.test(interviewDate) && (
+                  <p className="mt-1 text-xs text-red-500">Couldn't parse — try 9/10 or Sept 10</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
@@ -629,10 +678,17 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
                   type="text"
                   value={interviewTime}
                   onChange={(e) => setInterviewTime(e.target.value)}
-                  placeholder="e.g. 3:00 PM"
+                  onBlur={handleTimeBlur}
+                  placeholder="10am, 3:30 PM, noon..."
                   readOnly={status === 'Complete'}
                   className={`w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${status === 'Complete' ? 'bg-gray-100 text-gray-600' : ''}`}
                 />
+                {interviewTime && formatTimePreview(interviewTime) && (
+                  <p className="mt-1 text-xs text-green-600">{formatTimePreview(interviewTime)}</p>
+                )}
+                {interviewTime && !formatTimePreview(interviewTime) && !/^\d{2}:\d{2}$/.test(interviewTime) && (
+                  <p className="mt-1 text-xs text-red-500">Couldn't parse — try 10am or 3:30 PM</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Length (mins)</label>

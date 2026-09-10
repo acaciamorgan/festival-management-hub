@@ -140,6 +140,51 @@ export function parseSmartDate(input: string | null | undefined, festivalYear: s
 }
 
 /**
+ * Parse various time formats into HH:MM (24-hour) format for database storage
+ * Handles: 10am, 10 am, 10AM, 10 a.m., 3:30pm, 3:30 PM, 15:00, noon, midnight
+ */
+export function parseSmartTime(input: string | null | undefined): string | null {
+  if (!input || input.trim() === '') return null
+
+  const trimmed = input.trim()
+
+  // Already in HH:MM or HH:MM:SS 24-hour format
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+    const parts = trimmed.split(':')
+    const hours = parseInt(parts[0])
+    const minutes = parts[1]
+    if (hours >= 0 && hours <= 23 && parseInt(minutes) >= 0 && parseInt(minutes) <= 59) {
+      return `${hours.toString().padStart(2, '0')}:${minutes}`
+    }
+  }
+
+  // Handle "noon" and "midnight"
+  const lower = trimmed.toLowerCase()
+  if (lower === 'noon' || lower === '12 noon') return '12:00'
+  if (lower === 'midnight' || lower === '12 midnight') return '00:00'
+
+  // Handle formats with AM/PM variations: 10am, 10 am, 10AM, 10 a.m., 3:30pm, 3:30 p.m., etc.
+  const timeMatch = lower.match(/^(\d{1,2})(?::(\d{2}))?\s*([ap]\.?\s*m\.?)$/i)
+  if (timeMatch) {
+    let hours = parseInt(timeMatch[1])
+    const minutes = timeMatch[2] || '00'
+    const isPM = timeMatch[3].startsWith('p')
+
+    if (hours < 1 || hours > 12 || parseInt(minutes) > 59) {
+      return null
+    }
+
+    if (isPM && hours !== 12) hours += 12
+    if (!isPM && hours === 12) hours = 0
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.padStart(2, '0')}`
+  }
+
+  // If nothing matched, return null (invalid)
+  return null
+}
+
+/**
  * Async wrapper that fetches festival year and parses date
  * Use this when you don't already have the festival year
  * @param input - Date string to parse
