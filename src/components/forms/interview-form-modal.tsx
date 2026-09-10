@@ -46,6 +46,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
   const [interviewDate, setInterviewDate] = useState('')
   const [interviewTime, setInterviewTime] = useState('')
   const [durationMinutes, setDurationMinutes] = useState('')
+  const [customTitle, setCustomTitle] = useState('')
   const [venueId, setVenueId] = useState('')
   const [location, setLocation] = useState('')
   const [showOnSpecialEvents, setShowOnSpecialEvents] = useState(false)
@@ -78,7 +79,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
           supabase.from('short_films').select('id, title, shorts_program_id, shorts_programs!inner(id, program_name)').eq('festival_year', currentYear).order('title'),
           supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
           supabase.from('press').select('id, name, media_outlet, email').eq('festival_year', currentYear).order('name'),
-          supabase.from('venues').select('id, name').order('name'),
+          supabase.from('venues').select('id, name').eq('festival_year', currentYear).order('name'),
         ])
 
         const films: FilmOption[] = [
@@ -156,6 +157,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
       setInterviewDate(interview.interview_date || '')
       setInterviewTime(interview.interview_time || '')
       setDurationMinutes(interview.duration_minutes?.toString() || '')
+      setCustomTitle(interview.custom_title || '')
       setVenueId(interview.venue_id || '')
       setLocation(interview.location || '')
       setShowOnSpecialEvents(interview.show_on_special_events || false)
@@ -173,6 +175,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
       setInterviewDate('')
       setInterviewTime('')
       setDurationMinutes('')
+      setCustomTitle('')
       setVenueId('')
       setLocation('')
       setShowOnSpecialEvents(false)
@@ -307,8 +310,8 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (selectedFilms.length === 0) {
-      alert('Please select at least one film or program')
+    if (selectedFilms.length === 0 && !customTitle.trim()) {
+      alert('Please select a film/program or enter a topic')
       return
     }
 
@@ -325,6 +328,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
 
       // Shared fields across all records
       const sharedData = {
+        custom_title: selectedFilms.length === 0 ? (customTitle.trim() || null) : null,
         press_id: pressId || null,
         journalist_name: pressId ? null : (journalistName || null), // Only cache if no press link
         outlet: pressId ? null : (outlet || null),
@@ -342,10 +346,18 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         festival_year: currentYear,
       }
 
+      const nullFilmFields = {
+        film_id: null,
+        short_film_id: null,
+        shorts_program_id: null,
+        program_id: null,
+      }
+
       if (interview) {
         // Editing: update the single existing record
-        const film = selectedFilms[0]
-        const filmFields = getFilmFields(film)
+        const filmFields = selectedFilms.length > 0
+          ? getFilmFields(selectedFilms[0])
+          : nullFilmFields
 
         const { error } = await supabase
           .from('interviews')
@@ -353,7 +365,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
           .eq('id', interview.id)
 
         if (error) throw error
-      } else {
+      } else if (selectedFilms.length > 0) {
         // Creating: one record per selected film
         const records = selectedFilms.map(film => ({
           ...sharedData,
@@ -362,6 +374,14 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
         }))
 
         const { error } = await supabase.from('interviews').insert(records)
+        if (error) throw error
+      } else {
+        // Creating: single record with custom title, no film
+        const { error } = await supabase.from('interviews').insert({
+          ...sharedData,
+          ...nullFilmFields,
+          created_by: user?.id,
+        })
         if (error) throw error
       }
 
@@ -439,12 +459,14 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
           <div className="mb-4">
             <ChipSelect
               items={selectedFilms}
-              onChange={handleFilmsChange}
+              onChange={(items) => {
+                handleFilmsChange(items)
+                if (items.length > 0) setCustomTitle('')
+              }}
               onSearch={handleFilmSearch}
               label={interview ? 'Title' : 'Title(s)'}
               placeholder="Search films and programs..."
-              required
-              helpText={interview ? undefined : 'Select multiple films to create one interview record per film'}
+              helpText={interview ? undefined : 'Select films, or leave empty and enter a topic below'}
               disabled={!!interview} // Don't change film when editing
             />
             {!interview && selectedFilms.length > 1 && (
@@ -453,6 +475,21 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
               </p>
             )}
           </div>
+
+          {/* Topic (when no film selected) */}
+          {selectedFilms.length === 0 && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Topic</label>
+              <input
+                type="text"
+                value={customTitle}
+                onChange={(e) => setCustomTitle(e.target.value)}
+                placeholder="e.g. Festival Programming, Programmer Q&A..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">Required when no film/program is selected</p>
+            </div>
+          )}
 
           {/* Journalist Selection */}
           <div className="mb-4">

@@ -500,7 +500,7 @@ export default function SpecialEventsPage() {
 
         return {
           id: interview.id,
-          title: interview.title || 'Interview',
+          title: interview.title || interview.custom_title || 'Interview',
           event_type: 'Interview',
           event_date: interview.interview_date,
           start_time: interview.interview_time,
@@ -510,7 +510,7 @@ export default function SpecialEventsPage() {
           venue_name: interview.venues?.name || null,
           venue_address: interview.venues?.address || null,
           location_details: interview.location,
-          films_programs_display_combined: interview.title,
+          films_programs_display_combined: interview.title || interview.custom_title,
           guests_display_combined: interview.subject_names,
           lead_staff: null,
           invited_tags: null,

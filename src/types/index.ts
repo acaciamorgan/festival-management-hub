@@ -378,14 +378,15 @@ export type InterviewStatus = 'TBD' | 'Pitching' | 'Subject Pending' | 'Schedule
 export interface InterviewCard {
   id: string
 
-  // Film/Program reference (required - at least one must be present)
+  // Film/Program reference (optional - can use custom_title instead)
   film_id?: string | null
   shorts_program_id?: string | null
   program_id?: string | null
   short_film_id?: string | null
+  custom_title?: string | null    // Free-text title for non-film interviews
 
   // Resolved from view join (interviews_with_films)
-  title?: string | null           // Film/program title resolved from source tables
+  title?: string | null           // Film/program title resolved from source tables, or custom_title
   reference_type?: 'feature' | 'short' | 'shorts_program' | 'program' | null
 
   // Journalist (can link to press card or be open text)
