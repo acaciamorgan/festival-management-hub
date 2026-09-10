@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react'
 
 export interface ChipItem {
   id?: string        // FK to source table (undefined for free-text entries)
@@ -14,6 +14,13 @@ export interface ChipSelectSuggestion {
   label: string
   sublabel?: string
   type?: string
+}
+
+export interface ChipSelectHandle {
+  /** Returns any uncommitted text sitting in the search input */
+  getUncommittedText: () => string
+  /** Commits any uncommitted free text as a chip and returns it */
+  flush: () => ChipItem | null
 }
 
 interface ChipSelectProps {
@@ -36,7 +43,7 @@ interface ChipSelectProps {
   helpText?: string
 }
 
-export function ChipSelect({
+export const ChipSelect = forwardRef<ChipSelectHandle, ChipSelectProps>(function ChipSelect({
   items,
   onChange,
   placeholder = 'Search or type...',
@@ -48,7 +55,7 @@ export function ChipSelect({
   minSearchLength = 1,
   disabled = false,
   helpText,
-}: ChipSelectProps) {
+}: ChipSelectProps, ref: React.Ref<ChipSelectHandle>) {
   const [search, setSearch] = useState('')
   const [suggestions, setSuggestions] = useState<ChipSelectSuggestion[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
@@ -56,6 +63,8 @@ export function ChipSelect({
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef('')  // always-current search value for blur/flush
+  const skipBlurCommitRef = useRef(false)  // prevents blur commit when clicking a suggestion
 
   // Load suggestions when search changes
   useEffect(() => {
@@ -104,6 +113,7 @@ export function ChipSelect({
 
     onChange([...items, item])
     setSearch('')
+    searchRef.current = ''
     setSuggestions([])
     setShowDropdown(false)
     setHighlightedIndex(-1)
@@ -115,17 +125,47 @@ export function ChipSelect({
     onChange(newItems)
   }, [items, onChange])
 
+  // Expose flush() so the parent form can capture uncommitted text before saving
+  useImperativeHandle(ref, () => ({
+    getUncommittedText: () => searchRef.current,
+    flush: () => {
+      const text = searchRef.current.trim()
+      if (!text || !allowFreeText) return null
+      const item: ChipItem = { label: text }
+      addItem(item)
+      return item
+    },
+  }), [addItem, allowFreeText])
+
+  // Commit free text on blur (when user tabs/clicks away)
+  const handleInputBlur = useCallback(() => {
+    if (skipBlurCommitRef.current) {
+      skipBlurCommitRef.current = false
+      return
+    }
+    // Small delay so suggestion clicks can clear searchRef first
+    setTimeout(() => {
+      const text = searchRef.current.trim()
+      if (allowFreeText && text) {
+        addItem({ label: text })
+      }
+    }, 150)
+  }, [allowFreeText, addItem])
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
+        // User explicitly arrowed to a suggestion — pick it
         const s = suggestions[highlightedIndex]
         addItem({ id: s.id, label: s.label, sublabel: s.sublabel, type: s.type })
+      } else if (allowFreeText && search.trim()) {
+        // No suggestion highlighted — add as free text
+        addItem({ label: search.trim() })
       } else if (suggestions.length > 0) {
+        // No free text allowed, pick first suggestion as fallback
         const s = suggestions[0]
         addItem({ id: s.id, label: s.label, sublabel: s.sublabel, type: s.type })
-      } else if (allowFreeText && search.trim()) {
-        addItem({ label: search.trim() })
       }
     } else if (e.key === 'Backspace' && search === '' && items.length > 0) {
       removeItem(items.length - 1)
@@ -209,6 +249,7 @@ export function ChipSelect({
           value={search}
           onChange={(e) => {
             setSearch(e.target.value)
+            searchRef.current = e.target.value
             setHighlightedIndex(-1)
           }}
           onFocus={() => {
@@ -216,6 +257,7 @@ export function ChipSelect({
               setShowDropdown(true)
             }
           }}
+          onBlur={handleInputBlur}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
@@ -238,6 +280,7 @@ export function ChipSelect({
                 <button
                   key={suggestion.id}
                   type="button"
+                  onMouseDown={() => { skipBlurCommitRef.current = true }}
                   onClick={() => {
                     addItem({
                       id: suggestion.id,
@@ -274,4 +317,4 @@ export function ChipSelect({
       )}
     </div>
   )
-}
+})

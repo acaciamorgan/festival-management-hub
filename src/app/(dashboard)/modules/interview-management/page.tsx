@@ -682,7 +682,7 @@ export default function InterviewManagementPage() {
                   <tr key={interview.id} className="hover:bg-gray-50">
                     {/* Title */}
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['title'] || 200}px` }}>
-                      {interview.title && !interview.title.includes(',') ? (
+                      {interview.title && interview.reference_type && !interview.title.includes(',') ? (
                         <button
                           onClick={() => handleFilmClick(interview)}
                           className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
@@ -690,7 +690,7 @@ export default function InterviewManagementPage() {
                           {interview.title}
                         </button>
                       ) : (
-                        <span className="font-medium">{interview.title}</span>
+                        <span className="font-medium">{interview.title || '—'}</span>
                       )}
                     </td>
                     
