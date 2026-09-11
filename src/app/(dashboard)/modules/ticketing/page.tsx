@@ -671,11 +671,32 @@ export default function TicketingPage() {
 
       const lines = text.split('\n').filter(line => line.trim())
       const allRows = lines.map(line => parseCSVLine(line))
-      const headers = allRows[0]
+      const rawHeaders = allRows[0]
 
-      if (!headers.includes('Title') || !headers.includes('Date') || !headers.includes('Start Time')) {
-        alert('CSV must contain Title, Date, and Start Time columns')
+      // Normalize headers: case-insensitive lookup, support "Film Title" as alias for "Title"
+      const headerMap: Record<string, number> = {}
+      rawHeaders.forEach((h, i) => {
+        const normalized = h.toLowerCase().trim()
+        if (normalized === 'film title') headerMap['Title'] = i
+        else if (normalized === 'title' && !('Title' in headerMap)) headerMap['Title'] = i
+        else if (normalized === 'date') headerMap['Date'] = i
+        else if (normalized === 'start time') headerMap['Start Time'] = i
+        else if (normalized === 'day') headerMap['Day'] = i
+        else if (normalized === 'location') headerMap['Location'] = i
+        else if (normalized === 'running time') headerMap['Running Time'] = i
+        else if (normalized === 'capacity') headerMap['Capacity'] = i
+        else if (normalized === 'notes') headerMap['Notes'] = i
+      })
+
+      if (!('Title' in headerMap) || !('Date' in headerMap) || !('Start Time' in headerMap)) {
+        alert('CSV must contain Title (or Film Title), Date, and Start Time columns')
         return
+      }
+
+      // Build a headers array compatible with indexOf lookups used below
+      const headers: string[] = []
+      for (const [name, idx] of Object.entries(headerMap)) {
+        headers[idx] = name
       }
 
       // Filter out strikethrough rows
