@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
 import { InterviewCard, InterviewStatus, PressCard } from '@/types'
-import { ChipSelect, ChipItem, ChipSelectSuggestion } from '@/components/ui/chip-select'
+import { ChipSelect, ChipItem, ChipSelectSuggestion, ChipSelectHandle } from '@/components/ui/chip-select'
 import { useModalDrag } from '@/hooks/use-modal-drag'
 import { parseSmartDate, parseSmartTime } from '@/lib/smart-date-parser'
 
@@ -33,6 +33,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
 
   // Subject chips - guest-linked (with id) and free-text (without id)
   const [subjectChips, setSubjectChips] = useState<ChipItem[]>([])
+  const subjectChipRef = useRef<ChipSelectHandle>(null)
 
   // Journalist - either linked to press card or manual text
   const [pressId, setPressId] = useState<string>('')
@@ -356,11 +357,20 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     setLoading(true)
     try {
 
+      // Capture any uncommitted text from the subject input
+      let finalSubjectChips = [...subjectChips]
+      if (subjectChipRef.current) {
+        const uncommitted = subjectChipRef.current.getUncommittedText().trim()
+        if (uncommitted && !finalSubjectChips.some(c => !c.id && c.label === uncommitted)) {
+          finalSubjectChips.push({ label: uncommitted })
+        }
+      }
+
       // Build subject data from chips — positionally aligned arrays
       // subject_guest_ids[i] corresponds to subject_names.split(', ')[i]
       // Free-text entries get null in the IDs array to maintain alignment
-      const allNames = subjectChips.map(c => c.label)
-      const subjectGuestIds = subjectChips.map(c => c.id || null)
+      const allNames = finalSubjectChips.map(c => c.label)
+      const subjectGuestIds = finalSubjectChips.map(c => c.id || null)
       const subjectNames = allNames.join(', ') || null
       const hasAnyGuestIds = subjectGuestIds.some(id => id !== null)
 
@@ -615,6 +625,7 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
           {/* Subject Selection — chip-based with guest autocomplete */}
           <div className="mb-4">
             <ChipSelect
+              ref={subjectChipRef}
               items={subjectChips}
               onChange={setSubjectChips}
               onSearch={handleSubjectSearch}
