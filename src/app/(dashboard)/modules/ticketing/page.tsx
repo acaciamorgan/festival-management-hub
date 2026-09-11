@@ -781,7 +781,7 @@ export default function TicketingPage() {
           if (ampm === 'PM' && hours !== 12) hours += 12
           if (ampm === 'AM' && hours === 12) hours = 0
           
-          const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes}`
+          const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes}:00`
 
           // Step 1: Check for duplicate screening (same date/time/venue)
           const { data: existingScreening, error: duplicateCheckError } = await supabase
