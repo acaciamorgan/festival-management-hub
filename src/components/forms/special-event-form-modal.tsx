@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
-import { SpecialEventCard, EventType, OpenPressType } from '@/types'
+import { SpecialEventCard, OpenPressType } from '@/types'
+import { EventTypeRecord, AVAILABLE_COLORS, getColorDotClass } from '@/lib/event-type-colors'
 import { ChipSelect, ChipItem, ChipSelectSuggestion } from '@/components/ui/chip-select'
 import { useModalDrag } from '@/hooks/use-modal-drag'
 
@@ -23,7 +24,7 @@ interface FilmOption {
 
 interface SpecialEventFormData {
   title: string
-  event_type: EventType | ''
+  event_type: string
   event_date: string
   access_time: string
   start_time: string
@@ -96,6 +97,13 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
   const [availableVenues, setAvailableVenues] = useState<{id: string, name: string, address: string, contact_names?: string[], contact_phones?: string[]}[]>([])
   const [existingInvitedTags, setExistingInvitedTags] = useState<string[]>([])
 
+  // Event types from DB
+  const [eventTypes, setEventTypes] = useState<EventTypeRecord[]>([])
+  const [showAddType, setShowAddType] = useState(false)
+  const [newTypeName, setNewTypeName] = useState('')
+  const [newTypeColor, setNewTypeColor] = useState('gray')
+  const [addTypeError, setAddTypeError] = useState('')
+
   // Invited tags suggestions
   const [showInvitedSuggestions, setShowInvitedSuggestions] = useState(false)
   const [filteredInvitedSuggestions, setFilteredInvitedSuggestions] = useState<string[]>([])
@@ -106,13 +114,14 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
   useEffect(() => {
     const loadSuggestionData = async () => {
       try {
-        const [featureFilms, shortFilms, shortsPrograms, programs, venues, existingEvents] = await Promise.all([
+        const [featureFilms, shortFilms, shortsPrograms, programs, venues, existingEvents, eventTypesResult] = await Promise.all([
           supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
           supabase.from('short_films').select('id, title').eq('festival_year', currentYear).order('title'),
           supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear).order('program_name'),
           supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
           supabase.from('venues').select('id, name, address, contact_names, contact_phones').eq('festival_year', currentYear).order('name'),
-          supabase.from('special_events').select('invited_tags').eq('festival_year', currentYear).not('invited_tags', 'is', null)
+          supabase.from('special_events').select('invited_tags').eq('festival_year', currentYear).not('invited_tags', 'is', null),
+          supabase.from('event_types').select('id, name, color, sort_order').order('sort_order')
         ])
 
         // Build unified film options
@@ -136,6 +145,7 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
           }
         })
         setExistingInvitedTags(Array.from(tags))
+        setEventTypes(eventTypesResult.data || [])
 
       } catch (error) {
         console.error('Error loading suggestion data:', error)
@@ -358,6 +368,29 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
       .filter(g => !existingIds.has(g.id))
       .map(g => ({ id: g.id, label: g.name }))
     setFormData(prev => ({ ...prev, guestChips: [...prev.guestChips, ...newChips] }))
+  }
+
+  // Add new event type
+  const handleAddEventType = async () => {
+    const trimmed = newTypeName.trim()
+    if (!trimmed) { setAddTypeError('Name is required'); return }
+    if (eventTypes.some(et => et.name.toLowerCase() === trimmed.toLowerCase())) {
+      setAddTypeError('This type already exists')
+      return
+    }
+    const maxSort = eventTypes.length > 0 ? Math.max(...eventTypes.map(et => et.sort_order)) : 0
+    const { data, error } = await supabase
+      .from('event_types')
+      .insert({ name: trimmed, color: newTypeColor, sort_order: maxSort + 1 })
+      .select()
+      .single()
+    if (error) { setAddTypeError('Failed to save'); return }
+    setEventTypes(prev => [...prev, data])
+    setFormData(prev => ({ ...prev, event_type: trimmed }))
+    setShowAddType(false)
+    setNewTypeName('')
+    setNewTypeColor('gray')
+    setAddTypeError('')
   }
 
   // Handle Invited tags autocomplete (smart tagging — kept as-is, not relational)
@@ -604,19 +637,72 @@ export function SpecialEventFormModal({ event, isOpen, onClose, onSave }: Specia
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
-                <select
-                  value={formData.event_type}
-                  onChange={(e) => setFormData(prev => ({ ...prev, event_type: e.target.value as EventType }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select type...</option>
-                  <option value="Reception">Reception</option>
-                  <option value="Mixer">Mixer</option>
-                  <option value="Party">Party</option>
-                  <option value="Awards">Awards</option>
-                  <option value="Other">Other</option>
-                  <option value="Media Filing">Media Filing</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={formData.event_type}
+                    onChange={(e) => setFormData(prev => ({ ...prev, event_type: e.target.value }))}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select type...</option>
+                    {eventTypes.map(et => (
+                      <option key={et.id} value={et.name}>{et.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddType(!showAddType); setAddTypeError('') }}
+                    className="px-2 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors whitespace-nowrap"
+                    title="Add new event type"
+                  >
+                    + Add
+                  </button>
+                </div>
+                {showAddType && (
+                  <div className="mt-2 p-3 border border-blue-200 rounded-md bg-blue-50/50 space-y-2">
+                    <input
+                      type="text"
+                      value={newTypeName}
+                      onChange={(e) => { setNewTypeName(e.target.value); setAddTypeError('') }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddEventType() } }}
+                      placeholder="New type name..."
+                      className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      autoFocus
+                    />
+                    <div>
+                      <span className="text-xs text-gray-500 mb-1 block">Color:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {AVAILABLE_COLORS.map(c => (
+                          <button
+                            key={c.key}
+                            type="button"
+                            onClick={() => setNewTypeColor(c.key)}
+                            className={`w-6 h-6 rounded-full ${getColorDotClass(c.key)} ${
+                              newTypeColor === c.key ? 'ring-2 ring-offset-1 ring-gray-800' : 'hover:ring-2 hover:ring-offset-1 hover:ring-gray-400'
+                            } transition-all`}
+                            title={c.label}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    {addTypeError && <p className="text-xs text-red-600">{addTypeError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleAddEventType}
+                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowAddType(false); setNewTypeName(''); setNewTypeColor('gray'); setAddTypeError('') }}
+                        className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

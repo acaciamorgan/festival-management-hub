@@ -2,14 +2,16 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { SpecialEventCard } from '@/types'
+import { EventTypeRecord, getEventTypeColor } from '@/lib/event-type-colors'
 
 interface EventDetailsModalProps {
   event: SpecialEventCard | null
   isOpen: boolean
   onClose: () => void
+  eventTypes?: EventTypeRecord[]
 }
 
-export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalProps) {
+export function EventDetailsModal({ event, isOpen, onClose, eventTypes = [] }: EventDetailsModalProps) {
   const [position, setPosition] = useState({ x: 100, y: 100 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -110,12 +112,7 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
             <span className="text-sm font-medium text-gray-500">Type</span>
             <div className="mt-1">
               <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
-                isInterview ? 'bg-purple-100 text-purple-800' :
-                event.event_type === 'Reception' ? 'bg-blue-100 text-blue-800' :
-                event.event_type === 'Mixer' ? 'bg-green-100 text-green-800' :
-                event.event_type === 'Party' ? 'bg-pink-100 text-pink-800' :
-                event.event_type === 'Awards' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-gray-100 text-gray-800'
+                getEventTypeColor(isInterview ? 'Interview' : (event.event_type || null), eventTypes, 'badge')
               }`}>
                 {isInterview ? 'Interview' : event.event_type}
               </span>

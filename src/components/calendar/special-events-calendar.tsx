@@ -2,13 +2,15 @@
 
 import { useState, useMemo } from 'react'
 import { SpecialEventCard } from '@/types'
+import { EventTypeRecord, getEventTypeColor, getColorDotClass } from '@/lib/event-type-colors'
 
 interface SpecialEventsCalendarProps {
   events: SpecialEventCard[]
   onEventClick: (event: SpecialEventCard) => void
+  eventTypes: EventTypeRecord[]
 }
 
-export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCalendarProps) {
+export function SpecialEventsCalendar({ events, onEventClick, eventTypes }: SpecialEventsCalendarProps) {
   const [currentDate, setCurrentDate] = useState(() => {
     const now = new Date()
     return { year: now.getFullYear(), month: now.getMonth() }
@@ -148,15 +150,8 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
     return `${hour12}:${(minutes || '00').padStart(2, '0')} ${ampm}`
   }
 
-  const getEventTypeColor = (type: string | null): string => {
-    switch (type) {
-      case 'Interview': return 'bg-purple-100 text-purple-800 border-purple-300'
-      case 'Reception': return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'Mixer': return 'bg-green-100 text-green-800 border-green-200'
-      case 'Party': return 'bg-pink-100 text-pink-800 border-pink-200'
-      case 'Awards': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      default: return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
+  const getCalendarColor = (type: string | null): string => {
+    return getEventTypeColor(type, eventTypes, 'calendar')
   }
   
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
@@ -233,7 +228,7 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
                   <div
                     key={event.id}
                     onClick={() => onEventClick(event)}
-                    className={`text-xs px-2 py-1 rounded border cursor-pointer hover:opacity-80 transition-opacity ${getEventTypeColor(event.event_type)} ${tentativeStyle}`}
+                    className={`text-xs px-2 py-1 rounded border cursor-pointer hover:opacity-80 transition-opacity ${getCalendarColor(event.event_type)} ${tentativeStyle}`}
                   >
                     <div className="font-medium truncate">
                       {isInterview && <span className="mr-1">🎤</span>}
@@ -262,10 +257,14 @@ export function SpecialEventsCalendar({ events, onEventClick }: SpecialEventsCal
       <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
         <div className="flex items-center gap-x-4 gap-y-2 text-xs flex-wrap">
           <span className="font-medium text-gray-700">Event Types:</span>
-          {['Interview', 'Reception', 'Mixer', 'Party', 'Awards'].map(type => (
-            <div key={type} className="flex items-center">
-              <div className={`w-3 h-3 rounded mr-1 ${getEventTypeColor(type).replace('text-', 'bg-').split(' ')[0]}`} />
-              <span className="text-gray-600">{type === 'Interview' ? '🎤 Interview' : type}</span>
+          <div key="interview-legend" className="flex items-center">
+            <div className="w-3 h-3 rounded mr-1 bg-purple-100" />
+            <span className="text-gray-600">Interview</span>
+          </div>
+          {eventTypes.map(et => (
+            <div key={et.id} className="flex items-center">
+              <div className={`w-3 h-3 rounded mr-1 ${getColorDotClass(et.color)}`} />
+              <span className="text-gray-600">{et.name}</span>
             </div>
           ))}
           <span className="text-gray-400 mx-1">|</span>

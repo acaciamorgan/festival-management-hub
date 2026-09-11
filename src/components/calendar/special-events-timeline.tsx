@@ -2,13 +2,15 @@
 
 import { useState, useMemo } from 'react'
 import { SpecialEventCard } from '@/types'
+import { EventTypeRecord, getEventTypeColor as getETColor, getColorDotClass } from '@/lib/event-type-colors'
 
 interface SpecialEventsTimelineProps {
   events: SpecialEventCard[]
   onEventClick: (event: SpecialEventCard) => void
+  eventTypes: EventTypeRecord[]
 }
 
-export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTimelineProps) {
+export function SpecialEventsTimeline({ events, onEventClick, eventTypes }: SpecialEventsTimelineProps) {
   const [selectedVenues, setSelectedVenues] = useState<string[]>([])
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([])
   const [openPressOnly, setOpenPressOnly] = useState(false)
@@ -33,17 +35,8 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
   }, [events])
 
   // Get event type color
-  const getEventTypeColor = (type: string | null): string => {
-    switch (type) {
-      case 'Interview': return 'bg-purple-500 border-purple-600'
-      case 'Reception': return 'bg-blue-500 border-blue-600'
-      case 'Mixer': return 'bg-green-500 border-green-600'
-      case 'Party': return 'bg-pink-500 border-pink-600'
-      case 'Awards': return 'bg-yellow-500 border-yellow-600'
-      case 'Media Filing': return 'bg-orange-500 border-orange-600'
-      case 'Other': return 'bg-gray-500 border-gray-600'
-      default: return 'bg-gray-500 border-gray-600'
-    }
+  const getTimelineColor = (type: string | null): string => {
+    return getETColor(type, eventTypes, 'timeline')
   }
 
   // Filter events
@@ -299,7 +292,7 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
                                 <div
                                   key={event.id}
                                   onClick={() => onEventClick(event)}
-                                  className={`absolute top-1 bottom-1 ${getEventTypeColor(event.event_type)} text-white rounded px-2 py-1 cursor-pointer hover:opacity-90 transition-opacity border-2 overflow-hidden ${tentativeStyle}`}
+                                  className={`absolute top-1 bottom-1 ${getTimelineColor(event.event_type)} text-white rounded px-2 py-1 cursor-pointer hover:opacity-90 transition-opacity border-2 overflow-hidden ${tentativeStyle}`}
                                   style={{
                                     left: `${Math.max(0, startPercent)}%`,
                                     width: `${Math.min(100 - startPercent, widthPercent)}%`
@@ -341,12 +334,15 @@ export function SpecialEventsTimeline({ events, onEventClick }: SpecialEventsTim
       <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
         <div className="flex items-center space-x-4 text-xs flex-wrap">
           <span className="font-medium text-gray-700">Event Types:</span>
-          {allEventTypes.map(type => (
-            <div key={type} className="flex items-center">
-              <div className={`w-4 h-4 rounded mr-1 ${getEventTypeColor(type).split(' ')[0]}`} />
-              <span className="text-gray-600">{type === 'Interview' ? '🎤 Interview' : type}</span>
-            </div>
-          ))}
+          {allEventTypes.map(type => {
+            const et = eventTypes.find(e => e.name === type)
+            return (
+              <div key={type} className="flex items-center">
+                <div className={`w-4 h-4 rounded mr-1 ${et ? getColorDotClass(et.color) : type === 'Interview' ? 'bg-purple-500' : 'bg-gray-500'}`} />
+                <span className="text-gray-600">{type}</span>
+              </div>
+            )
+          })}
           <span className="text-gray-400 mx-1">|</span>
           <span className="flex items-center">
             <span className="w-5 h-4 bg-gray-400 border-2 border-gray-500 border-dashed rounded inline-block mr-1 opacity-60"></span>

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { SpecialEventCard } from '@/types'
+import { EventTypeRecord } from '@/lib/event-type-colors'
 import { SpecialEventFormModal } from '@/components/forms/special-event-form-modal'
 import { SpecialEventsCalendar } from '@/components/calendar/special-events-calendar'
 import { SpecialEventsTimeline } from '@/components/calendar/special-events-timeline'
@@ -51,6 +52,9 @@ export default function SpecialEventsPage() {
   // Calendar venue filter
   const [selectedVenues, setSelectedVenues] = useState<string[]>(['all'])
   const [availableVenues, setAvailableVenues] = useState<{id: string, name: string}[]>([])
+
+  // Event types from DB
+  const [eventTypes, setEventTypes] = useState<EventTypeRecord[]>([])
 
   // Junction data for clickable film/guest links
   const [junctionFilmsMap, setJunctionFilmsMap] = useState<Map<string, JunctionFilm[]>>(new Map())
@@ -454,7 +458,7 @@ export default function SpecialEventsPage() {
     setLoading(true)
     try {
       // Load special events, venues, and interviews
-      const [eventsResult, venuesResult, interviewsResult] = await Promise.all([
+      const [eventsResult, venuesResult, interviewsResult, eventTypesResult] = await Promise.all([
         supabase
           .from('special_events_with_details')
           .select('*')
@@ -474,12 +478,17 @@ export default function SpecialEventsPage() {
           .eq('festival_year', currentYear)
           .eq('show_on_special_events', true)
           .not('interview_date', 'is', null)
-          .order('interview_date', { ascending: true })
+          .order('interview_date', { ascending: true }),
+        supabase
+          .from('event_types')
+          .select('id, name, color, sort_order')
+          .order('sort_order')
       ])
 
       if (eventsResult.error) throw eventsResult.error
       if (venuesResult.error) throw venuesResult.error
       if (interviewsResult.error) throw interviewsResult.error
+      setEventTypes(eventTypesResult.data || [])
 
       const eventsWithDetails = (eventsResult.data || []).map(event => ({
         ...event,
@@ -1105,10 +1114,9 @@ export default function SpecialEventsPage() {
               className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Event Types</option>
-              <option value="Reception">Reception</option>
-              <option value="Mixer">Mixer</option>
-              <option value="Party">Party</option>
-              <option value="Awards">Awards</option>
+              {eventTypes.map(et => (
+                <option key={et.id} value={et.name}>{et.name}</option>
+              ))}
             </select>
 
             {/* Location Filter */}
@@ -1544,12 +1552,14 @@ export default function SpecialEventsPage() {
           <SpecialEventsTimeline
             events={filteredEvents}
             onEventClick={handleEditEvent}
+            eventTypes={eventTypes}
           />
         ) : (
           /* Calendar View */
           <SpecialEventsCalendar
             events={filteredEvents}
             onEventClick={handleEditEvent}
+            eventTypes={eventTypes}
           />
         )}
       </div>
