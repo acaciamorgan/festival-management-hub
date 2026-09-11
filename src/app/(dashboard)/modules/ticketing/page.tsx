@@ -810,18 +810,21 @@ export default function TicketingPage() {
           // Resolve film_id from filmCards by matching title
           const matchingFilm = filmCards.find(f => f.title === title)
 
-          // Step 2: Create record in ticketing_screenings
+          // Resolve capacity from venue cards by matching short code
+          const matchingVenue = venueCards.find(v => v.short_code === (location || ''))
+          const resolvedRunTime = matchingFilm?.run_time ?? (runningTime ? parseInt(runningTime) : null)
+          const resolvedCapacity = matchingVenue?.capacity ?? (capacity ? parseInt(capacity) : null)
+
+          // Step 2: Create record in ticketing_screenings (film_title and run_time were dropped from this table)
           const ticketingData = {
-            film_title: title,
             film_id: matchingFilm?.id || null,
             film_type: matchingFilm?.film_type || null,
             festival_year: currentYear,
             screening_date: formattedDate,
             day_of_week: day || getStringDayOfWeek(formattedDate),
             start_time: formattedTime,
-            run_time: runningTime ? parseInt(runningTime) : null,
             venue_short_code: location || '',
-            capacity: capacity ? parseInt(capacity) : null,
+            capacity: resolvedCapacity,
             notes: notes,
             is_published: true
           }
@@ -851,9 +854,9 @@ export default function TicketingPage() {
             screening_date: formattedDate,
             day_of_week: day || getStringDayOfWeek(formattedDate),
             start_time: formattedTime,
-            run_time: runningTime ? parseInt(runningTime) : null,
+            run_time: resolvedRunTime,
             venue_short_code: location || '',
-            capacity: capacity ? parseInt(capacity) : null,
+            capacity: resolvedCapacity,
             notes: notes,
             ticketing_screening_id: ticketingResult.id,
             film_card_id: null,
