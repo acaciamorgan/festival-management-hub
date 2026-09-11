@@ -3808,7 +3808,8 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
         const assignments = selectedShorts.map((short, index) => ({
           short_film_id: short.id,
           shorts_program_id: programId,
-          program_order: index + 1
+          program_order: index + 1,
+          festival_year: currentYear
         }))
         
         const { error: assignError } = await supabase
