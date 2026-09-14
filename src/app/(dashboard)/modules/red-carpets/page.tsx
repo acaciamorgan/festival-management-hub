@@ -64,7 +64,7 @@ export default function RedCarpetsPage() {
   // Junction data maps: carpet_id -> films/subjects with IDs
   const [junctionFilmsMap, setJunctionFilmsMap] = useState<Map<string, JunctionFilm[]>>(new Map())
   const [junctionSubjectsMap, setJunctionSubjectsMap] = useState<Map<string, JunctionSubject[]>>(new Map())
-  const [guestFilmPairs, setGuestFilmPairs] = useState<Set<string>>(new Set())
+  const [guestFilmsMap, setGuestFilmsMap] = useState<Map<string, Set<string>>>(new Map())
 
   const supabase = createClient()
   const { currentYear } = useFestivalYear()
@@ -361,16 +361,20 @@ export default function RedCarpetsPage() {
             .select('guest_id, film_id')
             .in('guest_id', allGuestIds)
             .eq('festival_year', currentYear)
-          const pairs = new Set<string>()
-          ;(gfData || []).forEach((gf: any) => pairs.add(`${gf.guest_id}-${gf.film_id}`))
-          setGuestFilmPairs(pairs)
+          const gfMap = new Map<string, Set<string>>()
+          ;(gfData || []).forEach((gf: any) => {
+            const set = gfMap.get(gf.guest_id) || new Set<string>()
+            set.add(gf.film_id)
+            gfMap.set(gf.guest_id, set)
+          })
+          setGuestFilmsMap(gfMap)
         } else {
-          setGuestFilmPairs(new Set())
+          setGuestFilmsMap(new Map())
         }
       } else {
         setJunctionFilmsMap(new Map())
         setJunctionSubjectsMap(new Map())
-        setGuestFilmPairs(new Set())
+        setGuestFilmsMap(new Map())
       }
     } catch (error) {
       console.error('Error loading red carpets:', error)
@@ -437,18 +441,15 @@ export default function RedCarpetsPage() {
           filmType = carpetJunctionFilms[titleIndex].film_type
         }
 
-        // Scope subjects to this specific film using guest_films cross-reference
-        let filmSubjects: typeof rowSubjects
-        if (filmTitles.length > 1 && filmId && guestFilmPairs.size > 0) {
-          // Multiple films on this row — use guest_films to match subjects to their film
-          filmSubjects = rowSubjects.filter(s =>
-            s.guest_id ? guestFilmPairs.has(`${s.guest_id}-${filmId}`) : true
-          )
-          // If no guest_films matches, fall back to all subjects for this row
-          if (filmSubjects.length === 0) filmSubjects = rowSubjects
-        } else {
-          // Single film on this row — all subjects belong to it
-          filmSubjects = rowSubjects
+        // Scope subjects to this specific film using guest_films
+        let filmSubjects = rowSubjects
+        if (filmId && guestFilmsMap.size > 0) {
+          filmSubjects = rowSubjects.filter(s => {
+            if (!s.guest_id) return true // free text subject, always show
+            const guestFilms = guestFilmsMap.get(s.guest_id)
+            if (!guestFilms) return true // guest has no film associations, show everywhere
+            return guestFilms.has(filmId) // only show if guest is associated with this film
+          })
         }
 
         const existingFilm = group.films.find(f => f.title === title)
@@ -470,7 +471,7 @@ export default function RedCarpetsPage() {
     })
 
     return Array.from(groups.values())
-  }, [redCarpets, junctionFilmsMap, junctionSubjectsMap, guestFilmPairs])
+  }, [redCarpets, junctionFilmsMap, junctionSubjectsMap, guestFilmsMap])
 
   // Filter and search logic
   const filteredEvents = useMemo(() => {
