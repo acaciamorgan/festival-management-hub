@@ -16,11 +16,16 @@ interface JunctionFilm {
   red_carpet_id: string
   film_id: string
   film_type: string
+  feature_films?: { title: string } | null
+  short_films?: { title: string } | null
+  shorts_programs?: { program_name: string } | null
+  programs?: { title: string } | null
 }
 
 interface JunctionSubject {
   red_carpet_id: string
   guest_id: string
+  guests?: { name: string } | null
 }
 
 interface GroupedFilm {
@@ -64,6 +69,7 @@ export default function RedCarpetsPage() {
   // Junction data maps: carpet_id -> films/subjects with IDs
   const [junctionFilmsMap, setJunctionFilmsMap] = useState<Map<string, JunctionFilm[]>>(new Map())
   const [junctionSubjectsMap, setJunctionSubjectsMap] = useState<Map<string, JunctionSubject[]>>(new Map())
+  const [guestFilmPairs, setGuestFilmPairs] = useState<Set<string>>(new Set())
 
   const supabase = createClient()
   const { currentYear } = useFestivalYear()
@@ -328,11 +334,11 @@ export default function RedCarpetsPage() {
         const [{ data: filmsData }, { data: subjectsData }] = await Promise.all([
           supabase
             .from('red_carpet_films')
-            .select('red_carpet_id, film_id, film_type')
+            .select('red_carpet_id, film_id, film_type, feature_films(title), short_films(title), shorts_programs(program_name), programs(title)')
             .in('red_carpet_id', carpetIds),
           supabase
             .from('red_carpet_subjects')
-            .select('red_carpet_id, guest_id')
+            .select('red_carpet_id, guest_id, guests(name)')
             .in('red_carpet_id', carpetIds),
         ])
 
@@ -352,9 +358,24 @@ export default function RedCarpetsPage() {
           subjectsMap.set(js.red_carpet_id, list)
         })
         setJunctionSubjectsMap(subjectsMap)
+
+        const allGuestIds = [...new Set((subjectsData || []).map((s: any) => s.guest_id).filter(Boolean))]
+        if (allGuestIds.length > 0) {
+          const { data: gfData } = await supabase
+            .from('guest_films')
+            .select('guest_id, film_id')
+            .in('guest_id', allGuestIds)
+            .eq('festival_year', currentYear)
+          const pairs = new Set<string>()
+          ;(gfData || []).forEach((gf: any) => pairs.add(`${gf.guest_id}-${gf.film_id}`))
+          setGuestFilmPairs(pairs)
+        } else {
+          setGuestFilmPairs(new Set())
+        }
       } else {
         setJunctionFilmsMap(new Map())
         setJunctionSubjectsMap(new Map())
+        setGuestFilmPairs(new Set())
       }
     } catch (error) {
       console.error('Error loading red carpets:', error)
@@ -392,59 +413,75 @@ export default function RedCarpetsPage() {
       const group = groups.get(eventKey)!
       group.rawEvents.push(carpet)
 
-      // Get junction films for this carpet
+      // Get junction data scoped to THIS carpet row
       const carpetJunctionFilms = junctionFilmsMap.get(carpet.id) || []
-      // Get junction subjects for this carpet
       const carpetJunctionSubjects = junctionSubjectsMap.get(carpet.id) || []
 
-      // Parse display strings for titles and subjects (from the view)
-      const filmTitles = carpet.film_program_display_combined
-        ? carpet.film_program_display_combined.split(' || ').map(t => t.trim())
-        : []
-      const subjectNames = carpet.subjects_display_combined
-        ? carpet.subjects_display_combined.split(',').map(s => s.trim())
-        : []
+      // Build this row's subjects from junction data (names from FK, not parsed strings)
+      const rowSubjects: { name: string; guest_id?: string }[] = carpetJunctionSubjects.map(js => ({
+        name: js.guests?.name || 'Unknown',
+        guest_id: js.guest_id,
+      }))
 
-      // Build structured film objects with IDs from junction data
-      filmTitles.forEach(title => {
-        const existingFilm = group.films.find(f => f.title === title)
+      // Add free-text subjects from subjects_description
+      if (carpet.subjects_description) {
+        carpet.subjects_description.split(',').map((s: string) => s.trim()).filter(Boolean).forEach((name: string) => {
+          if (!rowSubjects.some(s => s.name === name)) {
+            rowSubjects.push({ name })
+          }
+        })
+      }
 
-        // Match display title to junction film by position
-        // Each red_carpets row typically has one film, so junction films align with filmTitles
-        let filmId: string | undefined
-        let filmType: string | undefined
-        const titleIndex = filmTitles.indexOf(title)
-        if (titleIndex >= 0 && titleIndex < carpetJunctionFilms.length) {
-          filmId = carpetJunctionFilms[titleIndex].film_id
-          filmType = carpetJunctionFilms[titleIndex].film_type
+      // Process junction-linked films (titles from FK, not parsed strings)
+      carpetJunctionFilms.forEach(jf => {
+        const title = jf.feature_films?.title
+          || jf.short_films?.title
+          || jf.shorts_programs?.program_name
+          || jf.programs?.title
+          || 'Unknown Film'
+
+        // Scope subjects to this specific film using guest_films cross-reference
+        let filmSubjects: typeof rowSubjects
+        if (carpetJunctionFilms.length > 1 && guestFilmPairs.size > 0) {
+          // Multiple films on this row — use guest_films to match subjects to their film
+          filmSubjects = rowSubjects.filter(s =>
+            s.guest_id ? guestFilmPairs.has(`${s.guest_id}-${jf.film_id}`) : true
+          )
+          if (filmSubjects.length === 0) filmSubjects = rowSubjects
+        } else {
+          filmSubjects = rowSubjects
         }
 
-        // Build subjects with guest IDs, matched by position
-        const subjects = subjectNames.map((name, idx) => ({
-          name,
-          guest_id: idx < carpetJunctionSubjects.length ? carpetJunctionSubjects[idx].guest_id : undefined,
-        }))
-
+        const existingFilm = group.films.find(f => f.title === title)
         if (existingFilm) {
-          // Add unique subjects to existing film
-          subjects.forEach(subject => {
-            if (!existingFilm.subjects.some(s => s.name === subject.name)) {
-              existingFilm.subjects.push(subject)
+          filmSubjects.forEach(s => {
+            if (!existingFilm.subjects.some(es => es.name === s.name)) {
+              existingFilm.subjects.push({ ...s })
             }
           })
         } else {
           group.films.push({
             title,
-            film_id: filmId,
-            film_type: filmType,
-            subjects
+            film_id: jf.film_id,
+            film_type: jf.film_type,
+            subjects: filmSubjects.map(s => ({ ...s }))
           })
         }
       })
+
+      // Process free-text films from film_program_description
+      if (carpet.film_program_description) {
+        carpet.film_program_description.split(',').map((t: string) => t.trim()).filter(Boolean).forEach((title: string) => {
+          const existingFilm = group.films.find(f => f.title === title)
+          if (!existingFilm) {
+            group.films.push({ title, subjects: rowSubjects.map(s => ({ ...s })) })
+          }
+        })
+      }
     })
 
     return Array.from(groups.values())
-  }, [redCarpets, junctionFilmsMap, junctionSubjectsMap])
+  }, [redCarpets, junctionFilmsMap, junctionSubjectsMap, guestFilmPairs])
 
   // Filter and search logic
   const filteredEvents = useMemo(() => {
