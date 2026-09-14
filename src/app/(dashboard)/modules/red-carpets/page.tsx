@@ -16,16 +16,11 @@ interface JunctionFilm {
   red_carpet_id: string
   film_id: string
   film_type: string
-  feature_films?: { title: string } | null
-  short_films?: { title: string } | null
-  shorts_programs?: { program_name: string } | null
-  programs?: { title: string } | null
 }
 
 interface JunctionSubject {
   red_carpet_id: string
   guest_id: string
-  guests?: { name: string } | null
 }
 
 interface GroupedFilm {
@@ -334,11 +329,11 @@ export default function RedCarpetsPage() {
         const [{ data: filmsData }, { data: subjectsData }] = await Promise.all([
           supabase
             .from('red_carpet_films')
-            .select('red_carpet_id, film_id, film_type, feature_films(title), short_films(title), shorts_programs(program_name), programs(title)')
+            .select('red_carpet_id, film_id, film_type')
             .in('red_carpet_id', carpetIds),
           supabase
             .from('red_carpet_subjects')
-            .select('red_carpet_id, guest_id, guests(name)')
+            .select('red_carpet_id, guest_id')
             .in('red_carpet_id', carpetIds),
         ])
 
@@ -417,67 +412,61 @@ export default function RedCarpetsPage() {
       const carpetJunctionFilms = junctionFilmsMap.get(carpet.id) || []
       const carpetJunctionSubjects = junctionSubjectsMap.get(carpet.id) || []
 
-      // Build this row's subjects from junction data (names from FK, not parsed strings)
-      const rowSubjects: { name: string; guest_id?: string }[] = carpetJunctionSubjects.map(js => ({
-        name: js.guests?.name || 'Unknown',
-        guest_id: js.guest_id,
+      // Parse display strings for titles and subjects (from the view)
+      const filmTitles = carpet.film_program_display_combined
+        ? carpet.film_program_display_combined.split(' || ').map((t: string) => t.trim())
+        : []
+      const subjectNames = carpet.subjects_display_combined
+        ? carpet.subjects_display_combined.split(',').map((s: string) => s.trim())
+        : []
+
+      // Build this row's subjects with guest IDs matched by position
+      const rowSubjects = subjectNames.map((name, idx) => ({
+        name,
+        guest_id: idx < carpetJunctionSubjects.length ? carpetJunctionSubjects[idx].guest_id : undefined,
       }))
 
-      // Add free-text subjects from subjects_description
-      if (carpet.subjects_description) {
-        carpet.subjects_description.split(',').map((s: string) => s.trim()).filter(Boolean).forEach((name: string) => {
-          if (!rowSubjects.some(s => s.name === name)) {
-            rowSubjects.push({ name })
-          }
-        })
-      }
-
-      // Process junction-linked films (titles from FK, not parsed strings)
-      carpetJunctionFilms.forEach(jf => {
-        const title = jf.feature_films?.title
-          || jf.short_films?.title
-          || jf.shorts_programs?.program_name
-          || jf.programs?.title
-          || 'Unknown Film'
+      // Build structured film objects with IDs from junction data
+      filmTitles.forEach(title => {
+        // Match display title to junction film by position
+        let filmId: string | undefined
+        let filmType: string | undefined
+        const titleIndex = filmTitles.indexOf(title)
+        if (titleIndex >= 0 && titleIndex < carpetJunctionFilms.length) {
+          filmId = carpetJunctionFilms[titleIndex].film_id
+          filmType = carpetJunctionFilms[titleIndex].film_type
+        }
 
         // Scope subjects to this specific film using guest_films cross-reference
         let filmSubjects: typeof rowSubjects
-        if (carpetJunctionFilms.length > 1 && guestFilmPairs.size > 0) {
+        if (filmTitles.length > 1 && filmId && guestFilmPairs.size > 0) {
           // Multiple films on this row — use guest_films to match subjects to their film
           filmSubjects = rowSubjects.filter(s =>
-            s.guest_id ? guestFilmPairs.has(`${s.guest_id}-${jf.film_id}`) : true
+            s.guest_id ? guestFilmPairs.has(`${s.guest_id}-${filmId}`) : true
           )
+          // If no guest_films matches, fall back to all subjects for this row
           if (filmSubjects.length === 0) filmSubjects = rowSubjects
         } else {
+          // Single film on this row — all subjects belong to it
           filmSubjects = rowSubjects
         }
 
         const existingFilm = group.films.find(f => f.title === title)
         if (existingFilm) {
-          filmSubjects.forEach(s => {
-            if (!existingFilm.subjects.some(es => es.name === s.name)) {
-              existingFilm.subjects.push({ ...s })
+          filmSubjects.forEach(subject => {
+            if (!existingFilm.subjects.some(s => s.name === subject.name)) {
+              existingFilm.subjects.push(subject)
             }
           })
         } else {
           group.films.push({
             title,
-            film_id: jf.film_id,
-            film_type: jf.film_type,
-            subjects: filmSubjects.map(s => ({ ...s }))
+            film_id: filmId,
+            film_type: filmType,
+            subjects: filmSubjects
           })
         }
       })
-
-      // Process free-text films from film_program_description
-      if (carpet.film_program_description) {
-        carpet.film_program_description.split(',').map((t: string) => t.trim()).filter(Boolean).forEach((title: string) => {
-          const existingFilm = group.films.find(f => f.title === title)
-          if (!existingFilm) {
-            group.films.push({ title, subjects: rowSubjects.map(s => ({ ...s })) })
-          }
-        })
-      }
     })
 
     return Array.from(groups.values())
