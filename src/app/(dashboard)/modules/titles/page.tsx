@@ -1782,15 +1782,16 @@ export default function TitlesPage() {
         // Set the shorts_program_id
         if (programCache[shortsProgramName]) {
           shortData.shorts_program_id = programCache[shortsProgramName]
-
         }
       }
-      
+
       // Handle Program Order
+      let programOrder: number | null = null
       if (row[indices.program_order]) {
         const order = parseInt(row[indices.program_order])
         if (!isNaN(order)) {
           shortData.program_order = order
+          programOrder = order
         }
       }
 
@@ -1818,6 +1819,17 @@ export default function TitlesPage() {
           const trackedFields = Object.keys(shortData).filter(f => f !== 'festival_year')
           const changed = detectChangedFields(existingRecord, shortData, trackedFields)
           await logFieldChanges('short_films', existingRecord.id, changed, currentYear)
+
+          if (shortData.shorts_program_id) {
+            await supabase
+              .from('short_film_programs')
+              .upsert({
+                short_film_id: existingRecord.id,
+                shorts_program_id: shortData.shorts_program_id,
+                program_order: programOrder || 1,
+                festival_year: currentYear
+              }, { onConflict: 'short_film_id,shorts_program_id' })
+          }
         }
       } else {
         // Insert new record
@@ -1835,6 +1847,17 @@ export default function TitlesPage() {
           created++
           const trackedFields = Object.keys(shortData).filter(f => f !== 'festival_year')
           await logNewRecord('short_films', newShort, trackedFields, currentYear)
+
+          if (shortData.shorts_program_id && newShort) {
+            await supabase
+              .from('short_film_programs')
+              .upsert({
+                short_film_id: newShort.id,
+                shorts_program_id: shortData.shorts_program_id,
+                program_order: programOrder || 1,
+                festival_year: currentYear
+              }, { onConflict: 'short_film_id,shorts_program_id' })
+          }
         }
       }
     }
@@ -3626,6 +3649,22 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
           return
         }
 
+        // Check if new name collides with another program
+        if (programName.trim() !== editingProgram.program_name) {
+          const { data: nameCollision } = await supabase
+            .from('shorts_programs')
+            .select('id')
+            .eq('program_name', programName.trim())
+            .eq('festival_year', currentYear)
+            .neq('id', editingProgram.id)
+            .maybeSingle()
+
+          if (nameCollision) {
+            alert(`A shorts program named "${programName.trim()}" already exists for ${currentYear}.`)
+            return
+          }
+        }
+
         // Update existing program
         const { error: updateError } = await supabase
           .from('shorts_programs')
@@ -3645,6 +3684,7 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
           .from('short_film_programs')
           .delete()
           .eq('shorts_program_id', editingProgram.id)
+          .eq('festival_year', currentYear)
       } else {
         // Check if program with this name already exists
         const { data: existingByName } = await supabase
@@ -3736,6 +3776,7 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
         .from('short_film_programs')
         .delete()
         .eq('shorts_program_id', editingProgram.id)
+        .eq('festival_year', currentYear)
       
       // Then delete the program itself
       const { error } = await supabase
