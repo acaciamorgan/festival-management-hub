@@ -666,122 +666,6 @@ export default function TitlesPage() {
     }
   }, [supabase, currentYear])
 
-  // Sync shorts programs to feature_films table for ticketing
-  const syncShortsToFeatureFilms = useCallback(async () => {
-    try {
-
-      
-      // Get all shorts programs first
-      const { data: programsData, error: programsError } = await supabase
-        .from('shorts_programs')
-        .select('id, program_name')
-        .eq('festival_year', currentYear)
-
-      if (programsError) {
-        console.error('Error fetching shorts programs:', programsError)
-        throw programsError
-      }
-
-
-
-      // Then get films for each program separately
-      const programsWithFilms = await Promise.all(
-        (programsData || []).map(async (program) => {
-          const { data: filmsData, error: filmsError} = await supabase
-            .from('short_films')
-            .select('id, title, run_time')
-            .eq('festival_year', currentYear)
-            .eq('shorts_program_id', program.id)
-          
-          if (filmsError) {
-            console.error(`Error fetching films for program ${program.program_name}:`, filmsError)
-          }
-          
-
-          
-          return {
-            ...program,
-            short_films: filmsData || []
-          }
-        })
-      )
-      
-
-      
-      for (const program of programsWithFilms || []) {
-        const totalRuntime = program.short_films?.reduce((total: number, film: any) => {
-          return total + (film.run_time || 0)
-        }, 0) || 0
-        
-
-        
-        // Check if program already exists in feature_films
-        const { data: existingFilm, error: checkError } = await supabase
-          .from('feature_films')
-          .select('id')
-          .eq('title', program.program_name)
-          .eq('festival_year', currentYear)
-          .maybeSingle()
-
-        const filmData = {
-          title: program.program_name,
-          source: 'Shorts Program',
-          original_language_title: program.program_name,
-          director: 'Multiple Directors',
-          countries: '',
-          run_time: totalRuntime,
-          language: 'Multiple Languages',
-          subtitles: '',
-          captions: '',
-          original_release_year: currentYear,
-          screenwriter: '',
-          cinematographer: '',
-          animator: '',
-          editor: '',
-          principal_cast: '',
-          sound_designer: '',
-          music_score: '',
-          producer: '',
-          executive_producer: '',
-          archivist: '',
-          production_companies: '',
-          film_website: '',
-          trailer_url: '',
-          premiere_status: '',
-          content_considerations: ''
-        }
-        
-        if (existingFilm) {
-          // Update existing entry
-
-          const { error: updateError } = await supabase
-            .from('feature_films')
-            .update(filmData)
-            .eq('id', existingFilm.id)
-          
-          if (updateError) {
-            console.error(`Error updating ${program.program_name}:`, updateError)
-            throw updateError
-          }
-        } else {
-          // Insert new entry
-
-          const { error: insertError } = await supabase
-            .from('feature_films')
-            .insert([{ ...filmData, festival_year: currentYear }])
-          
-          if (insertError) {
-            console.error(`Error inserting ${program.program_name}:`, insertError)
-            throw insertError
-          }
-        }
-      }
-      
-
-    } catch (error) {
-      console.error('Error syncing shorts programs:', error)
-    }
-  }, [supabase, currentYear])
 
   // Get unique values for filters
   const uniquePrograms = useMemo(() => {
@@ -2041,15 +1925,6 @@ export default function TitlesPage() {
                   className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md transition-colors font-medium"
                 >
                   Create Shorts Program
-                </button>
-                <button
-                  onClick={() => {
-                    syncShortsToFeatureFilms()
-                    alert('Shorts programs synced to feature films for ticketing!')
-                  }}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md transition-colors"
-                >
-                  🔄 Sync Shorts to Ticketing
                 </button>
               </>
             )}
@@ -3771,6 +3646,19 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
           .delete()
           .eq('shorts_program_id', editingProgram.id)
       } else {
+        // Check if program with this name already exists
+        const { data: existingByName } = await supabase
+          .from('shorts_programs')
+          .select('id')
+          .eq('program_name', programName.trim())
+          .eq('festival_year', currentYear)
+          .maybeSingle()
+
+        if (existingByName) {
+          alert(`A shorts program named "${programName.trim()}" already exists for ${currentYear}.`)
+          return
+        }
+
         // Get the next program number
         const { data: existingPrograms } = await supabase
           .from('shorts_programs')
@@ -3779,8 +3667,8 @@ function CreateShortsProgramModal({ onClose, onSave, availableShorts, editingPro
           .order('program_number', { ascending: false })
           .limit(1)
 
-        const nextProgramNumber = existingPrograms && existingPrograms.length > 0 
-          ? (existingPrograms[0].program_number || 0) + 1 
+        const nextProgramNumber = existingPrograms && existingPrograms.length > 0
+          ? (existingPrograms[0].program_number || 0) + 1
           : 1
 
         // Create new program
