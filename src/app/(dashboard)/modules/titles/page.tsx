@@ -1731,7 +1731,7 @@ export default function TitlesPage() {
       subtitles: findHeaderIndex(['Subtitles', 'Subtitles (Y/N)', 'Subtitles? (Yes or No)']),
       run_time: findHeaderIndex(['Runtime', 'Run Time', 'Run time']),
       director: findHeaderIndex(['Director']),
-      countries: findHeaderIndex(['Countries', 'Country']),
+      countries: findHeaderIndex(['Countries', 'Country', 'Country/ies']),
       program_1: findHeaderIndex(['Program 1']),
       program_2: findHeaderIndex(['Program 2']),
       program_3: findHeaderIndex(['Program 3']),
