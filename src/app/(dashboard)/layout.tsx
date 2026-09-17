@@ -79,7 +79,7 @@ export default function DashboardLayout({
             <div className="w-8" /> {/* Spacer for centering */}
           </div>
 
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 flex flex-col overflow-hidden">
             {children}
           </main>
         </div>

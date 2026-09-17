@@ -261,8 +261,9 @@ export default function FestivalOverviewPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-auto p-8">
+        <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold text-green-600 mb-8">🎬 Festival Management</h1>
         
         {/* Tab Navigation */}
@@ -507,6 +508,7 @@ export default function FestivalOverviewPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   )
