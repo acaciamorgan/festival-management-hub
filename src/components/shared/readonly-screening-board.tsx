@@ -164,9 +164,14 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
     if (searchResults.length > 0 && currentSearchIndex < searchResults.length) {
       const currentResult = searchResults[currentSearchIndex]
       if (currentResult) {
-        const dayElement = daySectionRefs.current.get(currentResult.screening_date)
-        if (dayElement) {
-          dayElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        const screeningEl = document.querySelector(`[data-screening-id="${currentResult.type}-${currentResult.id}"]`)
+        if (screeningEl) {
+          screeningEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        } else {
+          const dayElement = daySectionRefs.current.get(currentResult.screening_date)
+          if (dayElement) {
+            dayElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
         }
       }
     }
@@ -865,14 +870,15 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, getScreeningCol
                     return (
                       <div
                         key={`${screening.type}-${screening.id}`}
+                        data-screening-id={`${screening.type}-${screening.id}`}
                         className={`absolute top-1 bottom-1 rounded px-2 py-1 text-xs font-medium border hover:shadow-md transition-all cursor-pointer ${
                           isCurrentSearchResult
-                            ? 'border-2 border-yellow-400 shadow-lg bg-yellow-100 text-yellow-900 z-10'
+                            ? 'border-2 border-yellow-500 shadow-[0_0_12px_rgba(234,179,8,0.5)] bg-yellow-300 text-yellow-950 z-10 ring-2 ring-yellow-400'
                             : isSearchMatch
-                              ? 'border-yellow-300 bg-yellow-50 text-yellow-800'
+                              ? 'border-2 border-yellow-300 bg-yellow-100 text-yellow-900'
                               : `${colorInfo.className} ${textColorClass}`
                         }`}
-                        style={baseStyle}
+                        style={isCurrentSearchResult ? { ...baseStyle, backgroundColor: undefined } : baseStyle}
                         title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
                         onClick={() => onFilmClick?.(screening)}
                       >
