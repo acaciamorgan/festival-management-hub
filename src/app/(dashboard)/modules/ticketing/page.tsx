@@ -413,6 +413,17 @@ export default function TicketingPage() {
         }
       }
 
+      // Clean up: delete P&I screenings linked to canceled press screenings
+      const activePressIds = new Set((pressScreenings || []).map(s => s.id))
+      const orphaned = (allPiJuryScreenings || []).filter(pij =>
+        pij.press_screening_id && !activePressIds.has(pij.press_screening_id)
+      )
+      for (const orphan of orphaned) {
+        await supabase
+          .from('pi_jury_screenings')
+          .delete()
+          .eq('id', orphan.id)
+      }
 
       await loadPIJuryScreenings()
     } catch (error) {
