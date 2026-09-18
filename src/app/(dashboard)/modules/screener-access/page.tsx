@@ -871,16 +871,15 @@ export default function ScreenerAccessPage() {
                         width: `${columnWidths['title'] || 200}px`
                       }}
                     >
-                      {showFilmCardsMode ? (
-                        <button
-                          onClick={() => handleFilmClick(film)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline text-left font-medium"
-                        >
-                          {film.title}
-                        </button>
-                      ) : (
-                        <span className="text-gray-900 font-medium">{film.title}</span>
-                      )}
+                      <button
+                        onClick={() => {
+                          setSelectedFilm(film)
+                          setShowFilmCard(true)
+                        }}
+                        className="text-blue-600 hover:text-blue-800 hover:underline text-left font-medium"
+                      >
+                        {film.title}
+                      </button>
                     </td>
                     <td 
                       className="px-3 py-2 text-sm border-r border-gray-100"
