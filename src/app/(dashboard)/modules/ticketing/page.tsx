@@ -146,6 +146,7 @@ export default function TicketingPage() {
   
   // UI states
   const [loading, setLoading] = useState(false)
+  const isSyncingRef = useRef(false)
   const [fieldChangesMap, setFieldChangesMap] = useState<Map<string, Set<string>>>(new Map())
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
@@ -295,6 +296,8 @@ export default function TicketingPage() {
 
   // Sync press screenings to P&I screenings
   const syncPressScreenings = useCallback(async () => {
+    if (isSyncingRef.current) return
+    isSyncingRef.current = true
     try {
       // Get all press screenings with venue info
       const { data: pressScreenings, error: pressError } = await supabase
@@ -413,6 +416,8 @@ export default function TicketingPage() {
     } catch (error) {
       console.error('Error syncing press screenings:', error)
       alert('Error syncing press screenings. Please try again.')
+    } finally {
+      isSyncingRef.current = false
     }
   }, [supabase, user, getDayOfWeek, loadPIJuryScreenings, currentYear, venueCards])
 

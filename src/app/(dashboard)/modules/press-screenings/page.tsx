@@ -97,17 +97,24 @@ export default function PressScreeningsPage() {
     })
   }, [pressScreenings, searchTerm])
 
+  const stripArticle = (s: string) => s.replace(/^(the|a|an)\s+/i, '')
+
   // Sort logic
   const sortedScreenings = useMemo(() => {
     if (!sortConfig) return filteredScreenings
 
     return [...filteredScreenings].sort((a, b) => {
-      const aValue = a[sortConfig.key as keyof PressScreeningCard]
-      const bValue = b[sortConfig.key as keyof PressScreeningCard]
+      let aValue = a[sortConfig.key as keyof PressScreeningCard]
+      let bValue = b[sortConfig.key as keyof PressScreeningCard]
 
       if (aValue === null && bValue === null) return 0
       if (aValue === null) return 1
       if (bValue === null) return -1
+
+      if (sortConfig.key === 'film_title' && typeof aValue === 'string' && typeof bValue === 'string') {
+        aValue = stripArticle(aValue.toLowerCase()) as any
+        bValue = stripArticle(bValue.toLowerCase()) as any
+      }
 
       if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
       if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
