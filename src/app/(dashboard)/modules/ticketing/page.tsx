@@ -325,14 +325,15 @@ export default function TicketingPage() {
       // Batch-load all existing PI jury screenings in one query
       const { data: allPiJuryScreenings } = await supabase
         .from('pi_jury_screenings')
-        .select('id, film_id, screening_date, start_time, festival_year')
+        .select('id, film_id, screening_date, start_time, festival_year, press_screening_id')
         .eq('festival_year', currentYear)
 
-      // Build lookup map keyed by "film_id|screening_date" for P&I type screenings
-      const piJuryMap = new Map<string, string>()
+      // Build lookup map keyed by press_screening_id for synced screenings
+      const piJuryByPressId = new Map<string, string>()
       for (const pij of allPiJuryScreenings || []) {
-        const key = `${pij.film_id}|${pij.screening_date}`
-        piJuryMap.set(key, pij.id)
+        if (pij.press_screening_id) {
+          piJuryByPressId.set(pij.press_screening_id, pij.id)
+        }
       }
 
       // Process each press screening
@@ -362,15 +363,15 @@ export default function TicketingPage() {
           capacity = venueMatch.capacity
         }
 
-        // Check if this screening already exists using pre-loaded map
-        const existingKey = `${screening.film_id}|${screening.screening_date}`
-        const existingId = piJuryMap.get(existingKey)
+        // Check if this press screening already has a linked P&I row
+        const existingId = piJuryByPressId.get(screening.id)
 
         if (existingId) {
-          // Update existing screening
+          // Update existing screening (handles date/time/venue changes)
           const { error: updateError } = await supabase
             .from('pi_jury_screenings')
             .update({
+              screening_date: screening.screening_date,
               start_time: screening.screening_time,
               venue_short_code: shortCode,
               capacity: capacity,
@@ -387,10 +388,11 @@ export default function TicketingPage() {
 
           if (!updateError) updatedCount++
         } else {
-          // Create new P&I screening
+          // Create new P&I screening linked to this press screening
           const { error: insertError } = await supabase
             .from('pi_jury_screenings')
             .insert({
+              press_screening_id: screening.id,
               film_id: screening.film_id,
               film_type: screening.film_type || null,
               festival_year: currentYear,
