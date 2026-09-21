@@ -45,6 +45,7 @@ export default function InAttendancePage() {
   const [customReportDate, setCustomReportDate] = useState('')
   const [searchArrivalDate, setSearchArrivalDate] = useState('')
   const [searchDepartureDate, setSearchDepartureDate] = useState('')
+  const [searchScreeningDate, setSearchScreeningDate] = useState('')
   const [pendingRemovals, setPendingRemovals] = useState<Array<{guestName: string, removedFilms: string[]}> | null>(null)
   const [pendingTitleMappings, setPendingTitleMappings] = useState<Array<{csvTitle: string, suggestedMatch?: string, confidence?: number}> | null>(null)
   const [pendingCSVRows, setPendingCSVRows] = useState<any[] | null>(null)
@@ -556,6 +557,16 @@ export default function InAttendancePage() {
         if (!arrivalMatch && !departureMatch) return false
       }
 
+      // Screening date filter
+      if (searchScreeningDate) {
+        const guestScreenings = (guest as any).screenings || []
+        const nonAttendingIds = (guest as any).non_attending_screenings || []
+        const hasScreeningOnDate = guestScreenings.some((screening: any) =>
+          screening.screening_date === searchScreeningDate && !nonAttendingIds.includes(screening.id)
+        )
+        if (!hasScreeningOnDate) return false
+      }
+
       // Date range search filters
       if (searchArrivalDate || searchDepartureDate) {
         // If only arrival date is set: show guests arriving on that exact date
@@ -598,7 +609,7 @@ export default function InAttendancePage() {
     }
 
     return filtered
-  }, [guests, searchTerm, selectedGuestType, confirmedFilter, checkedInFilter, arrangingTravelFilter, todayDate, searchArrivalDate, searchDepartureDate, sortConfig])
+  }, [guests, searchTerm, selectedGuestType, confirmedFilter, checkedInFilter, arrangingTravelFilter, todayDate, searchArrivalDate, searchDepartureDate, searchScreeningDate, sortConfig])
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
@@ -1272,11 +1283,27 @@ export default function InAttendancePage() {
                   className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              {(searchArrivalDate || searchDepartureDate) && (
+              <div className="flex items-center space-x-2">
+                <label className="text-sm font-medium text-gray-600">Screening:</label>
+                <input
+                  type="date"
+                  value={searchScreeningDate}
+                  onChange={(e) => setSearchScreeningDate(e.target.value)}
+                  onBlur={(e) => {
+                    const normalized = normalizeDateValue(e.target.value)
+                    if (normalized !== e.target.value) {
+                      setSearchScreeningDate(normalized)
+                    }
+                  }}
+                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              {(searchArrivalDate || searchDepartureDate || searchScreeningDate) && (
                 <button
                   onClick={() => {
                     setSearchArrivalDate('')
                     setSearchDepartureDate('')
+                    setSearchScreeningDate('')
                   }}
                   className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 hover:border-gray-300"
                 >
@@ -1284,9 +1311,11 @@ export default function InAttendancePage() {
                 </button>
               )}
               <div className="text-xs text-gray-500">
-                {searchArrivalDate && !searchDepartureDate && 'Showing: arriving on selected date'}
-                {!searchArrivalDate && searchDepartureDate && 'Showing: departing on selected date'}
-                {searchArrivalDate && searchDepartureDate && 'Showing: present during date range'}
+                {searchArrivalDate && !searchDepartureDate && !searchScreeningDate && 'Showing: arriving on selected date'}
+                {!searchArrivalDate && searchDepartureDate && !searchScreeningDate && 'Showing: departing on selected date'}
+                {searchArrivalDate && searchDepartureDate && !searchScreeningDate && 'Showing: present during date range'}
+                {searchScreeningDate && !searchArrivalDate && !searchDepartureDate && 'Showing: guests with screenings on selected date'}
+                {searchScreeningDate && (searchArrivalDate || searchDepartureDate) && 'Showing: combined date + screening filters'}
               </div>
             </div>
           </div>
@@ -1370,7 +1399,7 @@ export default function InAttendancePage() {
             </div>
             
             {/* Clear Filters */}
-            {(searchTerm || selectedGuestType || confirmedFilter !== 'all' || checkedInFilter !== 'all' || arrangingTravelFilter || todayDate || searchArrivalDate || searchDepartureDate) && (
+            {(searchTerm || selectedGuestType || confirmedFilter !== 'all' || checkedInFilter !== 'all' || arrangingTravelFilter || todayDate || searchArrivalDate || searchDepartureDate || searchScreeningDate) && (
               <button
                 onClick={() => {
                   setSearchTerm('')
@@ -1381,6 +1410,7 @@ export default function InAttendancePage() {
                   setTodayDate('')
                   setSearchArrivalDate('')
                   setSearchDepartureDate('')
+                  setSearchScreeningDate('')
                 }}
                 className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 hover:border-gray-300"
               >
@@ -1459,6 +1489,7 @@ export default function InAttendancePage() {
         {searchArrivalDate && !searchDepartureDate && ` arriving ${formatDate(searchArrivalDate)}`}
         {!searchArrivalDate && searchDepartureDate && ` departing ${formatDate(searchDepartureDate)}`}
         {searchArrivalDate && searchDepartureDate && ` present ${formatDate(searchArrivalDate)} - ${formatDate(searchDepartureDate)}`}
+        {searchScreeningDate && ` with screenings on ${formatDate(searchScreeningDate)}`}
       </div>
 
       {/* Data Grid */}
