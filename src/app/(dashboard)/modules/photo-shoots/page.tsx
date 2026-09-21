@@ -628,7 +628,7 @@ export default function PhotoShootsPage() {
               {sortedPhotoShoots.length} of {photoShoots.length} photo shoots
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="hidden md:flex flex-wrap items-center gap-3">
             {canEditPhotoShoots && (
               <button
                 onClick={exportPhotoShootsTemplate}

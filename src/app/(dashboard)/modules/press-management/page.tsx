@@ -853,7 +853,7 @@ export default function PressManagementPage() {
           <div>
             <p className="text-sm text-gray-600">{filteredPress.length} of {press.length} press cards</p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="hidden md:flex flex-wrap items-center gap-3">
             {canEditPress && (
               <button
                 onClick={exportPressTemplate}

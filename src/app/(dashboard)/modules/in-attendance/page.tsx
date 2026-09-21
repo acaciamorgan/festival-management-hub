@@ -1197,7 +1197,7 @@ export default function InAttendancePage() {
             <h1 className="text-2xl font-semibold text-gray-900">In Attendance</h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="hidden md:flex flex-wrap items-center gap-3">
             {canEditInAttendance && (
               <button
                 onClick={exportInAttendanceTemplate}

@@ -1546,7 +1546,7 @@ export default function TicketingPage() {
               </div>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="hidden md:flex flex-wrap gap-2">
             {viewMode === 'pi-jury' && (
               <button
                 onClick={syncPressScreenings}

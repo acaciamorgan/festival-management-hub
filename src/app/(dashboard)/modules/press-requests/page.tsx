@@ -699,7 +699,7 @@ export default function PressRequestsPage() {
               {sortedRequests.length} requests • {newRequestsCount} new
             </p>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="hidden md:flex items-center space-x-4">
             <button
               onClick={generateDailyReport}
               className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 font-medium"

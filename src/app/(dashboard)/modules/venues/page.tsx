@@ -380,14 +380,16 @@ export default function VenueManagementPage() {
             <h1 className="text-2xl font-semibold text-gray-900">Venue Management</h1>
           </div>
           
-          {canEditVenues && (
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-amber-600 text-white px-4 py-2 rounded-md font-medium hover:bg-amber-700"
-            >
-              Add Venue
-            </button>
-          )}
+          <div className="hidden md:block">
+            {canEditVenues && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="bg-amber-600 text-white px-4 py-2 rounded-md font-medium hover:bg-amber-700"
+              >
+                Add Venue
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

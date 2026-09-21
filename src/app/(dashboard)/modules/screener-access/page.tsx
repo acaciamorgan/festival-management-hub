@@ -673,7 +673,7 @@ export default function ScreenerAccessPage() {
             <h1 className="text-2xl font-semibold text-gray-900">Screener Access</h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="hidden md:flex flex-wrap items-center gap-3">
             {canEditScreenerAccess && (
               <div className="flex flex-wrap gap-2">
                 <button

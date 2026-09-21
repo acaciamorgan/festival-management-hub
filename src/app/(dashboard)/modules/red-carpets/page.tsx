@@ -658,7 +658,7 @@ export default function RedCarpetsPage() {
               {sortedEvents.length} red carpet events
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="hidden md:flex flex-wrap items-center gap-3">
             {canEditRedCarpets && (
               <button
                 onClick={exportRedCarpetsTemplate}

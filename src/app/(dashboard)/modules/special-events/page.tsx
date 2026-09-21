@@ -994,7 +994,7 @@ export default function SpecialEventsPage() {
             <h1 className="text-2xl font-semibold text-gray-900">Special Events</h1>
           </div>
           
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="hidden md:flex flex-wrap items-center gap-3">
             {canEditSpecialEvents && (
               <>
                 <button

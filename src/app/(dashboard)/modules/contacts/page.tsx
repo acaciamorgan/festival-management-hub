@@ -250,10 +250,14 @@ export default function ContactsPage() {
         return
       }
 
-      // Create a map of film_id + film_type -> contacts for fast lookup
+      // Create a map of film_id + film_type -> contacts for fast lookup (deduplicated)
       const contactsMap: { [key: string]: any[] } = {}
+      const seenContactKeys = new Set<string>()
       for (const contact of allContactsResponse.data || []) {
         const key = `${contact.film_id}-${contact.film_type}`
+        const dedupKey = `${contact.film_id}-${contact.contact_id}-${contact.contact_type}`
+        if (seenContactKeys.has(dedupKey)) continue
+        seenContactKeys.add(dedupKey)
         if (!contactsMap[key]) {
           contactsMap[key] = []
         }
@@ -1314,7 +1318,7 @@ export default function ContactsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div></div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="hidden md:flex flex-wrap items-center gap-3">
             {canEditContacts && (
               <>
                 <button

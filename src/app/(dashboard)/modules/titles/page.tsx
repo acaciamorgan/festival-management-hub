@@ -1898,7 +1898,7 @@ export default function TitlesPage() {
             </p>
           </div>
           {viewMode !== 'screening-board' && (
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="hidden md:flex flex-wrap items-center gap-3">
             {canEditTitles && (
               <>
                 {viewMode === 'features' && (

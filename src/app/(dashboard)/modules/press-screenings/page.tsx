@@ -494,7 +494,7 @@ export default function PressScreeningsPage() {
             <h1 className="text-2xl font-semibold text-gray-900">Press Screenings</h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="hidden md:flex flex-wrap items-center gap-3">
             {canEditPressScreenings && (
               <button
                 onClick={handleAddScreening}
