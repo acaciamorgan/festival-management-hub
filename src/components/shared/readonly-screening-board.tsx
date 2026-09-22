@@ -831,7 +831,7 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, getScreeningCol
     if (!runtime) return 2
     const totalHours = 23.75 - 9
     const runtimeHours = runtime / 60
-    return Math.max(1, Math.min(25, (runtimeHours / totalHours) * 100))
+    return Math.max(1, Math.min(75, (runtimeHours / totalHours) * 100))
   }
 
   const getTextColor = (bgColor: string | null) => {
