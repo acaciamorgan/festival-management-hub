@@ -362,9 +362,25 @@ export default function TicketingPage() {
         }
       })
 
-      // Combine features (with film_type) and shorts programs
+      // Also load programs (ticketed events like tributes, panels)
+      const { data: eventPrograms, error: eventError } = await supabase
+        .from('programs')
+        .select('id, title')
+        .eq('festival_year', currentYear)
+        .order('title')
+
+      if (eventError) throw eventError
+
+      const eventCards = (eventPrograms || []).map(p => ({
+        id: p.id,
+        title: p.title,
+        run_time: null,
+        film_type: 'program'
+      }))
+
+      // Combine features, shorts programs, and event programs
       const featureCards = (features || []).map(f => ({ ...f, film_type: 'feature' }))
-      setFilmCards([...featureCards, ...programCards])
+      setFilmCards([...featureCards, ...programCards, ...eventCards])
     } catch (error) {
       console.error('Error loading film cards:', error)
     }
