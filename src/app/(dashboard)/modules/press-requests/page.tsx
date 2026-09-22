@@ -253,6 +253,36 @@ export default function PressRequestsPage() {
     loadFilmContacts()
   }, [loadRequests, loadFilmContacts])
 
+  // Refresh screener access map on window focus
+  const refreshScreenerAccess = useCallback(async () => {
+    const uniqueFilmIds = [...new Set(requests.map(r => r.film_id).filter(Boolean))]
+    if (uniqueFilmIds.length === 0) return
+
+    const { data: screenerAccess } = await supabase
+      .from('screener_access')
+      .select('film_id, access_type, link_url, link_password')
+      .eq('festival_year', currentYear)
+      .in('film_id', uniqueFilmIds)
+
+    const accessMap: Record<string, { access_type: string, link_url: string | null, link_password: string | null }> = {}
+    screenerAccess?.forEach(access => {
+      if (access.access_type) {
+        accessMap[access.film_id] = {
+          access_type: access.access_type,
+          link_url: access.link_url || null,
+          link_password: access.link_password || null
+        }
+      }
+    })
+    setScreenerAccessMap(accessMap)
+  }, [supabase, currentYear, requests])
+
+  useEffect(() => {
+    const handleFocus = () => refreshScreenerAccess()
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [refreshScreenerAccess])
+
   // No expansion needed - each request is now individual per film
 
   // Filter and search logic on requests

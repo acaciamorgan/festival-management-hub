@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
 import { loadScreeningBoardSettings, saveScreeningBoardSettings } from '@/lib/screening-board-settings'
+import { syncPressScreenings } from '@/lib/sync-press-screenings'
 
 interface PublishedScreening {
   id: string
@@ -47,6 +48,9 @@ interface TechCheckScreening {
   run_time: number | null
   venue_short_code: string
   is_cancelled: boolean
+  is_placeholder?: boolean
+  placeholder_label?: string | null
+  placeholder_duration?: number | null
   notes: string | null
 }
 
@@ -150,11 +154,13 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
       setCurrentSearchIndex(0)
       return
     }
-    const results = allScreenings.filter(screening =>
-      screening.film_title?.toLowerCase().includes(screeningSearchTerm.toLowerCase()) ||
-      screening.venue_short_code?.toLowerCase().includes(screeningSearchTerm.toLowerCase()) ||
-      screening.notes?.toLowerCase().includes(screeningSearchTerm.toLowerCase())
-    )
+    const results = allScreenings.filter(screening => {
+      const search = screeningSearchTerm.toLowerCase()
+      return screening.film_title?.toLowerCase().includes(search) ||
+        screening.venue_short_code?.toLowerCase().includes(search) ||
+        screening.notes?.toLowerCase().includes(search) ||
+        screening.placeholder_label?.toLowerCase().includes(search)
+    })
     setSearchResults(results)
     setCurrentSearchIndex(0)
   }, [screeningSearchTerm, allScreenings])
@@ -199,6 +205,23 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
     const loadData = async () => {
       setLoading(true)
       try {
+        // First sync P&I screenings from press screenings
+        const { data: theaterHouses } = await supabase
+          .from('theater_houses')
+          .select('short_code, seat_count')
+          .eq('festival_year', currentYear)
+
+        const venueCards = (theaterHouses || []).map(t => ({
+          short_code: t.short_code,
+          capacity: t.seat_count
+        }))
+
+        try {
+          await syncPressScreenings(currentYear, venueCards)
+        } catch (syncError) {
+          console.error('Error syncing press screenings:', syncError)
+        }
+
         const [pubResult, piResult, tcResult, featResult, shortResult, spResult, settings] = await Promise.all([
           supabase
             .from('ticketing_screenings_with_films')
@@ -311,6 +334,14 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
 
   // Get screening box color
   const getScreeningColor = useCallback((screening: any) => {
+    if (screening.type === 'tech-check' && screening.is_placeholder) {
+      return {
+        className: 'border-gray-600 border-dashed',
+        backgroundColor: '#e5e7eb',
+        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(107,114,128,0.3) 5px, rgba(107,114,128,0.3) 7px)'
+      }
+    }
+
     if (screening.type === 'tech-check') {
       return { className: 'border-gray-800', backgroundColor: '#000000' }
     }
@@ -417,7 +448,7 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
                 onChange={(e) => setShowTechCheck(e.target.checked)}
                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
-              <span>Tech Check</span>
+              <span>Tech Checks & Placeholders</span>
             </label>
             {canSetView && (
               <button
@@ -447,6 +478,22 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
             <span className="flex items-center">
               <span className="w-4 h-3 bg-white border border-gray-300 rounded inline-block mr-1"></span>
               <span className="text-gray-700">Locked</span>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {showTechCheck && allScreenings.some(s => s.type === 'tech-check') && (
+        <div className="bg-gray-50 px-6 py-2 border-b border-gray-200">
+          <div className="flex items-center space-x-6 text-xs">
+            <span className="text-gray-600 font-medium">Tech/Placeholders:</span>
+            <span className="flex items-center">
+              <span className="w-4 h-3 bg-black border border-gray-800 rounded inline-block mr-1"></span>
+              <span className="text-gray-700">Tech Check</span>
+            </span>
+            <span className="flex items-center">
+              <span className="w-4 h-3 border border-gray-600 border-dashed rounded inline-block mr-1" style={{ backgroundColor: '#e5e7eb', backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(107,114,128,0.3) 3px, rgba(107,114,128,0.3) 4px)' }}></span>
+              <span className="text-gray-700">Placeholder</span>
             </span>
           </div>
         </div>
@@ -860,11 +907,16 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, getScreeningCol
 
                     const textColorClass = colorInfo.backgroundColor ? getTextColor(colorInfo.backgroundColor) : ''
 
-                    const baseStyle = {
+                    const isPlaceholder = screening.is_placeholder
+                    const displayTitle = isPlaceholder ? (screening.placeholder_label || 'Placeholder') : screening.film_title
+                    const displayDuration = isPlaceholder ? screening.placeholder_duration : screening.run_time
+
+                    const baseStyle: Record<string, any> = {
                       left: `${leftPosition}%`,
                       width: `${widthPercent}%`,
                       minWidth: '60px',
-                      ...(colorInfo.backgroundColor && { backgroundColor: colorInfo.backgroundColor })
+                      ...(colorInfo.backgroundColor && { backgroundColor: colorInfo.backgroundColor }),
+                      ...(colorInfo.backgroundImage && { backgroundImage: colorInfo.backgroundImage })
                     }
 
                     return (
@@ -878,16 +930,16 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, getScreeningCol
                               ? 'border-2 border-yellow-300 bg-yellow-100 text-yellow-900'
                               : `${colorInfo.className} ${textColorClass}`
                         }`}
-                        style={isCurrentSearchResult ? { ...baseStyle, backgroundColor: undefined } : baseStyle}
-                        title={`${screening.film_title} - ${formatStringTime(screening.start_time)} - ${screening.run_time || '?'} min`}
-                        onClick={() => onFilmClick?.(screening)}
+                        style={isCurrentSearchResult ? { ...baseStyle, backgroundColor: undefined, backgroundImage: undefined } : baseStyle}
+                        title={`${displayTitle} - ${formatStringTime(screening.start_time)} - ${displayDuration || '?'} min`}
+                        onClick={() => !isPlaceholder && onFilmClick?.(screening)}
                       >
                         <div className="truncate font-medium text-xs leading-tight hover:underline">
                           {screening.is_tentative && <span className="opacity-75">(TENT) </span>}
-                          {screening.film_title}
+                          {displayTitle}
                         </div>
                         <div className="truncate text-xs opacity-75">
-                          {screening.run_time ? `${screening.run_time}min` : 'TBD'}
+                          {displayDuration ? `${displayDuration}min` : 'TBD'}
                         </div>
                       </div>
                     )

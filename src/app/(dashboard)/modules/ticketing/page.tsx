@@ -11,6 +11,7 @@ import { ReadOnlyScreeningBoard } from '@/components/shared/readonly-screening-b
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { isCSVRowStrikethrough } from '@/lib/excel-utils'
 import { detectChangedFields, logFieldChanges, logNewRecord, fetchFieldChanges, getCellHighlightClass } from '@/lib/field-changes'
+import { syncPressScreenings as syncPressScreeningsLib } from '@/lib/sync-press-screenings'
 import * as XLSX from 'xlsx-js-style'
 
 // Helper functions for calendar calculations without Date objects
@@ -95,6 +96,9 @@ interface TechCheckScreening {
   tech_contact: string | null
   notes: string | null
   is_cancelled: boolean
+  is_placeholder?: boolean
+  placeholder_label?: string | null
+  placeholder_duration?: number | null
   created_by: string
   created_at: string
   updated_at: string
@@ -113,6 +117,9 @@ interface ScreeningFormData {
   notes: string
   screening_type?: 'P&I' | 'Jury'
   tech_contact?: string
+  is_placeholder?: boolean
+  placeholder_label?: string
+  placeholder_duration?: number | null
 }
 
 type ViewMode = 'ticketing' | 'pi-jury' | 'tech-checks' | 'screening-board'
@@ -151,6 +158,7 @@ export default function TicketingPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [isPlaceholderMode, setIsPlaceholderMode] = useState(false)
   
   // Debounce search term
   useEffect(() => {
@@ -299,140 +307,14 @@ export default function TicketingPage() {
     if (isSyncingRef.current) return
     isSyncingRef.current = true
     try {
-      // Get all press screenings with venue info
-      const { data: pressScreenings, error: pressError } = await supabase
-        .from('press_screenings')
-        .select(`
-          *,
-          venues(name)
-        `)
-        .eq('canceled', false)
-        .eq('festival_year', currentYear)
-
-      if (pressError) throw pressError
-
-      // Batch-load all feature film runtimes in one query
-      const { data: allFeatureFilms } = await supabase
-        .from('feature_films')
-        .select('id, run_time')
-        .eq('festival_year', currentYear)
-
-      const featureRuntimeMap = new Map<string, number | null>()
-      for (const film of allFeatureFilms || []) {
-        featureRuntimeMap.set(film.id, film.run_time)
-      }
-
-      // Batch-load all existing PI jury screenings in one query
-      const { data: allPiJuryScreenings } = await supabase
-        .from('pi_jury_screenings')
-        .select('id, film_id, screening_date, start_time, festival_year, press_screening_id')
-        .eq('festival_year', currentYear)
-
-      // Build lookup map keyed by press_screening_id for synced screenings
-      const piJuryByPressId = new Map<string, string>()
-      for (const pij of allPiJuryScreenings || []) {
-        if (pij.press_screening_id) {
-          piJuryByPressId.set(pij.press_screening_id, pij.id)
-        }
-      }
-
-      // Process each press screening
-      let successCount = 0
-      let updatedCount = 0
-
-      for (const screening of pressScreenings || []) {
-        if (!screening.screening_date || !screening.screening_time) continue
-        if (!screening.short_code) continue
-        if (!screening.film_id) continue
-
-        const shortCode = screening.short_code
-
-        // Look up runtime from pre-loaded map
-        let runtime = null
-        if (screening.film_type === 'feature') {
-          const mappedRuntime = featureRuntimeMap.get(screening.film_id)
-          if (mappedRuntime) runtime = mappedRuntime
-        }
-
-        // Look up venue capacity
-        let capacity = null
-        const venueMatch = venueCards.find(venue =>
-          venue.short_code === shortCode
-        )
-        if (venueMatch) {
-          capacity = venueMatch.capacity
-        }
-
-        // Check if this press screening already has a linked P&I row
-        const existingId = piJuryByPressId.get(screening.id)
-
-        if (existingId) {
-          // Update existing screening (handles date/time/venue changes)
-          const { error: updateError } = await supabase
-            .from('pi_jury_screenings')
-            .update({
-              screening_date: screening.screening_date,
-              start_time: screening.screening_time,
-              venue_short_code: shortCode,
-              capacity: capacity,
-              notes: screening.notes,
-              is_tentative: !(screening.film_approved && screening.locked),
-              film_approved: screening.film_approved || false,
-              locked: screening.locked || false,
-              day_of_week: getDayOfWeek(screening.screening_date),
-              film_id: screening.film_id,
-              film_type: screening.film_type || null,
-              festival_year: currentYear
-            })
-            .eq('id', existingId)
-
-          if (!updateError) updatedCount++
-        } else {
-          // Create new P&I screening linked to this press screening
-          const { error: insertError } = await supabase
-            .from('pi_jury_screenings')
-            .insert({
-              press_screening_id: screening.id,
-              film_id: screening.film_id,
-              film_type: screening.film_type || null,
-              festival_year: currentYear,
-              screening_type: 'P&I',
-              screening_date: screening.screening_date,
-              day_of_week: getDayOfWeek(screening.screening_date),
-              start_time: screening.screening_time,
-              venue_short_code: shortCode,
-              capacity: capacity,
-              notes: screening.notes,
-              is_cancelled: false,
-              is_tentative: !(screening.film_approved && screening.locked),
-              film_approved: screening.film_approved || false,
-              locked: screening.locked || false
-            })
-
-          if (!insertError) successCount++
-        }
-      }
-
-      // Clean up: delete P&I screenings linked to canceled press screenings
-      const activePressIds = new Set((pressScreenings || []).map(s => s.id))
-      const orphaned = (allPiJuryScreenings || []).filter(pij =>
-        pij.press_screening_id && !activePressIds.has(pij.press_screening_id)
-      )
-      for (const orphan of orphaned) {
-        await supabase
-          .from('pi_jury_screenings')
-          .delete()
-          .eq('id', orphan.id)
-      }
-
+      await syncPressScreeningsLib(currentYear, venueCards)
       await loadPIJuryScreenings()
     } catch (error) {
       console.error('Error syncing press screenings:', error)
-      alert('Error syncing press screenings. Please try again.')
     } finally {
       isSyncingRef.current = false
     }
-  }, [supabase, user, getDayOfWeek, loadPIJuryScreenings, currentYear, venueCards])
+  }, [currentYear, venueCards, loadPIJuryScreenings])
 
   // Load film cards for auto-suggest (features + shorts programs)
   const loadFilmCards = useCallback(async () => {
@@ -576,17 +458,14 @@ export default function TicketingPage() {
     if (!loading) loadFieldChanges()
   }, [publishedScreenings, piJuryScreenings, techCheckScreenings, loading, currentYear])
 
-  // Auto-sync press screenings when P&I/Jury tab is loaded
+  // Auto-sync press screenings on page load
   const [hasAutoSynced, setHasAutoSynced] = useState(false)
   useEffect(() => {
-    if (viewMode === 'pi-jury' && !loading && !hasAutoSynced) {
+    if (!loading && !hasAutoSynced && venueCards.length > 0) {
       setHasAutoSynced(true)
       syncPressScreenings()
     }
-    if (viewMode !== 'pi-jury') {
-      setHasAutoSynced(false)
-    }
-  }, [viewMode, loading, hasAutoSynced, syncPressScreenings])
+  }, [loading, hasAutoSynced, syncPressScreenings, venueCards])
   
   // Click away handler for suggestions and export dropdown
   useEffect(() => {
@@ -616,9 +495,13 @@ export default function TicketingPage() {
       run_time: null,
       venue_short_code: '',
       capacity: null,
-      notes: ''
+      notes: '',
+      is_placeholder: false,
+      placeholder_label: '',
+      placeholder_duration: null
     })
     setEditingScreening(null)
+    setIsPlaceholderMode(false)
     setFilmSearchTerm('')
     setVenueSearchTerm('')
     setShowFilmSuggestions(false)
@@ -929,11 +812,21 @@ export default function TicketingPage() {
     setShowAddModal(true)
   }
 
-  const handleDeleteScreening = async (screening: any) => {
-    const screeningType = viewMode === 'ticketing' ? 'published screening' :
-                         viewMode === 'pi-jury' ? 'P&I/Jury screening' : 'tech check'
+  const handleAddPlaceholder = () => {
+    resetForm()
+    setIsPlaceholderMode(true)
+    setFormData(prev => ({ ...prev, is_placeholder: true }))
+    setShowAddModal(true)
+  }
 
-    if (!confirm(`Are you sure you want to delete this ${screeningType}?\n\nFilm: ${screening.film_title}\nDate: ${screening.screening_date}\nTime: ${screening.start_time}`)) {
+  const handleDeleteScreening = async (screening: any) => {
+    const isPlaceholder = screening.is_placeholder
+    const screeningType = isPlaceholder ? 'placeholder' :
+                         viewMode === 'ticketing' ? 'published screening' :
+                         viewMode === 'pi-jury' ? 'P&I/Jury screening' : 'tech check'
+    const displayName = isPlaceholder ? (screening.placeholder_label || 'Placeholder') : screening.film_title
+
+    if (!confirm(`Are you sure you want to delete this ${screeningType}?\n\n${isPlaceholder ? 'Label' : 'Film'}: ${displayName}\nDate: ${screening.screening_date}\nTime: ${screening.start_time}`)) {
       return
     }
 
@@ -957,8 +850,10 @@ export default function TicketingPage() {
   }
 
   const handleEditScreening = (screening: any) => {
+    const isPlaceholder = screening.is_placeholder || false
+    setIsPlaceholderMode(isPlaceholder)
     setFormData({
-      film_title: screening.film_title,
+      film_title: screening.film_title || '',
       film_id: screening.film_id || null,
       film_type: screening.film_type || null,
       screening_date: screening.screening_date,
@@ -968,9 +863,12 @@ export default function TicketingPage() {
       capacity: screening.capacity,
       notes: screening.notes || '',
       screening_type: screening.screening_type,
-      tech_contact: screening.tech_contact
+      tech_contact: screening.tech_contact,
+      is_placeholder: isPlaceholder,
+      placeholder_label: screening.placeholder_label || '',
+      placeholder_duration: screening.placeholder_duration || null
     })
-    setFilmSearchTerm(screening.film_title)
+    setFilmSearchTerm(isPlaceholder ? '' : (screening.film_title || ''))
     
     // Find matching venue for display
     const matchingVenue = venueCards.find(v => v.short_code === screening.venue_short_code)
@@ -1229,26 +1127,46 @@ export default function TicketingPage() {
   }
 
   const handleSaveScreening = async () => {
-    if (!user || !formData.film_title || !formData.screening_date || !formData.start_time || !formData.venue_short_code) {
-      alert('Please fill in all required fields')
-      return
+    if (isPlaceholderMode) {
+      if (!user || !formData.placeholder_label || !formData.screening_date || !formData.start_time || !formData.venue_short_code) {
+        alert('Please fill in all required fields (label, date, time, venue)')
+        return
+      }
+    } else {
+      if (!user || !formData.film_title || !formData.screening_date || !formData.start_time || !formData.venue_short_code) {
+        alert('Please fill in all required fields')
+        return
+      }
     }
 
     try {
-      const screeningData = {
-        film_title: formData.film_title,
-        film_id: formData.film_id || null,
-        film_type: formData.film_type || null,
+      const screeningData: Record<string, any> = {
         festival_year: currentYear,
         screening_date: formData.screening_date,
         day_of_week: getDayOfWeek(formData.screening_date),
         start_time: formData.start_time,
-        run_time: formData.run_time,
         venue_short_code: formData.venue_short_code,
-        capacity: formData.capacity,
         notes: formData.notes || null,
-        ...(viewMode === 'pi-jury' && { screening_type: formData.screening_type }),
-        ...(viewMode === 'tech-checks' && { tech_contact: formData.tech_contact })
+      }
+
+      if (isPlaceholderMode) {
+        screeningData.is_placeholder = true
+        screeningData.placeholder_label = formData.placeholder_label
+        screeningData.placeholder_duration = formData.placeholder_duration
+        screeningData.film_id = null
+        screeningData.film_type = null
+        screeningData.run_time = null
+        screeningData.tech_contact = formData.tech_contact || null
+      } else {
+        screeningData.film_id = formData.film_id || null
+        screeningData.film_type = formData.film_type || null
+        screeningData.run_time = formData.run_time
+        screeningData.capacity = formData.capacity
+        screeningData.is_placeholder = false
+        screeningData.placeholder_label = null
+        screeningData.placeholder_duration = null
+        if (viewMode === 'pi-jury') screeningData.screening_type = formData.screening_type
+        if (viewMode === 'tech-checks') screeningData.tech_contact = formData.tech_contact
       }
 
       let tableName = ''
@@ -1409,12 +1327,15 @@ export default function TicketingPage() {
     const currentData = getCurrentData()
     if (!debouncedSearchTerm) return currentData
 
-    return currentData.filter(screening =>
-      screening.film_title?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      screening.venue_short_code?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      screening.day_of_week?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      screening.notes?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-    )
+    return currentData.filter(screening => {
+      const search = debouncedSearchTerm.toLowerCase()
+      const tc = screening as TechCheckScreening
+      return screening.film_title?.toLowerCase().includes(search) ||
+        screening.venue_short_code?.toLowerCase().includes(search) ||
+        screening.day_of_week?.toLowerCase().includes(search) ||
+        screening.notes?.toLowerCase().includes(search) ||
+        tc.placeholder_label?.toLowerCase().includes(search)
+    })
   }, [debouncedSearchTerm, publishedScreenings, piJuryScreenings, techCheckScreenings, viewMode])
 
   // Sort filtered data
@@ -1547,20 +1468,20 @@ export default function TicketingPage() {
             )}
           </div>
           <div className="hidden md:flex flex-wrap gap-2">
-            {viewMode === 'pi-jury' && (
-              <button
-                onClick={syncPressScreenings}
-                className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 font-medium"
-              >
-                🔄 Sync Press Screenings
-              </button>
-            )}
             {canEditTicketing && (
               <button
                 onClick={handleAddScreening}
                 className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 font-medium"
               >
                 {viewMode === 'tech-checks' ? 'Add Tech Check' : 'Add Screening'}
+              </button>
+            )}
+            {canEditTicketing && viewMode === 'tech-checks' && (
+              <button
+                onClick={handleAddPlaceholder}
+                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 font-medium"
+              >
+                Add Placeholder
               </button>
             )}
             
@@ -1666,7 +1587,7 @@ export default function TicketingPage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Tech Checks
+              Tech Checks & Placeholders
             </button>
           </div>
         </div>
@@ -1786,23 +1707,35 @@ export default function TicketingPage() {
                       let displayValue: React.ReactNode = cellValue || '--';
 
                       if (column.key === 'film_title') {
-                        displayValue = (
-                          <div className={`font-medium ${isTentative ? 'text-gray-500 italic' : ''}`}>
-                            {isTentative && <span className="text-gray-400 mr-1">(TENT)</span>}
-                            <button
-                              onClick={() => handleFilmClick(screening)}
-                              className="text-blue-600 hover:text-blue-800 hover:underline text-left"
-                            >
-                              {screening.film_title}
-                            </button>
-                          </div>
-                        );
+                        const techScreening = screening as TechCheckScreening;
+                        if (techScreening.is_placeholder) {
+                          displayValue = (
+                            <div className="font-medium text-gray-500 italic">
+                              <span className="text-gray-400 mr-1">[PH]</span>
+                              {techScreening.placeholder_label || 'Placeholder'}
+                            </div>
+                          );
+                        } else {
+                          displayValue = (
+                            <div className={`font-medium ${isTentative ? 'text-gray-500 italic' : ''}`}>
+                              {isTentative && <span className="text-gray-400 mr-1">(TENT)</span>}
+                              <button
+                                onClick={() => handleFilmClick(screening)}
+                                className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                              >
+                                {screening.film_title}
+                              </button>
+                            </div>
+                          );
+                        }
                     } else if (column.key === 'screening_date') {
                       displayValue = formatDate(screening.screening_date);
                     } else if (column.key === 'start_time') {
                       displayValue = formatTime(screening.start_time);
                     } else if (column.key === 'run_time') {
-                      displayValue = screening.run_time ? `${screening.run_time}min` : '--';
+                      const tc = screening as TechCheckScreening;
+                      const duration = tc.is_placeholder ? tc.placeholder_duration : screening.run_time;
+                      displayValue = duration ? `${duration}min` : '--';
                     }
                     
                     return (
@@ -1863,54 +1796,86 @@ export default function TicketingPage() {
           <DraggableModal>
             <div className="p-6 w-[600px] max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold mb-4 modal-header cursor-grab">
-                {viewMode === 'tech-checks' ? 'Add New Tech Check' : 'Add New Screening'}
+                {isPlaceholderMode ? 'Add Placeholder' : viewMode === 'tech-checks' ? 'Add New Tech Check' : 'Add New Screening'}
               </h3>
-            
+
             <div className="space-y-4">
-              {/* Film Title */}
-              <div className="relative film-suggest">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Film Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={filmSearchTerm || formData.film_title}
-                  onChange={(e) => {
-                    setFilmSearchTerm(e.target.value)
-                    setFormData(prev => ({...prev, film_title: e.target.value, film_id: null, film_type: null}))
-                    setShowFilmSuggestions(true)
-                  }}
-                  onFocus={() => setShowFilmSuggestions(true)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                {showFilmSuggestions && filteredFilms.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
-                    {filteredFilms.map((film) => (
-                      <div
-                        key={film.id}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => {
-                          setFormData(prev => ({
-                            ...prev,
-                            film_title: film.title,
-                            film_id: film.id,
-                            film_type: film.film_type || 'feature',
-                            run_time: viewMode === 'tech-checks' ? prev.run_time : film.run_time
-                          }))
-                          setFilmSearchTerm(film.title)
-                          setShowFilmSuggestions(false)
-                        }}
-                      >
-                        <div className="font-medium">{film.title}</div>
-                        <div className="text-sm text-gray-600">{film.run_time} min</div>
-                      </div>
-                    ))}
+              {/* Placeholder fields OR Film Title */}
+              {isPlaceholderMode ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Placeholder Label <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.placeholder_label || ''}
+                      onChange={(e) => setFormData(prev => ({...prev, placeholder_label: e.target.value}))}
+                      placeholder="e.g. Best of Fest, TBD Hold, Extra Screening..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
                   </div>
-                )}
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Duration (minutes)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.placeholder_duration || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        placeholder_duration: e.target.value ? parseInt(e.target.value) : null
+                      }))}
+                      placeholder="Estimated duration for board display"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="relative film-suggest">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Film Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={filmSearchTerm || formData.film_title}
+                    onChange={(e) => {
+                      setFilmSearchTerm(e.target.value)
+                      setFormData(prev => ({...prev, film_title: e.target.value, film_id: null, film_type: null}))
+                      setShowFilmSuggestions(true)
+                    }}
+                    onFocus={() => setShowFilmSuggestions(true)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  {showFilmSuggestions && filteredFilms.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                      {filteredFilms.map((film) => (
+                        <div
+                          key={film.id}
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              film_title: film.title,
+                              film_id: film.id,
+                              film_type: film.film_type || 'feature',
+                              run_time: viewMode === 'tech-checks' ? prev.run_time : film.run_time
+                            }))
+                            setFilmSearchTerm(film.title)
+                            setShowFilmSuggestions(false)
+                          }}
+                        >
+                          <div className="font-medium">{film.title}</div>
+                          <div className="text-sm text-gray-600">{film.run_time} min</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Screening Type for P&I/Jury */}
-              {viewMode === 'pi-jury' && (
+              {viewMode === 'pi-jury' && !isPlaceholderMode && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Screening Type <span className="text-red-500">*</span>
@@ -1928,7 +1893,7 @@ export default function TicketingPage() {
               )}
 
               {/* Tech Contact for Tech Checks */}
-              {viewMode === 'tech-checks' && (
+              {viewMode === 'tech-checks' && !isPlaceholderMode && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Tech Contact
@@ -2022,40 +1987,42 @@ export default function TicketingPage() {
                 )}
               </div>
 
-              {/* Run Time and Capacity */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Run Time (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.run_time || ''}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev, 
-                      run_time: e.target.value ? parseInt(e.target.value) : null
-                    }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
-                {viewMode !== 'tech-checks' && (
+              {/* Run Time and Capacity - hidden for placeholders */}
+              {!isPlaceholderMode && (
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Capacity
+                      Run Time (minutes)
                     </label>
                     <input
                       type="number"
-                      value={formData.capacity || ''}
+                      value={formData.run_time || ''}
                       onChange={(e) => setFormData(prev => ({
-                        ...prev, 
-                        capacity: e.target.value ? parseInt(e.target.value) : null
+                        ...prev,
+                        run_time: e.target.value ? parseInt(e.target.value) : null
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
-                )}
-              </div>
+
+                  {viewMode !== 'tech-checks' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Capacity
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.capacity || ''}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          capacity: e.target.value ? parseInt(e.target.value) : null
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Notes */}
               <div>
@@ -2071,7 +2038,7 @@ export default function TicketingPage() {
                 />
               </div>
             </div>
-            
+
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={() => {
@@ -2086,7 +2053,7 @@ export default function TicketingPage() {
                 onClick={handleSaveScreening}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
               >
-                {viewMode === 'tech-checks' ? 'Add Tech Check' : 'Add Screening'}
+                {isPlaceholderMode ? 'Add Placeholder' : viewMode === 'tech-checks' ? 'Add Tech Check' : 'Add Screening'}
               </button>
             </div>
             </div>
@@ -2099,53 +2066,87 @@ export default function TicketingPage() {
         <div className="fixed inset-0 bg-transparent z-50">
           <DraggableModal>
             <div className="p-6 w-[600px] max-h-[90vh] overflow-y-auto">
-              <h3 className="text-lg font-semibold mb-4 modal-header cursor-grab">Edit Screening</h3>
-            
+              <h3 className="text-lg font-semibold mb-4 modal-header cursor-grab">
+                {isPlaceholderMode ? 'Edit Placeholder' : 'Edit Screening'}
+              </h3>
+
             <div className="space-y-4">
-              {/* Film Title */}
-              <div className="relative film-suggest">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Film Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={filmSearchTerm || formData.film_title}
-                  onChange={(e) => {
-                    setFilmSearchTerm(e.target.value)
-                    setFormData(prev => ({...prev, film_title: e.target.value, film_id: null, film_type: null}))
-                    setShowFilmSuggestions(true)
-                  }}
-                  onFocus={() => setShowFilmSuggestions(true)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                {showFilmSuggestions && filteredFilms.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
-                    {filteredFilms.map((film) => (
-                      <div
-                        key={film.id}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => {
-                          setFormData(prev => ({
-                            ...prev,
-                            film_title: film.title,
-                            film_id: film.id,
-                            film_type: film.film_type || 'feature',
-                            run_time: viewMode === 'tech-checks' ? prev.run_time : film.run_time
-                          }))
-                          setFilmSearchTerm(film.title)
-                          setShowFilmSuggestions(false)
-                        }}
-                      >
-                        <div className="font-medium">{film.title}</div>
-                        <div className="text-sm text-gray-600">{film.run_time} min</div>
-                      </div>
-                    ))}
+              {/* Placeholder fields OR Film Title */}
+              {isPlaceholderMode ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Placeholder Label <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.placeholder_label || ''}
+                      onChange={(e) => setFormData(prev => ({...prev, placeholder_label: e.target.value}))}
+                      placeholder="e.g. Best of Fest, TBD Hold, Extra Screening..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
                   </div>
-                )}
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Duration (minutes)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.placeholder_duration || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        placeholder_duration: e.target.value ? parseInt(e.target.value) : null
+                      }))}
+                      placeholder="Estimated duration for board display"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="relative film-suggest">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Film Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={filmSearchTerm || formData.film_title}
+                    onChange={(e) => {
+                      setFilmSearchTerm(e.target.value)
+                      setFormData(prev => ({...prev, film_title: e.target.value, film_id: null, film_type: null}))
+                      setShowFilmSuggestions(true)
+                    }}
+                    onFocus={() => setShowFilmSuggestions(true)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  {showFilmSuggestions && filteredFilms.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                      {filteredFilms.map((film) => (
+                        <div
+                          key={film.id}
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              film_title: film.title,
+                              film_id: film.id,
+                              film_type: film.film_type || 'feature',
+                              run_time: viewMode === 'tech-checks' ? prev.run_time : film.run_time
+                            }))
+                            setFilmSearchTerm(film.title)
+                            setShowFilmSuggestions(false)
+                          }}
+                        >
+                          <div className="font-medium">{film.title}</div>
+                          <div className="text-sm text-gray-600">{film.run_time} min</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Screening Type for P&I/Jury */}
-              {viewMode === 'pi-jury' && (
+              {viewMode === 'pi-jury' && !isPlaceholderMode && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Screening Type <span className="text-red-500">*</span>
@@ -2163,7 +2164,7 @@ export default function TicketingPage() {
               )}
 
               {/* Tech Contact for Tech Checks */}
-              {viewMode === 'tech-checks' && (
+              {viewMode === 'tech-checks' && !isPlaceholderMode && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Tech Contact
@@ -2257,40 +2258,42 @@ export default function TicketingPage() {
                 )}
               </div>
 
-              {/* Run Time and Capacity */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Run Time (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.run_time || ''}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev, 
-                      run_time: e.target.value ? parseInt(e.target.value) : null
-                    }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
-                {viewMode !== 'tech-checks' && (
+              {/* Run Time and Capacity - hidden for placeholders */}
+              {!isPlaceholderMode && (
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Capacity
+                      Run Time (minutes)
                     </label>
                     <input
                       type="number"
-                      value={formData.capacity || ''}
+                      value={formData.run_time || ''}
                       onChange={(e) => setFormData(prev => ({
-                        ...prev, 
-                        capacity: e.target.value ? parseInt(e.target.value) : null
+                        ...prev,
+                        run_time: e.target.value ? parseInt(e.target.value) : null
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
-                )}
-              </div>
+
+                  {viewMode !== 'tech-checks' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Capacity
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.capacity || ''}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          capacity: e.target.value ? parseInt(e.target.value) : null
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Notes */}
               <div>
@@ -2306,19 +2309,22 @@ export default function TicketingPage() {
                 />
               </div>
             </div>
-            
+
             <div className="flex justify-between items-center mt-6">
-              <button
-                onClick={() => handleCancelScreening(editingScreening)}
-                className={`px-4 py-2 text-sm font-medium rounded-md ${
-                  editingScreening.is_cancelled
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-red-600 text-white hover:bg-red-700'
-                }`}
-              >
-                {editingScreening.is_cancelled ? 'Uncancel Screening' : 'Cancel Screening'}
-              </button>
-              
+              {!isPlaceholderMode && (
+                <button
+                  onClick={() => handleCancelScreening(editingScreening)}
+                  className={`px-4 py-2 text-sm font-medium rounded-md ${
+                    editingScreening.is_cancelled
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : 'bg-red-600 text-white hover:bg-red-700'
+                  }`}
+                >
+                  {editingScreening.is_cancelled ? 'Uncancel Screening' : 'Cancel Screening'}
+                </button>
+              )}
+              {isPlaceholderMode && <div />}
+
               <div className="flex space-x-3">
                 <button
                   onClick={() => {
@@ -2333,7 +2339,7 @@ export default function TicketingPage() {
                   onClick={handleSaveScreening}
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                 >
-                  Update Screening
+                  {isPlaceholderMode ? 'Update Placeholder' : 'Update Screening'}
                 </button>
               </div>
             </div>
