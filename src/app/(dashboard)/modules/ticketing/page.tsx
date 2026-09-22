@@ -1155,16 +1155,18 @@ export default function TicketingPage() {
         screeningData.placeholder_duration = formData.placeholder_duration
         screeningData.film_id = null
         screeningData.film_type = null
-        screeningData.run_time = null
         screeningData.tech_contact = formData.tech_contact || null
       } else {
         screeningData.film_id = formData.film_id || null
         screeningData.film_type = formData.film_type || null
-        screeningData.run_time = formData.run_time
-        screeningData.capacity = formData.capacity
         screeningData.is_placeholder = false
         screeningData.placeholder_label = null
         screeningData.placeholder_duration = null
+        // run_time and capacity only exist on ticketing/pi-jury base tables, not tech_check_screenings
+        if (viewMode !== 'tech-checks') {
+          screeningData.run_time = formData.run_time
+          screeningData.capacity = formData.capacity
+        }
         if (viewMode === 'pi-jury') screeningData.screening_type = formData.screening_type
         if (viewMode === 'tech-checks') screeningData.tech_contact = formData.tech_contact
       }
