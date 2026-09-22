@@ -724,8 +724,8 @@ export default function TicketingPage() {
             continue
           }
 
-          // Resolve film_id from filmCards by matching title
-          const matchingFilm = filmCards.find(f => f.title === title)
+          // Resolve film_id from filmCards by matching title (case-insensitive)
+          const matchingFilm = filmCards.find(f => f.title.toLowerCase() === title.toLowerCase())
 
           // Resolve capacity from venue cards by matching short code
           const matchingVenue = venueCards.find(v => v.short_code === (location || ''))
