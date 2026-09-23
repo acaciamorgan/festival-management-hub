@@ -364,9 +364,22 @@ export function GuestCardPopup({ guest, onClose, onEdit, onUpdate, onDelete }: G
               return (a.start_time || '').localeCompare(b.start_time || '')
             })
 
-            // Filter to only show screenings the guest is attending (not in non_attending_screenings array)
-            const nonAttendingIds = guest.non_attending_screenings || []
-            const attendingScreenings = allScreenings.filter(screening => !nonAttendingIds.includes(screening.id))
+            // Check for explicit screening selections in guest_screenings
+            const { data: explicitSelections } = await supabase
+              .from('guest_screenings')
+              .select('screening_id')
+              .eq('guest_id', guest.id)
+              .eq('festival_year', festivalYearInt)
+
+            let attendingScreenings: any[]
+            if (explicitSelections && explicitSelections.length > 0) {
+              // Guest has explicit selections — only show those
+              const selectedIds = new Set(explicitSelections.map(s => s.screening_id))
+              attendingScreenings = allScreenings.filter(screening => selectedIds.has(screening.id))
+            } else {
+              // No explicit selections — show all (backwards compat)
+              attendingScreenings = allScreenings
+            }
 
             setFilmScreenings(attendingScreenings)
           } catch (error) {
