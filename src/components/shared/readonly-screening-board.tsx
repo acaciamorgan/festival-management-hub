@@ -6,7 +6,6 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { usePermissions } from '@/hooks/use-permissions'
 import { getStringDayOfWeek, formatStringTime } from '@/lib/string-date-utils'
 import { loadScreeningBoardSettings, saveScreeningBoardSettings } from '@/lib/screening-board-settings'
-import { syncPressScreenings } from '@/lib/sync-press-screenings'
 
 interface PublishedScreening {
   id: string
@@ -205,23 +204,6 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
     const loadData = async () => {
       setLoading(true)
       try {
-        // First sync P&I screenings from press screenings
-        const { data: theaterHouses } = await supabase
-          .from('theater_houses')
-          .select('short_code, seat_count')
-          .eq('festival_year', currentYear)
-
-        const venueCards = (theaterHouses || []).map(t => ({
-          short_code: t.short_code,
-          capacity: t.seat_count
-        }))
-
-        try {
-          await syncPressScreenings(currentYear, venueCards)
-        } catch (syncError) {
-          console.error('Error syncing press screenings:', syncError)
-        }
-
         const [pubResult, piResult, tcResult, featResult, shortResult, spResult, settings] = await Promise.all([
           supabase
             .from('ticketing_screenings_with_films')
@@ -230,7 +212,7 @@ export function ReadOnlyScreeningBoard({ currentYear, onFilmClick }: ReadOnlyScr
             .order('screening_date', { ascending: true })
             .order('start_time', { ascending: true }),
           supabase
-            .from('pi_jury_screenings_with_films')
+            .from('press_screenings_for_grid')
             .select('*')
             .eq('festival_year', currentYear)
             .order('screening_date', { ascending: true })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
@@ -11,7 +11,7 @@ import { ReadOnlyScreeningBoard } from '@/components/shared/readonly-screening-b
 import { FilmCardPopup } from '@/components/cards/film-card-popup'
 import { isCSVRowStrikethrough } from '@/lib/excel-utils'
 import { detectChangedFields, logFieldChanges, logNewRecord, fetchFieldChanges, getCellHighlightClass } from '@/lib/field-changes'
-import { syncPressScreenings as syncPressScreeningsLib } from '@/lib/sync-press-screenings'
+
 import * as XLSX from 'xlsx-js-style'
 
 // Helper functions for calendar calculations without Date objects
@@ -153,7 +153,6 @@ export default function TicketingPage() {
   
   // UI states
   const [loading, setLoading] = useState(false)
-  const isSyncingRef = useRef(false)
   const [fieldChangesMap, setFieldChangesMap] = useState<Map<string, Set<string>>>(new Map())
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
@@ -245,15 +244,15 @@ export default function TicketingPage() {
 
   const loadPIJuryScreenings = useCallback(async () => {
     try {
-      // Load P&I/Jury screenings with film details
+      // Load P&I/Jury screenings directly from press_screenings via view
       const { data: screenings, error } = await supabase
-        .from('pi_jury_screenings_with_films')
+        .from('press_screenings_for_grid')
         .select('*')
         .eq('festival_year', currentYear)
         .order('screening_date', { ascending: true })
         .order('start_time', { ascending: true })
 
-      if (error && error.code !== 'PGRST116') throw error // Ignore table not found for now
+      if (error && error.code !== 'PGRST116') throw error
 
       if (!screenings || screenings.length === 0) {
         setPiJuryScreenings([])
@@ -273,14 +272,14 @@ export default function TicketingPage() {
         const theater = theaters?.find(t => t.short_code === screening.venue_short_code)
         return {
           ...screening,
-          capacity: theater?.seat_count || screening.capacity
+          capacity: theater?.seat_count || null
         }
       })
 
       setPiJuryScreenings(mappedData)
     } catch (error) {
       console.error('Error loading P&I/Jury screenings:', error)
-      setPiJuryScreenings([]) // Set empty array if table doesn't exist yet
+      setPiJuryScreenings([])
     }
   }, [supabase, currentYear])
 
@@ -302,19 +301,6 @@ export default function TicketingPage() {
     }
   }, [supabase, currentYear])
 
-  // Sync press screenings to P&I screenings
-  const syncPressScreenings = useCallback(async () => {
-    if (isSyncingRef.current) return
-    isSyncingRef.current = true
-    try {
-      await syncPressScreeningsLib(currentYear, venueCards)
-      await loadPIJuryScreenings()
-    } catch (error) {
-      console.error('Error syncing press screenings:', error)
-    } finally {
-      isSyncingRef.current = false
-    }
-  }, [currentYear, venueCards, loadPIJuryScreenings])
 
   // Load film cards for auto-suggest (features + shorts programs)
   const loadFilmCards = useCallback(async () => {
@@ -458,7 +444,6 @@ export default function TicketingPage() {
       }
 
       addIds(publishedScreenings, 'ticketing_screenings')
-      addIds(piJuryScreenings, 'pi_jury_screenings')
       addIds(techCheckScreenings, 'tech_check_screenings')
 
       const merged = new Map<string, Set<string>>()
@@ -474,15 +459,6 @@ export default function TicketingPage() {
     if (!loading) loadFieldChanges()
   }, [publishedScreenings, piJuryScreenings, techCheckScreenings, loading, currentYear])
 
-  // Auto-sync press screenings on page load
-  const [hasAutoSynced, setHasAutoSynced] = useState(false)
-  useEffect(() => {
-    if (!loading && !hasAutoSynced && venueCards.length > 0) {
-      setHasAutoSynced(true)
-      syncPressScreenings()
-    }
-  }, [loading, hasAutoSynced, syncPressScreenings, venueCards])
-  
   // Click away handler for suggestions and export dropdown
   useEffect(() => {
     const handleClickAway = (e: MouseEvent) => {
@@ -847,8 +823,7 @@ export default function TicketingPage() {
     }
 
     try {
-      const tableName = viewMode === 'ticketing' ? 'ticketing_screenings' :
-                       viewMode === 'pi-jury' ? 'pi_jury_screenings' : 'tech_check_screenings'
+      const tableName = viewMode === 'ticketing' ? 'ticketing_screenings' : 'tech_check_screenings'
 
       const { error } = await supabase
         .from(tableName)
@@ -1152,10 +1127,7 @@ export default function TicketingPage() {
 
   const handleCancelScreening = async (screening: any) => {
     try {
-      let tableName = ''
-      if (viewMode === 'ticketing') tableName = 'ticketing_screenings'
-      else if (viewMode === 'pi-jury') tableName = 'pi_jury_screenings'
-      else if (viewMode === 'tech-checks') tableName = 'tech_check_screenings'
+      const tableName = viewMode === 'ticketing' ? 'ticketing_screenings' : 'tech_check_screenings'
 
       const { error } = await supabase
         .from(tableName)
@@ -1208,19 +1180,15 @@ export default function TicketingPage() {
         screeningData.is_placeholder = false
         screeningData.placeholder_label = null
         screeningData.placeholder_duration = null
-        // run_time and capacity only exist on ticketing/pi-jury base tables, not tech_check_screenings
-        if (viewMode !== 'tech-checks') {
+        // run_time and capacity only exist on ticketing base table, not tech_check_screenings
+        if (viewMode === 'ticketing') {
           screeningData.run_time = formData.run_time
           screeningData.capacity = formData.capacity
         }
-        if (viewMode === 'pi-jury') screeningData.screening_type = formData.screening_type
         if (viewMode === 'tech-checks') screeningData.tech_contact = formData.tech_contact
       }
 
-      let tableName = ''
-      if (viewMode === 'ticketing') tableName = 'ticketing_screenings'
-      else if (viewMode === 'pi-jury') tableName = 'pi_jury_screenings'
-      else if (viewMode === 'tech-checks') tableName = 'tech_check_screenings'
+      const tableName = viewMode === 'ticketing' ? 'ticketing_screenings' : 'tech_check_screenings'
 
       let error
       if (editingScreening) {
@@ -1309,14 +1277,9 @@ export default function TicketingPage() {
           .eq('id', screening.id)
 
         if (deleteError) throw deleteError
-      } else {
-        // For P&I/Jury and Tech Check screenings, just delete them
-        let tableName = ''
-        if (viewMode === 'pi-jury') tableName = 'pi_jury_screenings'
-        else if (viewMode === 'tech-checks') tableName = 'tech_check_screenings'
-
+      } else if (viewMode === 'tech-checks') {
         const { error } = await supabase
-          .from(tableName)
+          .from('tech_check_screenings')
           .delete()
           .eq('id', screening.id)
 
@@ -1516,7 +1479,7 @@ export default function TicketingPage() {
             )}
           </div>
           <div className="hidden md:flex flex-wrap gap-2">
-            {canEditTicketing && (
+            {canEditTicketing && viewMode !== 'pi-jury' && (
               <button
                 onClick={handleAddScreening}
                 className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 font-medium"
@@ -1722,7 +1685,7 @@ export default function TicketingPage() {
                     />
                   </th>
                 ))}
-                {canEditTicketing && (
+                {canEditTicketing && viewMode !== 'pi-jury' && (
                   <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Actions</th>
                 )}
               </tr>
@@ -1800,7 +1763,7 @@ export default function TicketingPage() {
                       </td>
                     );
                   })}
-                  {canEditTicketing && (
+                  {canEditTicketing && viewMode !== 'pi-jury' && (
                     <td className="px-3 py-2 text-center text-sm font-medium">
                       <div className="flex space-x-1 justify-center">
                         <button
@@ -1826,7 +1789,9 @@ export default function TicketingPage() {
                   <td colSpan={getTableColumns().length + (canEditTicketing ? 1 : 0)} className="px-6 py-12 text-center text-gray-500">
                     {debouncedSearchTerm
                       ? 'No screenings match your search.'
-                      : `No ${viewMode === 'ticketing' ? 'published' : viewMode === 'pi-jury' ? 'P&I/Jury' : 'tech check'} screenings found. Click "Add Screening" to create your first screening.`
+                      : viewMode === 'pi-jury'
+                        ? 'No press screenings found. Press screenings are managed in the Press Screenings module.'
+                        : `No ${viewMode === 'ticketing' ? 'published' : 'tech check'} screenings found. Click "Add Screening" to create your first screening.`
                     }
                   </td>
                 </tr>
