@@ -4123,6 +4123,8 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase, curr
         is_industry_days: isIndustryDays
       }
 
+      let programId: string | null = null
+
       if (editingEvent) {
         const { error } = await supabase
           .from('programs')
@@ -4135,15 +4137,60 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase, curr
           alert(`Error updating program: ${error.message}`)
           return
         }
+        programId = editingEvent.id
       } else {
-        const { error } = await supabase
+        const { data: newProgram, error } = await supabase
           .from('programs')
           .insert([{ ...programData, festival_year: currentYear }])
+          .select('id')
+          .single()
 
         if (error) {
           console.error('Error creating program:', error)
           alert(`Error creating program: ${error.message}`)
           return
+        }
+        programId = newProgram.id
+      }
+
+      // Sync guest_films entries from participant names
+      if (programId) {
+        // Delete existing guest_films for this program
+        await supabase
+          .from('guest_films')
+          .delete()
+          .eq('film_id', programId)
+          .eq('film_type', 'program')
+          .eq('festival_year', currentYear)
+
+        // Match participant names against guest cards
+        if (participants.trim()) {
+          const participantNames = participants.split(',').map(n => n.trim()).filter(Boolean)
+          const matchedGuests: { id: string; name: string }[] = []
+
+          for (const name of participantNames) {
+            const match = guests.find(g => g.name.toLowerCase() === name.toLowerCase())
+            if (match) {
+              matchedGuests.push(match)
+            }
+          }
+
+          if (matchedGuests.length > 0) {
+            const associations = matchedGuests.map(guest => ({
+              guest_id: guest.id,
+              film_id: programId,
+              film_type: 'program',
+              festival_year: currentYear
+            }))
+
+            const { error: gfError } = await supabase
+              .from('guest_films')
+              .insert(associations)
+
+            if (gfError) {
+              console.error('Error saving guest-program associations:', gfError)
+            }
+          }
         }
       }
 
