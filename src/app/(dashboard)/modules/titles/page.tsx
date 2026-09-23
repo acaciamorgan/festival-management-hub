@@ -4068,6 +4068,8 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase, curr
   const [saving, setSaving] = useState(false)
   const [venues, setVenues] = useState<VenueCard[]>([])
   const [guests, setGuests] = useState<GuestCard[]>([])
+  const [guestSearchTerm, setGuestSearchTerm] = useState('')
+  const [showGuestSuggestions, setShowGuestSuggestions] = useState(false)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -4321,13 +4323,74 @@ function CreateProgramEventModal({ onClose, onSave, editingEvent, supabase, curr
           {/* Participants */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Participants</label>
-            <textarea
-              value={participants}
-              onChange={(e) => setParticipants(e.target.value)}
-              placeholder="List participants (names will auto-suggest from Guest Cards)..."
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+            {/* Display tagged participants */}
+            {participants && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {participants.split(',').map((name, idx) => name.trim()).filter(Boolean).map((name, idx) => (
+                  <span key={idx} className="inline-flex items-center bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded">
+                    {name}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const names = participants.split(',').map(n => n.trim()).filter(Boolean)
+                        names.splice(idx, 1)
+                        setParticipants(names.join(', '))
+                      }}
+                      className="ml-1 text-blue-600 hover:text-blue-900 font-bold"
+                    >
+                      x
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {/* Auto-suggest input */}
+            <div className="relative">
+              <input
+                type="text"
+                value={guestSearchTerm}
+                onChange={(e) => {
+                  setGuestSearchTerm(e.target.value)
+                  setShowGuestSuggestions(e.target.value.length > 0)
+                }}
+                onFocus={() => {
+                  if (guestSearchTerm.length > 0) setShowGuestSuggestions(true)
+                }}
+                onBlur={() => {
+                  setTimeout(() => setShowGuestSuggestions(false), 200)
+                }}
+                placeholder="Type to search guest cards..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              {showGuestSuggestions && guestSearchTerm.length > 0 && (() => {
+                const existingNames = participants.split(',').map(n => n.trim().toLowerCase()).filter(Boolean)
+                const filtered = guests.filter(g =>
+                  g.name.toLowerCase().includes(guestSearchTerm.toLowerCase()) &&
+                  !existingNames.includes(g.name.toLowerCase())
+                ).slice(0, 8)
+                if (filtered.length === 0) return null
+                return (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {filtered.map(guest => (
+                      <div
+                        key={guest.id}
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-900"
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          const existing = participants.split(',').map(n => n.trim()).filter(Boolean)
+                          existing.push(guest.name)
+                          setParticipants(existing.join(', '))
+                          setGuestSearchTerm('')
+                          setShowGuestSuggestions(false)
+                        }}
+                      >
+                        {guest.name}
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
           </div>
 
           {/* Description */}
