@@ -370,12 +370,14 @@ export default function InAttendancePage() {
         guestFilmsResponse,
         screeningsResponse,
         shortFilmsResponse,
-        shortsProgramsResponse
+        shortsProgramsResponse,
+        guestScreeningsResponse
       ] = await Promise.all([
         supabase.from('guest_film_titles').select('*').eq('festival_year', currentYear),
         supabase.from('ticketing_screenings_with_films').select('*').eq('is_published', true).eq('festival_year', currentYear),
         supabase.from('short_films').select('id, title, shorts_program_id').eq('festival_year', currentYear),
-        supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear)
+        supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear),
+        supabase.from('guest_screenings').select('guest_id, screening_id').eq('festival_year', currentYear)
       ])
 
       if (guestFilmsResponse.error) throw guestFilmsResponse.error
@@ -384,6 +386,16 @@ export default function InAttendancePage() {
       const allScreenings = screeningsResponse.data || []
       const shortFilms = shortFilmsResponse.data || []
       const shortsPrograms = shortsProgramsResponse.data || []
+      const allGuestScreenings = guestScreeningsResponse.data || []
+
+      // Build a map of guest_id -> Set of screening_ids from explicit selections
+      const guestScreeningMap = new Map<string, Set<string>>()
+      allGuestScreenings.forEach(gs => {
+        if (!guestScreeningMap.has(gs.guest_id)) {
+          guestScreeningMap.set(gs.guest_id, new Set())
+        }
+        guestScreeningMap.get(gs.guest_id)!.add(gs.screening_id)
+      })
 
       // Create a map for quick short film -> program lookup
       const shortFilmToProgramMap = new Map()
@@ -394,49 +406,63 @@ export default function InAttendancePage() {
         }
       })
 
+      // Build a screening lookup by id
+      const screeningById = new Map(allScreenings.map(s => [s.id, s]))
+
       // Process each guest with their screening data
       const guestsWithFilmsAndScreenings = (guestsData || []).map(guest => {
-        // guest_film_titles view returns one row per (guest, film) with resolved film_title
         const guestFilms = (guestFilmsResponse.data || []).filter(gf => gf.guest_id === guest.id)
+        const explicitIds = guestScreeningMap.get(guest.id)
 
-        // Calculate screenings for this guest
-        const guestScreeningsList: any[] = []
+        let uniqueScreenings: any[]
 
-        // Get screenings for all film types
-        guestFilms.forEach(gf => {
-          if (!gf.film_title) return
+        if (explicitIds && explicitIds.size > 0) {
+          // Guest has explicit screening selections — use those
+          uniqueScreenings = Array.from(explicitIds)
+            .map(id => screeningById.get(id))
+            .filter(Boolean)
+            .sort((a, b) => {
+              const dateCompare = (a.screening_date || '').localeCompare(b.screening_date || '')
+              if (dateCompare !== 0) return dateCompare
+              return (a.start_time || '').localeCompare(b.start_time || '')
+            })
+        } else {
+          // No explicit selections — fall back to all film-matched screenings
+          const guestScreeningsList: any[] = []
 
-          if (gf.film_type === 'short') {
-            // For short films, look up their shorts program for screenings
-            const programName = shortFilmToProgramMap.get(gf.film_title)
-            if (programName) {
-              const programScreenings = allScreenings.filter(s =>
-                s.film_title === programName ||
-                (s.film_title && s.film_title.includes(programName))
-              )
-              guestScreeningsList.push(...programScreenings)
+          guestFilms.forEach(gf => {
+            if (!gf.film_title) return
+
+            if (gf.film_type === 'short') {
+              const programName = shortFilmToProgramMap.get(gf.film_title)
+              if (programName) {
+                const programScreenings = allScreenings.filter(s =>
+                  s.film_title === programName ||
+                  (s.film_title && s.film_title.includes(programName))
+                )
+                guestScreeningsList.push(...programScreenings)
+              }
+            } else {
+              const filmScreenings = allScreenings.filter(s => s.film_title === gf.film_title)
+              guestScreeningsList.push(...filmScreenings)
             }
-          } else {
-            // Features, programs, shorts_programs: match screenings by title
-            const filmScreenings = allScreenings.filter(s => s.film_title === gf.film_title)
-            guestScreeningsList.push(...filmScreenings)
-          }
-        })
+          })
 
-        // Remove duplicates and sort
-        const uniqueScreenings = guestScreeningsList.filter((screening, index, array) =>
-          array.findIndex(s => s.id === screening.id) === index
-        ).sort((a, b) => {
-          const dateCompare = (a.screening_date || '').localeCompare(b.screening_date || '')
-          if (dateCompare !== 0) return dateCompare
-          return (a.start_time || '').localeCompare(b.start_time || '')
-        })
+          uniqueScreenings = guestScreeningsList.filter((screening, index, array) =>
+            array.findIndex(s => s.id === screening.id) === index
+          ).sort((a, b) => {
+            const dateCompare = (a.screening_date || '').localeCompare(b.screening_date || '')
+            if (dateCompare !== 0) return dateCompare
+            return (a.start_time || '').localeCompare(b.start_time || '')
+          })
+        }
 
         return {
           ...guest,
           films: guestFilms,
           programs: [],
-          screenings: uniqueScreenings, // Add screenings directly to guest object
+          screenings: uniqueScreenings,
+          has_explicit_screenings: explicitIds && explicitIds.size > 0,
           films_display: guest.films_display || '—',
           database_match: '—'
         }

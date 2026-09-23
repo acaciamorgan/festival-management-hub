@@ -117,6 +117,9 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
   const [showJurySuggestions, setShowJurySuggestions] = useState(false)
   const [allJuryNames, setAllJuryNames] = useState<string[]>([])
   const [duplicateConflict, setDuplicateConflict] = useState<{ id: string, guest_type: string } | null>(null)
+  const [availableScreenings, setAvailableScreenings] = useState<Record<string, any[]>>({})
+  const [selectedScreeningIds, setSelectedScreeningIds] = useState<Set<string>>(new Set())
+  const [loadingScreenings, setLoadingScreenings] = useState(false)
 
   const supabase = createClient()
 
@@ -156,6 +159,70 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
     }
   }, [isOpen, supabase, currentYear])
 
+  // Load available screenings for the guest's films when editing
+  useEffect(() => {
+    if (!isOpen || !guest) {
+      setAvailableScreenings({})
+      setSelectedScreeningIds(new Set())
+      return
+    }
+
+    const loadScreeningsForGuest = async () => {
+      setLoadingScreenings(true)
+      try {
+        // Get guest's film associations
+        const { data: guestFilms } = await supabase
+          .from('guest_film_titles')
+          .select('film_title, film_type')
+          .eq('guest_id', guest.id)
+          .eq('festival_year', currentYear)
+
+        if (!guestFilms || guestFilms.length === 0) {
+          setAvailableScreenings({})
+          setLoadingScreenings(false)
+          return
+        }
+
+        // For each film, load all screenings
+        const screeningsByFilm: Record<string, any[]> = {}
+
+        for (const gf of guestFilms) {
+          if (!gf.film_title) continue
+
+          const { data: screenings } = await supabase
+            .from('ticketing_screenings_with_films')
+            .select('id, film_title, screening_date, day_of_week, start_time, venue_short_code, is_cancelled')
+            .eq('film_title', gf.film_title)
+            .eq('festival_year', currentYear)
+            .order('screening_date', { ascending: true })
+            .order('start_time', { ascending: true })
+
+          if (screenings && screenings.length > 0) {
+            screeningsByFilm[gf.film_title] = screenings
+          }
+        }
+
+        setAvailableScreenings(screeningsByFilm)
+
+        // Load existing guest_screenings selections
+        const { data: existingSelections } = await supabase
+          .from('guest_screenings')
+          .select('screening_id')
+          .eq('guest_id', guest.id)
+          .eq('festival_year', currentYear)
+
+        if (existingSelections) {
+          setSelectedScreeningIds(new Set(existingSelections.map(s => s.screening_id)))
+        }
+      } catch (error) {
+        console.error('Error loading screenings for guest:', error)
+      } finally {
+        setLoadingScreenings(false)
+      }
+    }
+
+    loadScreeningsForGuest()
+  }, [isOpen, guest, supabase, currentYear])
 
   // Initialize form data when guest changes
   useEffect(() => {
@@ -533,6 +600,33 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
         savedGuest.films = []
       }
 
+      // Save screening attendance selections
+      if (selectedScreeningIds.size > 0 || guest) {
+        // Delete existing selections for this guest
+        await supabase
+          .from('guest_screenings')
+          .delete()
+          .eq('guest_id', savedGuest.id)
+          .eq('festival_year', currentYear)
+
+        // Insert new selections
+        if (selectedScreeningIds.size > 0) {
+          const screeningRows = Array.from(selectedScreeningIds).map(screeningId => ({
+            guest_id: savedGuest.id,
+            screening_id: screeningId,
+            festival_year: currentYear
+          }))
+
+          const { error: gsError } = await supabase
+            .from('guest_screenings')
+            .insert(screeningRows)
+
+          if (gsError) {
+            console.error('Error saving screening attendance:', gsError)
+          }
+        }
+      }
+
       onSave(savedGuest)
       onClose()
     } catch (error) {
@@ -817,6 +911,84 @@ export function GuestFormModal({ guest, isOpen, onClose, onSave }: GuestFormModa
                   </p>
                 </div>
               </div>
+
+              {/* Screening Attendance — only when editing and screenings exist */}
+              {guest && Object.keys(availableScreenings).length > 0 && (
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Screening Attendance</h3>
+                  <p className="text-sm text-gray-500 mb-3">
+                    Select which screening(s) this guest is attending.
+                  </p>
+                  {loadingScreenings ? (
+                    <p className="text-sm text-gray-400">Loading screenings...</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {Object.entries(availableScreenings).map(([filmTitle, screenings]) => (
+                        <div key={filmTitle} className="border border-gray-200 rounded-md p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-semibold text-gray-800">{filmTitle}</h4>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const allIds = screenings.map(s => s.id)
+                                const allSelected = allIds.every(id => selectedScreeningIds.has(id))
+                                setSelectedScreeningIds(prev => {
+                                  const next = new Set(prev)
+                                  allIds.forEach(id => allSelected ? next.delete(id) : next.add(id))
+                                  return next
+                                })
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-800"
+                            >
+                              {screenings.every(s => selectedScreeningIds.has(s.id)) ? 'Deselect All' : 'Select All'}
+                            </button>
+                          </div>
+                          <div className="space-y-1">
+                            {screenings.map(screening => {
+                              const isSelected = selectedScreeningIds.has(screening.id)
+                              const [, month, day] = (screening.screening_date || '').split('-')
+                              const timeStr = screening.start_time ? (() => {
+                                const [hours, minutes] = screening.start_time.split(':')
+                                const h = parseInt(hours, 10)
+                                const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+                                return `${h12}:${minutes}${h >= 12 ? 'pm' : 'am'}`
+                              })() : 'TBD'
+
+                              return (
+                                <label
+                                  key={screening.id}
+                                  className={`flex items-center space-x-2 p-1.5 rounded cursor-pointer hover:bg-gray-50 ${
+                                    screening.is_cancelled ? 'opacity-50 line-through' : ''
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => {
+                                      setSelectedScreeningIds(prev => {
+                                        const next = new Set(prev)
+                                        isSelected ? next.delete(screening.id) : next.add(screening.id)
+                                        return next
+                                      })
+                                    }}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                  />
+                                  <span className="text-sm text-gray-900">
+                                    {month}/{day} — {timeStr} — {screening.venue_short_code}
+                                  </span>
+                                  {screening.is_cancelled && (
+                                    <span className="text-xs text-red-500">(Cancelled)</span>
+                                  )}
+                                </label>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Contact Information */}
               <div>
