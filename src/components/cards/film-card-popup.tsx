@@ -313,18 +313,27 @@ export function FilmCardPopup({ film, onClose }: FilmCardProps) {
         // Load film contacts - determine film type and load accordingly
         const loadContacts = async () => {
           try {
-            // Try feature films first
-            const { data: featureData, error: featureError } = await supabase
+            // Determine film type by checking each table
+            let filmType: 'feature' | 'short' | 'program' = 'feature'
+
+            const { data: featureData } = await supabase
               .from('feature_films')
               .select('id')
               .eq('id', film.id)
               .maybeSingle()
 
-            let filmType: 'feature' | 'short' = 'feature'
-            
-            if (featureError || !featureData) {
-              // If not found in features, it's likely a short film
-              filmType = 'short'
+            if (!featureData) {
+              const { data: programData } = await supabase
+                .from('programs')
+                .select('id')
+                .eq('id', film.id)
+                .maybeSingle()
+
+              if (programData) {
+                filmType = 'program'
+              } else {
+                filmType = 'short'
+              }
             }
 
             // Load contacts for this film with full contact details

@@ -952,6 +952,20 @@ export default function TicketingPage() {
               type: 'shorts_program'
             }
           }
+        } else if (screening.film_type === 'program') {
+          const { data: programData } = await supabase
+            .from('programs')
+            .select('*')
+            .eq('id', screening.film_id)
+            .maybeSingle()
+
+          if (programData) {
+            filmData = {
+              id: programData.id,
+              title: programData.title,
+              programs: 'Program'
+            }
+          }
         }
       }
 
@@ -989,6 +1003,22 @@ export default function TicketingPage() {
               id: programMatch.id,
               title: programMatch.program_name,
               type: 'shorts_program'
+            }
+          } else {
+            // Try event programs
+            const { data: eventMatch } = await supabase
+              .from('programs')
+              .select('*')
+              .eq('title', screening.film_title)
+              .eq('festival_year', currentYear)
+              .maybeSingle()
+
+            if (eventMatch) {
+              filmData = {
+                id: eventMatch.id,
+                title: eventMatch.title,
+                programs: 'Program'
+              }
             }
           }
         }
