@@ -243,51 +243,6 @@ export function InterviewFormModal({ interview, isOpen, onClose, onSave }: Inter
     }
   }, [supabase, currentYear])
 
-  // Auto-suggest subjects when a film is selected
-  const loadFilmGuests = useCallback(async (filmId: string, filmType: string) => {
-    try {
-      let guests: Array<{ id: string; name: string }> = []
-
-      if (filmType === 'feature' || filmType === 'short') {
-        const { data } = await supabase
-          .from('guest_films')
-          .select('guest_id, guests!inner(id, name)')
-          .eq('film_id', filmId)
-
-        guests = (data || []).map((gf: any) => ({
-          id: gf.guests.id,
-          name: gf.guests.name,
-        }))
-      }
-
-      if (guests.length > 0) {
-        // Use functional update to avoid stale closure over subjectChips
-        setSubjectChips(prev => {
-          const newChips: ChipItem[] = []
-          for (const guest of guests) {
-            const alreadyAdded = prev.some(c => c.id === guest.id)
-            if (!alreadyAdded) {
-              newChips.push({ id: guest.id, label: guest.name })
-            }
-          }
-          return newChips.length > 0 ? [...prev, ...newChips] : prev
-        })
-      }
-    } catch (error) {
-      console.error('Error loading film guests:', error)
-    }
-  }, [supabase])
-
-  // When films change (new film added), auto-suggest guests
-  useEffect(() => {
-    if (selectedFilms.length > 0 && !interview) {
-      const latestFilm = selectedFilms[selectedFilms.length - 1]
-      if (latestFilm.id) {
-        loadFilmGuests(latestFilm.id, latestFilm.filmType)
-      }
-    }
-  }, [selectedFilms.length, loadFilmGuests, interview])
-
   // Date/time blur handlers — parse natural input into DB format
   const handleDateBlur = () => {
     if (!interviewDate) return

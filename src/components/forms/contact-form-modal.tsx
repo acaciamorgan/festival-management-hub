@@ -376,7 +376,10 @@ export function ContactFormModal({ contact, isOpen, onClose, onSave }: ContactFo
 
           const { error: assignmentError } = await supabase
             .from('film_contacts')
-            .insert(assignments)
+            .upsert(assignments, {
+              onConflict: 'film_id,contact_id,contact_type,festival_year',
+              ignoreDuplicates: true
+            })
 
           if (assignmentError) {
             console.error('Error saving film assignments:', assignmentError)
