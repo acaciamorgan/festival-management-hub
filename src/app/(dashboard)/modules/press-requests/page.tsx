@@ -606,13 +606,17 @@ export default function PressRequestsPage() {
         })
 
         // Format contacts
-        const contactsText = filmData.contacts.length > 0
-          ? filmData.contacts.map((c: any) => `${c.name} - ${c.email}`).join(', ')
+        const contactNames = filmData.contacts.length > 0
+          ? filmData.contacts.map((c: any) => c.name).join(', ')
           : 'No contacts found'
+        const contactEmails = filmData.contacts.length > 0
+          ? filmData.contacts.map((c: any) => c.email).join(', ')
+          : ''
 
         filmEntries.push({
           title: filmData.title,
-          contacts: contactsText,
+          contactNames,
+          contactEmails,
           requests: sortedRequests
         })
       })
@@ -647,12 +651,31 @@ export default function PressRequestsPage() {
                 size: 24 // 12pt
               }),
               new TextRun({
-                text: entry.contacts,
+                text: entry.contactNames,
                 size: 24
               })
             ]
           })
         )
+
+        // Emails line (12pt)
+        if (entry.contactEmails) {
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: 'Emails: ',
+                  bold: true,
+                  size: 24
+                }),
+                new TextRun({
+                  text: entry.contactEmails,
+                  size: 24
+                })
+              ]
+            })
+          )
+        }
 
         // Requests header (12pt)
         children.push(
