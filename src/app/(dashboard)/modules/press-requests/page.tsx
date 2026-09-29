@@ -1061,6 +1061,14 @@ export default function PressRequestsPage() {
                               </button>
                             </>
                           )}
+                          {request.status === 'requested' && (
+                            <button
+                              onClick={() => updateRequestStatus(request.id, 'fulfilled')}
+                              className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700"
+                            >
+                              Fulfilled
+                            </button>
+                          )}
                           <button
                             onClick={() => setSelectedRequest(request)}
                             className="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-700"
