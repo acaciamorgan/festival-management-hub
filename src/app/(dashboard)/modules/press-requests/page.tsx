@@ -70,6 +70,7 @@ export default function PressRequestsPage() {
       switch (filmType) {
         case 'feature': tableName = 'feature_films'; break
         case 'shorts_program': tableName = 'shorts_programs'; break
+        case 'program': tableName = 'programs'; break
         default: tableName = 'feature_films'
       }
 

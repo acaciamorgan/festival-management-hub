@@ -45,7 +45,7 @@ interface PressContact {
 interface Film {
   id: string
   title: string
-  type: 'feature' | 'shorts_program'
+  type: 'feature' | 'shorts_program' | 'program'
   access_type?: string
 }
 
@@ -272,10 +272,12 @@ export function PressRequestFormModal({
       const [
         { data: features },
         { data: shortsPrograms },
+        { data: programs },
         { data: screenerAccess }
       ] = await Promise.all([
         supabase.from('feature_films').select('id, title').eq('festival_year', currentYear).order('title'),
         supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear).order('program_number'),
+        supabase.from('programs').select('id, title').eq('festival_year', currentYear).order('title'),
         supabase.from('screener_access').select('film_id, access_type').eq('festival_year', currentYear)
       ])
 
@@ -295,6 +297,12 @@ export function PressRequestFormModal({
           title: sp.program_name,
           type: 'shorts_program' as const,
           access_type: accessMap.get(sp.id) || 'no_links'
+        })),
+        ...(programs || []).map(p => ({
+          id: p.id,
+          title: p.title,
+          type: 'program' as const,
+          access_type: accessMap.get(p.id) || 'no_links'
         }))
       ]
 
