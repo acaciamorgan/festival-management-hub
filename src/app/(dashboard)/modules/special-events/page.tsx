@@ -59,6 +59,9 @@ export default function SpecialEventsPage() {
   // Junction data for clickable film/guest links
   const [junctionFilmsMap, setJunctionFilmsMap] = useState<Map<string, JunctionFilm[]>>(new Map())
   const [junctionGuestsMap, setJunctionGuestsMap] = useState<Map<string, JunctionGuest[]>>(new Map())
+  const [filmTitleMap, setFilmTitleMap] = useState<Map<string, { title: string, film_type: string }>>(new Map())
+  const [guestNameMap, setGuestNameMap] = useState<Map<string, string>>(new Map())
+  const [guestFilmsMap, setGuestFilmsMap] = useState<Map<string, Set<string>>>(new Map())
 
   // Card popup state
   const [showFilmCard, setShowFilmCard] = useState<any>(null)
@@ -580,9 +583,68 @@ export default function SpecialEventsPage() {
           guestsMap.set(jg.special_event_id, list)
         })
         setJunctionGuestsMap(guestsMap)
+
+        // Collect unique film IDs by type and guest IDs
+        const featureIds = new Set<string>()
+        const shortIds = new Set<string>()
+        const spIds = new Set<string>()
+        const progIds = new Set<string>()
+        const allGuestIds = new Set<string>()
+
+        ;(filmsData || []).forEach(jf => {
+          if (jf.film_type === 'feature') featureIds.add(jf.film_id)
+          else if (jf.film_type === 'short') shortIds.add(jf.film_id)
+          else if (jf.film_type === 'shorts_program') spIds.add(jf.film_id)
+          else if (jf.film_type === 'program') progIds.add(jf.film_id)
+        })
+        ;(guestsData || []).forEach(jg => allGuestIds.add(jg.guest_id))
+
+        const featureArr = Array.from(featureIds)
+        const shortArr = Array.from(shortIds)
+        const spArr = Array.from(spIds)
+        const progArr = Array.from(progIds)
+        const guestArr = Array.from(allGuestIds)
+
+        const [gfResult, guestNamesResult, featResult, shortResult, spResult, progResult] = await Promise.all([
+          guestArr.length > 0
+            ? supabase.from('guest_films').select('guest_id, film_id').in('guest_id', guestArr).eq('festival_year', currentYear)
+            : { data: [] },
+          guestArr.length > 0
+            ? supabase.from('guests').select('id, name').in('id', guestArr)
+            : { data: [] },
+          featureArr.length > 0 ? supabase.from('feature_films').select('id, title').in('id', featureArr) : { data: [] },
+          shortArr.length > 0 ? supabase.from('short_films').select('id, title').in('id', shortArr) : { data: [] },
+          spArr.length > 0 ? supabase.from('shorts_programs').select('id, program_name').in('id', spArr) : { data: [] },
+          progArr.length > 0 ? supabase.from('programs').select('id, title').in('id', progArr) : { data: [] },
+        ])
+
+        // Build film title map
+        const titleMap = new Map<string, { title: string, film_type: string }>()
+        ;(featResult.data || []).forEach(f => titleMap.set(f.id, { title: f.title, film_type: 'feature' }))
+        ;(shortResult.data || []).forEach(f => titleMap.set(f.id, { title: f.title, film_type: 'short' }))
+        ;(spResult.data || []).forEach(f => titleMap.set(f.id, { title: f.program_name, film_type: 'shorts_program' }))
+        ;(progResult.data || []).forEach(f => titleMap.set(f.id, { title: f.title, film_type: 'program' }))
+        setFilmTitleMap(titleMap)
+
+        // Build guest name map
+        const nameMap = new Map<string, string>()
+        ;(guestNamesResult.data || []).forEach(g => nameMap.set(g.id, g.name))
+        setGuestNameMap(nameMap)
+
+        // Build guest_films map
+        const gfMap = new Map<string, Set<string>>()
+        ;(gfResult.data || []).forEach(gf => {
+          const s = gfMap.get(gf.guest_id) || new Set()
+          s.add(gf.film_id)
+          gfMap.set(gf.guest_id, s)
+        })
+        setGuestFilmsMap(gfMap)
       } else {
         setJunctionFilmsMap(new Map())
         setJunctionGuestsMap(new Map())
+        setFilmTitleMap(new Map())
+        setGuestNameMap(new Map())
+        setGuestFilmsMap(new Map())
       }
 
       setSpecialEvents(combined as any)
@@ -826,72 +888,111 @@ export default function SpecialEventsPage() {
     }
   }
 
-  // Render film titles with clickable links for junction-linked items
-  const renderFilmTitles = (event: SpecialEventCard) => {
-    if (!event.films_programs_display_combined) return '—'
-
-    const titles = event.films_programs_display_combined.split(' || ').map(t => t.trim())
+  // Render films with guests scoped via guest_films
+  const renderFilmsAndGuests = (event: SpecialEventCard) => {
     const junctionFilms = junctionFilmsMap.get(event.id) || []
-
-    return (
-      <div className="flex flex-wrap gap-1">
-        {titles.map((title, index) => {
-          const jf = index < junctionFilms.length ? junctionFilms[index] : undefined
-
-          return (
-            <span key={index}>
-              {jf ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    openFilmCard(jf.film_id, jf.film_type)
-                  }}
-                  className="text-blue-600 hover:text-blue-800 hover:underline text-left"
-                >
-                  {title}
-                </button>
-              ) : (
-                <span className="text-gray-900">{title}</span>
-              )}
-              {index < titles.length - 1 && <span className="text-gray-400">, </span>}
-            </span>
-          )
-        })}
-      </div>
-    )
-  }
-
-  // Render guest names with clickable links for junction-linked items
-  const renderGuestNames = (event: SpecialEventCard) => {
-    if (!event.guests_display_combined) return '—'
-
-    const names = event.guests_display_combined.split(', ').map(n => n.trim())
     const junctionGuests = junctionGuestsMap.get(event.id) || []
 
-    return (
-      <div className="flex flex-wrap gap-1">
-        {names.map((name, index) => {
-          const jg = index < junctionGuests.length ? junctionGuests[index] : undefined
+    if (junctionFilms.length === 0 && junctionGuests.length === 0) {
+      // Fall back to display strings if no junction data
+      if (event.films_programs_display_combined || event.guests_display_combined) {
+        return (
+          <div>
+            {event.films_programs_display_combined && <div className="font-medium">{event.films_programs_display_combined}</div>}
+            {event.guests_display_combined && <div className="text-xs text-gray-600 ml-2">{event.guests_display_combined}</div>}
+          </div>
+        )
+      }
+      return '—'
+    }
 
-          return (
-            <span key={index}>
-              {jg ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    openGuestCard(jg.guest_id)
-                  }}
-                  className="text-blue-600 hover:text-blue-800 hover:underline text-left"
-                >
-                  {name}
-                </button>
-              ) : (
-                <span className="text-gray-900">{name}</span>
-              )}
-              {index < names.length - 1 && <span className="text-gray-400">, </span>}
-            </span>
-          )
-        })}
+    // Build guests list with names from source
+    const guests = junctionGuests.map(jg => ({
+      name: guestNameMap.get(jg.guest_id) || 'Unknown',
+      guest_id: jg.guest_id,
+    }))
+
+    // Build films from junction data with real titles
+    const films = junctionFilms.map(jf => {
+      const filmInfo = filmTitleMap.get(jf.film_id)
+      return {
+        title: filmInfo?.title || 'Unknown Film',
+        film_id: jf.film_id,
+        film_type: jf.film_type,
+      }
+    })
+
+    // Scope guests to films using guest_films
+    const assignedGuestIds = new Set<string>()
+    const filmsWithGuests = films.map(film => {
+      const filmGuests = guests.filter(g => {
+        const gFilms = guestFilmsMap.get(g.guest_id)
+        if (gFilms && gFilms.has(film.film_id)) {
+          assignedGuestIds.add(g.guest_id)
+          return true
+        }
+        return false
+      })
+      return { ...film, guests: filmGuests }
+    })
+
+    const ungroupedGuests = guests.filter(g => !assignedGuestIds.has(g.guest_id))
+
+    return (
+      <div className="space-y-1">
+        {filmsWithGuests.map((film, filmIndex) => (
+          <div key={filmIndex} className="border-l-2 border-blue-200 pl-2">
+            <div className="font-medium">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  openFilmCard(film.film_id, film.film_type)
+                }}
+                className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+              >
+                {film.title}
+              </button>
+            </div>
+            {film.guests.length > 0 && (
+              <div className="text-xs text-gray-600 ml-2">
+                {film.guests.map((guest, guestIndex) => (
+                  <span key={guestIndex}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openGuestCard(guest.guest_id)
+                      }}
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      {guest.name}
+                    </button>
+                    {guestIndex < film.guests.length - 1 && <span className="text-gray-400">, </span>}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+        {ungroupedGuests.length > 0 && (
+          <div className="border-l-2 border-gray-200 pl-2">
+            <div className="text-xs text-gray-600 ml-2">
+              {ungroupedGuests.map((guest, index) => (
+                <span key={`ungrouped-${index}`}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openGuestCard(guest.guest_id)
+                    }}
+                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    {guest.name}
+                  </button>
+                  {index < ungroupedGuests.length - 1 && <span className="text-gray-400">, </span>}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -1238,8 +1339,7 @@ export default function SpecialEventsPage() {
                     { key: 'title', label: 'Event', width: 200, sortable: true },
                     { key: 'event_type', label: 'Event Type', width: 120, sortable: true },
                     { key: 'confirmed', label: 'Confirmed', width: 100, sortable: true },
-                    { key: 'films_programs_display_combined', label: 'Films/Programs Associated', width: 250, sortable: false },
-                    { key: 'guests_display_combined', label: 'Guests Associated', width: 200, sortable: false },
+                    { key: 'films_guests', label: 'Films/Programs & Guests', width: 300, sortable: false },
                     { key: 'access_time', label: 'Access Time', width: 100, sortable: false },
                     { key: 'start_time', label: 'Start Time', width: 100, sortable: false },
                     { key: 'end_time', label: 'End Time', width: 100, sortable: false },
@@ -1321,27 +1421,16 @@ export default function SpecialEventsPage() {
                       />
                     </td>
 
-                    {/* Films/Programs Associated */}
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['films_programs_display_combined'] || 250}px` }}>
+                    {/* Films/Programs & Guests */}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['films_guests'] || 300}px` }}>
                       {isInterview ? (
-                        event.films_programs_display_combined ? (
-                          <span className="text-gray-900 font-medium">
-                            {event.films_programs_display_combined}
-                          </span>
-                        ) : '—'
+                        <div>
+                          {event.films_programs_display_combined && <div className="font-medium">{event.films_programs_display_combined}</div>}
+                          {event.guests_display_combined && <div className="text-xs text-gray-600 ml-2">{event.guests_display_combined}</div>}
+                          {!event.films_programs_display_combined && !event.guests_display_combined && '—'}
+                        </div>
                       ) : (
-                        renderFilmTitles(event)
-                      )}
-                    </td>
-
-                    {/* Guests Associated */}
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['guests_display_combined'] || 200}px` }}>
-                      {isInterview ? (
-                        event.guests_display_combined ? (
-                          <span className="text-gray-900">{event.guests_display_combined}</span>
-                        ) : '—'
-                      ) : (
-                        renderGuestNames(event)
+                        renderFilmsAndGuests(event)
                       )}
                     </td>
                     

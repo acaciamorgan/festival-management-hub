@@ -43,6 +43,7 @@ interface GroupedRedCarpetEvent {
   rsvp_responses_url: string | null
   run_of_show_url: string | null
   films: GroupedFilm[]
+  ungroupedSubjects: { name: string, guest_id?: string }[]
   rawEvents: RedCarpetCard[]
 }
 
@@ -65,6 +66,8 @@ export default function RedCarpetsPage() {
   const [junctionFilmsMap, setJunctionFilmsMap] = useState<Map<string, JunctionFilm[]>>(new Map())
   const [junctionSubjectsMap, setJunctionSubjectsMap] = useState<Map<string, JunctionSubject[]>>(new Map())
   const [guestFilmsMap, setGuestFilmsMap] = useState<Map<string, Set<string>>>(new Map())
+  const [filmTitleMap, setFilmTitleMap] = useState<Map<string, { title: string, film_type: string }>>(new Map())
+  const [guestNameMap, setGuestNameMap] = useState<Map<string, string>>(new Map())
 
   const supabase = createClient()
   const { currentYear } = useFestivalYear()
@@ -354,27 +357,52 @@ export default function RedCarpetsPage() {
         })
         setJunctionSubjectsMap(subjectsMap)
 
+        // Collect IDs for supplementary lookups
         const allGuestIds = [...new Set((subjectsData || []).map((s: any) => s.guest_id).filter(Boolean))]
-        if (allGuestIds.length > 0) {
-          const { data: gfData } = await supabase
-            .from('guest_films')
-            .select('guest_id, film_id')
-            .in('guest_id', allGuestIds)
-            .eq('festival_year', currentYear)
-          const gfMap = new Map<string, Set<string>>()
-          ;(gfData || []).forEach((gf: any) => {
-            const set = gfMap.get(gf.guest_id) || new Set<string>()
-            set.add(gf.film_id)
-            gfMap.set(gf.guest_id, set)
-          })
-          setGuestFilmsMap(gfMap)
-        } else {
-          setGuestFilmsMap(new Map())
-        }
+        const allFilmEntries: JunctionFilm[] = []
+        filmsMap.forEach(films => allFilmEntries.push(...films))
+        const featureIds = [...new Set(allFilmEntries.filter(f => f.film_type === 'feature').map(f => f.film_id))]
+        const shortIds = [...new Set(allFilmEntries.filter(f => f.film_type === 'short').map(f => f.film_id))]
+        const spIds = [...new Set(allFilmEntries.filter(f => f.film_type === 'shorts_program').map(f => f.film_id))]
+        const progIds = [...new Set(allFilmEntries.filter(f => f.film_type === 'program').map(f => f.film_id))]
+
+        const [gfResult, guestNamesResult, featResult, shortResult, spResult, progResult] = await Promise.all([
+          allGuestIds.length > 0
+            ? supabase.from('guest_films').select('guest_id, film_id').in('guest_id', allGuestIds).eq('festival_year', currentYear)
+            : { data: [] },
+          allGuestIds.length > 0
+            ? supabase.from('guests').select('id, name').in('id', allGuestIds)
+            : { data: [] },
+          featureIds.length > 0 ? supabase.from('feature_films').select('id, title').in('id', featureIds) : { data: [] },
+          shortIds.length > 0 ? supabase.from('short_films').select('id, title').in('id', shortIds) : { data: [] },
+          spIds.length > 0 ? supabase.from('shorts_programs').select('id, program_name').in('id', spIds) : { data: [] },
+          progIds.length > 0 ? supabase.from('programs').select('id, title').in('id', progIds) : { data: [] },
+        ])
+
+        const gfMap = new Map<string, Set<string>>()
+        ;(gfResult.data || []).forEach((gf: any) => {
+          const set = gfMap.get(gf.guest_id) || new Set<string>()
+          set.add(gf.film_id)
+          gfMap.set(gf.guest_id, set)
+        })
+        setGuestFilmsMap(gfMap)
+
+        const nameMap = new Map<string, string>()
+        ;(guestNamesResult.data || []).forEach((g: any) => nameMap.set(g.id, g.name))
+        setGuestNameMap(nameMap)
+
+        const titleMap = new Map<string, { title: string, film_type: string }>()
+        ;(featResult.data || []).forEach((f: any) => titleMap.set(f.id, { title: f.title, film_type: 'feature' }))
+        ;(shortResult.data || []).forEach((f: any) => titleMap.set(f.id, { title: f.title, film_type: 'short' }))
+        ;(spResult.data || []).forEach((f: any) => titleMap.set(f.id, { title: f.program_name, film_type: 'shorts_program' }))
+        ;(progResult.data || []).forEach((f: any) => titleMap.set(f.id, { title: f.title, film_type: 'program' }))
+        setFilmTitleMap(titleMap)
       } else {
         setJunctionFilmsMap(new Map())
         setJunctionSubjectsMap(new Map())
         setGuestFilmsMap(new Map())
+        setGuestNameMap(new Map())
+        setFilmTitleMap(new Map())
       }
     } catch (error) {
       console.error('Error loading red carpets:', error)
@@ -405,6 +433,7 @@ export default function RedCarpetsPage() {
           rsvp_responses_url: carpet.rsvp_responses_url,
           run_of_show_url: carpet.run_of_show_url,
           films: [],
+          ungroupedSubjects: [],
           rawEvents: []
         })
       }
@@ -412,66 +441,60 @@ export default function RedCarpetsPage() {
       const group = groups.get(eventKey)!
       group.rawEvents.push(carpet)
 
-      // Get junction data scoped to THIS carpet row
+      // Get junction data for this carpet row
       const carpetJunctionFilms = junctionFilmsMap.get(carpet.id) || []
       const carpetJunctionSubjects = junctionSubjectsMap.get(carpet.id) || []
 
-      // Parse display strings for titles and subjects (from the view)
-      const filmTitles = carpet.film_program_display_combined
-        ? carpet.film_program_display_combined.split(' || ').map((t: string) => t.trim())
-        : []
-      const subjectNames = carpet.subjects_display_combined
-        ? carpet.subjects_display_combined.split(',').map((s: string) => s.trim())
-        : []
-
-      // Build this row's subjects with guest IDs matched by position
-      const rowSubjects = subjectNames.map((name, idx) => ({
-        name,
-        guest_id: idx < carpetJunctionSubjects.length ? carpetJunctionSubjects[idx].guest_id : undefined,
-      }))
-
-      // Build structured film objects with IDs from junction data
-      filmTitles.forEach(title => {
-        // Match display title to junction film by position
-        let filmId: string | undefined
-        let filmType: string | undefined
-        const titleIndex = filmTitles.indexOf(title)
-        if (titleIndex >= 0 && titleIndex < carpetJunctionFilms.length) {
-          filmId = carpetJunctionFilms[titleIndex].film_id
-          filmType = carpetJunctionFilms[titleIndex].film_type
-        }
-
-        // Scope subjects to this specific film using guest_films
-        let filmSubjects = rowSubjects
-        if (filmId && guestFilmsMap.size > 0) {
-          filmSubjects = rowSubjects.filter(s => {
-            if (!s.guest_id) return true // free text subject, always show
-            const guestFilms = guestFilmsMap.get(s.guest_id)
-            if (!guestFilms) return true // guest has no film associations, show everywhere
-            return guestFilms.has(filmId) // only show if guest is associated with this film
-          })
-        }
-
-        const existingFilm = group.films.find(f => f.title === title)
-        if (existingFilm) {
-          filmSubjects.forEach(subject => {
-            if (!existingFilm.subjects.some(s => s.name === subject.name)) {
-              existingFilm.subjects.push(subject)
-            }
-          })
-        } else {
+      // Add films from junction data with real titles
+      carpetJunctionFilms.forEach(jf => {
+        const filmInfo = filmTitleMap.get(jf.film_id)
+        if (!filmInfo) return
+        if (!group.films.some(f => f.film_id === jf.film_id)) {
           group.films.push({
-            title,
-            film_id: filmId,
-            film_type: filmType,
-            subjects: filmSubjects
+            title: filmInfo.title,
+            film_id: jf.film_id,
+            film_type: jf.film_type,
+            subjects: []
           })
         }
       })
+
+      // Assign each subject to their film(s) or ungrouped
+      carpetJunctionSubjects.forEach(js => {
+        const guestName = guestNameMap.get(js.guest_id) || 'Unknown'
+        const subject = { name: guestName, guest_id: js.guest_id }
+        const guestFilms = guestFilmsMap.get(js.guest_id)
+
+        let assigned = false
+        if (guestFilms) {
+          group.films.forEach(film => {
+            if (film.film_id && guestFilms.has(film.film_id)) {
+              if (!film.subjects.some(s => s.guest_id === js.guest_id)) {
+                film.subjects.push(subject)
+                assigned = true
+              }
+            }
+          })
+        }
+
+        if (!assigned && !group.ungroupedSubjects.some(s => s.guest_id === js.guest_id)) {
+          group.ungroupedSubjects.push(subject)
+        }
+      })
+
+      // Free text subjects go to ungrouped
+      if (carpet.subjects_description) {
+        const freeTextNames = carpet.subjects_description.split(',').map((n: string) => n.trim()).filter(Boolean)
+        freeTextNames.forEach(name => {
+          if (!group.ungroupedSubjects.some(s => s.name === name && !s.guest_id)) {
+            group.ungroupedSubjects.push({ name })
+          }
+        })
+      }
     })
 
     return Array.from(groups.values())
-  }, [redCarpets, junctionFilmsMap, junctionSubjectsMap, guestFilmsMap])
+  }, [redCarpets, junctionFilmsMap, junctionSubjectsMap, filmTitleMap, guestNameMap, guestFilmsMap])
 
   // Filter and search logic
   const filteredEvents = useMemo(() => {
@@ -837,6 +860,30 @@ export default function RedCarpetsPage() {
                             </div>
                           </div>
                         ))}
+                        {event.ungroupedSubjects.length > 0 && (
+                          <div className="border-l-2 border-gray-200 pl-2 mt-1">
+                            <div className="text-xs text-gray-600 ml-2">
+                              {event.ungroupedSubjects.map((subject, index) => (
+                                <span key={`ungrouped-${index}`}>
+                                  {subject.guest_id ? (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        openGuestCard(subject.guest_id!)
+                                      }}
+                                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                                    >
+                                      {subject.name}
+                                    </button>
+                                  ) : (
+                                    <span className="text-gray-900">{subject.name}</span>
+                                  )}
+                                  {index < event.ungroupedSubjects.length - 1 && <span className="text-gray-400">, </span>}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['venue_name'] || 150}px` }}>

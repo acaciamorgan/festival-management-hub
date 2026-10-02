@@ -244,21 +244,21 @@ export function PressRequestFormModal({
     try {
       const screenings: Screening[] = []
 
-      const { data: published } = await supabase
-        .from('published_screenings')
+      const { data: ticketing } = await supabase
+        .from('ticketing_screenings_with_films')
         .select('*')
         .eq('film_id', filmId)
         .eq('festival_year', currentYear)
         .order('screening_date', { ascending: true })
         .order('start_time', { ascending: true })
-      
-      if (published) {
-        screenings.push(...published.map(s => ({
+
+      if (ticketing) {
+        screenings.push(...ticketing.map(s => ({
           ...s,
           screening_type: 'published' as const
         })))
       }
-      
+
       setAvailableScreenings(screenings)
     } catch (error) {
       console.error('Error loading screenings:', error)

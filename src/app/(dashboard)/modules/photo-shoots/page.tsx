@@ -44,6 +44,9 @@ export default function PhotoShootsPage() {
   // Junction data maps: shoot_id -> films/subjects with IDs
   const [junctionFilmsMap, setJunctionFilmsMap] = useState<Map<string, JunctionFilm[]>>(new Map())
   const [junctionSubjectsMap, setJunctionSubjectsMap] = useState<Map<string, JunctionSubject[]>>(new Map())
+  const [filmTitleMap, setFilmTitleMap] = useState<Map<string, { title: string, film_type: string }>>(new Map())
+  const [guestNameMap, setGuestNameMap] = useState<Map<string, string>>(new Map())
+  const [guestFilmsMap, setGuestFilmsMap] = useState<Map<string, Set<string>>>(new Map())
 
   const supabase = createClient()
 
@@ -353,9 +356,53 @@ export default function PhotoShootsPage() {
           subjectsMap.set(js.photo_shoot_id, list)
         })
         setJunctionSubjectsMap(subjectsMap)
+
+        // Load film titles, guest names, and guest_films
+        const allFilmEntries: JunctionFilm[] = []
+        filmsMap.forEach(films => allFilmEntries.push(...films))
+        const featureIds = [...new Set(allFilmEntries.filter(f => f.film_type === 'feature').map(f => f.film_id))]
+        const shortIds = [...new Set(allFilmEntries.filter(f => f.film_type === 'short').map(f => f.film_id))]
+        const spIds = [...new Set(allFilmEntries.filter(f => f.film_type === 'shorts_program').map(f => f.film_id))]
+        const progIds = [...new Set(allFilmEntries.filter(f => f.film_type === 'program').map(f => f.film_id))]
+        const allGuestIds = [...new Set((subjectsData || []).map((s: any) => s.guest_id).filter(Boolean))]
+
+        const [gfResult, guestNamesResult, featResult, shortResult, spResult, progResult] = await Promise.all([
+          allGuestIds.length > 0
+            ? supabase.from('guest_films').select('guest_id, film_id').in('guest_id', allGuestIds).eq('festival_year', currentYear)
+            : { data: [] },
+          allGuestIds.length > 0
+            ? supabase.from('guests').select('id, name').in('id', allGuestIds)
+            : { data: [] },
+          featureIds.length > 0 ? supabase.from('feature_films').select('id, title').in('id', featureIds) : { data: [] },
+          shortIds.length > 0 ? supabase.from('short_films').select('id, title').in('id', shortIds) : { data: [] },
+          spIds.length > 0 ? supabase.from('shorts_programs').select('id, program_name').in('id', spIds) : { data: [] },
+          progIds.length > 0 ? supabase.from('programs').select('id, title').in('id', progIds) : { data: [] },
+        ])
+
+        const gfMap = new Map<string, Set<string>>()
+        ;(gfResult.data || []).forEach((gf: any) => {
+          const set = gfMap.get(gf.guest_id) || new Set<string>()
+          set.add(gf.film_id)
+          gfMap.set(gf.guest_id, set)
+        })
+        setGuestFilmsMap(gfMap)
+
+        const nameMap = new Map<string, string>()
+        ;(guestNamesResult.data || []).forEach((g: any) => nameMap.set(g.id, g.name))
+        setGuestNameMap(nameMap)
+
+        const titleMap = new Map<string, { title: string, film_type: string }>()
+        ;(featResult.data || []).forEach((f: any) => titleMap.set(f.id, { title: f.title, film_type: 'feature' }))
+        ;(shortResult.data || []).forEach((f: any) => titleMap.set(f.id, { title: f.title, film_type: 'short' }))
+        ;(spResult.data || []).forEach((f: any) => titleMap.set(f.id, { title: f.program_name, film_type: 'shorts_program' }))
+        ;(progResult.data || []).forEach((f: any) => titleMap.set(f.id, { title: f.title, film_type: 'program' }))
+        setFilmTitleMap(titleMap)
       } else {
         setJunctionFilmsMap(new Map())
         setJunctionSubjectsMap(new Map())
+        setGuestFilmsMap(new Map())
+        setGuestNameMap(new Map())
+        setFilmTitleMap(new Map())
       }
     } catch (error) {
       console.error('Error loading photo shoots:', error)
@@ -544,75 +591,123 @@ export default function PhotoShootsPage() {
     }
   }
 
-  // Helper: render film titles with clickable links for FK-linked items
-  const renderFilmTitles = (shoot: PhotoShootCard) => {
-    if (!shoot.film_program_display_combined) return '—'
-
-    const titles = shoot.film_program_display_combined.split(' || ').map(t => t.trim())
+  // Helper: render films with subjects grouped underneath, using junction data
+  const renderFilmsAndSubjects = (shoot: PhotoShootCard) => {
     const junctionFilms = junctionFilmsMap.get(shoot.id) || []
-
-    return (
-      <div className="flex flex-wrap gap-1">
-        {titles.map((title, index) => {
-          // Try to match this title to a junction film by position
-          // Junction films are ordered, display titles from view are ordered the same way
-          const jf = index < junctionFilms.length ? junctionFilms[index] : undefined
-
-          return (
-            <span key={index}>
-              {jf ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    openFilmCard(jf.film_id, jf.film_type)
-                  }}
-                  className="text-blue-600 hover:text-blue-800 hover:underline text-left"
-                >
-                  {title}
-                </button>
-              ) : (
-                <span className="text-gray-900">{title}</span>
-              )}
-              {index < titles.length - 1 && <span className="text-gray-400">, </span>}
-            </span>
-          )
-        })}
-      </div>
-    )
-  }
-
-  // Helper: render subject names with clickable links for FK-linked items
-  const renderSubjectNames = (shoot: PhotoShootCard) => {
-    if (!shoot.subjects_display_combined) return '—'
-
-    const names = shoot.subjects_display_combined.split(', ').map(n => n.trim())
     const junctionSubjects = junctionSubjectsMap.get(shoot.id) || []
 
-    return (
-      <div className="flex flex-wrap gap-1">
-        {names.map((name, index) => {
-          // Match by position — junction subjects are ordered, display names are ordered the same way
-          const js = index < junctionSubjects.length ? junctionSubjects[index] : undefined
+    if (junctionFilms.length === 0 && junctionSubjects.length === 0) {
+      // Fall back to display strings if no junction data
+      if (shoot.film_program_display_combined || shoot.subjects_display_combined) {
+        return (
+          <div>
+            {shoot.film_program_display_combined && <div className="font-medium">{shoot.film_program_display_combined}</div>}
+            {shoot.subjects_display_combined && <div className="text-xs text-gray-600 ml-2">{shoot.subjects_display_combined}</div>}
+          </div>
+        )
+      }
+      return '—'
+    }
 
-          return (
-            <span key={index}>
-              {js ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    openGuestCard(js.guest_id)
-                  }}
-                  className="text-blue-600 hover:text-blue-800 hover:underline text-left"
-                >
-                  {name}
-                </button>
-              ) : (
-                <span className="text-gray-900">{name}</span>
-              )}
-              {index < names.length - 1 && <span className="text-gray-400">, </span>}
-            </span>
-          )
-        })}
+    // Build subjects list with names from source
+    const subjects = junctionSubjects.map(js => ({
+      name: guestNameMap.get(js.guest_id) || 'Unknown',
+      guest_id: js.guest_id,
+    }))
+
+    // Build films from junction data with real titles
+    const films = junctionFilms.map(jf => {
+      const filmInfo = filmTitleMap.get(jf.film_id)
+      return {
+        title: filmInfo?.title || 'Unknown Film',
+        film_id: jf.film_id,
+        film_type: jf.film_type,
+      }
+    })
+
+    // Scope subjects to films using guest_films
+    const assignedGuestIds = new Set<string>()
+    const filmsWithSubjects = films.map(film => {
+      const filmSubjects = subjects.filter(s => {
+        const guestFilms = guestFilmsMap.get(s.guest_id)
+        if (guestFilms && guestFilms.has(film.film_id)) {
+          assignedGuestIds.add(s.guest_id)
+          return true
+        }
+        return false
+      })
+      return { ...film, subjects: filmSubjects }
+    })
+
+    const ungroupedSubjects = subjects.filter(s => !assignedGuestIds.has(s.guest_id))
+
+    // Add free text subjects to ungrouped
+    if (shoot.subjects_description) {
+      const freeTextNames = shoot.subjects_description.split(',').map((n: string) => n.trim()).filter(Boolean)
+      freeTextNames.forEach(name => {
+        ungroupedSubjects.push({ name, guest_id: undefined as any })
+      })
+    }
+
+    return (
+      <div className="space-y-1">
+        {filmsWithSubjects.map((film, filmIndex) => (
+          <div key={filmIndex} className="border-l-2 border-blue-200 pl-2">
+            <div className="font-medium">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  openFilmCard(film.film_id, film.film_type)
+                }}
+                className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+              >
+                {film.title}
+              </button>
+            </div>
+            {film.subjects.length > 0 && (
+              <div className="text-xs text-gray-600 ml-2">
+                {film.subjects.map((subject, subjectIndex) => (
+                  <span key={subjectIndex}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openGuestCard(subject.guest_id)
+                      }}
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      {subject.name}
+                    </button>
+                    {subjectIndex < film.subjects.length - 1 && <span className="text-gray-400">, </span>}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+        {ungroupedSubjects.length > 0 && (
+          <div className="border-l-2 border-gray-200 pl-2">
+            <div className="text-xs text-gray-600 ml-2">
+              {ungroupedSubjects.map((subject, index) => (
+                <span key={`ungrouped-${index}`}>
+                  {subject.guest_id ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openGuestCard(subject.guest_id)
+                      }}
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      {subject.name}
+                    </button>
+                  ) : (
+                    <span className="text-gray-900">{subject.name}</span>
+                  )}
+                  {index < ungroupedSubjects.length - 1 && <span className="text-gray-400">, </span>}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -732,8 +827,7 @@ export default function PhotoShootsPage() {
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
                   {[
-                    { key: 'film_program_display', label: 'Film / Program', width: 200, sortable: true },
-                    { key: 'subjects_display', label: 'Subject(s)', width: 200, sortable: false },
+                    { key: 'films_subjects', label: 'Films & Subjects', width: 300, sortable: false },
                     { key: 'venue_name', label: 'Venue', width: 150, sortable: true },
                     { key: 'shoot_date', label: 'Date', width: 100, sortable: true },
                     { key: 'call_time', label: 'Call Time', width: 100, sortable: true },
@@ -750,14 +844,13 @@ export default function PhotoShootsPage() {
                       className={`px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 relative ${
                         column.sortable ? 'cursor-pointer hover:bg-gray-100' : ''
                       } ${
-                        column.key === 'film_program_display' ? 'sticky left-0 bg-gray-50 z-10' :
-                        column.key === 'subjects_display' ? 'sticky bg-gray-50 z-9' : ''
+                        column.key === 'films_subjects' ? 'sticky left-0 bg-gray-50 z-10' : ''
                       }`}
                       style={{
                         width: columnWidths[column.key] || column.width,
-                        minWidth: column.key === 'film_program_display' || column.key === 'subjects_display' ? `${column.width}px` : '100px',
-                        maxWidth: column.key === 'film_program_display' || column.key === 'subjects_display' ? `${columnWidths[column.key] || column.width}px` : 'none',
-                        left: column.key === 'subjects_display' ? `${columnWidths['film_program_display'] || 200}px` : '0px'
+                        minWidth: column.key === 'films_subjects' ? `${column.width}px` : '100px',
+                        maxWidth: column.key === 'films_subjects' ? `${columnWidths[column.key] || column.width}px` : 'none',
+                        left: '0px'
                       }}
                       onClick={() => column.sortable && handleSort(column.key)}
                     >
@@ -809,11 +902,8 @@ export default function PhotoShootsPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {sortedPhotoShoots.map((shoot) => (
                   <tr key={shoot.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-0 bg-white z-10" style={{ minWidth: `${columnWidths['film_program_display'] || 200}px`, maxWidth: `${columnWidths['film_program_display'] || 200}px` }}>
-                      {renderFilmTitles(shoot)}
-                    </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-200px bg-white z-9" style={{ minWidth: `${columnWidths['subjects_display'] || 200}px`, maxWidth: `${columnWidths['subjects_display'] || 200}px`, left: `${columnWidths['film_program_display'] || 200}px` }}>
-                      {renderSubjectNames(shoot)}
+                    <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100 sticky left-0 bg-white z-10" style={{ minWidth: `${columnWidths['films_subjects'] || 300}px`, maxWidth: `${columnWidths['films_subjects'] || 300}px` }}>
+                      {renderFilmsAndSubjects(shoot)}
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-100" style={{ minWidth: `${columnWidths['venue_name'] || 150}px` }}>
                       {shoot.venue_name_from_fk ? (
@@ -876,7 +966,7 @@ export default function PhotoShootsPage() {
                 ))}
                 {sortedPhotoShoots.length === 0 && (
                   <tr>
-                    <td colSpan={canEditPhotoShoots ? 13 : 12} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={canEditPhotoShoots ? 12 : 11} className="px-6 py-12 text-center text-gray-500">
                       {searchTerm || selectsFilter !== 'all' || prFilter !== 'all'
                         ? 'No photo shoots match your filters.'
                         : 'No photo shoots found. Click "Add Shoot" to create your first photo shoot.'
