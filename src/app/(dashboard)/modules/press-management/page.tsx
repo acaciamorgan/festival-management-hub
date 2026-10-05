@@ -554,7 +554,7 @@ export default function PressManagementPage() {
 
       setUploadStatus(`Processing ${pressToInsert.length} press cards...`)
 
-      // Get existing cards for dedup by email
+      // Get existing cards to merge social media for existing entries
       const { data: existingCards, error: fetchError } = await supabase
         .from('press')
         .select('*')
@@ -565,8 +565,7 @@ export default function PressManagementPage() {
         return
       }
 
-      // Index existing cards by lowercase email for fast lookup
-      const existingByEmail = new Map<string, typeof existingCards extends (infer T)[] | null ? T : never>()
+      const existingByEmail = new Map<string, Record<string, unknown>>()
       for (const card of existingCards || []) {
         if (card.email) {
           existingByEmail.set(card.email.toLowerCase(), card)
@@ -575,30 +574,27 @@ export default function PressManagementPage() {
 
       let created = 0
       let updated = 0
-      let skipped = 0
       let failed = 0
       const errors: string[] = []
 
       for (const pressData of pressToInsert) {
         if (!pressData.email) continue
 
-        const existingCard = existingByEmail.get(pressData.email.toLowerCase())
+        const existing = existingByEmail.get(pressData.email.toLowerCase())
 
-        if (existingCard) {
-          // Build update with only non-empty CSV fields
-          // For social_media, merge new handles into existing ones
+        if (existing) {
+          // Merge: only overwrite fields that have non-empty CSV values
           const updateData: Record<string, unknown> = {}
 
           for (const [key, value] of Object.entries(pressData)) {
-            if (key === 'festival_year') continue
-            if (key === 'social_media') continue // handled separately
+            if (key === 'festival_year' || key === 'social_media') continue
             if (value === null || value === undefined || value === '') continue
             updateData[key] = value
           }
 
-          // Merge social media — keep existing handles, add/overwrite with new ones
+          // Merge social media handles
           if (pressData.social_media) {
-            const existingSocial = (existingCard.social_media as SocialMedia) || {}
+            const existingSocial = (existing.social_media as SocialMedia) || {}
             const mergedSocial: SocialMedia = { ...existingSocial }
             for (const [platform, handle] of Object.entries(pressData.social_media)) {
               if (handle) {
@@ -613,7 +609,7 @@ export default function PressManagementPage() {
             const { error } = await supabase
               .from('press')
               .update(updateData)
-              .eq('id', existingCard.id)
+              .eq('id', existing.id)
 
             if (error) {
               failed++
@@ -621,17 +617,26 @@ export default function PressManagementPage() {
             } else {
               updated++
             }
-          } else {
-            skipped++
           }
         } else {
+          // New entry — use upsert to handle any DB-level unique constraints
           const { error } = await supabase
             .from('press')
-            .insert([pressData])
+            .upsert([pressData], { onConflict: 'email,festival_year', ignoreDuplicates: false })
 
           if (error) {
-            failed++
-            errors.push(`Insert ${pressData.name}: ${error.message}`)
+            // Fallback: try plain insert if upsert constraint doesn't exist
+            const { error: insertError } = await supabase
+              .from('press')
+              .insert([pressData])
+
+            if (insertError) {
+              failed++
+              errors.push(`Insert ${pressData.name}: ${insertError.message}`)
+              console.error(`Failed to insert ${pressData.name} (${pressData.email}):`, insertError)
+            } else {
+              created++
+            }
           } else {
             created++
           }
@@ -639,7 +644,6 @@ export default function PressManagementPage() {
       }
 
       let statusMsg = `Done! Created: ${created}, Updated: ${updated}`
-      if (skipped > 0) statusMsg += `, Skipped (no new data): ${skipped}`
       if (failed > 0) statusMsg += `, Failed: ${failed}`
       if (errors.length > 0) {
         console.error('CSV upload errors:', errors)
