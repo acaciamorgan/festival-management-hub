@@ -619,24 +619,15 @@ export default function PressManagementPage() {
             }
           }
         } else {
-          // New entry — use upsert to handle any DB-level unique constraints
+          // New entry — upsert on email+festival_year to avoid constraint conflicts
           const { error } = await supabase
             .from('press')
             .upsert([pressData], { onConflict: 'email,festival_year', ignoreDuplicates: false })
 
           if (error) {
-            // Fallback: try plain insert if upsert constraint doesn't exist
-            const { error: insertError } = await supabase
-              .from('press')
-              .insert([pressData])
-
-            if (insertError) {
-              failed++
-              errors.push(`Insert ${pressData.name}: ${insertError.message}`)
-              console.error(`Failed to insert ${pressData.name} (${pressData.email}):`, insertError)
-            } else {
-              created++
-            }
+            failed++
+            errors.push(`Insert ${pressData.name}: ${error.message}`)
+            console.error(`Failed to insert ${pressData.name} (${pressData.email}):`, error)
           } else {
             created++
           }
