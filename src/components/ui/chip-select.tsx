@@ -64,7 +64,6 @@ export const ChipSelect = forwardRef<ChipSelectHandle, ChipSelectProps>(function
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef('')  // always-current search value for blur/flush
-  const skipBlurCommitRef = useRef(false)  // prevents blur commit when clicking a suggestion
 
   // Load suggestions when search changes
   useEffect(() => {
@@ -139,17 +138,10 @@ export const ChipSelect = forwardRef<ChipSelectHandle, ChipSelectProps>(function
 
   // Commit free text on blur (when user tabs/clicks away)
   const handleInputBlur = useCallback(() => {
-    if (skipBlurCommitRef.current) {
-      skipBlurCommitRef.current = false
-      return
+    const text = searchRef.current.trim()
+    if (allowFreeText && text) {
+      addItem({ label: text })
     }
-    // Small delay so suggestion clicks can clear searchRef first
-    setTimeout(() => {
-      const text = searchRef.current.trim()
-      if (allowFreeText && text) {
-        addItem({ label: text })
-      }
-    }, 150)
   }, [allowFreeText, addItem])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -280,7 +272,7 @@ export const ChipSelect = forwardRef<ChipSelectHandle, ChipSelectProps>(function
                 <button
                   key={suggestion.id}
                   type="button"
-                  onMouseDown={() => { skipBlurCommitRef.current = true }}
+                  onMouseDown={(e) => { e.preventDefault() }}
                   onClick={() => {
                     addItem({
                       id: suggestion.id,
