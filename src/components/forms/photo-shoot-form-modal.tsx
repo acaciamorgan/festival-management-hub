@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useFestivalYear } from '@/components/providers/festival-year-provider'
@@ -68,6 +68,9 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
 
   const supabase = createClient()
 
+  // Track whether form has been initialized for the current photo shoot
+  const hasInitializedRef = useRef<string | null>(null) // stores photoShoot.id or 'new'
+
   // Load available data for suggestions
   useEffect(() => {
     const loadSuggestionData = async () => {
@@ -115,9 +118,31 @@ export function PhotoShootFormModal({ photoShoot, isOpen, onClose, onSave }: Pho
     }
   }, [isOpen, currentYear])
 
+  // Reset init tracker when modal closes or photo shoot changes
+  useEffect(() => {
+    if (!isOpen) {
+      hasInitializedRef.current = null
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    hasInitializedRef.current = null
+  }, [photoShoot?.id])
+
   // Initialize form data when photoShoot changes (edit mode)
   useEffect(() => {
+    const initKey = photoShoot ? photoShoot.id : 'new'
+
+    // Skip if already initialized for this photo shoot
+    if (hasInitializedRef.current === initKey) return
+
     const initEditForm = async () => {
+      // Wait for allFilms to be loaded before initializing edit mode
+      // so junction film chips get proper titles instead of "Unknown"
+      if (photoShoot && allFilms.length === 0) return
+
+      hasInitializedRef.current = initKey
+
       if (photoShoot) {
         // Load junction data to reconstruct chips
         const [{ data: junctionFilms }, { data: junctionSubjects }] = await Promise.all([
