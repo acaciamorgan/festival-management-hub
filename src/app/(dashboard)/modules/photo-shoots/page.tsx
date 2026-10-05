@@ -166,8 +166,10 @@ export default function PhotoShootsPage() {
     setUploadStatus('Processing CSV...')
 
     try {
-      const text = await file.text()
-      const rows = parseCSV(text)
+      let rawText = await file.text()
+      // Strip BOM
+      if (rawText.charCodeAt(0) === 0xFEFF) rawText = rawText.slice(1)
+      const rows = parseCSV(rawText)
 
       if (rows.length === 0) {
         setUploadStatus('Error: CSV file is empty')
@@ -176,23 +178,27 @@ export default function PhotoShootsPage() {
 
       const headers = rows[0]
 
+      // Map both template headers and actual CSV headers
       const fieldMap: Record<string, string> = {
-        'Film/Program': 'film_program_display',
-        'Subjects': 'subjects_display',
-        'Venue': 'venue_name',
+        'Film/Program': 'film_program_text',
+        'Subjects': 'subjects_text',
+        'Venue': 'venue_text',
         'House': 'house',
+        'Date': 'shoot_date',
         'Shoot Date': 'shoot_date',
         'Call Time': 'call_time',
         'Shoot Time': 'shoot_time',
         'Film/Program Start Time': 'film_program_start_time',
         'Photographer': 'photographer',
         'Videographer': 'videographer',
+        'Type': 'intro_qa',
         'Intro Q&A': 'intro_qa',
         'Selects Received': 'selects_received',
         'Sent to PR': 'sent_to_pr'
       }
 
-      const shootData = []
+      // Parse rows into raw records
+      const parsedRows: any[] = []
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i]
         if (!row || row.length === 0 || row.every(cell => !cell || !cell.trim())) continue
@@ -200,14 +206,20 @@ export default function PhotoShootsPage() {
         const record: any = {}
 
         headers.forEach((header, index) => {
-          const fieldName = fieldMap[header]
+          const fieldName = fieldMap[header.trim()]
           if (fieldName && row[index]) {
             let value: any = row[index].trim()
 
             if (fieldName === 'shoot_date') {
+              // Handle MM/DD (no year), MM/DD/YY, MM/DD/YYYY, YYYY-MM-DD
               if (value.includes('/')) {
                 const parts = value.split('/')
-                if (parts.length === 3) {
+                if (parts.length === 2) {
+                  // MM/DD — default to festival year
+                  const month = parts[0].padStart(2, '0')
+                  const day = parts[1].padStart(2, '0')
+                  value = `${currentYear}-${month}-${day}`
+                } else if (parts.length === 3) {
                   const month = parts[0].padStart(2, '0')
                   const day = parts[1].padStart(2, '0')
                   const year = parts[2].length === 2 ? '20' + parts[2] : parts[2]
@@ -219,9 +231,6 @@ export default function PhotoShootsPage() {
               }
             } else if (['call_time', 'shoot_time', 'film_program_start_time'].includes(fieldName)) {
               value = convertTo24Hour(value)
-            } else if (fieldName === 'intro_qa') {
-              const lower = value.toLowerCase()
-              value = lower === 'yes' || lower === 'true' || lower === '1' || lower === 'y'
             } else if (fieldName === 'selects_received') {
               const lower = value.toLowerCase()
               value = lower === 'yes' || lower === 'true' || lower === '1' || lower === 'received' || lower === 'y'
@@ -234,54 +243,252 @@ export default function PhotoShootsPage() {
           }
         })
 
-        if (record.film_program_display || record.subjects_display || record.shoot_date) {
-          shootData.push(record)
+        if (record.film_program_text || record.subjects_text || record.shoot_date) {
+          parsedRows.push(record)
         }
       }
 
-      if (shootData.length === 0) {
+      if (parsedRows.length === 0) {
         setUploadStatus('Error: No valid photo shoot data found in CSV')
         return
       }
 
-      setUploadStatus(`Processing ${shootData.length} photo shoots...`)
+      setUploadStatus(`Loading reference data...`)
 
-      const { data: allVenues } = await supabase
-        .from('venues')
-        .select('id, name')
-        .eq('festival_year', currentYear)
+      // Load all reference data in parallel
+      const [
+        { data: allVenues },
+        { data: allHouses },
+        { data: featureFilms },
+        { data: shortFilms },
+        { data: shortsPrograms },
+        { data: programsList },
+        { data: allGuests },
+        { data: existingShoots }
+      ] = await Promise.all([
+        supabase.from('venues').select('id, name').eq('festival_year', currentYear),
+        supabase.from('theater_houses').select('id, venue_id, house_name, short_code'),
+        supabase.from('feature_films').select('id, title').eq('festival_year', currentYear),
+        supabase.from('short_films').select('id, title').eq('festival_year', currentYear),
+        supabase.from('shorts_programs').select('id, program_name').eq('festival_year', currentYear),
+        supabase.from('programs').select('id, title').eq('festival_year', currentYear),
+        supabase.from('guests').select('id, name').eq('festival_year', currentYear),
+        supabase.from('photo_shoots').select('id, venue_id, venue_description, shoot_date, film_program_start_time, house').eq('festival_year', currentYear)
+      ])
 
-      const venueMap = new Map(
-        (allVenues || []).map(v => [v.name.toLowerCase().trim(), v.id])
-      )
-
-      let insertedCount = 0
-
-      for (const shoot of shootData) {
-        if (shoot.venue_name) {
-          const venueId = venueMap.get(shoot.venue_name.toLowerCase().trim())
-          if (venueId) {
-            shoot.venue_id = venueId
-          }
-          delete shoot.venue_name
+      // Build venue lookup: short_code -> { venue_id, house_name }
+      const shortCodeMap = new Map<string, { venue_id: string, house_name: string }>()
+      ;(allHouses || []).forEach(h => {
+        if (h.short_code) {
+          shortCodeMap.set(h.short_code.toLowerCase().trim(), { venue_id: h.venue_id, house_name: h.house_name })
         }
+      })
 
-        shoot.festival_year = currentYear
-        shoot.created_by = user?.id
+      // Build venue name lookup: name (lowercase) -> venue_id
+      const venueNameMap = new Map<string, string>()
+      ;(allVenues || []).forEach(v => {
+        venueNameMap.set(v.name.toLowerCase().trim(), v.id)
+      })
 
-        const { error: insertError } = await supabase
-          .from('photo_shoots')
-          .insert(shoot)
-
-        if (insertError) {
-          console.error('Insert error:', insertError)
-          setUploadStatus(`Error inserting photo shoot: ${insertError.message}`)
-          return
-        }
-        insertedCount++
+      // Find the "Red Carpet" house for AMC venue
+      const amcVenueId = venueNameMap.get('amc') || venueNameMap.get('amc newcity') || venueNameMap.get('amc newcity 14')
+      let amcRedCarpetHouse: string | null = null
+      if (amcVenueId) {
+        const rcHouse = (allHouses || []).find(h => h.venue_id === amcVenueId && h.house_name?.toLowerCase().includes('red carpet'))
+        amcRedCarpetHouse = rcHouse?.house_name || 'Red Carpet'
       }
 
-      setUploadStatus(`Successfully imported ${insertedCount} photo shoots!`)
+      // Build film title lookup: title (lowercase) -> { id, type }
+      const filmLookup = new Map<string, { id: string, type: string }>()
+      ;(featureFilms || []).forEach(f => filmLookup.set(f.title.toLowerCase().trim(), { id: f.id, type: 'feature' }))
+      ;(shortFilms || []).forEach(f => filmLookup.set(f.title.toLowerCase().trim(), { id: f.id, type: 'short' }))
+      ;(shortsPrograms || []).forEach(p => filmLookup.set(p.program_name.toLowerCase().trim(), { id: p.id, type: 'shorts_program' }))
+      ;(programsList || []).forEach(p => filmLookup.set(p.title.toLowerCase().trim(), { id: p.id, type: 'program' }))
+
+      // Build guest name lookup: name (lowercase) -> id
+      const guestLookup = new Map<string, string>()
+      ;(allGuests || []).forEach(g => guestLookup.set(g.name.toLowerCase().trim(), g.id))
+
+      // Build dedup key for existing shoots: "venue_id|venue_desc|date|start_time" -> shoot
+      const existingMap = new Map<string, any>()
+      ;(existingShoots || []).forEach(s => {
+        const key = `${s.venue_id || ''}|${(s.venue_description || '').toLowerCase()}|${s.shoot_date || ''}|${s.film_program_start_time || ''}`
+        existingMap.set(key, s)
+      })
+
+      setUploadStatus(`Processing ${parsedRows.length} photo shoots...`)
+
+      let createdCount = 0
+      let updatedCount = 0
+      let errorCount = 0
+
+      for (const record of parsedRows) {
+        // --- Resolve venue ---
+        let venue_id: string | null = null
+        let house: string | null = record.house || null
+        let venue_description: string | null = null
+
+        if (record.venue_text) {
+          const venueText = record.venue_text.trim()
+          const venueLower = venueText.toLowerCase().trim()
+
+          // 1. Try short_code match
+          const shortCodeMatch = shortCodeMap.get(venueLower)
+          if (shortCodeMatch) {
+            venue_id = shortCodeMatch.venue_id
+            house = shortCodeMatch.house_name
+          } else {
+            // 2. Try venue name match
+            const venueIdMatch = venueNameMap.get(venueLower)
+            if (venueIdMatch) {
+              venue_id = venueIdMatch
+              // Special case: bare AMC -> Red Carpet house
+              if (venueLower === 'amc' && amcRedCarpetHouse) {
+                house = amcRedCarpetHouse
+              }
+            } else {
+              // 3. No match -> free text
+              venue_description = venueText
+            }
+          }
+        }
+
+        // --- Resolve film/program ---
+        const filmJunctions: { film_id: string, film_type: string }[] = []
+        let freeTextFilms: string[] = []
+
+        if (record.film_program_text) {
+          // Film/Program is typically a single title per row
+          const title = record.film_program_text.trim()
+          const filmMatch = filmLookup.get(title.toLowerCase())
+          if (filmMatch) {
+            filmJunctions.push({ film_id: filmMatch.id, film_type: filmMatch.type })
+          } else {
+            freeTextFilms.push(title)
+          }
+        }
+
+        // --- Resolve subjects ---
+        const subjectJunctions: { guest_id: string }[] = []
+        let freeTextSubjects: string[] = []
+
+        if (record.subjects_text) {
+          const names = record.subjects_text.split(',').map((n: string) => n.trim()).filter(Boolean)
+          for (const name of names) {
+            const guestId = guestLookup.get(name.toLowerCase())
+            if (guestId) {
+              subjectJunctions.push({ guest_id: guestId })
+            } else {
+              freeTextSubjects.push(name)
+            }
+          }
+        }
+
+        // --- Build photo shoot record ---
+        const shootRecord: any = {
+          venue_id: venue_id,
+          venue_description: venue_description,
+          house: house,
+          shoot_date: record.shoot_date || null,
+          call_time: record.call_time || null,
+          shoot_time: record.shoot_time || null,
+          film_program_start_time: record.film_program_start_time || null,
+          photographer: record.photographer || null,
+          videographer: record.videographer || null,
+          intro_qa: record.intro_qa || null,
+          film_program_description: freeTextFilms.length > 0 ? freeTextFilms.join(', ') : null,
+          subjects_description: freeTextSubjects.length > 0 ? freeTextSubjects.join(', ') : null,
+          selects_received: record.selects_received === true ? true : false,
+          sent_to_pr: record.sent_to_pr === true ? true : false,
+          festival_year: currentYear,
+        }
+
+        // --- Dedup check ---
+        const dedupKey = `${venue_id || ''}|${(venue_description || '').toLowerCase()}|${record.shoot_date || ''}|${record.film_program_start_time || ''}`
+        const existing = existingMap.get(dedupKey)
+
+        let shootId: string
+
+        if (existing) {
+          // Additive update: only overwrite non-null CSV values
+          const updateData: any = {}
+          for (const [key, value] of Object.entries(shootRecord)) {
+            if (key === 'festival_year') continue
+            if (value !== null && value !== undefined && value !== '' && value !== false) {
+              updateData[key] = value
+            }
+          }
+          // Always update booleans if explicitly set in CSV
+          if (record.selects_received === true) updateData.selects_received = true
+          if (record.sent_to_pr === true) updateData.sent_to_pr = true
+
+          const { error } = await supabase
+            .from('photo_shoots')
+            .update(updateData)
+            .eq('id', existing.id)
+
+          if (error) {
+            console.error('Update error:', error)
+            errorCount++
+            continue
+          }
+          shootId = existing.id
+          updatedCount++
+
+          // Clear existing junction entries so we can re-insert
+          await Promise.all([
+            supabase.from('photo_shoot_films').delete().eq('photo_shoot_id', existing.id),
+            supabase.from('photo_shoot_subjects').delete().eq('photo_shoot_id', existing.id)
+          ])
+        } else {
+          // Insert new
+          shootRecord.created_by = user?.id
+          const { data: inserted, error } = await supabase
+            .from('photo_shoots')
+            .insert(shootRecord)
+            .select('id')
+            .single()
+
+          if (error) {
+            console.error('Insert error:', error)
+            errorCount++
+            continue
+          }
+          shootId = inserted.id
+          createdCount++
+
+          // Add to dedup map so later rows in same upload can match
+          existingMap.set(dedupKey, { id: shootId, ...shootRecord })
+        }
+
+        // --- Insert junction entries ---
+        if (filmJunctions.length > 0) {
+          const filmInserts = filmJunctions.map(fj => ({
+            photo_shoot_id: shootId,
+            film_id: fj.film_id,
+            film_type: fj.film_type,
+            festival_year: currentYear,
+          }))
+          const { error } = await supabase.from('photo_shoot_films').insert(filmInserts)
+          if (error) console.error('Film junction error:', error)
+        }
+
+        if (subjectJunctions.length > 0) {
+          const subjectInserts = subjectJunctions.map(sj => ({
+            photo_shoot_id: shootId,
+            guest_id: sj.guest_id,
+            festival_year: currentYear,
+          }))
+          const { error } = await supabase.from('photo_shoot_subjects').insert(subjectInserts)
+          if (error) console.error('Subject junction error:', error)
+        }
+      }
+
+      const parts = []
+      if (createdCount > 0) parts.push(`${createdCount} created`)
+      if (updatedCount > 0) parts.push(`${updatedCount} updated`)
+      if (errorCount > 0) parts.push(`${errorCount} errors`)
+      setUploadStatus(`Import complete: ${parts.join(', ')}`)
       loadPhotoShoots()
     } catch (error) {
       console.error('CSV processing error:', error)
