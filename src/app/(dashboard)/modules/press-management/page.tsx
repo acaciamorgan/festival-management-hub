@@ -42,10 +42,11 @@ export default function PressManagementPage() {
     media_outlet: '',
     secondary_outlets: '',
     outlet_type: '',
-    social_media: { twitter: '' },
+    social_media: { twitter: '', instagram: '', bluesky: '', youtube: '' },
     rotten_tomatoes_accredited: false,
     critics_groups: '',
-    accreditation_level: 'Unassigned'
+    accreditation_level: 'Unassigned',
+    internal_notes: ''
   })
   const [editFormData, setEditFormData] = useState({
     name: '',
@@ -54,10 +55,11 @@ export default function PressManagementPage() {
     media_outlet: '',
     secondary_outlets: '',
     outlet_type: '',
-    social_media: { twitter: '' },
+    social_media: { twitter: '', instagram: '', bluesky: '', youtube: '' },
     rotten_tomatoes_accredited: false,
     critics_groups: '',
-    accreditation_level: 'Unassigned'
+    accreditation_level: 'Unassigned',
+    internal_notes: ''
   })
   
   const supabase = createClient()
@@ -69,25 +71,20 @@ export default function PressManagementPage() {
   const exportPressTemplate = () => {
     // Define headers with proper display names
     const headerMapping = [
-      { field: 'name', display: 'Name' },
+      { field: 'accreditation_level', display: 'Accreditation Level' },
+      { field: 'first_name', display: 'First Name' },
+      { field: 'last_name', display: 'Last Name' },
+      { field: 'media_outlet', display: 'Primary Outlet' },
       { field: 'email', display: 'Email' },
       { field: 'phone', display: 'Phone' },
-      { field: 'media_outlet', display: 'Media Outlet' },
-      { field: 'secondary_outlets', display: 'Secondary Outlets' },
-      { field: 'website_url', display: 'Website URL' },
-      { field: 'secondary_outlet_urls', display: 'Secondary Outlet URLs' },
-      { field: 'industry', display: 'Industry' },
       { field: 'twitter', display: 'Twitter' },
       { field: 'instagram', display: 'Instagram' },
-      { field: 'bluesky', display: 'Bluesky' },
       { field: 'youtube', display: 'YouTube' },
+      { field: 'bluesky', display: 'Bluesky' },
       { field: 'rotten_tomatoes_accredited', display: 'Rotten Tomatoes Accredited' },
       { field: 'critics_groups', display: 'Critics Groups' },
-      { field: 'credential_status', display: 'Credential Status' },
-      { field: 'accreditation_level', display: 'Accreditation Level' },
-      { field: 'picked_up_credentials', display: 'Picked Up Credentials' },
-      { field: 'preferred_contact_method', display: 'Preferred Contact Method' },
-      { field: 'special_requirements', display: 'Special Requirements' },
+      { field: 'outlet_type', display: 'Outlet Type' },
+      { field: 'secondary_outlets', display: 'Secondary Outlets' },
       { field: 'internal_notes', display: 'Internal Notes' }
     ]
     
@@ -331,6 +328,16 @@ export default function PressManagementPage() {
   }
 
 
+  // Build social_media JSON, returning null if all handles are empty
+  const buildSocialMedia = (sm: { twitter: string, instagram: string, bluesky: string, youtube: string }): SocialMedia | null => {
+    const result: SocialMedia = {}
+    if (sm.twitter?.trim()) result.twitter = sm.twitter.trim()
+    if (sm.instagram?.trim()) result.instagram = sm.instagram.trim()
+    if (sm.bluesky?.trim()) result.bluesky = sm.bluesky.trim()
+    if (sm.youtube?.trim()) result.youtube = sm.youtube.trim()
+    return Object.keys(result).length > 0 ? result : null
+  }
+
   // Get row styling based on accreditation level
   const getRowStyling = (accreditationLevel: string) => {
     switch (accreditationLevel) {
@@ -418,151 +425,116 @@ export default function PressManagementPage() {
       }
 
       const headers = rows[0]
-      
-      // Clean field mapping - only fields we want to keep
+
+      // Field mapping — supports both our template headers and legacy form headers
       const fieldMap: Record<string, string> = {
-        // Name fields (combine First + Last into name)
         'First Name': 'first_name',
         'Last Name': 'last_name',
-        'Name': 'name', // The final Name column in CSV
-        
-        // Contact info
+        'Name': 'name',
+        'Email': 'email',
         'Email Address': 'email',
+        'Phone': 'phone',
         'Cell Phone': 'phone',
-        'Office Phone': 'office_phone', // Fallback for phone
-        
-        // Outlets - EXACT match from debug logs
-        'Primary Outlet': 'media_outlet', // This was working in debug logs
-        'Additional Outlets (if applicable)': 'secondary_outlet_1',
+        'Primary Outlet': 'media_outlet',
+        'Media Outlet': 'media_outlet',
+        'Outlet Type': 'outlet_type',
         'Primary Outlet Type (check all that apply)': 'outlet_type',
-        
-        // Future-ready for outlet URLs (when available)
-        'Primary Outlet URL': 'website_url',
-        'Secondary Outlet URL 1': 'secondary_outlet_url_1',
-        'Secondary Outlet URL 2': 'secondary_outlet_url_2',
-        'Secondary Outlet URL 3': 'secondary_outlet_url_3',
-        'Secondary Outlet URL 4': 'secondary_outlet_url_4',
-        
-        // Social media
+        'Secondary Outlets': 'secondary_outlets',
+        'Additional Outlets (if applicable)': 'secondary_outlets',
+        'Twitter': 'twitter',
         'Twitter Handle': 'twitter',
-        
-        // Professional credentials
+        'Instagram': 'instagram',
+        'YouTube': 'youtube',
+        'Bluesky': 'bluesky',
+        'Rotten Tomatoes Accredited': 'rotten_tomatoes_accredited',
         'Are you an accredited Rotten Tomatoes critic?': 'rotten_tomatoes_accredited',
+        'Critics Groups': 'critics_groups',
         'If you are a member of a Film Critics organization, please specify all memberships.': 'critics_groups',
-        
-        // Accreditation from form
-        'Accreditation:': 'accreditation_raw',
-        'Level': 'accreditation_raw'  // New format from CSV
+        'Accreditation Level': 'accreditation_level',
+        'Accreditation:': 'accreditation_level',
+        'Level': 'accreditation_level',
+        'Internal Notes': 'internal_notes'
       }
 
       const pressToInsert = []
-      
+
       for (let i = 1; i < rows.length; i++) {
         const values = rows[i]
-        
-        // Skip completely empty rows or rows where all cells are empty
+
         if (!values || values.length === 0 || values.every(cell => !cell || !cell.trim())) {
           continue
         }
-        
+
         const pressData: Partial<PressCard> = {}
         let firstName = ''
         let lastName = ''
         const socialMedia: SocialMedia = {}
-        const secondaryOutlets: string[] = []
-        const secondaryOutletUrls: string[] = []
-        
+
         headers.forEach((header, index) => {
           const cleanHeader = header.trim()
           const dbField = fieldMap[cleanHeader]
-          
-          // Remove fallback - use exact mapping only
 
           if (dbField && values[index]) {
             const value = values[index].trim()
-            
-            // Handle name combination
+            if (!value) return
+
             if (dbField === 'first_name') {
               firstName = value
             } else if (dbField === 'last_name') {
               lastName = value
             } else if (dbField === 'name') {
               pressData.name = value
-            }
-            // Handle accreditation parsing from both formats
-            else if (dbField === 'accreditation_raw') {
-              // Handle new format: "G - General Press", "P - Priority Press", "S - Social"
-              if (value.includes('G - General Press') || value.includes('Accredited - G')) {
+            } else if (dbField === 'accreditation_level') {
+              if (value.includes('G') && (value.includes('General') || value === 'G')) {
                 pressData.accreditation_level = 'G'
-              } else if (value.includes('P - Priority Press') || value.includes('P - Premium Press') || value.includes('Accredited - P')) {
+              } else if (value.includes('P') && (value.includes('Priority') || value.includes('Premium') || value === 'P')) {
                 pressData.accreditation_level = 'P'
-              } else if (value.includes('S - Social') || value.includes('Accredited - S')) {
+              } else if (value.includes('S') && (value.includes('Social') || value === 'S')) {
                 pressData.accreditation_level = 'S'
               } else {
                 pressData.accreditation_level = 'Unassigned'
               }
-            }
-            // Handle social media fields
-            else if (dbField === 'twitter') {
-              if (value) {
-                socialMedia.twitter = value
-              }
-            }
-            // Handle secondary outlets - collect them into arrays
-            else if (dbField === 'secondary_outlet_1') {
-              if (value) secondaryOutlets.push(value)
-            }
-            else if (dbField.startsWith('secondary_outlet_url_')) {
-              if (value) secondaryOutletUrls.push(value)
-            }
-            // Convert boolean fields
-            else if (dbField === 'picked_up_credentials') {
-              pressData[dbField] = value.toLowerCase() === 'true' || value.toLowerCase() === 'yes' || value === '1'
-            }
-            else if (dbField === 'rotten_tomatoes_accredited') {
-              pressData[dbField] = value.toLowerCase() === 'yes'
-            }
-            // Handle phone fields - prefer cell phone and format
-            else if (dbField === 'phone') {
+            } else if (dbField === 'twitter') {
+              socialMedia.twitter = value
+            } else if (dbField === 'instagram') {
+              socialMedia.instagram = value
+            } else if (dbField === 'youtube') {
+              socialMedia.youtube = value
+            } else if (dbField === 'bluesky') {
+              socialMedia.bluesky = value
+            } else if (dbField === 'rotten_tomatoes_accredited') {
+              pressData.rotten_tomatoes_accredited = value.toLowerCase() === 'yes' || value.toLowerCase() === 'true' || value === '1'
+            } else if (dbField === 'phone') {
               pressData.phone = formatPhoneNumber(value)
-            } else if (dbField === 'office_phone' && !pressData.phone) {
-              pressData.phone = formatPhoneNumber(value)
-            } else if (value) {
-              // ONLY save these exact fields - reject everything else
-              const allowedFields = [
-                'email', 'phone', 'media_outlet', 'secondary_outlet_1', 
-                'outlet_type', 'rotten_tomatoes_accredited', 'critics_groups'
-              ]
-              
-              if (allowedFields.includes(dbField)) {
-                (pressData as Record<string, string | boolean>)[dbField] = value
-              }
+            } else if (dbField === 'email') {
+              pressData.email = value
+            } else if (dbField === 'media_outlet') {
+              pressData.media_outlet = value
+            } else if (dbField === 'outlet_type') {
+              pressData.outlet_type = value as PressCard['outlet_type']
+            } else if (dbField === 'secondary_outlets') {
+              pressData.secondary_outlets = value
+            } else if (dbField === 'critics_groups') {
+              pressData.critics_groups = value
+            } else if (dbField === 'internal_notes') {
+              pressData.internal_notes = value
             }
           }
         })
-        
-        // Combine first and last name if they exist and no combined name was provided
+
+        // Combine first and last name if no combined name was provided
         if (firstName && lastName && !pressData.name) {
           pressData.name = `${firstName} ${lastName}`.trim()
         } else if (firstName && !lastName && !pressData.name) {
           pressData.name = firstName
         }
-        
-        // Add social media JSON if any social media fields were found
+
         if (Object.keys(socialMedia).length > 0) {
           pressData.social_media = socialMedia
         }
-        
-        // Combine secondary outlets into comma-separated strings
-        if (secondaryOutlets.length > 0) {
-          pressData.secondary_outlets = secondaryOutlets.join(', ')
-        }
-        if (secondaryOutletUrls.length > 0) {
-          pressData.secondary_outlet_urls = secondaryOutletUrls.join(', ')
-        }
-        
-        // Only add if we have a name and primary outlet
-        if (pressData.name && pressData.media_outlet) {
+
+        // Require name, email, and primary outlet
+        if (pressData.name && pressData.email && pressData.media_outlet) {
           pressData.festival_year = currentYear
           pressToInsert.push(pressData)
         }
@@ -570,57 +542,80 @@ export default function PressManagementPage() {
 
       setUploadStatus(`Processing ${pressToInsert.length} press cards...`)
 
-      // Get existing cards
+      // Get existing cards for dedup by email
       const { data: existingCards, error: fetchError } = await supabase
         .from('press')
         .select('*')
         .eq('festival_year', currentYear)
-      
+
       if (fetchError) {
         setUploadStatus(`Error loading existing cards: ${fetchError.message}`)
         return
       }
-      
+
+      // Index existing cards by lowercase email for fast lookup
+      const existingByEmail = new Map<string, typeof existingCards extends (infer T)[] | null ? T : never>()
+      for (const card of existingCards || []) {
+        if (card.email) {
+          existingByEmail.set(card.email.toLowerCase(), card)
+        }
+      }
+
       let created = 0
       let updated = 0
-      
+      let skipped = 0
+
       for (const pressData of pressToInsert) {
-        if (!pressData.name) continue
-        
-        // Check if Card with this exact name already exists
-        const existingCard = (existingCards || []).find(card => card.name === pressData.name)
+        if (!pressData.email) continue
+
+        const existingCard = existingByEmail.get(pressData.email.toLowerCase())
 
         if (existingCard) {
-          // UPDATE existing Card - newest data takes priority
-          const { error } = await supabase
-            .from('press')
-            .update({
-              ...pressData,
-              updated_at: (() => {
-                const now = new Date()
-                return now.getFullYear() + '-' +
-                  String(now.getMonth() + 1).padStart(2, '0') + '-' +
-                  String(now.getDate()).padStart(2, '0') + ' ' +
-                  String(now.getHours()).padStart(2, '0') + ':' +
-                  String(now.getMinutes()).padStart(2, '0') + ':' +
-                  String(now.getSeconds()).padStart(2, '0')
-              })()
-            })
-            .eq('id', existingCard.id)
-          
-          if (!error) updated++
+          // Build update with only non-empty CSV fields
+          // For social_media, merge new handles into existing ones
+          const updateData: Record<string, unknown> = {}
+
+          for (const [key, value] of Object.entries(pressData)) {
+            if (key === 'festival_year') continue
+            if (key === 'social_media') continue // handled separately
+            if (value === null || value === undefined || value === '') continue
+            updateData[key] = value
+          }
+
+          // Merge social media — keep existing handles, add/overwrite with new ones
+          if (pressData.social_media) {
+            const existingSocial = (existingCard.social_media as SocialMedia) || {}
+            const mergedSocial: SocialMedia = { ...existingSocial }
+            for (const [platform, handle] of Object.entries(pressData.social_media)) {
+              if (handle) {
+                (mergedSocial as Record<string, string>)[platform] = handle
+              }
+            }
+            updateData.social_media = mergedSocial
+          }
+
+          if (Object.keys(updateData).length > 0) {
+            updateData.updated_at = new Date().toISOString()
+            const { error } = await supabase
+              .from('press')
+              .update(updateData)
+              .eq('id', existingCard.id)
+
+            if (!error) updated++
+          } else {
+            skipped++
+          }
         } else {
-          // CREATE new Card
           const { error } = await supabase
             .from('press')
             .insert([pressData])
-          
+
           if (!error) created++
         }
       }
 
-      setUploadStatus(`Successfully processed ${pressToInsert.length} press cards! Created: ${created}, Updated: ${updated}`)
-      await loadPress() // Reload the Cards
+      setUploadStatus(`Done! Created: ${created}, Updated: ${updated}${skipped > 0 ? `, Skipped (no new data): ${skipped}` : ''}`)
+      await loadPress()
     } catch (error) {
       console.error('CSV processing error:', error)
       setUploadStatus(`Error processing CSV: ${error}`)
@@ -678,10 +673,11 @@ export default function PressManagementPage() {
         media_outlet: addFormData.media_outlet.trim(),
         secondary_outlets: addFormData.secondary_outlets.trim() || null,
         outlet_type: addFormData.outlet_type || null,
-        social_media: addFormData.social_media.twitter ? { twitter: addFormData.social_media.twitter } : null,
+        social_media: buildSocialMedia(addFormData.social_media),
         rotten_tomatoes_accredited: addFormData.rotten_tomatoes_accredited,
         critics_groups: addFormData.critics_groups.trim() || null,
         accreditation_level: addFormData.accreditation_level,
+        internal_notes: addFormData.internal_notes.trim() || null,
         picked_up_credentials: false,
         festival_year: currentYear
       }
@@ -702,10 +698,11 @@ export default function PressManagementPage() {
           media_outlet: '',
           secondary_outlets: '',
           outlet_type: '',
-          social_media: { twitter: '' },
+          social_media: { twitter: '', instagram: '', bluesky: '', youtube: '' },
           rotten_tomatoes_accredited: false,
           critics_groups: '',
-          accreditation_level: 'Unassigned'
+          accreditation_level: 'Unassigned',
+          internal_notes: ''
         })
         await loadPress() // Reload the list
       }
@@ -724,10 +721,16 @@ export default function PressManagementPage() {
       media_outlet: pressCard.media_outlet || '',
       secondary_outlets: pressCard.secondary_outlets || '',
       outlet_type: pressCard.outlet_type || '',
-      social_media: { twitter: pressCard.social_media?.twitter || '' },
+      social_media: {
+        twitter: pressCard.social_media?.twitter || '',
+        instagram: pressCard.social_media?.instagram || '',
+        bluesky: pressCard.social_media?.bluesky || '',
+        youtube: pressCard.social_media?.youtube || ''
+      },
       rotten_tomatoes_accredited: pressCard.rotten_tomatoes_accredited || false,
       critics_groups: pressCard.critics_groups || '',
-      accreditation_level: pressCard.accreditation_level || 'Unassigned'
+      accreditation_level: pressCard.accreditation_level || 'Unassigned',
+      internal_notes: pressCard.internal_notes || ''
     })
     setShowEditModal(true)
   }
@@ -748,10 +751,11 @@ export default function PressManagementPage() {
         media_outlet: editFormData.media_outlet.trim(),
         secondary_outlets: editFormData.secondary_outlets.trim() || null,
         outlet_type: editFormData.outlet_type || null,
-        social_media: editFormData.social_media.twitter ? { twitter: editFormData.social_media.twitter } : null,
+        social_media: buildSocialMedia(editFormData.social_media),
         rotten_tomatoes_accredited: editFormData.rotten_tomatoes_accredited,
         critics_groups: editFormData.critics_groups.trim() || null,
         accreditation_level: editFormData.accreditation_level,
+        internal_notes: editFormData.internal_notes.trim() || null,
         updated_at: new Date().toISOString()
       }
 
@@ -1210,7 +1214,7 @@ export default function PressManagementPage() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                   <input
@@ -1221,17 +1225,7 @@ export default function PressManagementPage() {
                     required
                   />
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                  <input
-                    type="tel"
-                    value={addFormData.phone}
-                    onChange={(e) => setAddFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Primary Outlet *</label>
                   <input
@@ -1242,7 +1236,17 @@ export default function PressManagementPage() {
                     required
                   />
                 </div>
-                
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={addFormData.phone}
+                    onChange={(e) => setAddFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Outlet Type</label>
                   <select
@@ -1259,7 +1263,7 @@ export default function PressManagementPage() {
                     <option value="Trade">Trade</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Accreditation Level</label>
                   <select
@@ -1274,7 +1278,7 @@ export default function PressManagementPage() {
                   </select>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Outlets</label>
                 <textarea
@@ -1285,21 +1289,53 @@ export default function PressManagementPage() {
                   placeholder="Comma-separated list of additional outlets"
                 />
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Twitter Handle</label>
-                <input
-                  type="text"
-                  value={addFormData.social_media.twitter}
-                  onChange={(e) => setAddFormData(prev => ({ 
-                    ...prev, 
-                    social_media: { ...prev.social_media, twitter: e.target.value }
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="@username"
-                />
+
+              <div className="border border-gray-200 rounded-md p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Social Media</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Twitter</label>
+                    <input
+                      type="text"
+                      value={addFormData.social_media.twitter}
+                      onChange={(e) => setAddFormData(prev => ({ ...prev, social_media: { ...prev.social_media, twitter: e.target.value } }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="@handle"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
+                    <input
+                      type="text"
+                      value={addFormData.social_media.instagram}
+                      onChange={(e) => setAddFormData(prev => ({ ...prev, social_media: { ...prev.social_media, instagram: e.target.value } }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="@handle"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bluesky</label>
+                    <input
+                      type="text"
+                      value={addFormData.social_media.bluesky}
+                      onChange={(e) => setAddFormData(prev => ({ ...prev, social_media: { ...prev.social_media, bluesky: e.target.value } }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="@handle.bsky.social"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">YouTube</label>
+                    <input
+                      type="text"
+                      value={addFormData.social_media.youtube}
+                      onChange={(e) => setAddFormData(prev => ({ ...prev, social_media: { ...prev.social_media, youtube: e.target.value } }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Channel name or URL"
+                    />
+                  </div>
+                </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Critics Groups</label>
                 <input
@@ -1307,10 +1343,10 @@ export default function PressManagementPage() {
                   value={addFormData.critics_groups}
                   onChange={(e) => setAddFormData(prev => ({ ...prev, critics_groups: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Film critics organizations"
+                  placeholder="Comma-separated list of organizations"
                 />
               </div>
-              
+
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -1323,7 +1359,18 @@ export default function PressManagementPage() {
                   Rotten Tomatoes Accredited
                 </label>
               </div>
-              
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Internal Notes</label>
+                <textarea
+                  value={addFormData.internal_notes}
+                  onChange={(e) => setAddFormData(prev => ({ ...prev, internal_notes: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="Internal notes about this journalist"
+                />
+              </div>
+
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -1386,16 +1433,6 @@ export default function PressManagementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                  <input
-                    type="tel"
-                    value={editFormData.phone}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Primary Outlet *</label>
                   <input
                     type="text"
@@ -1403,6 +1440,16 @@ export default function PressManagementPage() {
                     onChange={(e) => setEditFormData(prev => ({ ...prev, media_outlet: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
 
@@ -1449,18 +1496,50 @@ export default function PressManagementPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Twitter Handle</label>
-                <input
-                  type="text"
-                  value={editFormData.social_media.twitter}
-                  onChange={(e) => setEditFormData(prev => ({
-                    ...prev,
-                    social_media: { ...prev.social_media, twitter: e.target.value }
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="@username"
-                />
+              <div className="border border-gray-200 rounded-md p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Social Media</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Twitter</label>
+                    <input
+                      type="text"
+                      value={editFormData.social_media.twitter}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, social_media: { ...prev.social_media, twitter: e.target.value } }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="@handle"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
+                    <input
+                      type="text"
+                      value={editFormData.social_media.instagram}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, social_media: { ...prev.social_media, instagram: e.target.value } }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="@handle"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bluesky</label>
+                    <input
+                      type="text"
+                      value={editFormData.social_media.bluesky}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, social_media: { ...prev.social_media, bluesky: e.target.value } }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="@handle.bsky.social"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">YouTube</label>
+                    <input
+                      type="text"
+                      value={editFormData.social_media.youtube}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, social_media: { ...prev.social_media, youtube: e.target.value } }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Channel name or URL"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -1470,7 +1549,7 @@ export default function PressManagementPage() {
                   value={editFormData.critics_groups}
                   onChange={(e) => setEditFormData(prev => ({ ...prev, critics_groups: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Film critics organizations"
+                  placeholder="Comma-separated list of organizations"
                 />
               </div>
 
@@ -1485,6 +1564,17 @@ export default function PressManagementPage() {
                 <label htmlFor="edit-rt-accredited" className="ml-2 text-sm text-gray-700">
                   Rotten Tomatoes Accredited
                 </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Internal Notes</label>
+                <textarea
+                  value={editFormData.internal_notes}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, internal_notes: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="Internal notes about this journalist"
+                />
               </div>
 
               <div className="flex justify-end space-x-3 pt-4">

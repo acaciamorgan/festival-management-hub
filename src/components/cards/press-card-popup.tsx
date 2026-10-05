@@ -72,10 +72,16 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
     media_outlet: press.media_outlet || '',
     secondary_outlets: press.secondary_outlets || '',
     outlet_type: press.outlet_type || '',
-    social_media: { twitter: press.social_media?.twitter || '' },
+    social_media: {
+      twitter: press.social_media?.twitter || '',
+      instagram: press.social_media?.instagram || '',
+      bluesky: press.social_media?.bluesky || '',
+      youtube: press.social_media?.youtube || ''
+    },
     rotten_tomatoes_accredited: press.rotten_tomatoes_accredited || false,
     critics_groups: press.critics_groups || '',
-    accreditation_level: press.accreditation_level || 'Unassigned'
+    accreditation_level: press.accreditation_level || 'Unassigned',
+    internal_notes: press.internal_notes || ''
   })
   const [pressInterviews, setPressInterviews] = useState<InterviewCard[]>([])
 
@@ -131,6 +137,12 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
     }
     
     try {
+      const socialMedia: Record<string, string> = {}
+      if (editFormData.social_media.twitter?.trim()) socialMedia.twitter = editFormData.social_media.twitter.trim()
+      if (editFormData.social_media.instagram?.trim()) socialMedia.instagram = editFormData.social_media.instagram.trim()
+      if (editFormData.social_media.bluesky?.trim()) socialMedia.bluesky = editFormData.social_media.bluesky.trim()
+      if (editFormData.social_media.youtube?.trim()) socialMedia.youtube = editFormData.social_media.youtube.trim()
+
       const updateData = {
         name: editFormData.name.trim(),
         email: editFormData.email.trim(),
@@ -138,10 +150,11 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
         media_outlet: editFormData.media_outlet.trim(),
         secondary_outlets: editFormData.secondary_outlets.trim() || null,
         outlet_type: editFormData.outlet_type || null,
-        social_media: editFormData.social_media.twitter ? { twitter: editFormData.social_media.twitter } : null,
+        social_media: Object.keys(socialMedia).length > 0 ? socialMedia : null,
         rotten_tomatoes_accredited: editFormData.rotten_tomatoes_accredited,
         critics_groups: editFormData.critics_groups.trim() || null,
         accreditation_level: editFormData.accreditation_level,
+        internal_notes: editFormData.internal_notes.trim() || null,
         updated_at: new Date().toISOString()
       }
       
@@ -396,13 +409,24 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
               <div className="mt-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Social Media</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {Object.entries(press.social_media).map(([platform, handle]) => (
-                    <div key={platform}>
-                      <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">{platform}</span>
-                      <p className="text-sm text-gray-900 mt-1">{handle}</p>
-                    </div>
-                  ))}
+                  {Object.entries(press.social_media).map(([platform, handle]) => {
+                    const labels: Record<string, string> = { twitter: 'Twitter', instagram: 'Instagram', bluesky: 'Bluesky', youtube: 'YouTube' }
+                    return (
+                      <div key={platform}>
+                        <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">{labels[platform] || platform}</span>
+                        <p className="text-sm text-gray-900 mt-1">{handle}</p>
+                      </div>
+                    )
+                  })}
                 </div>
+              </div>
+            )}
+
+            {/* Internal Notes */}
+            {press.internal_notes && (
+              <div className="mt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Internal Notes</h3>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{press.internal_notes}</p>
               </div>
             )}
 
@@ -496,7 +520,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                   <input
@@ -507,17 +531,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                     required
                   />
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                  <input
-                    type="tel"
-                    value={editFormData.phone}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Primary Outlet *</label>
                   <input
@@ -528,7 +542,17 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                     required
                   />
                 </div>
-                
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Outlet Type</label>
                   <select
@@ -545,7 +569,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                     <option value="Trade">Trade</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Accreditation Level</label>
                   <select
@@ -560,7 +584,7 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                   </select>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Outlets</label>
                 <textarea
@@ -571,21 +595,53 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                   placeholder="Comma-separated list of additional outlets"
                 />
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Twitter Handle</label>
-                <input
-                  type="text"
-                  value={editFormData.social_media.twitter}
-                  onChange={(e) => setEditFormData(prev => ({ 
-                    ...prev, 
-                    social_media: { ...prev.social_media, twitter: e.target.value }
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="@username"
-                />
+
+              <div className="border border-gray-200 rounded-md p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Social Media</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Twitter</label>
+                    <input
+                      type="text"
+                      value={editFormData.social_media.twitter}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, social_media: { ...prev.social_media, twitter: e.target.value } }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="@handle"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
+                    <input
+                      type="text"
+                      value={editFormData.social_media.instagram}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, social_media: { ...prev.social_media, instagram: e.target.value } }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="@handle"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bluesky</label>
+                    <input
+                      type="text"
+                      value={editFormData.social_media.bluesky}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, social_media: { ...prev.social_media, bluesky: e.target.value } }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="@handle.bsky.social"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">YouTube</label>
+                    <input
+                      type="text"
+                      value={editFormData.social_media.youtube}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, social_media: { ...prev.social_media, youtube: e.target.value } }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Channel name or URL"
+                    />
+                  </div>
+                </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Critics Groups</label>
                 <input
@@ -593,10 +649,10 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                   value={editFormData.critics_groups}
                   onChange={(e) => setEditFormData(prev => ({ ...prev, critics_groups: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Film critics organizations"
+                  placeholder="Comma-separated list of organizations"
                 />
               </div>
-              
+
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -608,6 +664,17 @@ export function PressCardPopup({ press, onClose, onUpdate, onDelete }: PressCard
                 <label htmlFor="edit-rt-accredited" className="ml-2 text-sm text-gray-700">
                   Rotten Tomatoes Accredited
                 </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Internal Notes</label>
+                <textarea
+                  value={editFormData.internal_notes}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, internal_notes: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="Internal notes about this journalist"
+                />
               </div>
               
               <div className="flex justify-between pt-4">

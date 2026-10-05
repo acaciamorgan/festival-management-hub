@@ -67,6 +67,8 @@ export interface RSVPResponse {
 export interface SocialMedia {
   twitter?: string
   instagram?: string
+  bluesky?: string
+  youtube?: string
 }
 
 // Press Management Types
@@ -88,6 +90,7 @@ export interface PressCard {
   critics_groups?: string | null
   accreditation_level: AccreditationLevel
   picked_up_credentials: boolean
+  internal_notes?: string | null
   festival_year: number
 }
 

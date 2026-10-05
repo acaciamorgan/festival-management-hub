@@ -1,0 +1,1 @@
+ALTER TABLE press ADD COLUMN IF NOT EXISTS internal_notes TEXT
