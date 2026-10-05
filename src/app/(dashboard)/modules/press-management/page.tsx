@@ -416,7 +416,9 @@ export default function PressManagementPage() {
     setUploadStatus('Processing CSV...')
 
     try {
-      const text = await file.text()
+      const rawText = await file.text()
+      // Strip BOM if present
+      const text = rawText.charCodeAt(0) === 0xFEFF ? rawText.slice(1) : rawText
       const rows = parseCSV(text)
       
       if (rows.length === 0) {
@@ -536,6 +538,16 @@ export default function PressManagementPage() {
         // Require name, email, and primary outlet
         if (pressData.name && pressData.email && pressData.media_outlet) {
           pressData.festival_year = currentYear
+          // Ensure NOT NULL fields have defaults
+          if (pressData.rotten_tomatoes_accredited === undefined) {
+            pressData.rotten_tomatoes_accredited = false
+          }
+          if (pressData.picked_up_credentials === undefined) {
+            pressData.picked_up_credentials = false
+          }
+          if (!pressData.accreditation_level) {
+            pressData.accreditation_level = 'Unassigned'
+          }
           pressToInsert.push(pressData)
         }
       }
@@ -564,6 +576,8 @@ export default function PressManagementPage() {
       let created = 0
       let updated = 0
       let skipped = 0
+      let failed = 0
+      const errors: string[] = []
 
       for (const pressData of pressToInsert) {
         if (!pressData.email) continue
@@ -601,7 +615,12 @@ export default function PressManagementPage() {
               .update(updateData)
               .eq('id', existingCard.id)
 
-            if (!error) updated++
+            if (error) {
+              failed++
+              errors.push(`Update ${pressData.name}: ${error.message}`)
+            } else {
+              updated++
+            }
           } else {
             skipped++
           }
@@ -610,11 +629,23 @@ export default function PressManagementPage() {
             .from('press')
             .insert([pressData])
 
-          if (!error) created++
+          if (error) {
+            failed++
+            errors.push(`Insert ${pressData.name}: ${error.message}`)
+          } else {
+            created++
+          }
         }
       }
 
-      setUploadStatus(`Done! Created: ${created}, Updated: ${updated}${skipped > 0 ? `, Skipped (no new data): ${skipped}` : ''}`)
+      let statusMsg = `Done! Created: ${created}, Updated: ${updated}`
+      if (skipped > 0) statusMsg += `, Skipped (no new data): ${skipped}`
+      if (failed > 0) statusMsg += `, Failed: ${failed}`
+      if (errors.length > 0) {
+        console.error('CSV upload errors:', errors)
+        statusMsg += ` | First error: ${errors[0]}`
+      }
+      setUploadStatus(statusMsg)
       await loadPress()
     } catch (error) {
       console.error('CSV processing error:', error)
