@@ -856,8 +856,21 @@ export default function PhotoShootsPage() {
       })
     }
 
+    // Add free text films (film_program_description) that aren't in junction data
+    const freeTextFilmEntries: string[] = []
+    if (shoot.film_program_description) {
+      shoot.film_program_description.split(',').map((t: string) => t.trim()).filter(Boolean).forEach((title: string) => {
+        freeTextFilmEntries.push(title)
+      })
+    }
+
     return (
       <div className="space-y-1">
+        {freeTextFilmEntries.map((title, idx) => (
+          <div key={`freetext-film-${idx}`} className="border-l-2 border-gray-200 pl-2">
+            <div className="font-medium text-gray-900">{title}</div>
+          </div>
+        ))}
         {filmsWithSubjects.map((film, filmIndex) => (
           <div key={filmIndex} className="border-l-2 border-blue-200 pl-2">
             <div className="font-medium">
