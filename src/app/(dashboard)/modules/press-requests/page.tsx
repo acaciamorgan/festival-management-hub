@@ -26,7 +26,7 @@ interface PressRequest {
   screening_date: string | null
   screening_time: string | null
   venue_short_code: string | null
-  status: 'new' | 'requested' | 'fulfilled'
+  status: 'new' | 'requested' | 'fulfilled' | 'declined'
   requested_at: string | null
   fulfilled_at: string | null
   created_at: string
@@ -50,7 +50,7 @@ export default function PressRequestsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<PressRequest | null>(null)
-  const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'requested' | 'fulfilled'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'requested' | 'fulfilled' | 'declined'>('all')
   const [typeFilter, setTypeFilter] = useState<'all' | 'screener_link' | 'screening_ticket'>('all')
   const [accessTypeFilter, setAccessTypeFilter] = useState<'all' | 'tbd' | 'cinesend' | 'link_available' | 'request_link' | 'no_links'>('all')
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'created_at', direction: 'desc' })
@@ -471,6 +471,8 @@ export default function PressRequestsPage() {
         return 'bg-blue-100 text-blue-800'
       case 'fulfilled':
         return 'bg-green-100 text-green-800'
+      case 'declined':
+        return 'bg-red-100 text-red-800'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -492,7 +494,7 @@ export default function PressRequestsPage() {
     try {
       // Filter requests for screener_link type only, excluding fulfilled
       const screenerRequests = requests.filter(
-        r => r.request_type === 'screener_link' && r.status !== 'fulfilled'
+        r => r.request_type === 'screener_link' && r.status !== 'fulfilled' && r.status !== 'declined'
       )
 
       if (screenerRequests.length === 0) {
@@ -799,6 +801,7 @@ export default function PressRequestsPage() {
               <option value="new">New</option>
               <option value="requested">Requested</option>
               <option value="fulfilled">Fulfilled</option>
+              <option value="declined">Declined</option>
             </select>
           </div>
 
@@ -1059,6 +1062,12 @@ export default function PressRequestsPage() {
                                 className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700"
                               >
                                 Fulfilled
+                              </button>
+                              <button
+                                onClick={() => updateRequestStatus(request.id, 'declined')}
+                                className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700"
+                              >
+                                Declined
                               </button>
                             </>
                           )}

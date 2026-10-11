@@ -20,7 +20,7 @@ interface PressRequest {
   screening_date: string | null
   screening_time: string | null
   venue_short_code: string | null
-  status: 'new' | 'requested' | 'fulfilled'
+  status: 'new' | 'requested' | 'fulfilled' | 'declined'
   requested_at: string | null
   fulfilled_at: string | null
   created_at: string
@@ -77,7 +77,7 @@ export function PressRequestFormModal({
     requester_outlet: '',
     requester_email: '',
     request_type: 'screener_link' as 'screener_link' | 'screening_ticket',
-    status: 'new' as 'new' | 'requested' | 'fulfilled'
+    status: 'new' as 'new' | 'requested' | 'fulfilled' | 'declined'
   })
   
   // Press contacts for auto-suggest
@@ -614,6 +614,7 @@ export function PressRequestFormModal({
                     <option value="new">New</option>
                     <option value="requested">Requested</option>
                     <option value="fulfilled">Fulfilled</option>
+                    <option value="declined">Declined</option>
                   </select>
                 </div>
               )}
