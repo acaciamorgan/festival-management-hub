@@ -897,6 +897,7 @@ function ScreeningGrid({ screenings, selectedVenues, venueOrder, getScreeningCol
                       left: `${leftPosition}%`,
                       width: `${widthPercent}%`,
                       minWidth: '60px',
+                      zIndex: isPlaceholder ? 0 : 1,
                       ...(colorInfo.backgroundColor && { backgroundColor: colorInfo.backgroundColor }),
                       ...(colorInfo.backgroundImage && { backgroundImage: colorInfo.backgroundImage })
                     }

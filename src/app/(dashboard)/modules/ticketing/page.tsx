@@ -1177,9 +1177,12 @@ export default function TicketingPage() {
       } else {
         screeningData.film_id = formData.film_id || null
         screeningData.film_type = formData.film_type || null
-        screeningData.is_placeholder = false
-        screeningData.placeholder_label = null
-        screeningData.placeholder_duration = null
+        // placeholder columns only exist on tech_check_screenings
+        if (viewMode === 'tech-checks') {
+          screeningData.is_placeholder = false
+          screeningData.placeholder_label = null
+          screeningData.placeholder_duration = null
+        }
         // run_time and capacity only exist on ticketing base table, not tech_check_screenings
         if (viewMode === 'ticketing') {
           screeningData.run_time = formData.run_time
