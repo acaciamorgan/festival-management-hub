@@ -124,6 +124,15 @@ export default function InterviewManagementPage() {
     runGuestMatching()
   }, [interviews, currentYear])
 
+  // Status counts for counter display
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    interviews.forEach(i => {
+      counts[i.status] = (counts[i.status] || 0) + 1
+    })
+    return counts
+  }, [interviews])
+
   // Filter and search logic
   const filteredInterviews = useMemo(() => {
     return interviews.filter(interview => {
@@ -562,7 +571,29 @@ export default function InterviewManagementPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center">
             <span className="text-2xl mr-3">🎤</span>
-            <h1 className="text-2xl font-semibold text-gray-900">Interview Management</h1>
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">Interview Management</h1>
+              <p className="text-sm text-gray-600 mt-1">
+                {statusFilter !== 'All' || searchTerm ? (
+                  <>{filteredInterviews.length} of {interviews.length} interviews{statusFilter !== 'All' && ` (${statusFilter})`}</>
+                ) : (
+                  <>
+                    {interviews.length} interview requests
+                    {interviews.length > 0 && (
+                      <>
+                        {statusCounts['TBD'] ? ` • ${statusCounts['TBD']} TBD` : ''}
+                        {statusCounts['Pitching'] ? ` • ${statusCounts['Pitching']} Pitching` : ''}
+                        {statusCounts['Subject Pending'] ? ` • ${statusCounts['Subject Pending']} Subject Pending` : ''}
+                        {statusCounts['Scheduled'] ? ` • ${statusCounts['Scheduled']} Scheduled` : ''}
+                        {statusCounts['Film Team'] ? ` • ${statusCounts['Film Team']} Film Team` : ''}
+                        {statusCounts['Complete'] ? ` • ${statusCounts['Complete']} Complete` : ''}
+                        {statusCounts['Declined'] ? ` • ${statusCounts['Declined']} Declined` : ''}
+                      </>
+                    )}
+                  </>
+                )}
+              </p>
+            </div>
           </div>
 
           <div className="hidden md:flex flex-wrap items-center gap-3">
