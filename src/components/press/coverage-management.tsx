@@ -142,6 +142,7 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
           .from('press_coverage_films')
           .select('coverage_id, film_id, film_type')
           .in('coverage_id', coverageIds)
+          .limit(100000)
 
         if (filmTags && filmTags.length > 0) {
           // Load film titles
