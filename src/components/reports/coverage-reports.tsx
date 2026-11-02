@@ -97,12 +97,23 @@ export default function CoverageReports({ availableYears, defaultYear }: Coverag
       // Load film tags
       if (entries.length > 0) {
         const ids = entries.map(e => e.id)
-        const { data: filmTags } = await supabase
-          .from('press_coverage_films')
-          .select('coverage_id, film_id, film_type')
-          .in('coverage_id', ids)
+        // PostgREST caps at 1000 rows — paginate to get all
+        let filmTags: { coverage_id: string, film_id: string, film_type: string }[] = []
+        const PAGE_SIZE = 1000
+        let from = 0
+        while (true) {
+          const { data: page } = await supabase
+            .from('press_coverage_films')
+            .select('coverage_id, film_id, film_type')
+            .in('coverage_id', ids)
+            .range(from, from + PAGE_SIZE - 1)
+          if (!page || page.length === 0) break
+          filmTags = filmTags.concat(page)
+          if (page.length < PAGE_SIZE) break
+          from += PAGE_SIZE
+        }
 
-        if (filmTags && filmTags.length > 0) {
+        if (filmTags.length > 0) {
           const featureIds = filmTags.filter(f => f.film_type === 'feature').map(f => f.film_id)
           const shortIds = filmTags.filter(f => f.film_type === 'short').map(f => f.film_id)
           const spIds = filmTags.filter(f => f.film_type === 'shorts_program').map(f => f.film_id)
