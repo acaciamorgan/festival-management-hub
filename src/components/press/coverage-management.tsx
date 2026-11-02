@@ -138,13 +138,23 @@ export function CoverageManagement({ canEdit }: CoverageManagementProps) {
       // Load film tags for all coverage entries
       if (rows.length > 0) {
         const coverageIds = rows.map(r => r.id)
-        const { data: filmTags } = await supabase
-          .from('press_coverage_films')
-          .select('coverage_id, film_id, film_type')
-          .in('coverage_id', coverageIds)
-          .limit(100000)
+        // PostgREST caps responses at 1000 rows — paginate to get all
+        let filmTags: { coverage_id: string, film_id: string, film_type: string }[] = []
+        const PAGE_SIZE = 1000
+        let from = 0
+        while (true) {
+          const { data: page } = await supabase
+            .from('press_coverage_films')
+            .select('coverage_id, film_id, film_type')
+            .in('coverage_id', coverageIds)
+            .range(from, from + PAGE_SIZE - 1)
+          if (!page || page.length === 0) break
+          filmTags = filmTags.concat(page)
+          if (page.length < PAGE_SIZE) break
+          from += PAGE_SIZE
+        }
 
-        if (filmTags && filmTags.length > 0) {
+        if (filmTags.length > 0) {
           // Load film titles
           const featureIds = filmTags.filter(f => f.film_type === 'feature').map(f => f.film_id)
           const shortIds = filmTags.filter(f => f.film_type === 'short').map(f => f.film_id)
