@@ -1252,6 +1252,74 @@ export default function InAttendancePage() {
                 />
               </label>
             )}
+            {(permissions?.isAdmin || permissions?.isSuperAdmin) && guests.length > 0 && (
+              <button
+                onClick={() => {
+                  const headers = [
+                    'Name', 'Pronouns', 'Role', 'Film/Program Titles', 'Type',
+                    'Arranging Travel', 'Country', 'Confirmation Status', 'Checked In',
+                    'Contact Name', 'Contact Email', 'Contact Info',
+                    'Arrival Date', 'Arrival Airline', 'Arrival Flight Number',
+                    'Inbound Departure Time', 'Arrival Origin Airport', 'Arrival Airport', 'Inbound Arrival Time',
+                    'Departure Date', 'Departure Airline', 'Departure Flight Number',
+                    'Outbound Departure Time', 'Departure Airport', 'Destination Airport', 'Outbound Arrival Time',
+                    'Hotel Name', 'Hotel Address', 'Hotel Confirmation Number',
+                    'Jury Name', 'Notes',
+                  ]
+                  const escapeCSV = (val: string) => {
+                    if (val.includes(',') || val.includes('"') || val.includes('\n'))
+                      return `"${val.replace(/"/g, '""')}"`
+                    return val
+                  }
+                  const rows = guests.map(guest => [
+                    guest.name || '',
+                    guest.pronouns || '',
+                    guest.role || '',
+                    guest.films_display || '',
+                    guest.guest_type || '',
+                    guest.arranging_travel || '',
+                    guest.country || '',
+                    guest.confirmation_status || '',
+                    guest.checked_in ? 'Yes' : 'No',
+                    guest.contact_name || '',
+                    guest.contact_email || '',
+                    guest.contact_info || '',
+                    guest.arrival_date || '',
+                    guest.arrival_airline || '',
+                    guest.arrival_flight_number || '',
+                    guest.inbound_departure_time || '',
+                    guest.arrival_origin_airport || '',
+                    guest.arrival_airport || '',
+                    guest.inbound_arrival_time || '',
+                    guest.departure_date || '',
+                    guest.departure_airline || '',
+                    guest.departure_flight_number || '',
+                    guest.outbound_departure_time || '',
+                    guest.departure_airport || '',
+                    guest.destination_airport || '',
+                    guest.outbound_arrival_time || '',
+                    guest.hotel_name || '',
+                    guest.hotel_address || '',
+                    guest.hotel_confirmation_number || '',
+                    guest.jury_name || '',
+                    guest.notes || '',
+                  ].map(v => escapeCSV(String(v))).join(','))
+                  const csvContent = headers.join(',') + '\n' + rows.join('\n')
+                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+                  const url = URL.createObjectURL(blob)
+                  const link = document.createElement('a')
+                  link.href = url
+                  link.download = `guests_export_${currentYear}.csv`
+                  document.body.appendChild(link)
+                  link.click()
+                  document.body.removeChild(link)
+                  URL.revokeObjectURL(url)
+                }}
+                className="px-4 py-2 rounded-md transition-colors font-medium bg-teal-600 hover:bg-teal-700 text-white"
+              >
+                Export Guests
+              </button>
+            )}
             {uploadStatus && (
               <span className="text-sm text-gray-600">{uploadStatus}</span>
             )}

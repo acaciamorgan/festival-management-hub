@@ -380,7 +380,54 @@ export default function VenueManagementPage() {
             <h1 className="text-2xl font-semibold text-gray-900">Venue Management</h1>
           </div>
           
-          <div className="hidden md:block">
+          <div className="hidden md:flex flex-wrap items-center gap-3">
+            {(permissions?.isAdmin || permissions?.isSuperAdmin) && venues.length > 0 && (
+              <button
+                onClick={() => {
+                  const headers = ['Name', 'Address', 'Type', 'Accessibility', 'Contact Names', 'Contact Emails', 'Contact Phones', 'Houses']
+                  const rows = venues.map(venue => {
+                    const housesStr = venue.venue_type === 'Movie Theater' && venue.houses.length > 0
+                      ? venue.houses
+                          .sort((a, b) => {
+                            const numA = parseInt(a.house_name.match(/\d+/)?.[0] || '0')
+                            const numB = parseInt(b.house_name.match(/\d+/)?.[0] || '0')
+                            return numA - numB
+                          })
+                          .map(h => `${h.house_name}${h.short_code ? ` (${h.short_code})` : ''}: ${h.seat_count} seats`)
+                          .join(' | ')
+                      : ''
+                    return [
+                      venue.name,
+                      venue.address,
+                      venue.venue_type,
+                      venue.accessibility || '',
+                      (venue.contact_names || []).join(' | '),
+                      (venue.contact_emails || []).join(' | '),
+                      (venue.contact_phones || []).join(' | '),
+                      housesStr,
+                    ].map(val => {
+                      const str = String(val)
+                      return str.includes(',') || str.includes('"') || str.includes('\n')
+                        ? `"${str.replace(/"/g, '""')}"`
+                        : str
+                    }).join(',')
+                  })
+                  const csvContent = headers.join(',') + '\n' + rows.join('\n')
+                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+                  const url = URL.createObjectURL(blob)
+                  const link = document.createElement('a')
+                  link.href = url
+                  link.download = `venues_export_${currentYear}.csv`
+                  document.body.appendChild(link)
+                  link.click()
+                  document.body.removeChild(link)
+                  URL.revokeObjectURL(url)
+                }}
+                className="px-4 py-2 rounded-md transition-colors font-medium bg-teal-600 hover:bg-teal-700 text-white"
+              >
+                Export Venues
+              </button>
+            )}
             {canEditVenues && (
               <button
                 onClick={() => setShowAddModal(true)}
